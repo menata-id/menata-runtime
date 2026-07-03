@@ -14,15 +14,11 @@ However, Business Knowledge alone does not become software.
 
 Applications must be realized.
 
-Menus.
-
 Pages.
 
 Navigation.
 
 Forms.
-
-Lists.
 
 Dashboards.
 
@@ -38,13 +34,17 @@ Scheduling.
 
 Integrations.
 
+Search.
+
+APIs.
+
 These concerns belong to the runtime.
 
 **Menata Runtime exists to realize Business Knowledge as living applications.**
 
 Applications are not manually programmed.
 
-Applications are realized through runtime interpretation.
+Applications are interpreted from Runtime Metadata.
 
 Applications evolve because Business Knowledge evolves.
 
@@ -54,7 +54,7 @@ Applications evolve because Business Knowledge evolves.
 >
 > Menata Runtime is an active research project.
 >
-> The runtime architecture, runtime language, metadata model, and application engine are evolving continuously.
+> Runtime architecture, Runtime Language, Runtime Metadata, and the application engine are evolving continuously.
 >
 > Breaking changes are expected before version **1.0**.
 
@@ -62,29 +62,29 @@ Applications evolve because Business Knowledge evolves.
 
 # Why Menata Runtime?
 
-Organizations continuously develop new Business Knowledge.
+Organizations continuously create new Business Knowledge.
 
-Unfortunately, software rarely evolves at the same speed.
+Unfortunately, software rarely evolves at the same pace.
 
 Every business change usually requires:
 
 - redesign,
-- programming,
+- implementation,
 - testing,
 - deployment,
 - maintenance.
 
 Over time, organizations accumulate far more Business Knowledge than they can realistically implement as software.
 
-The challenge is no longer capturing Business Knowledge.
+The problem is no longer capturing Business Knowledge.
 
-The challenge is realizing Business Knowledge quickly, consistently, and sustainably.
+The problem is realizing Business Knowledge into working applications.
 
 Menata Runtime exists to solve that problem.
 
-Instead of manually developing every application, platform builders describe application intent.
+Instead of manually building every application, Runtime Metadata describes application intent.
 
-The runtime realizes that intent into living applications.
+The runtime continuously realizes that metadata into living applications.
 
 ---
 
@@ -98,17 +98,19 @@ Business should drive software.
 
 Not the other way around.
 
-Applications should:
+The runtime should:
 
-- evolve continuously,
+- continuously realize Business Knowledge,
+- minimize handwritten application code,
+- maximize metadata reuse,
 - remain independent from implementation technology,
-- minimize manual programming,
-- maximize reuse,
-- become long-term organizational assets.
+- evolve without requiring applications to be rewritten.
+
+Business Knowledge remains stable.
 
 The runtime evolves.
 
-Business Knowledge remains stable.
+Applications continuously evolve.
 
 ---
 
@@ -124,19 +126,42 @@ Business Knowledge
 Menata Language
         │
         ▼
-Menata Runtime
+──────────────────────────────
+Authoring Layer
+──────────────────────────────
+
+Menata Apps Builder
+Visual Builder
+CLI
+Manual Editor
+Any Compatible Tool
+
         │
         ▼
+
+Runtime Metadata
+
+──────────────────────────────
+Runtime Layer
+──────────────────────────────
+
+Menata Runtime
+
+        │
+        ▼
+
 Applications
 ```
 
-Business Reality is where organizations operate.
+Business Reality explains what actually happens.
 
-Business Knowledge explains that reality.
+Business Knowledge explains why it happens.
 
 Menata Language formally expresses Business Knowledge.
 
-Menata Runtime realizes Business Knowledge into executable applications.
+Runtime Metadata expresses how applications should be realized.
+
+Menata Runtime realizes Runtime Metadata into executable applications.
 
 ---
 
@@ -144,7 +169,7 @@ Menata Runtime realizes Business Knowledge into executable applications.
 
 Menata Runtime is a metadata-driven application runtime.
 
-It interprets Business Knowledge and runtime metadata into complete applications.
+It interprets Runtime Metadata into complete applications.
 
 A running application may include:
 
@@ -154,59 +179,71 @@ A running application may include:
 - dashboards,
 - workflows,
 - navigation,
+- menus,
 - APIs,
 - background jobs,
-- AI capabilities,
 - notifications,
 - authentication,
 - authorization,
+- search,
 - integrations,
-- and many other platform services.
+- platform services.
 
-Applications are interpreted rather than generated.
+Applications are interpreted.
+
+Applications are not generated.
+
+Runtime Metadata plays a role similar to HTML in a web browser.
+
+The runtime does not care how Runtime Metadata was created.
 
 ---
 
-# Runtime Language
+# Runtime Metadata
 
-Menata Runtime introduces Runtime Language.
+Runtime Metadata describes application realization.
 
-Menata Language answers:
+It is designed primarily for deterministic machine interpretation.
 
-> **What does the business know?**
+Runtime Metadata may be produced by:
 
-Runtime Language answers:
+- Menata Apps Builder,
+- Visual Builders,
+- Command-line tools,
+- Manual editors,
+- AI-assisted tools,
+- Any compatible implementation.
 
-> **How should that knowledge become an application?**
+Menata Runtime only interprets Runtime Metadata.
 
-Platform builders describe application intent.
-
-The runtime realizes that intent.
-
-Business Knowledge remains implementation independent.
+It never depends on how the metadata was authored.
 
 ---
 
 # Metadata-Driven Applications
 
-Applications are described by metadata instead of handwritten application source code.
+Applications are described by Runtime Metadata rather than handwritten application source code.
 
-Changing metadata changes applications.
+Changing Runtime Metadata changes applications.
 
-No regeneration is required.
+No code generation is required.
 
 No scaffolding is required.
 
-No duplicated CRUD code is required.
+No duplicated CRUD implementation is required.
 
-A single runtime may host:
+A single runtime may realize:
 
 - one application,
 - dozens of applications,
 - hundreds of applications,
 - thousands of applications.
 
-Every application lives inside the same runtime.
+All applications live inside the same runtime.
+
+Applications are isolated by metadata.
+
+Not by runtime instances.
 
 ---
 
@@ -214,173 +251,118 @@ Every application lives inside the same runtime.
 
 Menata Runtime is responsible for:
 
-- interpreting Menata Language,
-- interpreting Runtime Language,
-- realizing Business Knowledge,
+- interpreting Runtime Metadata,
+- realizing applications,
 - application lifecycle,
-- page rendering,
 - routing,
 - navigation,
+- rendering,
 - authentication,
 - authorization,
 - event execution,
 - constraint enforcement,
-- notifications,
-- scheduling,
 - search,
+- scheduling,
+- notifications,
 - API exposure,
-- AI integration,
 - application hosting,
 - platform services.
 
-Business Knowledge remains independent from these implementation concerns.
+Business Knowledge remains independent from runtime implementation.
 
 ---
 
 # Design Principles
 
-Menata Runtime is designed around the following principles.
+Menata Runtime is built upon the following principles.
 
-## Metadata First
+## Core Principles
 
-Applications are defined by metadata.
+- Machine First
+- Runtime First
+- Metadata First
+- Declarative
 
-Not by handwritten source code.
+## Architecture Principles
 
----
+- Convention over Configuration
+- Infer Before Configure
+- Composable
+- Reference over Duplication
+- Workspace Isolation
 
-## Runtime Interpretation
+## Evolution Principles
 
-Applications are interpreted.
+- Live Evolution
+- Data Preservation
+- Long-term Compatibility
+- Technology Adaptable
 
-Not generated.
+## Platform Principles
 
----
+- Open Platform
+- Extensible Runtime
+- Single Runtime
 
-## Declarative
+## Vision
 
-Platform builders describe intent.
+Applications evolve at the pace of Business Knowledge.
 
-The runtime determines implementation.
+The complete rationale is available in:
 
----
-
-## Platform First
-
-Business Knowledge remains independent.
-
-The runtime owns implementation.
-
----
-
-## Convention over Configuration
-
-The runtime should infer as much as possible.
-
-Configuration should only exist where inference is impossible.
-
----
-
-## Infer Before Configure
-
-Reasonable defaults should eliminate repetitive configuration.
-
-Platform builders should only describe exceptions.
-
----
-
-## Composable
-
-Applications are assembled from reusable metadata.
-
-Nothing should require duplication.
-
----
-
-## Runtime Native
-
-Applications live inside the runtime.
-
-The runtime owns their lifecycle.
-
----
-
-## Live Evolution
-
-Applications evolve continuously.
-
-Changing metadata changes applications.
-
----
-
-## Technology Adaptable
-
-Business Knowledge should outlive technology.
-
-Renderers may change.
-
-Business Knowledge should not.
-
----
-
-## AI Ready
-
-Metadata should be understandable by both humans and AI.
-
-AI should assist in creating, evolving, and optimizing applications.
-
----
-
-## Open Platform
-
-The runtime should remain extensible.
-
-New platform capabilities should not require changes to Business Knowledge.
-
----
-
-## Long-term Compatibility
-
-Business Knowledge should remain stable across runtime generations.
+`design-principles.md`
 
 ---
 
 # Long-term Vision
 
-Applications should evolve at the pace of Business Knowledge.
+Menata Runtime aims to become a universal metadata-driven application runtime.
 
-A single runtime should host one application or thousands of applications.
+A single runtime should realize one application or thousands of independent applications.
 
-Platform builders should describe application intent instead of implementation.
+Applications should continuously evolve without rewriting application source code.
 
-Applications should continuously evolve without rewriting source code.
+Business Knowledge should remain stable.
 
-As technologies evolve, only the runtime evolves.
+Runtime Metadata should evolve.
 
-Business Knowledge remains stable.
+The runtime should evolve.
 
-Applications become living representations of organizational knowledge.
+Applications should continuously reflect Business Knowledge.
 
 ---
 
 # The Menata Ecosystem
 
-The Menata ecosystem is expected to include:
+The Menata ecosystem consists of independent open-source projects.
 
-- Menata Language
-- Menata Runtime
-- Menata Apps Builder
-- AI-assisted Platform Builder
-- CLI
-- Development Tools
-- Cloud Services
-- Reference Applications
+## Menata
 
-Each component has a different responsibility.
+Business Knowledge Language.
 
-Business Knowledge comes first.
+Designed for humans.
 
-Everything else exists to realize that knowledge.
+Defines Business Knowledge.
+
+## Menata Runtime
+
+Application Runtime.
+
+Designed for machines.
+
+Realizes Runtime Metadata into applications.
+
+## Menata Apps Builder
+
+Application Builder.
+
+Designed for platform builders.
+
+Produces Runtime Metadata.
+
+The runtime does not depend on Menata Apps Builder.
+
+Any tool capable of producing compatible Runtime Metadata can be used.
 
 ---
 
@@ -388,14 +370,14 @@ Everything else exists to realize that knowledge.
 
 Menata Runtime is currently focused on:
 
-- runtime architecture,
-- runtime language,
-- metadata-driven applications,
-- application engine,
-- platform services,
-- AI-assisted application development.
+- Runtime Architecture,
+- Runtime Language,
+- Runtime Metadata,
+- Metadata-driven Applications,
+- Application Engine,
+- Platform Services.
 
-Ideas, discussions, critiques, implementation strategies, architectural proposals, and academic references are highly appreciated.
+Ideas, discussions, critiques, implementation strategies, architectural proposals, and research references are highly appreciated.
 
 ---
 
