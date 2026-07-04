@@ -242,24 +242,22 @@ All four studies of the initial work plan are done (2026-07-04). Ongoing operati
 
 Phase 1 benchmarked **single-machine** capability. Phase 2 asks the questions that only appear when capabilities compose: across domains, across applications, across workspaces — and closes with governance for capability growth itself.
 
-## Study 5 — Portal GA Cross-Domain Benchmark
+## Study 5 — Portal GA Cross-Domain Benchmark ✅ done (2026-07-04)
 
-Benchmark against a real production system: Portal GA v3 (35 domains, DDD/CQRS, Go+Templ+HTMX — the same stack family as the prototype). Three angles:
-
-1. **Input patterns** — forms, multi-step wizards, photo/file upload flows, HTMX partial interaction.
-2. **Cross-domain integration patterns** — ADR-0012 Pattern A (cron batch) / B (direct call via interface) / C (domain events); PICA→AAR→Improvement universal flow; consumer-driven contracts.
-3. **Cross-domain information display** — dashboards composing sections from many domains, email digest composition, snapshot sections reuse.
-
-**Sources (portal-ga3 repo):** `README`/`CLAUDE.md`, `docs/explanation/strategy/domain-integration/01-CONSTITUTIONAL-BRD.md`, `02-IMPLEMENTATION-GUIDE.md`, appendices (Context Map Matrix, Canonical Event Schema, Consumer Contract Registry), `ADR-0012`.
-
-**Key question:** can Menata express integration *between* machines/applications as metadata (events, contracts, composed views) — or does this require a new Grammar?
+Benchmark against a real production system: Portal GA v3 (35 domains, DDD/CQRS, Go+Templ+HTMX — the same stack family as the prototype). Three angles: input patterns, cross-domain integration (ADR-0012 A/B/C, PICA→AAR, consumer contracts), cross-domain information display.
 
 **Deliverables:**
-- [ ] `benchmarks/portal-ga-cross-domain-survey.md` — pattern inventory mapped to Menata concepts
-- [ ] New registry entries for cross-domain capabilities (domain events, integration contracts, composed dashboard views)
-- [ ] Position statement: integration as existing Grammar composition vs new Grammar proposal
+- [x] `benchmarks/portal-ga-cross-domain-survey.md` — three-angle inventory mapped to Menata concepts
+- [x] New registry entries — 9 capabilities (registry v0.3): new **Cross-Machine Integration** area (CAP-I01…I05) + CAP-X09 organizational scoping + CAP-V10/V11/V12 (composed dashboard, channel-independent rendering, wizard forms)
+- [x] Position statement — **no new Language Grammar needed** (cross-machine events fit the existing Event grammar's "sources"); Runtime Metadata needs a new **Integration** section (subscriptions, contracts, event schemas); dispatcher error-isolation semantics are constitutional runtime requirements
 
-## Study 6 — Accounting Vertical Benchmark (Odoo / ERPNext)
+**Headline findings:**
+- ADR-0012 Patterns A and B compose from already-registered capabilities; **Pattern C (domain events) is the genuinely new metadata concept** — CAP-I01.
+- Portal GA already maintains integration knowledge as YAML documents (event catalog ~65 events, 22 contracts, context map 47 entries) kept true by humans + CI fitness functions — the strongest evidence yet that a metadata-driven runtime can make these documents *the executable system itself*.
+- **CAP-X09 organizational scoping** — Menata records have no org-unit/period dimension at all; Portal GA's RULE #11/#12 show this dimension pervades records, queries, permissions, and timezones.
+- PICA-style canonical shared machines → composition-governance input for Study 7; constitutional stack (fitness functions, ARB, living registries) → reference implementation input for Study 9.
+
+## Study 6 — Accounting Vertical Benchmark (Odoo / ERPNext) ⏳ next
 
 Deep vertical benchmark: accounting, tax, financial reporting, data visualization — against Odoo Accounting and ERPNext (Frappe) accounting modules.
 

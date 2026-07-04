@@ -5,12 +5,13 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.2 — Study 1 seeding + Study 2 platform survey additions | Updated: 2026-07-04
+> Status: v0.3 — + Study 5 Portal GA cross-domain additions | Updated: 2026-07-04
 
 Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 gaps P1–P6
 (`prototype/go/docs/examples/README.md`), Study 1 pattern mapping
-(`benchmarks/workflow-patterns-mapping.md`), and Study 2 platform survey
-(`benchmarks/platform-capability-survey.md`).
+(`benchmarks/workflow-patterns-mapping.md`), Study 2 platform survey
+(`benchmarks/platform-capability-survey.md`), and Study 5 Portal GA survey
+(`benchmarks/portal-ga-cross-domain-survey.md`).
 
 **Status** reflects the Go prototype runtime: ✅ supported · ⚠️ partial · ❌ not yet.
 **Prio** is the global implementation ordering (blank = supported or not yet prioritized).
@@ -103,6 +104,9 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-V07 | `dashboard` / `calendar` / `timeline` views | ❌ | schema doc | — | 15 | — |
 | CAP-V08 | List search & filter | ❌ | Study 2 survey | universal (6/6 platforms) | 8 | — |
 | CAP-V09 | Declarative view-level filter (Due Today, Overdue Tasks) | ❌ | Case 4 [UNTARGETED FINDING] | — | 8 | view `filter` block in metadata |
+| CAP-V10 | Composed dashboard view (sections sourcing multiple machines) | ❌ | Study 5 Portal GA | 9 shared DigestSections | 12 | — |
+| CAP-V11 | Channel-independent view rendering (web + email from one section) | ❌ | Study 5 Portal GA | ADH email digest reuse | 14 | — |
+| CAP-V12 | Multi-step form (wizard) view | ❌ | Study 5 Portal GA | HIRADC wizard | 11 | — |
 
 ## Record Lifecycle
 
@@ -127,6 +131,17 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-X06 | Workspace isolation in routing/authz | ⚠️ | prototype design | — | 15 | loaded but not enforced anywhere |
 | CAP-X07 | Auto-generated REST API per machine | ❌ | Study 2 survey | 5/6 platforms | 10 | — |
 | CAP-X08 | Metadata package export/import (portable app definition) | ❌ | Study 2 survey | universal (6/6 platforms) | 9 | today: hand-written SQL seeds; blocks "one knowledge, many runtimes" operationally |
+| CAP-X09 | Organizational unit scoping (org dimension on records, permissions, selectors, per-unit timezone) | ❌ | Study 5 Portal GA | BranchPeriodSelector + timezone rules | 6 | records today have no org context at all |
+
+## Cross-Machine Integration
+
+| ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
+|----|-----------|--------|---------------|-------------|------|-------|
+| CAP-I01 | Cross-machine event subscription (Pattern C as metadata) | ❌ | Study 5 Portal GA | ADR-0012 Pattern C, 52 subscriptions in Context Map | 5 | dispatcher must be born with the 4 error-isolation rules |
+| CAP-I02 | Event schema declaration (versioned payload, category, deprecation) | ❌ | Study 5 Portal GA | Canonical Event Schema (~65 events) | 7 | — |
+| CAP-I03 | Integration contract (consumer expectations + on-violation behavior) | ❌ | Study 5 Portal GA | Consumer Contract Registry (22 contracts) | 9 | boundary constraint — same family as Constraint grammar |
+| CAP-I04 | Correlation trace + integration observability (correlation_id, SLO) | ❌ | Study 5 Portal GA | BRD R17.1, SLO registry | 10 | — |
+| CAP-I05 | Cross-cutting contribution declaration on events (weights to gamification/KPI machines) | ❌ | Study 5 Portal GA | BRD §10 Contribution Law | 13 | — |
 
 ---
 
