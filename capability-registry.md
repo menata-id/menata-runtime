@@ -5,13 +5,14 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.3 — + Study 5 Portal GA cross-domain additions | Updated: 2026-07-04
+> Status: v0.4 — + Study 6 accounting vertical additions | Updated: 2026-07-04
 
 Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 gaps P1–P6
 (`prototype/go/docs/examples/README.md`), Study 1 pattern mapping
 (`benchmarks/workflow-patterns-mapping.md`), Study 2 platform survey
-(`benchmarks/platform-capability-survey.md`), and Study 5 Portal GA survey
-(`benchmarks/portal-ga-cross-domain-survey.md`).
+(`benchmarks/platform-capability-survey.md`), Study 5 Portal GA survey
+(`benchmarks/portal-ga-cross-domain-survey.md`), and Study 6 accounting vertical survey
+(`benchmarks/accounting-vertical-survey.md`).
 
 **Status** reflects the Go prototype runtime: ✅ supported · ⚠️ partial · ❌ not yet.
 **Prio** is the global implementation ordering (blank = supported or not yet prioritized).
@@ -33,9 +34,12 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-F08 | `money` field | ⚠️ | schema doc | — | 10 | same fallback |
 | CAP-F09 | `boolean` field | ⚠️ | schema doc | — | 10 | same fallback |
 | CAP-F10 | `time` / `date_time` / `duration` fields | ⚠️ | schema doc | — | 10 | same fallback |
-| CAP-F13 | `reference` field (link to another machine) | ❌ | Case 3 (P1) | WCP-2/13/14, WRP-3 | **1** | — |
-| CAP-F14 | Computed / formula field | ❌ | Study 2 survey | Salesforce formula, Frappe | 13 | — |
+| CAP-F13 | `reference` field (link to another machine) | ❌ | Case 3 (P1) | WCP-2/13/14, WRP-3 | **1** | includes tree/hierarchy option (self-reference + rollup — COA, Study 6) |
+| CAP-F14 | Computed / formula field | ❌ | Study 2 survey | Salesforce formula, Frappe | 13 | design req: derived line generation (tax templates, Study 6) |
 | CAP-F15 | Field default values (beyond status first-value) | ⚠️ | Study 2 survey | universal (6/6 platforms) | 8 | status default works; other fields have none |
+| CAP-F16 | Line items / child table inside a record (header-detail document) | ❌ | Study 6 accounting | Odoo One2many, Frappe Table — universal to document apps | **3** | joins CAP-F13 atop the structural queue |
+| CAP-F17 | Multi-currency money (transaction currency + rate + base mirror) | ❌ | Study 6 accounting | Odoo/ERPNext | 14 | — |
+| CAP-F18 | Auto-numbering / document sequences | ❌ | Study 6 accounting | ir.sequence, Naming Series — universal | 7 | Study 2 missed it |
 
 ## Event Sources
 
@@ -79,6 +83,8 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-C07 | Cross-field comparison (End Date after Start Date) | ❌ | Study 1 mapping | — | 10 | — |
 | CAP-C08 | Cross-record constraint (one request per employee per day) | ❌ | spec 004 + mapping | — | 14 | — |
 | CAP-C09 | **Constraints evaluated on event trigger** (today: Create only) | ❌ | **Study 1 mapping** | WDP-38 | **2** | — |
+| CAP-C10 | Aggregate constraint over line items (sum(debit) = sum(credit)) | ❌ | Study 6 accounting | double-entry invariant | 7 | depends on CAP-F16 |
+| CAP-C11 | Temporal period constraint (no posting into closed period) | ❌ | Study 6 accounting | lock dates, Period Closing Voucher | 10 | — |
 
 ## Permissions
 
@@ -107,6 +113,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-V10 | Composed dashboard view (sections sourcing multiple machines) | ❌ | Study 5 Portal GA | 9 shared DigestSections | 12 | — |
 | CAP-V11 | Channel-independent view rendering (web + email from one section) | ❌ | Study 5 Portal GA | ADH email digest reuse | 14 | — |
 | CAP-V12 | Multi-step form (wizard) view | ❌ | Study 5 Portal GA | HIRADC wizard | 11 | — |
+| CAP-V13 | Aggregate report view (group-by, hierarchy rollup, period compare, running balance) | ❌ | Study 6 accounting | Trial Balance, P&L, GL | 9 | the report class every vertical needs |
 
 ## Record Lifecycle
 
@@ -118,6 +125,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-R04 | Event audit log (record_events, snapshot before mutation) | ⚠️ | Case 1 | — | 9 | logged to DB; no UI to view history |
 | CAP-R05 | Pagination on list views | ❌ | Study 1 code check | — | 11 | — |
 | CAP-R06 | Data import/export (CSV) | ❌ | Study 2 survey | 5/6 platforms | 12 | — |
+| CAP-R07 | Record immutability after state (posted/submitted frozen; amend-via-new-version) | ❌ | Study 6 accounting + Case 6 declaration | docstatus model | 6 | stronger than CAP-E06 — guards edits, not just events |
 
 ## Cross-Cutting
 

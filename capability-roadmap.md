@@ -257,20 +257,21 @@ Benchmark against a real production system: Portal GA v3 (35 domains, DDD/CQRS, 
 - **CAP-X09 organizational scoping** — Menata records have no org-unit/period dimension at all; Portal GA's RULE #11/#12 show this dimension pervades records, queries, permissions, and timezones.
 - PICA-style canonical shared machines → composition-governance input for Study 7; constitutional stack (fitness functions, ARB, living registries) → reference implementation input for Study 9.
 
-## Study 6 — Accounting Vertical Benchmark (Odoo / ERPNext) ⏳ next
+## Study 6 — Accounting Vertical Benchmark (Odoo / ERPNext) ✅ done (2026-07-04)
 
 Deep vertical benchmark: accounting, tax, financial reporting, data visualization — against Odoo Accounting and ERPNext (Frappe) accounting modules.
 
-Scope of survey: chart of accounts, journal entries, **double-entry invariants** (debit = credit — a constraint class Menata has never seen), tax rules and computation, fiscal periods and closing (immutability-after-state), financial reports (trial balance, balance sheet, P&L), drill-down visualization.
-
-**Key question:** where is the boundary between metadata-expressible accounting and what needs a domain engine? Odoo/ERPNext answer this with code; how much can Menata answer with metadata?
-
 **Deliverables:**
-- [ ] `benchmarks/accounting-vertical-survey.md` — Odoo/ERPNext capability inventory vs Menata registry
-- [ ] Case 9 (Accounting) target declaration in `case-portfolio.md`
-- [ ] New registry entries (multi-record invariant constraints, computed aggregation, report/visualization views, period-close immutability)
+- [x] `benchmarks/accounting-vertical-survey.md` — Odoo/ERPNext structural inventory (12 concepts) vs Menata registry
+- [x] Case 9 (Accounting) target declaration in `case-portfolio.md` — F16, C10, E06+R07, C11, F18, V13, A02; posting derivation & reconciliation deliberately out of scope
+- [x] New registry entries — 7 capabilities (registry v0.4): CAP-F16 line items/child table, CAP-F17 multi-currency, CAP-F18 auto-numbering, CAP-C10 aggregate line constraint, CAP-C11 period lock, CAP-R07 immutability-after-state, CAP-V13 aggregate report view
 
-## Study 7 — Organization-Wide Composite Integration
+**Headline findings:**
+- **CAP-F16 (line items / header-detail documents)** is the biggest structural gap after references — together F13+F16 separate "form apps" from "document apps"; every ERP document needs both.
+- Boundary answer: documents, invariants, lifecycle, and reports are metadata-expressible (ERPNext proves tax templates, COA trees, naming series, dashboard charts as pure metadata). **Posting derivation engines are not** — multi-step conditional derivation is where metadata would degenerate into a programming language. Resolution: domain engines as pluggable executor extensions beneath declarative metadata → sharpens Study 9's extension-architecture requirement.
+- CAP-F18 (auto-numbering) is universal across platforms — a table-stakes capability Study 2 missed; case+benchmark dual-evidence now satisfied.
+
+## Study 7 — Organization-Wide Composite Integration ⏳ next
 
 Compose **all prior cases as one organization**: general domains (Cases 1–8) + specific domains (Portal GA patterns from Study 5, accounting from Study 6) — shared users and roles across applications, cross-application references, org-wide dashboards and notifications.
 
