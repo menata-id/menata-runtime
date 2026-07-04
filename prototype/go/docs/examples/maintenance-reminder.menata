@@ -1,0 +1,73 @@
+# Maintenance Reminder
+# Example Business Knowledge expressed in Menata Language
+# Domain: Facility — recurring equipment maintenance with overdue escalation
+# Case 4 of the Case Portfolio (runtime/case-portfolio.md)
+
+Maintenance Task
+
+Fields
+
+- Equipment : Text
+- Frequency : Daily | Weekly | Monthly
+- Next Due Date : Date
+- Assignee : User
+- Supervisor : User
+- Last Completed : Date
+- Completion Notes : Rich Text
+
+Events
+
+When Complete
+
+    Status Completed
+
+    Last Completed Today
+
+    Next Due Date advance by Frequency
+
+    Status Scheduled
+
+Every Day 07:00
+
+    if Next Due Date = Today
+
+        Status Due
+
+        Notify Assignee
+
+Every Day 07:00
+
+    if Next Due Date < Today
+
+    if Status = Due
+
+        Status Overdue
+
+        Notify Supervisor
+
+Constraints
+
+- Equipment is required.
+- Frequency is required.
+- Next Due Date is required.
+- Completion Notes is required.
+
+    if Status = Overdue
+
+Permissions
+
+Technician
+
+- Complete
+
+Supervisor
+
+- Complete
+
+Views
+
+- Task Form : Form
+- My Tasks : List
+- Due Today : List
+- Overdue Tasks : List
+- Task Detail : Detail

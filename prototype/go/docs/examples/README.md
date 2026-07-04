@@ -1,6 +1,6 @@
 # Metadata Examples
 
-Three cases documented here. Cases 1 and 2 run fully on the current prototype. Case 3 is documented as a boundary test — showing what Business Knowledge looks like for a complex domain, and where the current runtime needs to be extended.
+Four cases documented here. Cases 1 and 2 run fully on the current prototype. Cases 3 and 4 are boundary tests — showing what Business Knowledge looks like for complex domains, and where the current runtime needs to be extended. Case selection follows `runtime/case-portfolio.md`.
 
 ## How to read these files
 
@@ -168,7 +168,44 @@ The gaps above map to concrete runtime extensions, in priority order:
 
 ---
 
-## What all three cases prove together
+## Case 4 — Maintenance Reminder
+
+**Domain:** Facility — recurring equipment maintenance with overdue escalation
+**Application:** Facility
+**Roles:** Technician, Supervisor
+**Seed:** — (pending time-driven event support)
+**Status:** ⚠️ Documented boundary test — first portfolio-driven case (targets declared before writing, see `runtime/case-portfolio.md`)
+
+```
+maintenance-reminder.menata    Menata Language source
+maintenance-reminder.yaml      Runtime Metadata + inline gap annotations
+```
+
+**Workflow:**
+```
+Task scheduled with Frequency (Daily | Weekly | Monthly) and Next Due Date
+    ↓
+Every Day 07:00: Next Due Date = Today → Status: Due → notify Assignee
+    ↓
+Every Day 07:00: still Due past date → Status: Overdue → notify Supervisor (escalation)
+    ↓
+Complete → stamp Last Completed = today → advance Next Due Date by Frequency → back to Scheduled
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| Time-driven events (CAP-E02) | confirmed gap — no `trigger` block in schema |
+| Event conditions (CAP-A09) | confirmed gap — including compound AND conditions |
+| Environment data `today` (CAP-A02) | confirmed gap |
+| Dynamic notify recipient (CAP-A04) | confirmed gap — escalation needs record's Supervisor |
+| Date arithmetic | **[UNTARGETED FINDING]** → registered as CAP-A11 |
+| Declarative view filter (Due Today list) | **[UNTARGETED FINDING]** → registered as CAP-V09 |
+
+---
+
+## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |
 |------------|--------|--------|--------|

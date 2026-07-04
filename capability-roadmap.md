@@ -202,15 +202,19 @@ Consolidate what the 6 platform prototypes already documented: which capabilitie
 - Frappe's DocType is the closest architectural model — the gap list ≈ distance between Menata Machine and DocType.
 - DMN is the proven growth path for the constraint engine.
 
-## Study 3 — Case Portfolio Design ⏳ next
+## Study 3 — Case Portfolio Design ✅ done (2026-07-04)
 
 Formalize the 8-case portfolio; define target patterns per case before writing it.
 
 **Deliverables:**
-- [ ] `case-portfolio.md` (Artifact 3)
-- [ ] Case 4 (Scheduling) written as the first portfolio-driven case
+- [x] `case-portfolio.md` (Artifact 3) — 8 cases with declared targets per case (Cases 5–8 targets pre-declared: inventory, ledger, complaint, payment webhook)
+- [x] Case 4 (Maintenance Reminder) written as the first portfolio-driven case — `prototype/go/docs/examples/maintenance-reminder.{menata,yaml}`
 
-## Study 4 — Conformance Harness
+**Headline findings:**
+- Declare-targets-first works: Case 4 confirmed all 4 declared gaps (E02, A09, A02, A04) **and** surfaced 2 untargeted findings — CAP-A11 (date arithmetic in actions) and CAP-V09 (declarative view-level filter).
+- Registry now at 55 capabilities (v0.2 + Case 4 additions).
+
+## Study 4 — Conformance Harness ⏳ next
 
 Formalize executable verification so ✅ capabilities cannot silently regress.
 

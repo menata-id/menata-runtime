@@ -64,6 +64,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-A08 | `aggregate_status` (parent rollup: all-approved / any-rejected / cancel cascade) | ❌ | Case 3 (P3) | WCP-3/9/19/20 | 4 | — |
 | CAP-A09 | Conditional actions (`if` inside events) | ❌ | spec 003 + mapping | WCP-4/6, WDP-39 | 7 | — |
 | CAP-A10 | Notification delivery channels (email, in-app) | ❌ | Study 2 survey | universal (6/6 platforms) | 5 | prerequisite for CAP-A03 being real |
+| CAP-A11 | Date arithmetic in actions (advance by frequency, `+ 1 Month`) | ❌ | Case 4 [UNTARGETED FINDING] | spec 003 date events (`Due Date - 1 Day`) | 7 | — |
 
 ## Constraints
 
@@ -73,7 +74,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-C02 | `after: today` operator | ✅ | Case 1 | — | | manual curl (Case 2) |
 | CAP-C03 | `equals` / `not_equals` (in conditions) | ✅ | Case 1 | — | | manual curl (Case 1) |
 | CAP-C04 | Conditional constraint (`condition` block) | ✅ | Case 1 | WDP-38 | | manual curl (Case 1) |
-| CAP-C05 | Numeric comparison (`greater_than`, `less_than`) | ❌ | schema doc | — | 10 | — |
+| CAP-C05 | Comparison operators (`greater_than`, `less_than`, date `before`) | ❌ | schema doc + Case 4 | — | 10 | only `after: today` exists |
 | CAP-C07 | Cross-field comparison (End Date after Start Date) | ❌ | Study 1 mapping | — | 10 | — |
 | CAP-C08 | Cross-record constraint (one request per employee per day) | ❌ | spec 004 + mapping | — | 14 | — |
 | CAP-C09 | **Constraints evaluated on event trigger** (today: Create only) | ❌ | **Study 1 mapping** | WDP-38 | **2** | — |
@@ -101,6 +102,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-V06 | Child records sub-list on parent detail | ❌ | Case 3 (P1) | — | 3 | depends on CAP-F13 |
 | CAP-V07 | `dashboard` / `calendar` / `timeline` views | ❌ | schema doc | — | 15 | — |
 | CAP-V08 | List search & filter | ❌ | Study 2 survey | universal (6/6 platforms) | 8 | — |
+| CAP-V09 | Declarative view-level filter (Due Today, Overdue Tasks) | ❌ | Case 4 [UNTARGETED FINDING] | — | 8 | view `filter` block in metadata |
 
 ## Record Lifecycle
 

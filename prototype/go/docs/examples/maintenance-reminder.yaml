@@ -1,0 +1,214 @@
+# Maintenance Reminder — Runtime Metadata
+# Realization of maintenance-reminder.menata (Case 4 — time-driven behavior)
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# Case 4 declared targets: CAP-E02, CAP-E03, CAP-A02, CAP-A09, date arithmetic.
+# See runtime/case-portfolio.md.
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_facility                       # [SUPPORTED]
+  name: Facility
+  workspace: ws_default
+
+machine:
+  id: mch_maintenance_task               # [SUPPORTED]
+  name: Maintenance Task
+  application: app_facility
+
+  fields:
+    - id: fld_mt_equipment               # [SUPPORTED]
+      name: Equipment
+      type: text
+      required: true
+
+    - id: fld_mt_frequency               # [SUPPORTED]
+      name: Frequency
+      type: value_list
+      required: true
+      values:
+        - Daily
+        - Weekly
+        - Monthly
+
+    - id: fld_mt_next_due                # [SUPPORTED]
+      name: Next Due Date
+      type: date
+      required: true
+
+    - id: fld_mt_assignee                # [PARTIAL] — renders as free text (CAP-F05)
+      name: Assignee
+      type: user
+      required: true
+
+    - id: fld_mt_supervisor              # [PARTIAL] — same
+      name: Supervisor
+      type: user
+      required: true
+
+    - id: fld_mt_last_completed          # [SUPPORTED] — as a field; stamping it is not (see events)
+      name: Last Completed
+      type: date
+      required: false
+
+    - id: fld_mt_notes                   # [SUPPORTED]
+      name: Completion Notes
+      type: rich_text
+      required: false
+
+    - id: fld_mt_status                  # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values:
+        - Scheduled
+        - Due
+        - Overdue
+        - Completed
+
+  events:
+    - id: evt_mt_complete                 # [PARTIAL] — static set_field works; the rest does not
+      name: Complete
+      actions:
+        - set_field: { field: fld_mt_last_completed, value: today }
+          # [NOT YET] value: "today" — environment data (CAP-A02).
+        - set_field: { field: fld_mt_next_due, value: "next_due + frequency" }
+          # [NOT YET] Date arithmetic: advance Next Due Date by the record's own
+          # Frequency value (Daily → +1 day, Weekly → +7 days, Monthly → +1 month).
+          # NO capability entry existed for this before Case 4 —
+          # [UNTARGETED FINDING] registered as CAP-A11.
+        - set_field: { field: fld_mt_status, value: Scheduled }
+          # [SUPPORTED] — static value works today.
+
+    - id: evt_mt_due_check                # [NOT YET] — time-driven event (CAP-E02)
+      name: Due Check
+      trigger:                            # [NOT YET] trigger block does not exist in schema —
+        type: schedule                    #   events today are user-triggered only.
+        cron: "0 7 * * *"
+      condition:                          # [NOT YET] event-level condition (CAP-A09)
+        field: fld_mt_next_due
+        operator: equals
+        value: today
+      actions:
+        - set_field: { field: fld_mt_status, value: Due }
+        - notify: { role: Assignee }
+          # [NOT YET] recipient should be the record's Assignee (dynamic),
+          # not a static role string (CAP-A04).
+
+    - id: evt_mt_overdue_check            # [NOT YET] — same gaps + compound condition
+      name: Overdue Check
+      trigger:
+        type: schedule
+        cron: "0 7 * * *"
+      conditions:                         # [NOT YET] multiple AND-ed conditions
+        - field: fld_mt_next_due
+          operator: before
+          value: today
+          # [NOT YET] operator "before" — only "after" exists today (CAP-C05 family).
+        - field: fld_mt_status
+          operator: equals
+          value: Due
+      actions:
+        - set_field: { field: fld_mt_status, value: Overdue }
+        - notify: { role: Supervisor }
+          # [NOT YET] dynamic recipient — record's Supervisor (CAP-A04).
+          # This is the escalation pattern (WRP detour).
+
+  constraints:
+    - id: cst_mt_equipment_required       # [SUPPORTED]
+      rule: Equipment is required.
+      expression:
+        field: fld_mt_equipment
+        operator: required
+
+    - id: cst_mt_frequency_required       # [SUPPORTED]
+      rule: Frequency is required.
+      expression:
+        field: fld_mt_frequency
+        operator: required
+
+    - id: cst_mt_next_due_required        # [SUPPORTED]
+      rule: Next Due Date is required.
+      expression:
+        field: fld_mt_next_due
+        operator: required
+
+    - id: cst_mt_notes_if_overdue         # [PARTIAL] — conditional constraint works on Create,
+      rule: Completion Notes is required. #   but this rule matters at Complete time —
+      expression:                         #   constraints never run on events (CAP-C09).
+        field: fld_mt_notes
+        operator: required
+      condition:
+        field: fld_mt_status
+        operator: equals
+        value: Overdue
+
+  permissions:
+    - role: Technician                    # [SUPPORTED]
+      events: [ evt_mt_complete ]
+
+    - role: Supervisor                    # [SUPPORTED]
+      events: [ evt_mt_complete ]
+      # Note: evt_mt_due_check / evt_mt_overdue_check have NO role — they are
+      # schedule-triggered. [NOT YET] the permission model has no concept of
+      # system-triggered events (CAP-E05).
+
+  views:
+    - id: vw_mt_form                      # [SUPPORTED]
+      name: Task Form
+      type: form
+      fields:
+        - fld_mt_equipment
+        - fld_mt_frequency
+        - fld_mt_next_due
+        - fld_mt_assignee
+        - fld_mt_supervisor
+
+    - id: vw_mt_my_tasks                  # [PARTIAL] — renders all records;
+      name: My Tasks                      #   "my" filter needs CAP-V05.
+      type: list
+      columns:
+        - fld_mt_equipment
+        - fld_mt_frequency
+        - fld_mt_next_due
+        - fld_mt_status
+
+    - id: vw_mt_due_today                 # [NOT YET] — list filtered by data value
+      name: Due Today                     #   (Next Due Date = today) — view-level filter
+      type: list                          #   does not exist. Related to CAP-V05/V08.
+      columns:
+        - fld_mt_equipment
+        - fld_mt_assignee
+        - fld_mt_next_due
+        - fld_mt_status
+      filter:
+        field: fld_mt_next_due
+        operator: equals
+        value: today
+
+    - id: vw_mt_overdue                   # [NOT YET] — same
+      name: Overdue Tasks
+      type: list
+      columns:
+        - fld_mt_equipment
+        - fld_mt_assignee
+        - fld_mt_supervisor
+        - fld_mt_next_due
+      filter:
+        field: fld_mt_status
+        operator: equals
+        value: Overdue
+
+    - id: vw_mt_detail                    # [SUPPORTED]
+      name: Task Detail
+      type: detail
