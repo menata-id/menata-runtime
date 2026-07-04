@@ -1,39 +1,35 @@
-# Menata Runtime — Documentation
+# Menata Runtime (Go Prototype) — Documentation
 
-## Arsitektur Dokumentasi
-
-```
-docs/
-├── language/          Menata Language — bahasa untuk domain expert
-├── examples/          Contoh lengkap per use case
-├── decisions/         ADR — keputusan arsitektur teknis
-└── runtime-metadata-schema.md   Referensi schema YAML runtime metadata
-```
+Dokumentasi di folder ini khusus untuk prototype Go. Panduan bahasa dan Runtime Metadata ada di level yang lebih tinggi.
 
 ---
 
-## Untuk Domain Expert
+## Panduan Penulisan
 
-Menulis Business Knowledge → mulai dari sini:
-
-| Dokumen | Isi |
-|---------|-----|
-| [language/grammar.md](language/grammar.md) | Grammar dan sintaks Menata Language (file `.menata`) |
-| [examples/design-request.menata](examples/design-request.menata) | Contoh: Design Request |
-| [examples/leave-request.menata](examples/leave-request.menata) | Contoh: Leave Request (HR) |
+| Dokumen | Untuk siapa | Isi |
+|---------|-------------|-----|
+| [`guides/writing-menata.md`](../../../../guides/writing-menata.md) | Domain expert | Cara menulis `.menata` dari nol |
+| [`runtime/guides/writing-runtime-metadata.md`](../../guides/writing-runtime-metadata.md) | Developer | Cara menerjemahkan `.menata` ke YAML → SQL |
 
 ---
 
-## Untuk Pengembang
-
-Menerjemahkan Business Knowledge ke Runtime Metadata → mulai dari sini:
+## Referensi Schema
 
 | Dokumen | Isi |
 |---------|-----|
-| [runtime-metadata-schema.md](runtime-metadata-schema.md) | Schema lengkap Runtime Metadata (YAML/DB) |
-| [examples/design-request.yaml](examples/design-request.yaml) | Contoh: Design Request — YAML realization |
-| [examples/leave-request.yaml](examples/leave-request.yaml) | Contoh: Leave Request — YAML realization |
+| [runtime-metadata-schema.md](runtime-metadata-schema.md) | Schema lengkap Runtime Metadata (YAML/DB) — semua field, tipe, contoh |
+
+---
+
+## Contoh Lengkap
+
+| Dokumen | Isi |
+|---------|-----|
 | [examples/README.md](examples/README.md) | Perbandingan dua case + apa yang dibuktikan |
+| [examples/design-request.menata](examples/design-request.menata) | Case 1: Design Request — Menata Language |
+| [examples/design-request.yaml](examples/design-request.yaml) | Case 1: Design Request — Runtime Metadata |
+| [examples/leave-request.menata](examples/leave-request.menata) | Case 2: Leave Request — Menata Language |
+| [examples/leave-request.yaml](examples/leave-request.yaml) | Case 2: Leave Request — Runtime Metadata |
 
 ---
 
@@ -43,17 +39,3 @@ Menerjemahkan Business Knowledge ke Runtime Metadata → mulai dari sini:
 |---------|-------|
 | [decisions/001-techstack.md](decisions/001-techstack.md) | Pilihan tech stack prototype |
 | [decisions/002-metadata-loading.md](decisions/002-metadata-loading.md) | Strategi load metadata + opsi live reload |
-
----
-
-## Alur Kerja
-
-```
-Domain Expert                    Pengembang
-─────────────────────            ──────────────────────────────────
-1. Tulis .menata           →     2. Terjemahkan ke .yaml
-   (grammar.md sebagai referensi)   (runtime-metadata-schema.md sebagai referensi)
-                                 3. Buat seeds/*.sql dari .yaml
-                                 4. psql -f seeds/*.sql
-                                 5. Restart server
-```
