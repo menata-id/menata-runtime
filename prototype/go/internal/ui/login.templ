@@ -1,0 +1,33 @@
+package ui
+
+templ LoginPage(currentRole string) {
+	@Page("Switch role", currentRole) {
+		<div class="mx-auto max-w-sm">
+			<div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+				<h1 class="text-lg font-semibold text-slate-900">Switch role</h1>
+				<p class="mt-1 text-sm text-slate-500">
+					Prototype: choose which role to act as. No password required.
+				</p>
+				<form method="POST" action="/login" class="mt-5 space-y-4">
+					<div class="space-y-1.5">
+						<label for="role" class="block text-sm font-medium text-slate-700">Role</label>
+						<select
+							id="role"
+							name="role"
+							class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+						>
+							<option value="Requester" selected?={ currentRole == "Requester" }>Requester</option>
+							<option value="Designer"  selected?={ currentRole == "Designer" }>Designer</option>
+						</select>
+					</div>
+					<button
+						type="submit"
+						class="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+					>
+						Confirm
+					</button>
+				</form>
+			</div>
+		</div>
+	}
+}

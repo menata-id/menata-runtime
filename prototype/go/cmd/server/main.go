@@ -54,6 +54,11 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+
+	// Serve compiled Tailwind CSS and other static assets.
+	r.Handle("/static/*", http.StripPrefix("/static/",
+		http.FileServer(http.Dir("web/static"))))
+
 	router.Mount(r, h)
 
 	addr := ":" + cfg.Port

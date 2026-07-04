@@ -1,0 +1,61 @@
+package ui
+
+import "menata.id/runtime/internal/model"
+
+templ List(role string, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event) {
+	@Page(machine.Name, role) {
+		<div class="mb-4 flex items-center gap-3">
+			<h1 class="flex-1 text-xl font-semibold text-slate-900">{ machine.Name }</h1>
+			<a
+				href={ templ.SafeURL("/" + machine.ID + "/new") }
+				class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+			>
+				<span>+</span>
+				<span>New</span>
+			</a>
+		</div>
+		<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+			if len(rows) == 0 {
+				<div class="py-16 text-center text-sm text-slate-400">
+					No records yet. Create the first one.
+				</div>
+			} else {
+				<table class="w-full text-sm">
+					<thead class="border-b border-slate-200 bg-slate-50">
+						<tr>
+							for _, col := range columns {
+								<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+									{ col.Name }
+								</th>
+							}
+							<th class="w-px px-4 py-3"></th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-slate-100">
+						for _, row := range rows {
+							<tr class="transition-colors hover:bg-slate-50">
+								for _, cell := range row.Cells {
+									<td class="px-4 py-3 text-slate-700">
+										if cell.IsStatusBadge && cell.Value != "" {
+											@StatusBadge(cell.Value)
+										} else if cell.Value != "" {
+											{ cell.Value }
+										} else {
+											<span class="text-slate-300">—</span>
+										}
+									</td>
+								}
+								<td class="px-4 py-3">
+									<a
+										href={ templ.SafeURL("/" + machine.ID + "/" + row.ID) }
+										class="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+									>View →</a>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			}
+		</div>
+	}
+}

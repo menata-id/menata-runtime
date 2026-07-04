@@ -1,0 +1,46 @@
+package ui
+
+import "menata.id/runtime/internal/model"
+
+templ Form(role string, machine *model.Machine, fields []FormField, errors []string) {
+	@Page("New " + machine.Name, role) {
+		<div class="mx-auto max-w-xl">
+			<div class="mb-5 flex items-center gap-3">
+				<a
+					href={ templ.SafeURL("/" + machine.ID) }
+					class="text-sm text-slate-400 hover:text-slate-600 transition-colors"
+				>← Back</a>
+				<h1 class="text-xl font-semibold text-slate-900">New { machine.Name }</h1>
+			</div>
+			if len(errors) > 0 {
+				<div class="mb-5 rounded-md border border-red-200 bg-red-50 px-4 py-3">
+					<p class="mb-1 text-sm font-medium text-red-700">Please fix the following:</p>
+					<ul class="list-inside list-disc space-y-0.5 text-sm text-red-600">
+						for _, e := range errors {
+							<li>{ e }</li>
+						}
+					</ul>
+				</div>
+			}
+			<div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+				<form method="POST" action={ templ.SafeURL("/" + machine.ID) } class="space-y-5">
+					for _, ff := range fields {
+						@FieldInput(ff.Field, ff.Value)
+					}
+					<div class="flex items-center gap-3 border-t border-slate-100 pt-5">
+						<button
+							type="submit"
+							class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+						>
+							Create
+						</button>
+						<a
+							href={ templ.SafeURL("/" + machine.ID) }
+							class="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+						>Cancel</a>
+					</div>
+				</form>
+			</div>
+		</div>
+	}
+}

@@ -1,0 +1,11 @@
+{
+  "name": "menata-runtime-prototype",
+  "private": true,
+  "scripts": {
+    "build:css": "npx tailwindcss -i web/static/css/input.css -o web/static/css/output.css --minify",
+    "watch:css": "npx tailwindcss -i web/static/css/input.css -o web/static/css/output.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}

@@ -2,7 +2,7 @@ package handler
 
 import (
 	"fmt"
-	"html/template"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -14,6 +14,7 @@ import (
 	"menata.id/runtime/internal/model"
 	"menata.id/runtime/internal/permission"
 	"menata.id/runtime/internal/store"
+	"menata.id/runtime/internal/ui"
 )
 
 type Handler struct {
@@ -22,27 +23,16 @@ type Handler struct {
 	engine  *constraint.Engine
 	guard   *permission.Guard
 	exec    *executor.Executor
-	tmpl    *template.Template
 }
 
 func New(interp *interpreter.Interpreter, records *store.RecordStore) *Handler {
-	h := &Handler{
+	return &Handler{
 		interp:  interp,
 		records: records,
 		engine:  &constraint.Engine{},
 		guard:   &permission.Guard{},
 		exec:    executor.New(records),
 	}
-	h.tmpl = template.Must(template.New("").Funcs(template.FuncMap{
-		"fieldValue": func(data map[string]any, fieldID string) string {
-			v := data[fieldID]
-			if v == nil {
-				return ""
-			}
-			return fmt.Sprintf("%v", v)
-		},
-	}).Parse(htmlTemplates))
-	return h
 }
 
 func (h *Handler) role(r *http.Request) string {
@@ -55,15 +45,25 @@ func (h *Handler) role(r *http.Request) string {
 
 // Home — list of all machines.
 func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
-	h.render(w, "home", map[string]any{
-		"Role":     h.role(r),
-		"Machines": h.interp.AllMachines(),
-	})
+	machines := h.interp.AllMachines()
+	cards := make([]ui.MachineCard, len(machines))
+	for i, m := range machines {
+		cards[i] = ui.MachineCard{
+			ID:          m.ID,
+			Name:        m.Name,
+			Description: fmt.Sprintf("%d fields · %d events", len(m.Fields), len(m.Events)),
+		}
+	}
+	if err := ui.Home(h.role(r), cards).Render(r.Context(), w); err != nil {
+		slog.Error("render home", "error", err)
+	}
 }
 
 // LoginForm — role selection page.
 func (h *Handler) LoginForm(w http.ResponseWriter, r *http.Request) {
-	h.render(w, "login", map[string]any{"Role": h.role(r)})
+	if err := ui.LoginPage(h.role(r)).Render(r.Context(), w); err != nil {
+		slog.Error("render login", "error", err)
+	}
 }
 
 // Login — set role cookie.
@@ -77,23 +77,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// --- list view ---------------------------------------------------------------
-
-type listData struct {
-	Role            string
-	Machine         *model.Machine
-	Columns         []columnDef
-	Rows            []listRow
-	PermittedEvents []*model.Event
-}
-
-type columnDef struct{ ID, Name string }
-
-type listRow struct {
-	ID     string
-	Values []string
-}
-
+// List — list view of records for a machine.
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	machine, ok := h.interp.GetMachine(machineID)
@@ -101,24 +85,22 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	view := h.interp.DefaultListView(machineID)
 
-	// Resolve column definitions from view config
-	fieldByID := make(map[string]*model.Field)
-	for _, f := range machine.Fields {
-		fieldByID[f.ID] = f
-	}
+	view := h.interp.DefaultListView(machineID)
+	fieldByID := fieldIndex(machine)
+
 	colIDs := []string{}
 	if view != nil {
 		colIDs = view.Config.Columns
 	}
-	cols := make([]columnDef, 0, len(colIDs))
+	cols := make([]ui.ColumnDef, 0, len(colIDs))
 	for _, id := range colIDs {
-		name := id
+		def := ui.ColumnDef{ID: id, Name: id}
 		if f, ok := fieldByID[id]; ok {
-			name = f.Name
+			def.Name = f.Name
+			def.Type = f.Type
 		}
-		cols = append(cols, columnDef{ID: id, Name: name})
+		cols = append(cols, def)
 	}
 
 	records, err := h.records.List(r.Context(), machineID)
@@ -127,41 +109,29 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows := make([]listRow, 0, len(records))
+	rows := make([]ui.ListRow, 0, len(records))
 	for _, rec := range records {
-		vals := make([]string, len(colIDs))
+		cells := make([]ui.ListCell, len(colIDs))
 		for j, id := range colIDs {
+			val := ""
 			if v, ok := rec.Data[id]; ok {
-				vals[j] = fmt.Sprintf("%v", v)
+				val = fmt.Sprintf("%v", v)
+			}
+			cells[j] = ui.ListCell{
+				Value:         val,
+				IsStatusBadge: cols[j].Type == model.FieldTypeValueList,
 			}
 		}
-		rows = append(rows, listRow{ID: rec.ID, Values: vals})
+		rows = append(rows, ui.ListRow{ID: rec.ID, Cells: cells})
 	}
 
 	role := h.role(r)
-	h.render(w, "list", listData{
-		Role:            role,
-		Machine:         machine,
-		Columns:         cols,
-		Rows:            rows,
-		PermittedEvents: h.interp.PermittedEvents(machineID, role),
-	})
+	if err := ui.List(role, machine, cols, rows, h.interp.PermittedEvents(machineID, role)).Render(r.Context(), w); err != nil {
+		slog.Error("render list", "error", err)
+	}
 }
 
-// --- form view ---------------------------------------------------------------
-
-type formField struct {
-	Field *model.Field
-	Value string
-}
-
-type formData struct {
-	Role    string
-	Machine *model.Machine
-	Fields  []formField
-	Errors  []string
-}
-
+// NewForm — form for creating a new record.
 func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	machine, ok := h.interp.GetMachine(machineID)
@@ -169,9 +139,12 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	h.render(w, "form", h.buildFormData(machine, nil, h.role(r), nil))
+	if err := ui.Form(h.role(r), machine, buildFormFields(machine, h.interp, nil), nil).Render(r.Context(), w); err != nil {
+		slog.Error("render form", "error", err)
+	}
 }
 
+// Create — handle new record form submission.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	machine, ok := h.interp.GetMachine(machineID)
@@ -185,13 +158,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := make(map[string]any)
-	// seed default status from first value in the status field
 	for _, f := range machine.Fields {
 		if strings.ToLower(f.Name) == "status" && f.Type == model.FieldTypeValueList && len(f.Options.Values) > 0 {
 			data[f.ID] = f.Options.Values[0]
 		}
 	}
-	// overlay form values
 	for _, f := range machine.Fields {
 		if v := r.FormValue(f.ID); v != "" {
 			data[f.ID] = v
@@ -199,7 +170,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if violations := h.engine.Violations(machine, data); len(violations) > 0 {
-		h.render(w, "form", h.buildFormData(machine, data, h.role(r), violations))
+		if err := ui.Form(h.role(r), machine, buildFormFields(machine, h.interp, data), violations).Render(r.Context(), w); err != nil {
+			slog.Error("render form (violations)", "error", err)
+		}
 		return
 	}
 
@@ -211,46 +184,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/"+machineID+"/"+rec.ID, http.StatusSeeOther)
 }
 
-func (h *Handler) buildFormData(machine *model.Machine, vals map[string]any, role string, errors []string) formData {
-	view := h.interp.FormView(machine.ID)
-	fieldIDs := []string{}
-	if view != nil {
-		fieldIDs = view.Config.Fields
-	}
-	fieldByID := make(map[string]*model.Field)
-	for _, f := range machine.Fields {
-		fieldByID[f.ID] = f
-	}
-
-	fields := make([]formField, 0, len(fieldIDs))
-	for _, id := range fieldIDs {
-		f, ok := fieldByID[id]
-		if !ok {
-			continue
-		}
-		val := ""
-		if vals != nil {
-			if v, ok := vals[id]; ok {
-				val = fmt.Sprintf("%v", v)
-			}
-		}
-		fields = append(fields, formField{Field: f, Value: val})
-	}
-	return formData{Role: role, Machine: machine, Fields: fields, Errors: errors}
-}
-
-// --- detail view -------------------------------------------------------------
-
-type detailField struct{ Name, Value string }
-
-type detailData struct {
-	Role            string
-	Machine         *model.Machine
-	Record          *store.Record
-	Fields          []detailField
-	PermittedEvents []*model.Event
-}
-
+// Detail — detail view of a single record.
 func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	recordID := chi.URLParam(r, "recordID")
@@ -266,27 +200,22 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fields := make([]detailField, 0, len(machine.Fields))
+	fields := make([]ui.DetailField, 0, len(machine.Fields))
 	for _, f := range machine.Fields {
 		val := ""
 		if v, ok := rec.Data[f.ID]; ok {
 			val = fmt.Sprintf("%v", v)
 		}
-		fields = append(fields, detailField{Name: f.Name, Value: val})
+		fields = append(fields, ui.DetailField{Name: f.Name, Value: val})
 	}
 
 	role := h.role(r)
-	h.render(w, "detail", detailData{
-		Role:            role,
-		Machine:         machine,
-		Record:          rec,
-		Fields:          fields,
-		PermittedEvents: h.interp.PermittedEvents(machineID, role),
-	})
+	if err := ui.Detail(role, machine, rec, fields, h.interp.PermittedEvents(machineID, role)).Render(r.Context(), w); err != nil {
+		slog.Error("render detail", "error", err)
+	}
 }
 
-// --- event trigger -----------------------------------------------------------
-
+// TriggerEvent — handle event button.
 func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	recordID := chi.URLParam(r, "recordID")
@@ -319,9 +248,38 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/"+machineID+"/"+recordID, http.StatusSeeOther)
 }
 
-func (h *Handler) render(w http.ResponseWriter, name string, data any) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tmpl.ExecuteTemplate(w, name, data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+// --- helpers -----------------------------------------------------------------
+
+func fieldIndex(m *model.Machine) map[string]*model.Field {
+	out := make(map[string]*model.Field, len(m.Fields))
+	for _, f := range m.Fields {
+		out[f.ID] = f
 	}
+	return out
+}
+
+func buildFormFields(machine *model.Machine, interp *interpreter.Interpreter, vals map[string]any) []ui.FormField {
+	view := interp.FormView(machine.ID)
+	fieldByID := fieldIndex(machine)
+
+	var fieldIDs []string
+	if view != nil {
+		fieldIDs = view.Config.Fields
+	}
+
+	fields := make([]ui.FormField, 0, len(fieldIDs))
+	for _, id := range fieldIDs {
+		f, ok := fieldByID[id]
+		if !ok {
+			continue
+		}
+		val := ""
+		if vals != nil {
+			if v, ok := vals[id]; ok {
+				val = fmt.Sprintf("%v", v)
+			}
+		}
+		fields = append(fields, ui.FormField{Field: f, Value: val})
+	}
+	return fields
 }

@@ -1,0 +1,23 @@
+package ui
+
+templ Home(role string, cards []MachineCard) {
+	@Page("Home", role) {
+		<div class="mb-6">
+			<h1 class="text-xl font-semibold text-slate-900">Machines</h1>
+			<p class="mt-1 text-sm text-slate-500">Select a machine to view its records.</p>
+		</div>
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			for _, card := range cards {
+				<a
+					href={ templ.SafeURL("/" + card.ID) }
+					class="group block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-blue-400 hover:shadow-md"
+				>
+					<div class="font-semibold text-slate-900 transition-colors group-hover:text-blue-600">
+						{ card.Name }
+					</div>
+					<div class="mt-1 text-xs text-slate-400">{ card.Description }</div>
+				</a>
+			}
+		</div>
+	}
+}

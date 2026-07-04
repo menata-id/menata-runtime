@@ -1,0 +1,51 @@
+package ui
+
+import "menata.id/runtime/internal/model"
+import "menata.id/runtime/internal/store"
+
+templ Detail(role string, machine *model.Machine, record *store.Record, fields []DetailField, permittedEvents []*model.Event) {
+	@Page(machine.Name + " — Detail", role) {
+		<div class="mx-auto max-w-2xl">
+			<div class="mb-5 flex items-center gap-3">
+				<a
+					href={ templ.SafeURL("/" + machine.ID) }
+					class="text-sm text-slate-400 hover:text-slate-600 transition-colors"
+				>← Back</a>
+				<h1 class="text-xl font-semibold text-slate-900">{ machine.Name }</h1>
+			</div>
+			<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+				<dl class="divide-y divide-slate-100">
+					for _, f := range fields {
+						<div class="flex gap-4 px-5 py-3.5">
+							<dt class="w-36 shrink-0 text-sm font-medium text-slate-500">{ f.Name }</dt>
+							<dd class="flex-1 text-sm text-slate-900">
+								if f.Value == "" {
+									<span class="text-slate-300">—</span>
+								} else {
+									@StatusBadge(f.Value)
+								}
+							</dd>
+						</div>
+					}
+				</dl>
+				if len(permittedEvents) > 0 {
+					<div class="flex flex-wrap gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4">
+						for _, evt := range permittedEvents {
+							<form
+								method="POST"
+								action={ templ.SafeURL("/" + machine.ID + "/" + record.ID + "/events/" + evt.ID) }
+							>
+								<button
+									type="submit"
+									class="inline-flex items-center rounded-md bg-slate-900 px-3.5 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 transition-colors"
+								>
+									{ evt.Name }
+								</button>
+							</form>
+						}
+					</div>
+				}
+			</div>
+		</div>
+	}
+}

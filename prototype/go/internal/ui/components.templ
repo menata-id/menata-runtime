@@ -1,0 +1,78 @@
+package ui
+
+import "menata.id/runtime/internal/model"
+
+// StatusBadge renders a coloured pill for status values.
+templ StatusBadge(status string) {
+	switch status {
+	case "Draft":
+		<span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{ status }</span>
+	case "Submitted":
+		<span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">{ status }</span>
+	case "Accepted":
+		<span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">{ status }</span>
+	case "Rejected":
+		<span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">{ status }</span>
+	case "In Progress":
+		<span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{ status }</span>
+	case "Completed":
+		<span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">{ status }</span>
+	default:
+		<span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{ status }</span>
+	}
+}
+
+// FieldInput renders the correct input element for a field type.
+templ FieldInput(f *model.Field, value string) {
+	<div class="space-y-1.5">
+		<label for={ f.ID } class="block text-sm font-medium text-slate-700">
+			{ f.Name }
+			if f.Required {
+				<span class="text-red-500 ml-0.5">*</span>
+			}
+		</label>
+		switch f.Type {
+		case model.FieldTypeRichText:
+			<textarea
+				id={ f.ID }
+				name={ f.ID }
+				rows="3"
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			>{ value }</textarea>
+		case model.FieldTypeValueList:
+			<select
+				id={ f.ID }
+				name={ f.ID }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			>
+				<option value="">— select —</option>
+				for _, opt := range f.Options.Values {
+					<option value={ opt } selected?={ opt == value }>{ opt }</option>
+				}
+			</select>
+		case model.FieldTypeDate:
+			<input
+				type="date"
+				id={ f.ID }
+				name={ f.ID }
+				value={ value }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			/>
+		case model.FieldTypeFile:
+			<input
+				type="file"
+				id={ f.ID }
+				name={ f.ID }
+				class="block w-full text-sm text-slate-600 file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
+			/>
+		default:
+			<input
+				type="text"
+				id={ f.ID }
+				name={ f.ID }
+				value={ value }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			/>
+		}
+	</div>
+}
