@@ -1,0 +1,94 @@
+[
+  {
+    "_comment": "Source: evt_submit → actions: set_field(status=Submitted) + notify(Designer)",
+    "id": "flow-design-request-submit",
+    "name": "Design Request — On Submit",
+    "status": "active",
+    "trigger": "event",
+    "options": {
+      "type": "filter",
+      "scope": ["items.update"],
+      "collections": ["design_request"]
+    },
+    "operations": [
+      {
+        "id": "op-check-submitted",
+        "name": "Check: status changed to submitted",
+        "type": "condition",
+        "position_x": 1,
+        "position_y": 1,
+        "options": {
+          "filter": {
+            "payload": { "status": { "_eq": "submitted" } }
+          }
+        },
+        "resolve": "op-notify-designer",
+        "reject": null
+      },
+      {
+        "id": "op-notify-designer",
+        "name": "Notify Designer",
+        "type": "mail",
+        "position_x": 2,
+        "position_y": 1,
+        "options": {
+          "to": ["{{$trigger.payload.designer_email}}"],
+          "subject": "New Design Request: {{$trigger.payload.title}}",
+          "body": "A design request has been submitted and is awaiting your review."
+        }
+      }
+    ]
+  },
+  {
+    "_comment": "Source: evt_complete → actions: set_field(status=Completed) + notify(Requester)",
+    "id": "flow-design-request-complete",
+    "name": "Design Request — On Complete",
+    "status": "active",
+    "trigger": "event",
+    "options": {
+      "type": "filter",
+      "scope": ["items.update"],
+      "collections": ["design_request"]
+    },
+    "operations": [
+      {
+        "id": "op-check-completed",
+        "name": "Check: status changed to completed",
+        "type": "condition",
+        "position_x": 1,
+        "position_y": 1,
+        "options": {
+          "filter": {
+            "payload": { "status": { "_eq": "completed" } }
+          }
+        },
+        "resolve": "op-read-requester",
+        "reject": null
+      },
+      {
+        "id": "op-read-requester",
+        "name": "Read Requester email",
+        "type": "read-data",
+        "position_x": 2,
+        "position_y": 1,
+        "options": {
+          "collection": "directus_users",
+          "key": "{{$trigger.payload.requester}}"
+        },
+        "resolve": "op-notify-requester"
+      },
+      {
+        "id": "op-notify-requester",
+        "name": "Notify Requester",
+        "type": "mail",
+        "position_x": 3,
+        "position_y": 1,
+        "options": {
+          "to": ["{{op-read-requester.email}}"],
+          "subject": "Your Design Request is Complete: {{$trigger.payload.title}}",
+          "body": "Your design request has been completed."
+        }
+      }
+    ]
+  }
+]

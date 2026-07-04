@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated from Menata Runtime Metadata: design-request.yaml -->
+<!-- Source: mch_design_request -->
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>Design Request</label>
+    <pluralLabel>Design Requests</pluralLabel>
+    <nameField>
+        <label>Design Request Name</label>
+        <type>AutoNumber</type>
+        <displayFormat>DR-{0000}</displayFormat>
+    </nameField>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <sharingModel>ReadWrite</sharingModel>
+    <description>Source: mch_design_request — Menata Runtime Prototype</description>
+
+    <!-- Fields — Source: fields[] in design-request.yaml -->
+
+    <fields>
+        <!-- Source: fld_requester (type: user) -->
+        <fullName>Requester__c</fullName>
+        <label>Requester</label>
+        <type>Lookup</type>
+        <referenceTo>User</referenceTo>
+        <relationshipName>Design_Requests</relationshipName>
+        <required>true</required>
+    </fields>
+
+    <fields>
+        <!-- Source: fld_design_type (type: value_list) -->
+        <fullName>Design_Type__c</fullName>
+        <label>Design Type</label>
+        <type>Picklist</type>
+        <valueSet>
+            <valueSetDefinition>
+                <value><fullName>Poster</fullName><label>Poster</label></value>
+                <value><fullName>Thumbnail</fullName><label>Thumbnail</label></value>
+                <value><fullName>Banner_2_1</fullName><label>Banner 2:1</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+
+    <fields>
+        <!-- Source: fld_due_date (type: date) -->
+        <fullName>Due_Date__c</fullName>
+        <label>Due Date</label>
+        <type>Date</type>
+    </fields>
+
+    <fields>
+        <!-- Source: fld_title (type: text) -->
+        <fullName>Title__c</fullName>
+        <label>Title</label>
+        <type>Text</type>
+        <length>255</length>
+        <required>true</required>
+    </fields>
+
+    <fields>
+        <!-- Source: fld_description (type: rich_text) -->
+        <fullName>Description__c</fullName>
+        <label>Description</label>
+        <type>LongTextArea</type>
+        <length>32768</length>
+        <visibleLines>5</visibleLines>
+        <required>true</required>
+    </fields>
+
+    <fields>
+        <!-- Source: fld_status (type: value_list) — transitions managed by Flows -->
+        <fullName>Status__c</fullName>
+        <label>Status</label>
+        <type>Picklist</type>
+        <valueSet>
+            <valueSetDefinition>
+                <value><fullName>Draft</fullName><label>Draft</label><default>true</default></value>
+                <value><fullName>Submitted</fullName><label>Submitted</label></value>
+                <value><fullName>Accepted</fullName><label>Accepted</label></value>
+                <value><fullName>Rejected</fullName><label>Rejected</label></value>
+                <value><fullName>In_Progress</fullName><label>In Progress</label></value>
+                <value><fullName>Completed</fullName><label>Completed</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+
+    <!-- Validation Rules — Source: constraints[] in design-request.yaml -->
+
+    <validationRules>
+        <!-- Source: cst_title_required -->
+        <fullName>Title_Required</fullName>
+        <active>true</active>
+        <description>Source: cst_title_required</description>
+        <errorConditionFormula>ISBLANK(Title__c)</errorConditionFormula>
+        <errorMessage>Title is required.</errorMessage>
+        <errorDisplayField>Title__c</errorDisplayField>
+    </validationRules>
+
+    <validationRules>
+        <!-- Source: cst_description_required -->
+        <fullName>Description_Required</fullName>
+        <active>true</active>
+        <description>Source: cst_description_required</description>
+        <errorConditionFormula>ISBLANK(Description__c)</errorConditionFormula>
+        <errorMessage>Description is required.</errorMessage>
+        <errorDisplayField>Description__c</errorDisplayField>
+    </validationRules>
+
+    <validationRules>
+        <!-- Source: cst_due_date_future -->
+        <fullName>Due_Date_Must_Be_Future</fullName>
+        <active>true</active>
+        <description>Source: cst_due_date_future</description>
+        <errorConditionFormula>Due_Date__c &lt;= TODAY()</errorConditionFormula>
+        <errorMessage>Due Date must be after today.</errorMessage>
+        <errorDisplayField>Due_Date__c</errorDisplayField>
+    </validationRules>
+
+    <validationRules>
+        <!-- Source: cst_attachment_required_for_banner -->
+        <!-- Conditional constraint: if Design Type = Banner 2:1 then Attachment required -->
+        <fullName>Attachment_Required_For_Banner</fullName>
+        <active>true</active>
+        <description>Source: cst_attachment_required_for_banner</description>
+        <errorConditionFormula>
+            AND(
+                ISPICKVAL(Design_Type__c, "Banner 2:1"),
+                NOT(HasAttachment)
+            )
+        </errorConditionFormula>
+        <errorMessage>Attachment is required for Banner design type.</errorMessage>
+    </validationRules>
+
+    <!-- List Views — Source: views[] (type: list) in design-request.yaml -->
+
+    <listViews>
+        <!-- Source: vw_my_requests -->
+        <fullName>My_Requests</fullName>
+        <label>My Requests</label>
+        <filterScope>Mine</filterScope>
+        <columns>NAME</columns>
+        <columns>Title__c</columns>
+        <columns>Design_Type__c</columns>
+        <columns>Due_Date__c</columns>
+        <columns>Status__c</columns>
+    </listViews>
+
+    <listViews>
+        <!-- Source: vw_design_queue -->
+        <fullName>Design_Queue</fullName>
+        <label>Design Queue</label>
+        <filterScope>Everything</filterScope>
+        <filters>
+            <field>Status__c</field>
+            <operation>inSet</operation>
+            <value>Submitted,Accepted,In Progress</value>
+        </filters>
+        <columns>NAME</columns>
+        <columns>Requester__c</columns>
+        <columns>Title__c</columns>
+        <columns>Design_Type__c</columns>
+        <columns>Due_Date__c</columns>
+        <columns>Status__c</columns>
+    </listViews>
+
+</CustomObject>

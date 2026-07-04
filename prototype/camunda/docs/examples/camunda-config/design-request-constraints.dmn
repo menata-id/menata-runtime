@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Generated from Menata Runtime Metadata: design-request.yaml
+  Source: constraints[] in design-request.yaml
+  Standard: DMN 1.3
+
+  Constraints realized as DMN decision tables:
+  - cst_attachment_required_for_banner (conditional constraint)
+  - cst_due_date_future (date validation — evaluated in flow)
+-->
+<definitions
+  xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+  id="design-request-constraints"
+  name="Design Request Constraints"
+  namespace="http://menata.id/design-request/constraints">
+
+  <!--
+    Decision: Is Attachment Required?
+    Source: cst_attachment_required_for_banner
+    Rule: Attachment is required if Design Type = Banner 2:1
+  -->
+  <decision id="decision_attachment_required" name="Is Attachment Required?">
+    <decisionTable id="dt_attachment_required" hitPolicy="FIRST">
+
+      <input id="input_design_type" label="Design Type">
+        <inputExpression id="ie_design_type" typeRef="string">
+          <text>designType</text>
+        </inputExpression>
+        <inputValues>
+          <text>"Poster","Thumbnail","Banner 2:1"</text>
+        </inputValues>
+      </input>
+
+      <output id="output_attachment_required" label="Attachment Required" name="attachmentRequired" typeRef="boolean" />
+      <output id="output_message" label="Validation Message" name="validationMessage" typeRef="string" />
+
+      <!-- Rule 1: Banner 2:1 → attachment required -->
+      <rule id="rule_banner_requires_attachment">
+        <description>Source: cst_attachment_required_for_banner — if Design Type = Banner 2:1</description>
+        <inputEntry id="ie_banner"><text>"Banner 2:1"</text></inputEntry>
+        <outputEntry id="oe_required"><text>true</text></outputEntry>
+        <outputEntry id="oe_message_banner"><text>"Attachment is required for Banner design type."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Other types → attachment not required -->
+      <rule id="rule_other_no_attachment">
+        <description>All other design types — attachment optional</description>
+        <inputEntry id="ie_other"><text></text></inputEntry>
+        <outputEntry id="oe_not_required"><text>false</text></outputEntry>
+        <outputEntry id="oe_message_other"><text>""</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <!--
+    Decision: Is Due Date Valid?
+    Source: cst_due_date_future
+    Rule: Due Date must be after today
+  -->
+  <decision id="decision_due_date_valid" name="Is Due Date Valid?">
+    <decisionTable id="dt_due_date_valid" hitPolicy="FIRST">
+
+      <input id="input_due_date_comparison" label="Due Date vs Today">
+        <inputExpression id="ie_due_date" typeRef="string">
+          <text>dueDateComparison</text>
+        </inputExpression>
+        <inputValues>
+          <text>"before_today","today","after_today"</text>
+        </inputValues>
+      </input>
+
+      <output id="output_due_date_valid" label="Valid" name="valid" typeRef="boolean" />
+      <output id="output_due_date_message" label="Validation Message" name="validationMessage" typeRef="string" />
+
+      <rule id="rule_due_date_before_today">
+        <description>Source: cst_due_date_future — Due Date before today is invalid</description>
+        <inputEntry id="ie_before"><text>"before_today"</text></inputEntry>
+        <outputEntry id="oe_invalid_before"><text>false</text></outputEntry>
+        <outputEntry id="oe_msg_before"><text>"Due Date must be after today."</text></outputEntry>
+      </rule>
+
+      <rule id="rule_due_date_is_today">
+        <description>Source: cst_due_date_future — Due Date = today is also invalid (must be AFTER)</description>
+        <inputEntry id="ie_today"><text>"today"</text></inputEntry>
+        <outputEntry id="oe_invalid_today"><text>false</text></outputEntry>
+        <outputEntry id="oe_msg_today"><text>"Due Date must be after today."</text></outputEntry>
+      </rule>
+
+      <rule id="rule_due_date_after_today">
+        <description>Due Date after today is valid</description>
+        <inputEntry id="ie_after"><text>"after_today"</text></inputEntry>
+        <outputEntry id="oe_valid"><text>true</text></outputEntry>
+        <outputEntry id="oe_msg_valid"><text>""</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+</definitions>

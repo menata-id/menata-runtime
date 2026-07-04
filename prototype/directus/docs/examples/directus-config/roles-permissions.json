@@ -1,0 +1,71 @@
+{
+  "_comment": "Source: permissions[] in design-request.yaml",
+
+  "roles": [
+    {
+      "id": "role-requester",
+      "name": "Requester",
+      "description": "Source: permissions[role=Requester] — can Submit",
+      "admin_access": false,
+      "app_access": true
+    },
+    {
+      "id": "role-designer",
+      "name": "Designer",
+      "description": "Source: permissions[role=Designer] — can Accept, Reject, Start, Complete",
+      "admin_access": false,
+      "app_access": true
+    }
+  ],
+
+  "permissions": [
+    {
+      "_comment": "Requester: create new Design Request",
+      "role": "role-requester",
+      "collection": "design_request",
+      "action": "create",
+      "permissions": {},
+      "fields": ["requester", "design_type", "due_date", "title", "description", "attachment"],
+      "presets": { "status": "draft", "requester": "$CURRENT_USER" }
+    },
+    {
+      "_comment": "Requester: read own requests",
+      "role": "role-requester",
+      "collection": "design_request",
+      "action": "read",
+      "permissions": { "requester": { "_eq": "$CURRENT_USER" } },
+      "fields": ["*"]
+    },
+    {
+      "_comment": "Requester: submit (update status to submitted) own draft requests — Source: evt_submit",
+      "role": "role-requester",
+      "collection": "design_request",
+      "action": "update",
+      "permissions": {
+        "_and": [
+          { "requester": { "_eq": "$CURRENT_USER" } },
+          { "status": { "_eq": "draft" } }
+        ]
+      },
+      "fields": ["status"]
+    },
+    {
+      "_comment": "Designer: read all requests",
+      "role": "role-designer",
+      "collection": "design_request",
+      "action": "read",
+      "permissions": {},
+      "fields": ["*"]
+    },
+    {
+      "_comment": "Designer: accept/reject/start/complete — Source: evt_accept, evt_reject, evt_start, evt_complete",
+      "role": "role-designer",
+      "collection": "design_request",
+      "action": "update",
+      "permissions": {
+        "status": { "_in": ["submitted", "accepted", "in_progress"] }
+      },
+      "fields": ["status"]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Source: evt_complete → set_field(status=Completed) + notify(Requester) -->
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>59.0</apiVersion>
+    <label>Design Request — On Complete</label>
+    <description>Source: evt_complete in design-request.yaml. Triggered when status changes to Completed. Notifies Requester.</description>
+    <status>Active</status>
+
+    <start>
+        <locationX>176</locationX>
+        <locationY>0</locationY>
+        <object>Design_Request__c</object>
+        <recordTriggerType>Update</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+        <filterLogic>AND</filterLogic>
+        <filters>
+            <field>Status__c</field>
+            <operator>EqualTo</operator>
+            <value><stringValue>Completed</stringValue></value>
+        </filters>
+        <connector><targetReference>Notify_Requester</targetReference></connector>
+    </start>
+
+    <actionCalls>
+        <name>Notify_Requester</name>
+        <label>Notify Requester</label>
+        <locationX>176</locationX>
+        <locationY>120</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <inputParameters>
+            <name>emailSubject</name>
+            <value><stringValue>Your Design Request is Complete: {!$Record.Title__c}</stringValue></value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailBody</name>
+            <value><stringValue>Your design request has been completed.</stringValue></value>
+        </inputParameters>
+        <inputParameters>
+            <name>sendToRecipientType</name>
+            <value><stringValue>user</stringValue></value>
+        </inputParameters>
+        <inputParameters>
+            <name>sendToRecipientId</name>
+            <value><elementReference>$Record.Requester__c</elementReference></value>
+        </inputParameters>
+    </actionCalls>
+
+    <processType>AutoLaunchedFlow</processType>
+</Flow>

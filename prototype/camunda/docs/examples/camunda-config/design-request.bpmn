@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Generated from Menata Runtime Metadata: design-request.yaml
+  Source: events[] + permissions[] in design-request.yaml
+  Standard: BPMN 2.0
+-->
+<definitions
+  xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  id="design-request-definitions"
+  targetNamespace="http://menata.id/design-request"
+  exporter="Menata Runtime Prototype">
+
+  <process id="design_request" name="Design Request" isExecutable="true">
+
+    <!-- ============================================================
+         START: Requester initiates a Design Request
+         Source: evt_submit (permission: Requester)
+         ============================================================ -->
+    <startEvent id="start" name="Design Request Created">
+      <outgoing>flow_start_to_submit</outgoing>
+    </startEvent>
+
+    <!-- ============================================================
+         TASK: Requester fills and submits the Design Request Form
+         Source: evt_submit — Permission: Requester
+         ============================================================ -->
+    <userTask id="task_submit" name="Submit Design Request"
+              camunda:formRef="design-request-form"
+              camunda:candidateGroups="Requester">
+      <incoming>flow_start_to_submit</incoming>
+      <outgoing>flow_submit_to_notify</outgoing>
+    </userTask>
+
+    <!-- ============================================================
+         SERVICE TASK: Notify Designer
+         Source: evt_submit → notify(Designer)
+         ============================================================ -->
+    <serviceTask id="task_notify_designer" name="Notify Designer"
+                 camunda:type="mail">
+      <extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="to">${designerEmail}</camunda:inputParameter>
+            <camunda:inputParameter name="subject">New Design Request: ${title}</camunda:inputParameter>
+            <camunda:inputParameter name="text">A design request has been submitted and is awaiting your review.</camunda:inputParameter>
+          </camunda:inputOutput>
+        </camunda:connector>
+      </extensionElements>
+      <incoming>flow_submit_to_notify</incoming>
+      <outgoing>flow_notify_to_review</outgoing>
+    </serviceTask>
+
+    <!-- ============================================================
+         TASK: Designer reviews — Accept or Reject
+         Source: evt_accept + evt_reject — Permission: Designer
+         ============================================================ -->
+    <userTask id="task_review" name="Review Design Request"
+              camunda:candidateGroups="Designer">
+      <incoming>flow_notify_to_review</incoming>
+      <outgoing>flow_review_to_gateway</outgoing>
+    </userTask>
+
+    <!-- ============================================================
+         GATEWAY: Accept or Reject?
+         ============================================================ -->
+    <exclusiveGateway id="gateway_accept_reject" name="Accept or Reject?">
+      <incoming>flow_review_to_gateway</incoming>
+      <outgoing>flow_to_accept</outgoing>
+      <outgoing>flow_to_reject</outgoing>
+    </exclusiveGateway>
+
+    <!-- ============================================================
+         PATH: Rejected
+         Source: evt_reject
+         ============================================================ -->
+    <endEvent id="end_rejected" name="Rejected">
+      <incoming>flow_to_reject</incoming>
+    </endEvent>
+
+    <!-- ============================================================
+         TASK: Designer starts working
+         Source: evt_start — Permission: Designer
+         ============================================================ -->
+    <userTask id="task_start" name="Start Design Work"
+              camunda:candidateGroups="Designer">
+      <incoming>flow_to_accept</incoming>
+      <outgoing>flow_start_to_complete</outgoing>
+    </userTask>
+
+    <!-- ============================================================
+         TASK: Designer completes the work
+         Source: evt_complete — Permission: Designer
+         ============================================================ -->
+    <userTask id="task_complete" name="Complete Design Request"
+              camunda:candidateGroups="Designer">
+      <incoming>flow_start_to_complete</incoming>
+      <outgoing>flow_complete_to_notify</outgoing>
+    </userTask>
+
+    <!-- ============================================================
+         SERVICE TASK: Notify Requester
+         Source: evt_complete → notify(Requester)
+         ============================================================ -->
+    <serviceTask id="task_notify_requester" name="Notify Requester"
+                 camunda:type="mail">
+      <extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="to">${requesterEmail}</camunda:inputParameter>
+            <camunda:inputParameter name="subject">Your Design Request is Complete: ${title}</camunda:inputParameter>
+            <camunda:inputParameter name="text">Your design request has been completed.</camunda:inputParameter>
+          </camunda:inputOutput>
+        </camunda:connector>
+      </extensionElements>
+      <incoming>flow_complete_to_notify</incoming>
+      <outgoing>flow_notify_to_end</outgoing>
+    </serviceTask>
+
+    <!-- ============================================================
+         END: Completed
+         ============================================================ -->
+    <endEvent id="end_completed" name="Completed">
+      <incoming>flow_notify_to_end</incoming>
+    </endEvent>
+
+    <!-- Sequence Flows -->
+    <sequenceFlow id="flow_start_to_submit"   sourceRef="start"               targetRef="task_submit" />
+    <sequenceFlow id="flow_submit_to_notify"   sourceRef="task_submit"         targetRef="task_notify_designer" />
+    <sequenceFlow id="flow_notify_to_review"   sourceRef="task_notify_designer" targetRef="task_review" />
+    <sequenceFlow id="flow_review_to_gateway"  sourceRef="task_review"         targetRef="gateway_accept_reject" />
+    <sequenceFlow id="flow_to_accept"          sourceRef="gateway_accept_reject" targetRef="task_start">
+      <conditionExpression xsi:type="tFormalExpression">${decision == 'accept'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow_to_reject"          sourceRef="gateway_accept_reject" targetRef="end_rejected">
+      <conditionExpression xsi:type="tFormalExpression">${decision == 'reject'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flow_start_to_complete"  sourceRef="task_start"          targetRef="task_complete" />
+    <sequenceFlow id="flow_complete_to_notify" sourceRef="task_complete"        targetRef="task_notify_requester" />
+    <sequenceFlow id="flow_notify_to_end"      sourceRef="task_notify_requester" targetRef="end_completed" />
+
+  </process>
+
+</definitions>

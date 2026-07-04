@@ -1,0 +1,55 @@
+{
+  "_comment": "Generated from Menata Runtime Metadata: design-request.yaml",
+  "_source": "vw_request_form (type: form) in design-request.yaml",
+  "id": "design-request-submit",
+  "type": "default",
+  "schema": {
+    "type": "default",
+    "components": [
+      {
+        "key": "design_type",
+        "label": "Design Type",
+        "type": "select",
+        "_comment": "Source: fld_design_type (type: value_list)",
+        "values": [
+          { "label": "Poster",     "value": "Poster" },
+          { "label": "Thumbnail",  "value": "Thumbnail" },
+          { "label": "Banner 2:1", "value": "Banner 2:1" }
+        ],
+        "validate": { "required": false }
+      },
+      {
+        "key": "due_date",
+        "label": "Due Date",
+        "type": "datetime",
+        "_comment": "Source: fld_due_date (type: date)",
+        "subtype": "date",
+        "validate": {
+          "required": false,
+          "min": "now"
+        }
+      },
+      {
+        "key": "title",
+        "label": "Title",
+        "type": "textfield",
+        "_comment": "Source: fld_title (type: text) — cst_title_required",
+        "validate": { "required": true }
+      },
+      {
+        "key": "description",
+        "label": "Description",
+        "type": "textarea",
+        "_comment": "Source: fld_description (type: rich_text) — cst_description_required",
+        "validate": { "required": true }
+      },
+      {
+        "key": "attachment",
+        "label": "Attachment",
+        "type": "filepicker",
+        "_comment": "Source: fld_attachment (type: file) — cst_attachment_required_for_banner (conditional, evaluated via DMN)",
+        "validate": { "required": false }
+      }
+    ]
+  }
+}

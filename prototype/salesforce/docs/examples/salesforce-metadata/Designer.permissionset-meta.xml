@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Source: permissions[role=Designer] → events: [evt_accept, evt_reject, evt_start, evt_complete] -->
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>Designer</label>
+    <description>Source: permissions[role=Designer] in design-request.yaml. Can accept, reject, start, and complete Design Requests.</description>
+
+    <objectPermissions>
+        <object>Design_Request__c</object>
+        <allowCreate>false</allowCreate>
+        <allowRead>true</allowRead>
+        <allowEdit>true</allowEdit>
+        <allowDelete>false</allowDelete>
+        <viewAllRecords>true</viewAllRecords>
+        <modifyAllRecords>false</modifyAllRecords>
+    </objectPermissions>
+
+    <fieldPermissions>
+        <field>Design_Request__c.Title__c</field>
+        <readable>true</readable>
+        <editable>false</editable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <field>Design_Request__c.Design_Type__c</field>
+        <readable>true</readable>
+        <editable>false</editable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <field>Design_Request__c.Due_Date__c</field>
+        <readable>true</readable>
+        <editable>false</editable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <field>Design_Request__c.Description__c</field>
+        <readable>true</readable>
+        <editable>false</editable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <!-- Source: evt_accept, evt_reject, evt_start, evt_complete — Designer can transition status -->
+        <field>Design_Request__c.Status__c</field>
+        <readable>true</readable>
+        <editable>true</editable>
+    </fieldPermissions>
+</PermissionSet>

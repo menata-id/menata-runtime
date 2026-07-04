@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Source: evt_submit → set_field(status=Submitted) + notify(Designer) -->
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>59.0</apiVersion>
+    <label>Design Request — On Submit</label>
+    <description>Source: evt_submit in design-request.yaml. Triggered when status changes to Submitted. Notifies Designer.</description>
+    <status>Active</status>
+
+    <!-- Trigger: record updated, status changed to Submitted -->
+    <start>
+        <locationX>176</locationX>
+        <locationY>0</locationY>
+        <object>Design_Request__c</object>
+        <recordTriggerType>Update</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+        <filterLogic>AND</filterLogic>
+        <filters>
+            <field>Status__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>Submitted</stringValue>
+            </value>
+        </filters>
+        <connector>
+            <targetReference>Check_Was_Not_Submitted</targetReference>
+        </connector>
+    </start>
+
+    <!-- Condition: was not already Submitted (only trigger on first transition) -->
+    <decisions>
+        <name>Check_Was_Not_Submitted</name>
+        <label>Was Not Already Submitted?</label>
+        <locationX>176</locationX>
+        <locationY>120</locationY>
+        <defaultConnectorLabel>Already Submitted</defaultConnectorLabel>
+        <rules>
+            <name>Is_New_Submission</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record__Prior.Status__c</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue><stringValue>Submitted</stringValue></rightValue>
+            </conditions>
+            <connector><targetReference>Notify_Designer</targetReference></connector>
+            <label>Yes, new submission</label>
+        </rules>
+    </decisions>
+
+    <!-- Action: Send email to Designer role -->
+    <actionCalls>
+        <name>Notify_Designer</name>
+        <label>Notify Designer</label>
+        <locationX>176</locationX>
+        <locationY>240</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <inputParameters>
+            <name>emailSubject</name>
+            <value><stringValue>New Design Request: {!$Record.Title__c}</stringValue></value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailBody</name>
+            <value><stringValue>A new design request has been submitted and is awaiting your review.</stringValue></value>
+        </inputParameters>
+        <inputParameters>
+            <name>sendToRecipientType</name>
+            <value><stringValue>roleAndSubordinatesInternal</stringValue></value>
+        </inputParameters>
+        <inputParameters>
+            <name>sendToRecipientId</name>
+            <value><stringValue>Designer</stringValue></value>
+        </inputParameters>
+    </actionCalls>
+
+    <processType>AutoLaunchedFlow</processType>
+</Flow>

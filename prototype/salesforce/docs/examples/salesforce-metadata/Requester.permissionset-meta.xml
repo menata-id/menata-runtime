@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Source: permissions[role=Requester] → events: [evt_submit] -->
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>Requester</label>
+    <description>Source: permissions[role=Requester] in design-request.yaml. Can create and submit Design Requests.</description>
+
+    <objectPermissions>
+        <object>Design_Request__c</object>
+        <allowCreate>true</allowCreate>
+        <allowRead>true</allowRead>
+        <allowEdit>true</allowEdit>
+        <allowDelete>false</allowDelete>
+        <viewAllRecords>false</viewAllRecords>
+        <modifyAllRecords>false</modifyAllRecords>
+    </objectPermissions>
+
+    <fieldPermissions>
+        <field>Design_Request__c.Title__c</field>
+        <readable>true</readable>
+        <editable>true</editable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <field>Design_Request__c.Design_Type__c</field>
+        <readable>true</readable>
+        <editable>true</editable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <field>Design_Request__c.Due_Date__c</field>
+        <readable>true</readable>
+        <editable>true</editable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <field>Design_Request__c.Description__c</field>
+        <readable>true</readable>
+        <editable>true</editable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <!-- Source: evt_submit — Requester can set status to Submitted -->
+        <field>Design_Request__c.Status__c</field>
+        <readable>true</readable>
+        <editable>true</editable>
+    </fieldPermissions>
+</PermissionSet>

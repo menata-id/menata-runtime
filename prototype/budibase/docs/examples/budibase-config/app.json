@@ -1,0 +1,217 @@
+{
+  "_comment": "Generated from Menata Runtime Metadata: design-request.yaml",
+  "name": "Design Request",
+  "version": "2.x",
+
+  "tables": [
+    {
+      "_id": "ta_design_request",
+      "name": "Design Request",
+      "_comment": "Source: mch_design_request",
+      "primaryDisplay": "title",
+      "schema": {
+        "title": {
+          "name": "title",
+          "type": "string",
+          "_comment": "Source: fld_title (type: text)",
+          "constraints": { "type": "string", "presence": true }
+        },
+        "design_type": {
+          "name": "design_type",
+          "type": "options",
+          "_comment": "Source: fld_design_type (type: value_list)",
+          "constraints": {
+            "type": "string",
+            "inclusion": ["Poster", "Thumbnail", "Banner 2:1"]
+          }
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "datetime",
+          "_comment": "Source: fld_due_date (type: date)",
+          "constraints": { "type": "string", "presence": false },
+          "dateOnly": true
+        },
+        "description": {
+          "name": "description",
+          "type": "longform",
+          "_comment": "Source: fld_description (type: rich_text)",
+          "constraints": { "type": "string", "presence": true }
+        },
+        "attachment": {
+          "name": "attachment",
+          "type": "attachment",
+          "_comment": "Source: fld_attachment (type: file)",
+          "constraints": {}
+        },
+        "status": {
+          "name": "status",
+          "type": "options",
+          "_comment": "Source: fld_status (type: value_list)",
+          "default": "Draft",
+          "constraints": {
+            "type": "string",
+            "inclusion": ["Draft", "Submitted", "Accepted", "Rejected", "In Progress", "Completed"]
+          }
+        },
+        "requester": {
+          "name": "requester",
+          "type": "link",
+          "_comment": "Source: fld_requester (type: user)",
+          "tableId": "ta_bb_users",
+          "fieldName": "design_requests",
+          "constraints": {}
+        }
+      }
+    }
+  ],
+
+  "automations": [
+    {
+      "_id": "auto_notify_designer_on_submit",
+      "name": "Notify Designer on Submit",
+      "_comment": "Source: evt_submit → notify(Designer)",
+      "trigger": {
+        "type": "ROW_UPDATED",
+        "inputs": { "tableId": "ta_design_request" }
+      },
+      "steps": [
+        {
+          "type": "FILTER",
+          "_comment": "Condition: status changed to Submitted",
+          "inputs": {
+            "field": "{{ trigger.row.status }}",
+            "condition": "EQUAL",
+            "value": "Submitted"
+          }
+        },
+        {
+          "type": "SEND_EMAIL",
+          "inputs": {
+            "to": "{{ designer.email }}",
+            "subject": "New Design Request: {{ trigger.row.title }}",
+            "contents": "A design request has been submitted and is awaiting your review."
+          }
+        }
+      ]
+    },
+    {
+      "_id": "auto_notify_requester_on_complete",
+      "name": "Notify Requester on Complete",
+      "_comment": "Source: evt_complete → notify(Requester)",
+      "trigger": {
+        "type": "ROW_UPDATED",
+        "inputs": { "tableId": "ta_design_request" }
+      },
+      "steps": [
+        {
+          "type": "FILTER",
+          "_comment": "Condition: status changed to Completed",
+          "inputs": {
+            "field": "{{ trigger.row.status }}",
+            "condition": "EQUAL",
+            "value": "Completed"
+          }
+        },
+        {
+          "type": "QUERY_ROWS",
+          "inputs": {
+            "tableId": "ta_bb_users",
+            "filters": { "_id": "{{ trigger.row.requester._id }}" }
+          }
+        },
+        {
+          "type": "SEND_EMAIL",
+          "inputs": {
+            "to": "{{ steps.QUERY_ROWS.rows.0.email }}",
+            "subject": "Your Design Request is Complete: {{ trigger.row.title }}",
+            "contents": "Your design request has been completed."
+          }
+        }
+      ]
+    }
+  ],
+
+  "roles": {
+    "REQUESTER": {
+      "_comment": "Source: permissions[role=Requester]",
+      "name": "Requester",
+      "permissionId": "write",
+      "inherits": "PUBLIC"
+    },
+    "DESIGNER": {
+      "_comment": "Source: permissions[role=Designer]",
+      "name": "Designer",
+      "permissionId": "write",
+      "inherits": "PUBLIC"
+    }
+  },
+
+  "screens": [
+    {
+      "_id": "scr_request_form",
+      "_comment": "Source: vw_request_form (type: form)",
+      "routing": { "route": "/design-request/new", "roleId": "REQUESTER" },
+      "props": {
+        "_component": "Form",
+        "title": "New Design Request",
+        "dataSource": { "type": "table", "tableId": "ta_design_request" },
+        "components": [
+          { "_component": "Field/OptionsField",   "field": "design_type",  "label": "Design Type" },
+          { "_component": "Field/DateTimeField",   "field": "due_date",    "label": "Due Date" },
+          { "_component": "Field/StringField",     "field": "title",       "label": "Title",       "required": true },
+          { "_component": "Field/LongFormField",   "field": "description", "label": "Description", "required": true },
+          { "_component": "Field/AttachmentField", "field": "attachment",  "label": "Attachment" }
+        ],
+        "buttons": [
+          { "text": "Submit", "type": "cta", "onClick": { "action": "Save Row", "parameters": { "tableId": "ta_design_request" } } }
+        ]
+      }
+    },
+    {
+      "_id": "scr_my_requests",
+      "_comment": "Source: vw_my_requests (type: list)",
+      "routing": { "route": "/design-request/my-requests", "roleId": "REQUESTER" },
+      "props": {
+        "_component": "Table",
+        "title": "My Requests",
+        "dataSource": {
+          "type": "table",
+          "tableId": "ta_design_request",
+          "filters": [{ "field": "requester._id", "operator": "equal", "value": "{{ currentUser._id }}" }]
+        },
+        "columns": [
+          { "field": "title",       "label": "Title" },
+          { "field": "design_type", "label": "Design Type" },
+          { "field": "due_date",    "label": "Due Date" },
+          { "field": "status",      "label": "Status" }
+        ],
+        "sortColumn": "createdAt",
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "_id": "scr_design_queue",
+      "_comment": "Source: vw_design_queue (type: list) — for Designer role",
+      "routing": { "route": "/design-request/queue", "roleId": "DESIGNER" },
+      "props": {
+        "_component": "Table",
+        "title": "Design Queue",
+        "dataSource": {
+          "type": "table",
+          "tableId": "ta_design_request",
+          "filters": [{ "field": "status", "operator": "oneOf", "value": ["Submitted", "Accepted", "In Progress"] }]
+        },
+        "columns": [
+          { "field": "title",       "label": "Title" },
+          { "field": "requester",   "label": "Requester" },
+          { "field": "design_type", "label": "Design Type" },
+          { "field": "due_date",    "label": "Due Date" },
+          { "field": "status",      "label": "Status" }
+        ],
+        "sortColumn": "due_date",
+        "sortOrder": "Ascending"
+      }
+    }
+  ]
+}

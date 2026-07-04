@@ -1,0 +1,164 @@
+{
+  "_comment": "Generated from Menata Runtime Metadata: design-request.yaml",
+  "version": 1,
+  "directus": "10.x",
+  "vendor": "postgres",
+
+  "collections": [
+    {
+      "collection": "design_request",
+      "meta": {
+        "accountability": "all",
+        "collection": "design_request",
+        "display_template": "{{title}}",
+        "hidden": false,
+        "icon": "design_services",
+        "note": "Source: mch_design_request",
+        "singleton": false,
+        "translations": [
+          { "language": "en-US", "translation": "Design Request" }
+        ]
+      },
+      "schema": { "name": "design_request" }
+    }
+  ],
+
+  "fields": [
+    {
+      "collection": "design_request",
+      "field": "id",
+      "type": "uuid",
+      "meta": { "hidden": true, "interface": "input", "readonly": true, "special": ["uuid"] },
+      "schema": { "is_primary_key": true, "has_auto_increment": false }
+    },
+    {
+      "collection": "design_request",
+      "field": "requester",
+      "type": "uuid",
+      "meta": {
+        "interface": "select-dropdown-m2o",
+        "display": "related-values",
+        "display_options": { "template": "{{first_name}} {{last_name}}" },
+        "note": "Source: fld_requester (type: user)"
+      },
+      "schema": {
+        "is_nullable": true,
+        "foreign_key_table": "directus_users",
+        "foreign_key_column": "id"
+      }
+    },
+    {
+      "collection": "design_request",
+      "field": "design_type",
+      "type": "string",
+      "meta": {
+        "interface": "select-dropdown",
+        "options": {
+          "choices": [
+            { "text": "Poster",     "value": "Poster" },
+            { "text": "Thumbnail",  "value": "Thumbnail" },
+            { "text": "Banner 2:1", "value": "Banner 2:1" }
+          ]
+        },
+        "note": "Source: fld_design_type (type: value_list)"
+      },
+      "schema": { "is_nullable": true, "data_type": "character varying", "max_length": 255 }
+    },
+    {
+      "collection": "design_request",
+      "field": "due_date",
+      "type": "date",
+      "meta": {
+        "interface": "datetime",
+        "display": "datetime",
+        "note": "Source: fld_due_date (type: date)"
+      },
+      "schema": { "is_nullable": true, "data_type": "date" }
+    },
+    {
+      "collection": "design_request",
+      "field": "title",
+      "type": "string",
+      "meta": {
+        "interface": "input",
+        "note": "Source: fld_title (type: text)"
+      },
+      "schema": { "is_nullable": false, "data_type": "character varying", "max_length": 255 }
+    },
+    {
+      "collection": "design_request",
+      "field": "description",
+      "type": "text",
+      "meta": {
+        "interface": "input-rich-text-html",
+        "note": "Source: fld_description (type: rich_text)"
+      },
+      "schema": { "is_nullable": true, "data_type": "text" }
+    },
+    {
+      "collection": "design_request",
+      "field": "attachment",
+      "type": "uuid",
+      "meta": {
+        "interface": "file",
+        "display": "file",
+        "special": ["file"],
+        "note": "Source: fld_attachment (type: file)"
+      },
+      "schema": {
+        "is_nullable": true,
+        "foreign_key_table": "directus_files",
+        "foreign_key_column": "id"
+      }
+    },
+    {
+      "collection": "design_request",
+      "field": "status",
+      "type": "string",
+      "meta": {
+        "interface": "select-dropdown",
+        "display": "labels",
+        "options": {
+          "choices": [
+            { "text": "Draft",       "value": "draft",       "foreground": "#6B7280", "background": "#F3F4F6" },
+            { "text": "Submitted",   "value": "submitted",   "foreground": "#1D4ED8", "background": "#DBEAFE" },
+            { "text": "Accepted",    "value": "accepted",    "foreground": "#065F46", "background": "#D1FAE5" },
+            { "text": "Rejected",    "value": "rejected",    "foreground": "#991B1B", "background": "#FEE2E2" },
+            { "text": "In Progress", "value": "in_progress", "foreground": "#92400E", "background": "#FEF3C7" },
+            { "text": "Completed",   "value": "completed",   "foreground": "#1E40AF", "background": "#BFDBFE" }
+          ]
+        },
+        "note": "Source: fld_status (type: value_list) — transitions managed by Flows"
+      },
+      "schema": {
+        "is_nullable": true,
+        "data_type": "character varying",
+        "max_length": 255,
+        "default_value": "draft"
+      }
+    }
+  ],
+
+  "relations": [
+    {
+      "collection": "design_request",
+      "field": "requester",
+      "related_collection": "directus_users",
+      "meta": {
+        "many_collection": "design_request",
+        "many_field": "requester",
+        "one_collection": "directus_users"
+      }
+    },
+    {
+      "collection": "design_request",
+      "field": "attachment",
+      "related_collection": "directus_files",
+      "meta": {
+        "many_collection": "design_request",
+        "many_field": "attachment",
+        "one_collection": "directus_files"
+      }
+    }
+  ]
+}
