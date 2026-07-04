@@ -1,88 +1,47 @@
 # Menata Runtime — Drupal Prototype
 
-> A metadata-driven application runtime built on Drupal 10.
+> Metadata proof: design-request.yaml -> native Drupal configuration
 
 ---
 
-## Status
+## Approach
 
-**Prototype** — active development.
+Drupal is a **configuration-driven CMS framework**.
 
----
-
-## How It Works
+Every content structure, workflow, role, view, and event rule in Drupal is expressible as YAML configuration files — importable via `drush config:import` without writing PHP code.
 
 ```text
-Business Knowledge (.menata)
-        │
-        ▼
-Runtime Metadata (.yaml)
-        │
-        ▼
-Drupal Runtime (menata_runtime module)
-        │
-        ▼
-Running Application (Drupal)
+design-request.yaml
+        |
+        |-> Machine + Fields + Status  -> node.type.design_request.yml + field.*.yml
+        |-> State machine + transitions -> workflows.workflow.design_request.yml
+        |-> Event notifications         -> eca.eca.design_request_notify.yml
+        |-> Roles + Permissions         -> user.role.*.yml
+        `-> List view                  -> views.view.design_request_my_requests.yml
 ```
 
-1. Business Knowledge is expressed using Menata Language.
-2. Runtime Metadata describes how that knowledge should be realized.
-3. The `menata_runtime` Drupal module interprets Runtime Metadata.
-4. Drupal realizes the application using its built-in entity, views, workflow, and permission systems.
-
 ---
 
-## The Same YAML. A Different Runtime.
+## Runtime Metadata -> Drupal Mapping
 
-The Runtime Metadata YAML used by this prototype is identical to the one used by the Go prototype.
-
-The same `design-request.yaml` that produces a Go + HTMX application also produces a Drupal application.
-
-This validates the Menata principle:
-
-> Business Knowledge should remain independent from implementation technology.
-
----
-
-## Tech Stack
-
-| Concern | Technology |
-|---------|-----------|
-| Runtime Engine | Drupal 10 + PHP 8.2 |
-| Database | PostgreSQL |
-| Runtime Metadata Interpreter | Custom module: `menata_runtime` |
-| Content Modeling | Drupal Content Types + Fields API |
-| State Transitions | Drupal Workflows module |
-| Event Handling | ECA module (Events, Conditions, Actions) |
-| List Views | Drupal Views module |
-| Forms | Drupal Form API |
-| Permissions | Drupal Roles + Permissions |
-| CLI | Drush |
-
-See [docs/decisions/001-techstack.md](docs/decisions/001-techstack.md) for rationale.
-
----
-
-## Prototype Scope
-
-In scope:
-
-- Runtime Metadata loading via `menata_runtime` module
-- Machine → Content Type realization
-- Field → Drupal Field realization
-- Event → ECA + Workflow realization
-- Constraint → Field validation realization
-- Permission → Drupal Role + Permission realization
-- View (list) → Drupal Views realization
-- View (detail) → Node display mode realization
-- View (form) → Drupal edit form realization
-
-Out of scope (future iterations):
-
-- Multi-workspace support
-- External integrations
-- Scheduling beyond Drupal cron
-- API exposure (JSON:API is available but not configured by this prototype)
+| Menata Runtime | Drupal |
+|----------------|-------|
+| Machine | Content Type (node bundle) |
+| Field | Drupal Field (field.storage + field.field) |
+| Field type: text | Text (plain) |
+| Field type: rich_text | Text (formatted, long) |
+| Field type: date | Date |
+| Field type: user | Entity Reference -> User |
+| Field type: file | File field |
+| Field type: value_list | List (text) |
+| Event (status change) | Workflow transition |
+| Event action: notify | ECA rule (Events, Conditions, Actions module) |
+| Constraint (required) | Field required flag in config |
+| Conditional constraint | — (not expressible in YAML, see Metadata Coverage) |
+| Permission | Drupal Role + permission YAML |
+| View (list) | Views module configuration YAML |
+| View (form) | Drupal Form API (auto-generated from field config) |
+| View (detail) | Node display mode (auto-generated) |
 
 ---
 
@@ -107,22 +66,32 @@ The metadata files in `docs/examples/drupal-config/` are native Drupal configura
 | 11 | Constraint: Attachment if Design Type = Banner | — | ❌ Cannot be done without code — needs PHP validation in a custom module |
 | 12 | Permission: Requester role | user.role.requester.yml | ✅ Metadata only |
 | 13 | Permission: Designer role | user.role.designer.yml | ✅ Metadata only |
-| 14 | View: Form | Drupal edit form (auto-generated) | ✅ Metadata only |
+| 14 | View: Form | Drupal edit form (auto-generated from field config) | ✅ Metadata only |
 | 15 | View: List | views.view.design_request_my_requests.yml | ✅ Metadata only |
 | 16 | View: Detail | Node display mode (auto-generated) | ✅ Metadata only |
 
-Note: The `menata_runtime` custom module described in the architecture is the Drupal implementation of the Menata Runtime interpreter — a separate code layer. The metadata proof tests only what native Drupal configuration can express without it.
+---
 
-## Getting Started
+## Files
 
-See [DEVELOPMENT.md](DEVELOPMENT.md).
+```
+drupal-config/
+├── node.type.design_request.yml                  <- Content Type: Machine
+├── field.storage.node.field_design_type.yml      <- Field: Design Type (List text)
+├── field.storage.node.field_status.yml           <- Field: Status (List text, all states)
+├── workflows.workflow.design_request.yml         <- Workflow: 6 states, 5 transitions
+├── eca.eca.design_request_notify.yml             <- ECA: notify Designer + notify Requester
+├── views.view.design_request_my_requests.yml     <- View: My Requests (List)
+├── user.role.requester.yml                       <- Role: Requester (Submit)
+└── user.role.designer.yml                        <- Role: Designer (Accept, Reject, Start, Complete)
+```
 
 ---
 
-## Documentation
+## Key Insight
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — how Drupal concepts map to the Menata Runtime specification
-- [DEVELOPMENT.md](DEVELOPMENT.md) — setup and local development
-- [docs/drupal-mapping.md](docs/drupal-mapping.md) — Runtime Metadata → Drupal concept mapping
-- [docs/examples/](docs/examples/) — example Business Knowledge and Runtime Metadata
-- [docs/decisions/](docs/decisions/) — architectural decisions
+Drupal proves that a mature CMS framework can express most of a business application as pure configuration YAML.
+
+Its Workflow module handles state machine enforcement natively — something Directus and Budibase cannot do in metadata.
+
+The gap is constraint expressiveness: Drupal YAML cannot express "after today" or conditional field requirements without a PHP plugin.
