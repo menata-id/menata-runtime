@@ -285,18 +285,18 @@ Compose **all prior cases as one organization**: general domains (Cases 1–8) +
 - Two were *predicted by the spec but never exercised*: Navigation (named in runtime/004 hierarchy) and Holiday (spec 001 example object → business calendar as workspace service).
 - Role strings collide across applications (`Manager` in HR ≠ `Manager` in Design) — identity/role registry (CAP-O01) is the highest-priority composition gap.
 
-## Study 8 — Multi-Workspace Scale & Performance Architecture
-
-If all capabilities are used and workspaces multiply: what data structure and programming strategy delivers the best performance with optimal resources?
-
-Topics: tenancy models (shared schema + workspace_id vs schema-per-workspace vs database-per-workspace), `records` JSONB indexing strategy (GIN, expression indexes per hot field), per-workspace metadata caching and reload, connection pooling, workspace isolation guarantees (closes CAP-X06), noisy-neighbor mitigation, horizontal scaling of the interpreter.
-
-**Key question:** what breaks first at 100 workspaces × 50 machines × 1M records — and which architecture defers that point longest with the least resources?
+## Study 8 — Multi-Workspace Scale & Performance Architecture ✅ done (2026-07-04)
 
 **Deliverables:**
-- [ ] `benchmarks/scale-architecture-study.md` — tenancy option analysis + recommendation
-- [ ] Load-test plan (synthetic workspace/machine/record generator against the prototype)
-- [ ] ADR: tenancy and indexing decision for the next runtime iteration
+- [x] `benchmarks/scale-architecture-study.md` — tenancy analysis (A: shared schema + RLS chosen; C database-per-tenant as escape hatch), data structure strategy, programming strategy
+- [x] Load-test plan — synthetic generator + workload mix + matrix (X10 on/off) + falsifiable pass thresholds (p95 list < 200ms @ W=100/1M rows, boot < 5s, zero cross-workspace rows under RLS probe)
+- [x] ADR-003 — `prototype/go/docs/decisions/003-tenancy-and-indexing.md`
+
+**Headline findings:**
+- **What breaks first:** eager `LoadAll` at boot (5,000 machines ≈ 30k queries), then JSONB filter seq-scans, then missing workspace dimension on data.
+- **`[SCALE FINDING]` CAP-X10 metadata-driven index management** — the metadata already names every hot field (view filters, sorts, references); index reconciliation à la Kubernetes makes indexing a runtime responsibility, not an ops task.
+- **`[SCALE FINDING]` CAP-X11 lazy per-workspace metadata cache** — unifies ADR-002's LISTEN/NOTIFY live reload with the scale cache: one mechanism, two problems solved.
+- CAP-X06 (workspace isolation) gets its implementation strategy: PostgreSQL Row-Level Security — enforced by the database, not developer discipline.
 
 ## Study 9 — Capability Lifecycle Governance (closing)
 

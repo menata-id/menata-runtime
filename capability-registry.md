@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.5 — + Study 7 composition findings (Case 10) | Updated: 2026-07-04
+> Status: v0.6 — + Study 8 scale findings | Updated: 2026-07-04
 
 Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 gaps P1–P6
 (`prototype/go/docs/examples/README.md`), Study 1 pattern mapping
@@ -137,10 +137,12 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-X03 | Machine-level config block (approval_mode etc.) | ❌ | Case 3 (P4) | — | 4 | — |
 | CAP-X04 | Metadata live reload (today: restart required) | ❌ | ADR-002 | K8s reconciliation | 14 | plan in `decisions/002-metadata-loading.md` |
 | CAP-X05 | Metadata validation before load (dangling refs, bad operators) | ❌ | Study 1 mapping | Terraform plan-before-apply | 7 | — |
-| CAP-X06 | Workspace isolation in routing/authz | ⚠️ | prototype design | — | 15 | loaded but not enforced anywhere |
+| CAP-X06 | Workspace isolation in routing/authz | ⚠️ | prototype design | — | 8 | implementation strategy decided: PostgreSQL RLS (ADR-003) |
 | CAP-X07 | Auto-generated REST API per machine | ❌ | Study 2 survey | 5/6 platforms | 10 | — |
 | CAP-X08 | Metadata package export/import (portable app definition) | ❌ | Study 2 survey | universal (6/6 platforms) | 9 | today: hand-written SQL seeds; blocks "one knowledge, many runtimes" operationally |
 | CAP-X09 | Organizational unit scoping (org dimension on records, permissions, selectors, per-unit timezone) | ❌ | Study 5 Portal GA | BranchPeriodSelector + timezone rules | 6 | records today have no org context at all |
+| CAP-X10 | Metadata-driven index management (hot fields from view filters/sorts → expression indexes, reconciled) | ❌ | Study 8 [SCALE FINDING] | K8s reconciliation applied to indexes | 10 | ADR-003 |
+| CAP-X11 | Lazy per-workspace metadata loading + cache (singleflight, LRU, LISTEN/NOTIFY eviction) | ❌ | Study 8 [SCALE FINDING] | ADR-002 Option C unified with scale cache | 7 | ADR-003; retires boot-time LoadAll |
 
 ## Cross-Machine Integration
 
