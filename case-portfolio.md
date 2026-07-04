@@ -33,7 +33,7 @@
 | 7 | Customer Complaint | Unstructured case management (CMMN-style): ad-hoc steps, SLA, escalation, reopen | E02, E05, A09, P04, WCP-10 cycles | planned |
 | 8 | Payment Confirmation | External events: webhook ingestion, idempotency, reconciliation | E04, X07, C08 | planned |
 | 9 | Accounting (journal, monthly close, trial balance) | Vertical depth: header-detail documents, aggregate line invariants, immutability | F16, C10, E06+R07, C11, F18, V13, A02 | targets declared (Study 6) |
-| 10 | Organization Composite | Emergent capabilities at composition: shared identity, master data, cross-app navigation, org-wide reporting | targets declared at Study 7 | planned (Phase 2) |
+| 10 | Organization Composite | Emergent capabilities at composition: shared identity, master data, cross-app navigation, org-wide reporting | F13+I01–I05+X09+V10+P05 composition test | ⚠️ documented (Study 7) — 6 `[COMPOSITION FINDING]` → CAP-O01…O06 |
 
 Sequencing follows the registry's implementation order: Case 4 (time) precedes Case 5–6 (calculation) because escalation and scheduling appear in Cases 6–7 too; external events (Case 8) come last because they depend on API surface (X07).
 

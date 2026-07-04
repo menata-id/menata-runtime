@@ -271,16 +271,19 @@ Deep vertical benchmark: accounting, tax, financial reporting, data visualizatio
 - Boundary answer: documents, invariants, lifecycle, and reports are metadata-expressible (ERPNext proves tax templates, COA trees, naming series, dashboard charts as pure metadata). **Posting derivation engines are not** — multi-step conditional derivation is where metadata would degenerate into a programming language. Resolution: domain engines as pluggable executor extensions beneath declarative metadata → sharpens Study 9's extension-architecture requirement.
 - CAP-F18 (auto-numbering) is universal across platforms — a table-stakes capability Study 2 missed; case+benchmark dual-evidence now satisfied.
 
-## Study 7 — Organization-Wide Composite Integration ⏳ next
+## Study 7 — Organization-Wide Composite Integration ✅ done (2026-07-04)
 
-Compose **all prior cases as one organization**: general domains (Cases 1–8) + specific domains (Portal GA patterns from Study 5, accounting from Study 6) — shared users and roles across applications, cross-application references, org-wide dashboards and notifications.
-
-**Key question:** are new capabilities needed that **no single case reveals**? Hypothesis: yes — capabilities that only emerge at composition: shared identity, shared master data (employee, department, customer used by many applications), cross-application navigation, global search, cross-domain reporting.
+Compose **all prior cases as one organization**: general domains (Cases 1–8) + specific domains (Portal GA patterns from Study 5, accounting from Study 6).
 
 **Deliverables:**
-- [ ] Case 10 (Organization Composite) — written as a portfolio case with declared targets
-- [ ] Emergent-capability findings registered (flagged `[COMPOSITION FINDING]`)
-- [ ] Assessment: does Workspace/Application hierarchy suffice, or is a shared-kernel concept needed?
+- [x] Case 10 (Organization Composite) — `prototype/go/docs/examples/organization-composite.md`: PT Maju Bersama scenario, 8 applications, one employee crossing 4 applications in one morning
+- [x] Emergent-capability findings registered — 6 `[COMPOSITION FINDING]` (registry v0.5): new **Workspace Services** area CAP-O01…O06 (identity & role registry, master data designation, navigation, global search, unified notification center, business calendar)
+- [x] Assessment — **the Workspace/Application/Machine hierarchy stands**; no shared-kernel *structure* needed. What composition demands is a new metadata residence: **workspace services** — concerns owned by the workspace itself, belonging to no application. This makes `runtime/004`'s "Workspace owns shared resources" clause concrete for the first time.
+
+**Headline findings:**
+- Hypothesis confirmed: 6 capabilities emerged that none of Cases 1–9 could reveal alone.
+- Two were *predicted by the spec but never exercised*: Navigation (named in runtime/004 hierarchy) and Holiday (spec 001 example object → business calendar as workspace service).
+- Role strings collide across applications (`Manager` in HR ≠ `Manager` in Design) — identity/role registry (CAP-O01) is the highest-priority composition gap.
 
 ## Study 8 — Multi-Workspace Scale & Performance Architecture
 

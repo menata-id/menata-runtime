@@ -5,14 +5,15 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.4 — + Study 6 accounting vertical additions | Updated: 2026-07-04
+> Status: v0.5 — + Study 7 composition findings (Case 10) | Updated: 2026-07-04
 
 Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 gaps P1–P6
 (`prototype/go/docs/examples/README.md`), Study 1 pattern mapping
 (`benchmarks/workflow-patterns-mapping.md`), Study 2 platform survey
 (`benchmarks/platform-capability-survey.md`), Study 5 Portal GA survey
-(`benchmarks/portal-ga-cross-domain-survey.md`), and Study 6 accounting vertical survey
-(`benchmarks/accounting-vertical-survey.md`).
+(`benchmarks/portal-ga-cross-domain-survey.md`), Study 6 accounting vertical survey
+(`benchmarks/accounting-vertical-survey.md`), and Study 7 Case 10 composition findings
+(`prototype/go/docs/examples/organization-composite.md`).
 
 **Status** reflects the Go prototype runtime: ✅ supported · ⚠️ partial · ❌ not yet.
 **Prio** is the global implementation ordering (blank = supported or not yet prioritized).
@@ -150,6 +151,19 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-I03 | Integration contract (consumer expectations + on-violation behavior) | ❌ | Study 5 Portal GA | Consumer Contract Registry (22 contracts) | 9 | boundary constraint — same family as Constraint grammar |
 | CAP-I04 | Correlation trace + integration observability (correlation_id, SLO) | ❌ | Study 5 Portal GA | BRD R17.1, SLO registry | 10 | — |
 | CAP-I05 | Cross-cutting contribution declaration on events (weights to gamification/KPI machines) | ❌ | Study 5 Portal GA | BRD §10 Contribution Law | 13 | — |
+
+## Workspace Services
+
+All discovered by Case 10 `[COMPOSITION FINDING]` — capabilities that belong to the workspace itself, not to any application (Study 7).
+
+| ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
+|----|-----------|--------|---------------|-------------|------|-------|
+| CAP-O01 | Workspace identity & role registry (users, namespaced roles, user→role assignment as metadata) | ❌ | Case 10 | spec 005 (roles ≠ users) | 6 | prototype role cookie is workspace-blind |
+| CAP-O02 | Master data designation (canonical machines: ownership, cross-app referenceability, deactivation semantics) | ❌ | Case 10 | DDD shared kernel, Portal GA PICA + Data Mesh | 8 | flag + rules on machine, not a new hierarchy level |
+| CAP-O03 | Navigation metadata (app grouping, role-aware menus, workspace home) | ❌ | Case 10 | runtime/004 already names Navigation — spec predicted it | 9 | — |
+| CAP-O04 | Workspace-wide search across machines (permission-trimmed) | ❌ | Case 10 | — | 12 | depends on CAP-P05 |
+| CAP-O05 | Unified notification center (inbox, per-user channel preferences, digest grouping) | ❌ | Case 10 | Portal GA message dispatcher | 8 | extends CAP-A10 to workspace service |
+| CAP-O06 | Business calendar (holidays, working-day rules) consumable by date arithmetic/SLA | ❌ | Case 10 | spec 001 Holiday example | 9 | feeds CAP-A11, CAP-E02 |
 
 ---
 
