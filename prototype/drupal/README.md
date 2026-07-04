@@ -86,6 +86,23 @@ Out of scope (future iterations):
 
 ---
 
+## Metadata Coverage
+
+The metadata files in `docs/examples/drupal-config/` are native Drupal configuration — importable via `drush config:import` without any custom code.
+
+| Feature | File | Status |
+|---------|------|--------|
+| Content Type + Fields | node.type.design_request.yml + field.*.yml | ✅ Metadata only |
+| Workflow: states + transitions | workflows.workflow.design_request.yml | ✅ Metadata only |
+| Event notifications via ECA | eca.eca.design_request_notify.yml | ✅ Metadata only |
+| Views: list view | views.view.design_request_my_requests.yml | ✅ Metadata only |
+| Roles + Permissions | user.role.requester.yml, user.role.designer.yml | ✅ Metadata only |
+| Constraint: title required, description required | field config (required flag) | ✅ Metadata only |
+| Constraint: attachment required if Design Type = Banner | — | ❌ Cannot be done without code — needs PHP validation in a custom module |
+| Interpreter bridge (`menata_runtime` module) | — | ❌ Code layer — this is the Drupal runtime interpreter, not part of the metadata proof |
+
+Note: The `menata_runtime` custom module described in the architecture is the Drupal implementation of the Menata Runtime interpreter. It is a separate code layer. The metadata proof tests only what native Drupal configuration can express.
+
 ## Getting Started
 
 See [DEVELOPMENT.md](DEVELOPMENT.md).

@@ -52,12 +52,24 @@ directus-config/
 
 ---
 
+## Metadata Coverage
+
+| Feature | File | Status |
+|---------|------|--------|
+| Machine + Fields | schema-snapshot.json | ✅ Metadata only |
+| Roles + Permissions | roles-permissions.json | ✅ Metadata only |
+| Event: notify Designer on Submit | flows.json | ✅ Metadata only |
+| Event: notify Requester on Complete | flows.json | ✅ Metadata only |
+| Constraint: title required, description required | schema field validation | ✅ Metadata only |
+| Views (list, form, detail) | auto-generated from collection | ✅ Metadata only |
+| Constraint: attachment required if Design Type = Banner | — | ⚠️ Not in current proof — achievable via Flow with Action(Before) trigger (metadata-only), but not yet demonstrated |
+
+---
+
 ## Key Insight
 
-Directus proves the **thinnest possible** metadata-driven runtime.
+Directus is the thinnest metadata-driven runtime in this proof set.
 
-No framework. No custom code.
+Schema = application. No framework overhead. No custom code for core features.
 
-Schema = application.
-
-The entire application is expressed as three JSON files.
+The entire application is expressed as three JSON files — the closest existing format to what Menata Runtime Metadata aspires to produce.

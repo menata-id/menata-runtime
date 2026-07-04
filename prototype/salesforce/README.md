@@ -71,3 +71,21 @@ Salesforce proves that metadata-driven applications work at **enterprise scale**
 The entire application definition is versionable, deployable, and environment-independent — exactly what Menata Runtime aims for.
 
 Salesforce has been doing this since 2000.
+
+## Metadata Coverage
+
+Salesforce is the only platform in this proof set where **all features are covered by metadata alone**.
+
+| Feature | File | Status |
+|---------|------|--------|
+| Machine + Fields | DesignRequest__c.object-meta.xml | ✅ Metadata only |
+| Constraint: title required | ValidationRule in object-meta.xml | ✅ Metadata only |
+| Constraint: due date future | ValidationRule with formula | ✅ Metadata only |
+| Constraint: attachment if Banner | ValidationRule with conditional formula | ✅ Metadata only |
+| Event: notify Designer on Submit | DesignRequestSubmit.flow-meta.xml | ✅ Metadata only |
+| Event: notify Requester on Complete | DesignRequestComplete.flow-meta.xml | ✅ Metadata only |
+| Permissions | Requester + Designer permissionset-meta.xml | ✅ Metadata only |
+| Views (list, form, detail) | List Views in object-meta.xml; form auto-generated | ✅ Metadata only |
+
+No additional code required for any feature in this proof.
+

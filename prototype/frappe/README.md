@@ -47,6 +47,21 @@ design-request.yaml
 
 ---
 
+## Metadata Coverage
+
+| Feature | File | Status |
+|---------|------|--------|
+| Machine + Fields | Design Request.json (DocType) | ✅ Metadata only |
+| Permissions | Design Request.json (DocPerm) | ✅ Metadata only |
+| Workflow: states + transitions | Design Request Workflow.json | ✅ Metadata only |
+| Constraint: title required, description required | Design Request.json (reqd: 1) | ✅ Metadata only |
+| Event: notify Designer on Submit | Notify Designer on Submit.json | ✅ Metadata only |
+| Event: notify Requester on Complete | Notify Requester on Complete.json | ✅ Metadata only |
+| Views (form, list, detail) | auto-generated from DocType | ✅ Metadata only |
+| Constraint: attachment required if Design Type = Banner | — | ❌ Cannot be done without code — requires Python `validate()` method in a DocType Controller |
+
+---
+
 ## Why Frappe is the Closest to Menata Runtime
 
 Defining a DocType in Frappe is enough to get form view, list view, detail view,

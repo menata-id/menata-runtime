@@ -42,6 +42,27 @@ This validates the core Menata principle:
 
 ---
 
+
+## Metadata-Only Testing Goal
+
+The metadata proof prototypes test one specific question:
+
+> Can an existing framework realize a business application from metadata alone, without writing additional code?
+
+The Menata Runtime interpreter (Go prototype) is a separate code layer. The metadata proofs are independent of it — they test whether each platform's own engine can interpret the metadata natively.
+
+| Prototype | Metadata Coverage | Limitation |
+|-----------|-----------------|------------|
+| [directus/](directus/) | Mostly full | Conditional constraint not yet in proof (achievable via Flow, metadata-only) |
+| [salesforce/](salesforce/) | Full | — |
+| [budibase/](budibase/) | Partial | Conditional field validation needs JavaScript code |
+| [frappe/](frappe/) | Partial | Conditional constraint needs Python validate() method |
+| [drupal/](drupal/) | Partial | Conditional constraint needs PHP; interpreter bridge is code |
+| [camunda/](camunda/) | Partial | Service Task (notify) needs connector worker code |
+| [go/](go/) | — | Custom runtime — not a metadata-only test |
+
+---
+
 ## Prototypes
 
 | Prototype | Technology | Type | Status |

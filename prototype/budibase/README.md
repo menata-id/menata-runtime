@@ -46,10 +46,24 @@ budibase-config/
 
 ---
 
+## Metadata Coverage
+
+| Feature | File | Status |
+|---------|------|--------|
+| Machine + Fields | app.json (table schema) | ✅ Metadata only |
+| Roles | app.json | ✅ Metadata only |
+| Screens: form, list | app.json | ✅ Metadata only |
+| Event: notify Designer on Submit | app.json (automation) | ✅ Metadata only |
+| Event: notify Requester on Complete | app.json (automation) | ✅ Metadata only |
+| Constraint: title required, description required | app.json (field constraints) | ✅ Metadata only |
+| Constraint: attachment required if Design Type = Banner | — | ❌ Cannot be done without code — Budibase field validation is static; conditional validation requires JavaScript in an automation step |
+
+---
+
 ## Key Insight
 
 Budibase proves that a **single portable JSON file** can describe a complete running application.
 
 Import `app.json` into any Budibase instance → application is immediately available.
 
-This is the closest existing format to what Menata Runtime Metadata aspires to be.
+The limitation: dynamic conditional field validation (if X then Y is required) falls outside what Budibase metadata can express without JavaScript code.

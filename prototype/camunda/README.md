@@ -55,6 +55,21 @@ camunda-config/
 
 ---
 
+## Metadata Coverage
+
+| Feature | File | Status |
+|---------|------|--------|
+| Process: user tasks, gateways, sequence flows | design-request.bpmn | ✅ Metadata only |
+| Permissions: candidate groups per task | design-request.bpmn | ✅ Metadata only |
+| Constraint: attachment required if Banner | design-request.dmn | ✅ Metadata only (DMN decision table) |
+| Constraint: due date must be after today | design-request.dmn | ✅ Metadata only (DMN decision table) |
+| View (form) | design-request.form | ✅ Metadata only |
+| View (list) | Camunda Tasklist | ✅ Built-in, no metadata needed |
+| Event action: notify Designer on Submit | design-request.bpmn (Service Task) | ❌ Cannot be done without code — Service Task needs connector worker implementation (Java/JS) or Camunda 8 Cloud built-in connector |
+| Event action: notify Requester on Complete | design-request.bpmn (Service Task) | ❌ Same as above |
+
+---
+
 ## Key Insight
 
 Camunda proves that **open standards** (BPMN, DMN) can serve as Runtime Metadata.
