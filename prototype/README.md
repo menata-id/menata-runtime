@@ -30,9 +30,9 @@ design-request.menata
         └──▶ Camunda Runtime     ──▶ Running Application (Camunda)
 ```
 
-The Menata Language remains unchanged.
+The Business Knowledge (`design-request.menata`) remains unchanged.
 
-The Runtime Metadata format remains unchanged.
+From it, Runtime Metadata is derived — a stable bridge that any interpreter can read.
 
 Only the interpreter differs.
 
@@ -56,11 +56,11 @@ This validates the core Menata principle:
 
 ---
 
-## Shared Runtime Metadata
+## From Business Knowledge to Application
 
-All prototypes interpret the same Runtime Metadata format.
+The same `design-request.menata` is the source for all prototypes.
 
-The same `design-request.yaml` that drives the Go prototype is the same file used by every other prototype.
+Each prototype derives Runtime Metadata (`design-request.yaml`) from that Business Knowledge, then interprets it into a running application using its own native format.
 
 See examples in each prototype's `docs/examples/` directory.
 
