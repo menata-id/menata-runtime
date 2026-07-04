@@ -1,0 +1,188 @@
+# Approval Document — Runtime Metadata
+# Realization of approval-document.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_approval                        # [SUPPORTED]
+  name: Approval
+  workspace: ws_default
+
+machine:
+  id: mch_approval_document              # [SUPPORTED]
+  name: Approval Document
+  application: app_approval
+
+  # [NOT YET] Machine-level config for approval behavior.
+  # Requires new machine config layer in Runtime Metadata schema.
+  # config:
+  #   approval_mode_field: fld_ad_approval_mode   # field that holds Sequential|Parallel
+  #   steps_machine: mch_approval_step            # related machine for steps
+  #   steps_parent_field: fld_as_document         # reference field on steps side
+
+  fields:
+    - id: fld_ad_title                    # [SUPPORTED]
+      name: Title
+      type: text
+      required: true
+
+    - id: fld_ad_document_type            # [SUPPORTED]
+      name: Document Type
+      type: value_list
+      required: true
+      values:
+        - SOP
+        - Policy
+        - Contract
+        - Report
+        - Other
+
+    - id: fld_ad_file                     # [SUPPORTED]
+      name: File
+      type: file
+      required: true
+
+    - id: fld_ad_submitted_by             # [SUPPORTED]
+      name: Submitted By
+      type: user
+      required: true
+
+    - id: fld_ad_approval_mode            # [SUPPORTED] — stored as value_list
+      name: Approval Mode
+      type: value_list
+      required: true
+      values:
+        - Sequential
+        - Parallel
+
+    - id: fld_ad_notes                    # [SUPPORTED]
+      name: Notes
+      type: rich_text
+      required: false
+
+    - id: fld_ad_status                   # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values:
+        - Draft
+        - In Review
+        - Approved
+        - Rejected
+        - Withdrawn
+
+  events:
+    - id: evt_ad_submit                   # [SUPPORTED] — set_field + notify
+      name: Submit
+      actions:
+        - set_field: { field: fld_ad_status, value: In Review }
+        - notify: { role: Approver }
+        # [NOT YET] notify all configured approvers for this specific document.
+        # Current notify only targets a static role string.
+        # Requires: dynamic recipient resolution from Approval Steps.
+
+    - id: evt_ad_approve                  # [NOT YET] — triggered by system, not a user button
+      name: Approve
+      actions:
+        - set_field: { field: fld_ad_status, value: Approved }
+        - notify: { role: Submitter }
+      # [NOT YET] This event should be triggered automatically when all
+      # Approval Steps for this document reach Decision = Approved.
+      # Requires: aggregate_status action type in runtime executor.
+
+    - id: evt_ad_reject                   # [NOT YET] — triggered by system
+      name: Reject
+      actions:
+        - set_field: { field: fld_ad_status, value: Rejected }
+        - notify: { role: Submitter }
+      # [NOT YET] Same as Approve — auto-triggered when any Step is Rejected.
+
+    - id: evt_ad_withdraw                 # [SUPPORTED]
+      name: Withdraw
+      actions:
+        - set_field: { field: fld_ad_status, value: Withdrawn }
+
+  constraints:
+    - id: cst_ad_title_required           # [SUPPORTED]
+      rule: Title is required.
+      expression:
+        field: fld_ad_title
+        operator: required
+
+    - id: cst_ad_file_required            # [SUPPORTED]
+      rule: File is required.
+      expression:
+        field: fld_ad_file
+        operator: required
+
+    - id: cst_ad_mode_required            # [SUPPORTED]
+      rule: Approval Mode is required.
+      expression:
+        field: fld_ad_approval_mode
+        operator: required
+
+  permissions:
+    - role: Submitter                     # [SUPPORTED]
+      events: [ evt_ad_submit, evt_ad_withdraw ]
+
+    - role: System                        # [NOT YET] — System-triggered events
+      events: [ evt_ad_approve, evt_ad_reject ]
+      # [NOT YET] "System" is not a real user role in the current prototype.
+      # Requires: internal event triggering mechanism (not user-facing).
+
+  views:
+    - id: vw_ad_form                      # [SUPPORTED]
+      name: Submission Form
+      type: form
+      fields:
+        - fld_ad_title
+        - fld_ad_document_type
+        - fld_ad_file
+        - fld_ad_submitted_by
+        - fld_ad_approval_mode
+        - fld_ad_notes
+
+    - id: vw_ad_my_submissions            # [SUPPORTED]
+      name: My Submissions
+      type: list
+      columns:
+        - fld_ad_title
+        - fld_ad_document_type
+        - fld_ad_approval_mode
+        - fld_ad_status
+      default_sort:
+        field: created_at
+        direction: desc
+
+    - id: vw_ad_pending_approval          # [PARTIAL] — list renders, but filtering
+      name: Pending My Approval           #   "records where I am an approver" requires
+      type: list                          #   cross-machine query (not yet supported).
+      columns:
+        - fld_ad_title
+        - fld_ad_document_type
+        - fld_ad_submitted_by
+        - fld_ad_status
+
+    - id: vw_ad_all                       # [SUPPORTED]
+      name: All Documents
+      type: list
+      columns:
+        - fld_ad_title
+        - fld_ad_document_type
+        - fld_ad_submitted_by
+        - fld_ad_approval_mode
+        - fld_ad_status
+
+    - id: vw_ad_detail                    # [PARTIAL] — fields render, but Approval Steps
+      name: Approval Status               #   sub-list (cross-machine) does not.
+      type: detail

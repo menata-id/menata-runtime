@@ -1,0 +1,54 @@
+# Approval Step
+# Example Business Knowledge expressed in Menata Language
+# Domain: Document Approval — one approver's decision within an Approval Document
+
+Approval Step
+
+Fields
+
+- Document : Approval Document
+- Approver : User
+- Sequence : Number
+- Decision : Pending | Approved | Rejected
+- Notes : Rich Text
+- Decided At : Date Time
+
+Events
+
+When Approve
+
+    Decision Approved
+
+    Decided At Now
+
+    Notify Document Submitter
+
+    Activate Next Step
+
+When Reject
+
+    Decision Rejected
+
+    Decided At Now
+
+    Notify Document Submitter
+
+    Update Document Status Rejected
+
+Constraints
+
+- Notes is required.
+
+    if Decision = Rejected
+
+Permissions
+
+Approver
+
+- Approve
+- Reject
+
+Views
+
+- Step Detail : Detail
+- Approval Progress : List

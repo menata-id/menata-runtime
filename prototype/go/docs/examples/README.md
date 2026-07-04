@@ -1,6 +1,6 @@
 # Metadata Examples
 
-Two cases documented here. Both run on the same runtime engine — zero code changes between them.
+Three cases documented here. Cases 1 and 2 run fully on the current prototype. Case 3 is documented as a boundary test — showing what Business Knowledge looks like for a complex domain, and where the current runtime needs to be extended.
 
 ## How to read these files
 
@@ -8,10 +8,10 @@ Each case has two files:
 
 | File | What it is |
 |------|-----------|
-| `*.menata` | Business Knowledge in Menata Language — the source of truth, written by a domain expert |
-| `*.yaml` | Runtime Metadata — the machine-readable realization, inserted into PostgreSQL via seed SQL |
+| `*.menata` | Business Knowledge in Menata Language — written by a domain expert, technology-independent |
+| `*.yaml` | Runtime Metadata — the machine-readable realization, maps directly to the DB schema |
 
-The runtime reads only the database. The `.menata` file is human-facing documentation; the `.yaml` is its structured counterpart that maps directly to the DB schema.
+The `.yaml` files for Case 3 include inline annotations: `[SUPPORTED]`, `[NOT YET]`, `[PARTIAL]`.
 
 ---
 
@@ -20,7 +20,8 @@ The runtime reads only the database. The `.menata` file is human-facing document
 **Domain:** Creative services workflow  
 **Application:** Design  
 **Roles:** Requester, Designer  
-**Seed:** `seeds/001_design_request.sql`
+**Seed:** `seeds/001_design_request.sql`  
+**Status:** ✅ Fully supported
 
 ```
 design-request.menata   Menata Language source
@@ -28,7 +29,7 @@ design-request.yaml     Runtime Metadata (DB realization)
 ```
 
 **Workflow:** Requester submits → Designer accepts/rejects → starts work → completes  
-**Notable constraint:** Attachment required only when Design Type = Banner 2:1 (conditional constraint)
+**Notable:** Conditional constraint — Attachment required only when Design Type = Banner 2:1
 
 | Grammar | Count |
 |---------|-------|
@@ -45,7 +46,8 @@ design-request.yaml     Runtime Metadata (DB realization)
 **Domain:** HR — employee leave approval  
 **Application:** HR  
 **Roles:** Employee, Manager  
-**Seed:** `seeds/002_leave_request.sql`
+**Seed:** `seeds/002_leave_request.sql`  
+**Status:** ✅ Fully supported
 
 ```
 leave-request.menata    Menata Language source
@@ -53,7 +55,7 @@ leave-request.yaml      Runtime Metadata (DB realization)
 ```
 
 **Workflow:** Employee submits → Manager approves or rejects; Employee may cancel before approval  
-**Notable:** Different application, different roles, different constraint set from Case 1 — no code change required
+**Notable:** Different application, different roles from Case 1 — no code change required
 
 | Grammar | Count |
 |---------|-------|
@@ -65,24 +67,130 @@ leave-request.yaml      Runtime Metadata (DB realization)
 
 ---
 
-## What the two cases prove
+## Case 3 — Document Approval System
 
-Running both cases side by side on the same runtime demonstrates:
+**Domain:** Multi-approver document approval with sequential or parallel mode  
+**Application:** Approval  
+**Roles:** Submitter, Approver, System  
+**Seed:** — (not yet, pending runtime extensions)  
+**Status:** ⚠️ Partially supported — see gap analysis below
 
-1. **Metadata-driven execution** — a new machine is live after `INSERT` + restart; no Go code touched.
-2. **Role isolation** — `Employee` cannot trigger `Approve` (403); `Manager` cannot trigger `Submit`. Enforced by the Permission Guard reading metadata at runtime.
-3. **Constraint portability** — the same constraint engine evaluates `required` and `after:today` against any machine's field IDs without field-specific code.
-4. **Multi-application support** — Design (`app_design`) and HR (`app_hr`) coexist in the same workspace; the home page lists machines across both applications.
-5. **View config drives UI** — the form shows only fields listed in the `form` view config; the list shows only columns listed in the `list` view config. Layout is data, not template logic.
+```
+approval-document.menata    Menata Language source — Approval Document
+approval-document.yaml      Runtime Metadata + inline gap annotations
+approval-step.menata        Menata Language source — Approval Step
+approval-step.yaml          Runtime Metadata + inline gap annotations
+```
+
+**Workflow:**
+```
+Submitter creates Document → sets approvers + mode (Sequential | Parallel)
+    ↓
+Submit → Status: In Review → notify Approvers
+    ↓
+Each Approver acts on their Approval Step
+    │
+    ├── Sequential: Step 2 activates only after Step 1 Approved
+    └── Parallel:   All Steps active simultaneously
+    ↓
+All Steps Approved → Document: Approved → notify Submitter
+Any Step Rejected  → Document: Rejected → notify Submitter
+```
+
+**Two machines, linked by reference:**
+
+| Machine | Grammar | Notes |
+|---------|---------|-------|
+| Approval Document | 6 fields, 4 events, 3 constraints, 2 roles, 5 views | Parent |
+| Approval Step | 6 fields, 2 events, 1 conditional constraint, 1 role, 2 views | Child — references Document |
 
 ---
 
-## Adding a third case
+### Gap Analysis
 
-1. Write the `.menata` source (optional but recommended).
-2. Write the `.yaml` Runtime Metadata.
-3. Translate to `seeds/00N_<name>.sql` following the same INSERT pattern.
+#### What works now
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Approval Document as standalone machine | ✅ | Fields, form, list, detail all render |
+| Approval Step as standalone machine | ✅ | Same |
+| Conditional constraint (Notes required if Rejected) | ✅ | operator: equals in condition |
+| set_field actions (Decision, Status) | ✅ | Works on both machines independently |
+| notify action | ✅ | Static role string |
+| evt_ad_withdraw | ✅ | Simple set_field |
+
+#### What does not work yet
+
+| Feature | Gap | What's needed |
+|---------|-----|---------------|
+| Step links to Document | `type: reference` field not implemented | New field type in model, loader, store, handler, UI |
+| Steps shown on Document detail page | Cross-machine query (list steps by parent) | `store.ListByParent(machineID, parentFieldID, parentRecordID)` |
+| "Pending My Approval" filtered list | Cross-machine filter by current user | Record-level query + user context in store |
+| Sequential activation | `activate_next` action type doesn't exist | New executor action: find sibling step with sequence+1, set it active |
+| All approved → Document approved | `aggregate_status` action type doesn't exist | New executor action: check all siblings, trigger parent event if resolved |
+| System-triggered events | No internal event trigger mechanism | Internal event bus or post-action hook in executor |
+| `value: now` in set_field | Dynamic value expressions not supported | Value resolver: `now`, `today`, `current_user` |
+| Record-level permission (only assigned Approver) | Permission checks role string only | Field-level ownership check: `fld_as_approver = current_user` |
+| Approval mode drives behavior | Machine-level config not in schema | New `config` block on Machine in Runtime Metadata schema |
+
+---
+
+### What Case 3 reveals about the runtime roadmap
+
+The gaps above map to concrete runtime extensions, in priority order:
+
+**P1 — Reference fields** (blocks everything else in Case 3)
+- Schema: add `type: reference` + `target_machine` to field definition
+- Loader: load reference config from `options` JSONB
+- Store: `ListByParent` query
+- Handler: Detail page renders child records as sub-list
+- UI: reference field renders as link, not free text input
+
+**P2 — Dynamic value expressions in set_field**
+- Executor: value resolver for `now`, `today`, `current_user`
+- Enables: `Decided At` stamping on approve/reject
+
+**P3 — New action types**
+- `activate_next` — sequential approval step activation
+- `aggregate_status` — parent status rollup when all/any children resolve
+
+**P4 — Machine-level config**
+- Schema: `config` block on Machine (approval_mode_field, steps_machine, steps_parent_field)
+- Loader: load and expose machine config to executor
+
+**P5 — Record-level permissions**
+- Permission guard: check `field = current_user` in addition to role string
+- Enables: only the assigned Approver can act on their Step
+
+**P6 — Internal event triggering**
+- Executor: fire an event on a record without HTTP request (for system-triggered events)
+- Enables: aggregate_status triggering parent Approve/Reject automatically
+
+---
+
+## What all three cases prove together
+
+| Capability | Case 1 | Case 2 | Case 3 |
+|------------|--------|--------|--------|
+| Metadata-driven single machine | ✅ | ✅ | ✅ |
+| Multiple applications in one workspace | ✅ | ✅ | ✅ |
+| Conditional constraints | ✅ | — | ✅ (partial) |
+| Role-based event permissions | ✅ | ✅ | ✅ (partial) |
+| Cross-machine references | — | — | ⚠️ needs P1 |
+| Sequential workflow logic | — | — | ⚠️ needs P3 |
+| Parent-child status aggregation | — | — | ⚠️ needs P3 |
+| Record-level ownership | — | — | ⚠️ needs P5 |
+| System-triggered events | — | — | ⚠️ needs P6 |
+
+Cases 1 and 2 validate the metadata-driven foundation.  
+Case 3 defines the next layer of runtime capability needed to handle real-world workflow complexity.
+
+---
+
+## Adding a new case
+
+1. Write the `.menata` source.
+2. Write the `.yaml` Runtime Metadata (annotate `[NOT YET]` where applicable).
+3. Translate to `seeds/00N_<name>.sql` for the parts that are supported.
 4. `psql $DATABASE_URL -f seeds/00N_<name>.sql`
 5. Restart the server.
-
-The runtime picks it up with no other changes.

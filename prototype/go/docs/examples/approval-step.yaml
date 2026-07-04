@@ -1,0 +1,122 @@
+# Approval Step — Runtime Metadata
+# Realization of approval-step.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+
+version: "0.1"
+
+machine:
+  id: mch_approval_step                  # [SUPPORTED] — machine itself loads fine
+  name: Approval Step
+  application: app_approval
+
+  fields:
+    - id: fld_as_document                 # [NOT YET] — reference field type
+      name: Document
+      type: reference
+      required: true
+      target_machine: mch_approval_document
+      # [NOT YET] type: reference is not yet implemented.
+      # Requires: reference field support in loader, store, handler, and UI.
+      # Records cannot be linked to a parent document without this.
+
+    - id: fld_as_approver                 # [SUPPORTED]
+      name: Approver
+      type: user
+      required: true
+
+    - id: fld_as_sequence                 # [SUPPORTED] — stored as text (number not yet rendered)
+      name: Sequence
+      type: number
+      required: true
+
+    - id: fld_as_decision                 # [SUPPORTED]
+      name: Decision
+      type: value_list
+      required: false
+      values:
+        - Pending
+        - Approved
+        - Rejected
+
+    - id: fld_as_notes                    # [SUPPORTED]
+      name: Notes
+      type: rich_text
+      required: false
+
+    - id: fld_as_decided_at              # [SUPPORTED] — stored as text in current prototype
+      name: Decided At
+      type: date_time
+      required: false
+
+  events:
+    - id: evt_as_approve                  # [PARTIAL] — set_field works; side-effects do not
+      name: Approve
+      actions:
+        - set_field: { field: fld_as_decision, value: Approved }
+        - set_field: { field: fld_as_decided_at, value: now }
+          # [NOT YET] value: "now" is not a supported expression.
+          # Requires: dynamic value resolution (now, today, current_user).
+        - notify: { role: Submitter }
+        - activate_next: { mode_field: fld_ad_approval_mode }
+          # [NOT YET] activate_next action type does not exist.
+          # For Sequential mode: find the next Step (sequence + 1) and set it active.
+          # For Parallel mode: no activation needed — all steps run concurrently.
+        - aggregate_status:
+            parent_field: fld_as_document
+            parent_event_if_all_approved: evt_ad_approve
+            parent_event_if_any_rejected: evt_ad_reject
+          # [NOT YET] aggregate_status action type does not exist.
+          # Checks sibling Steps: if all Approved → trigger evt_ad_approve on parent Document.
+
+    - id: evt_as_reject                   # [PARTIAL] — set_field works; side-effects do not
+      name: Reject
+      actions:
+        - set_field: { field: fld_as_decision, value: Rejected }
+        - set_field: { field: fld_as_decided_at, value: now }
+          # [NOT YET] same as above
+        - notify: { role: Submitter }
+        - aggregate_status:
+            parent_field: fld_as_document
+            parent_event_if_all_approved: evt_ad_approve
+            parent_event_if_any_rejected: evt_ad_reject
+          # [NOT YET] same as above
+
+  constraints:
+    - id: cst_as_notes_if_rejected        # [SUPPORTED] — conditional constraint works
+      rule: Notes is required.
+      expression:
+        field: fld_as_notes
+        operator: required
+      condition:
+        field: fld_as_decision
+        operator: equals
+        value: Rejected
+
+  permissions:
+    - role: Approver                      # [PARTIAL] — permission guard works,
+      events: [ evt_as_approve, evt_as_reject ]
+      # but "only the assigned Approver for this Step" is not enforceable.
+      # Current prototype checks role string only, not record-level ownership.
+      # Requires: record-level permission (field: fld_as_approver = current_user).
+
+  views:
+    - id: vw_as_detail                    # [SUPPORTED]
+      name: Step Detail
+      type: detail
+
+    - id: vw_as_progress                  # [PARTIAL] — list renders, but cannot filter
+      name: Approval Progress             #   by parent document without reference support.
+      type: list
+      columns:
+        - fld_as_approver
+        - fld_as_sequence
+        - fld_as_decision
+        - fld_as_decided_at
+      default_sort:
+        field: fld_as_sequence
+        direction: asc

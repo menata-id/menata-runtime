@@ -1,0 +1,64 @@
+# Approval Document
+# Example Business Knowledge expressed in Menata Language
+# Domain: Document Approval — multi-approver with sequential or parallel mode
+
+Approval Document
+
+Fields
+
+- Title : Text
+- Document Type : SOP | Policy | Contract | Report | Other
+- File : File
+- Submitted By : User
+- Approval Mode : Sequential | Parallel
+- Notes : Rich Text
+
+Events
+
+When Submit
+
+    Status In Review
+
+    Notify Approvers
+
+When Approve
+
+    Status Approved
+
+    Notify Submitted By
+
+When Reject
+
+    Status Rejected
+
+    Notify Submitted By
+
+When Withdraw
+
+    Status Withdrawn
+
+Constraints
+
+- Title is required.
+- File is required.
+- Approval Mode is required.
+
+Permissions
+
+Submitter
+
+- Submit
+- Withdraw
+
+System
+
+- Approve
+- Reject
+
+Views
+
+- Submission Form : Form
+- My Submissions : List
+- Pending My Approval : List
+- All Documents : List
+- Approval Status : Detail
