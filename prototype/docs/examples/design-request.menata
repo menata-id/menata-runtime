@@ -1,0 +1,71 @@
+# Design Request
+# Example Business Knowledge expressed in Menata Language
+# This file is the source of truth for the runtime metadata in design-request.yaml
+
+Design Request
+
+Fields
+
+- Requester : User
+- Design Type : Poster | Thumbnail | Banner 2:1
+- Due Date : Date
+- Title : Text
+- Description : Rich Text
+- Attachment : File
+
+Events
+
+When Submit
+
+    Status Submitted
+
+    Notify Design Team
+
+    Record Design Request Register
+
+When Accept
+
+    Status Accepted
+
+When Reject
+
+    Status Rejected
+
+When Start
+
+    Status In Progress
+
+When Complete
+
+    Status Completed
+
+    Notify Requester
+
+Constraints
+
+- Title is required.
+- Description is required.
+- Due Date must be after today.
+- Attachment is required.
+
+    if Design Type = Banner
+
+Permissions
+
+Requester
+
+- Submit
+
+Designer
+
+- Accept
+- Reject
+- Start
+- Complete
+
+Views
+
+- Request Form : Form
+- My Requests : List
+- Request Detail : Detail
+- Design Queue : List
