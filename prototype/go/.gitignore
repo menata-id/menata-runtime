@@ -1,0 +1,5 @@
+.env
+bin/
+*.out
+web/static/css/output.css
+node_modules/
