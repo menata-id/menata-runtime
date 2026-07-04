@@ -63,6 +63,20 @@ A capability is a **column through every layer**, not a feature in one. Each lay
 
 ---
 
+# 3b. NFR gates — is it world-class?
+
+Layers 1–9 prove a capability *works*. Three additional gates prove it is **safe, fast, and sound** — evaluated at implementation time against the area profile in `nfr-standards.md`:
+
+| Gate | Standard | Evidence required |
+|------|----------|-------------------|
+| **Security** | Area threat profile (STRIDE) + ASVS chapter refs (`nfr-standards.md` §2.x) | Negative conformance tests (forbidden action rejected), or fitness function, or explicit waiver with reason in the registry row |
+| **Performance** | Declared budget class P1–P5 (`nfr-standards.md` §1) | Measurement against the Study 8 load-test matrix, or budget declaration + deferred measurement with reason |
+| **Architecture** | Seam discipline (§4 below) + area architecture profile | Capability lives behind its registry seam; fitness function where greppable |
+
+A capability may enter **Incubating** without passing the gates; it may not reach **Supported** until each gate is satisfied or explicitly waived. Silence is not a decision.
+
+---
+
 # 4. Extension architecture — how the runtime grows
 
 **Small core, registries at every seam.** Each engine exposes a registration point; capabilities plug in rather than patch the core:

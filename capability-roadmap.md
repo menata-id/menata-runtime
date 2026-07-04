@@ -325,6 +325,24 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 3. CAP-F16 line items + CAP-A02 dynamic values (Prio 3)
 4. Then Case 5–9 implementations exercise them.
 
+---
+
+# Phase 3 — NFR Standards (study-only)
+
+## Study 10 — World-Class Architecture, Performance & Security per Capability Area ✅ done (2026-07-04)
+
+Kajian-only (no implementation): NFR requirements for **all capabilities**, structured per capability area (10 areas — capabilities in one area share an NFR profile), bound to the lifecycle as Definition-of-Done gates at implementation time.
+
+**Deliverables:**
+- [x] `nfr-standards.md` — external yardsticks (OWASP ASVS, STRIDE, Google SRE SLO, ISO 25010, fitness functions); baseline runtime threat model; 5 performance budget classes (P1–P5); NFR profile per all 10 capability areas (security / performance / architecture each)
+- [x] `capability-lifecycle.md` §3b amendment — 3 NFR gates (security, performance, architecture) required for Incubating → Supported; waivers must be explicit in the registry row
+
+**Headline findings:**
+- **"Metadata is code"** — the novel threat class of a metadata-driven runtime: metadata authors sit between trusted runtime developers and untrusted end users. Four consequences shape every area: metadata injection (stored XSS via field names), logic bombs (declarative mass-actions need runtime-enforced budgets), confused deputy (executors must re-check the *triggering actor's* permission, never their own), and cross-tenant reach (metadata constitutionally unable to name another workspace's objects).
+- Constraints are a **security control**, not UX — they must run on every write path (create, update, events, API, import); client-side validation is advisory only.
+- Current prototype defaults are inverted vs world-class: allow-by-default reads (must become deny-by-default), value_list values unchecked server-side, no output-encoding verification for metadata-sourced strings.
+- `aksi.menata.id` PoC is explicitly exempt (accepted risk, recorded in the threat model).
+
 ## Sequencing
 
 ```text
