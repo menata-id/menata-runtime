@@ -1,0 +1,60 @@
+# Leave Request
+# Example Business Knowledge expressed in Menata Language
+# Domain: HR — employee leave approval workflow
+# This file is the source of truth for the runtime metadata in leave-request.yaml
+
+Leave Request
+
+Fields
+
+- Employee : User
+- Leave Type : Annual Leave | Sick Leave | Emergency Leave | Unpaid Leave
+- Start Date : Date
+- End Date : Date
+- Reason : Rich Text
+
+Events
+
+When Submit
+
+    Status Submitted
+
+When Approve
+
+    Status Approved
+
+    Notify Employee
+
+When Reject
+
+    Status Rejected
+
+    Notify Employee
+
+When Cancel
+
+    Status Cancelled
+
+Constraints
+
+- Reason is required.
+- Start Date must be after today.
+
+Permissions
+
+Employee
+
+- Submit
+- Cancel
+
+Manager
+
+- Approve
+- Reject
+
+Views
+
+- Leave Request Form : Form
+- My Requests : List
+- Pending Approvals : List
+- Leave Request Detail : Detail

@@ -1,0 +1,146 @@
+# Leave Request — Runtime Metadata
+# This is the Runtime Metadata realization of leave-request.menata
+# Domain: HR — employee leave approval workflow
+# Produced by: manual authoring (prototype phase)
+# Menata Runtime Prototype v0.1
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_hr
+  name: HR
+  workspace: ws_default
+
+machine:
+  id: mch_leave_request
+  name: Leave Request
+  application: app_hr
+
+  fields:
+    - id: fld_lr_employee
+      name: Employee
+      type: user
+      required: true
+
+    - id: fld_lr_leave_type
+      name: Leave Type
+      type: value_list
+      required: true
+      values:
+        - Annual Leave
+        - Sick Leave
+        - Emergency Leave
+        - Unpaid Leave
+
+    - id: fld_lr_start_date
+      name: Start Date
+      type: date
+      required: true
+
+    - id: fld_lr_end_date
+      name: End Date
+      type: date
+      required: true
+
+    - id: fld_lr_reason
+      name: Reason
+      type: rich_text
+      required: true
+
+    - id: fld_lr_status
+      name: Status
+      type: value_list
+      values:
+        - Draft
+        - Submitted
+        - Approved
+        - Rejected
+        - Cancelled
+
+  events:
+    - id: evt_lr_submit
+      name: Submit
+      actions:
+        - set_field: { field: fld_lr_status, value: Submitted }
+
+    - id: evt_lr_approve
+      name: Approve
+      actions:
+        - set_field: { field: fld_lr_status, value: Approved }
+        - notify: { role: Employee }
+
+    - id: evt_lr_reject
+      name: Reject
+      actions:
+        - set_field: { field: fld_lr_status, value: Rejected }
+        - notify: { role: Employee }
+
+    - id: evt_lr_cancel
+      name: Cancel
+      actions:
+        - set_field: { field: fld_lr_status, value: Cancelled }
+
+  constraints:
+    - id: cst_lr_reason_required
+      rule: Reason is required.
+      expression:
+        field: fld_lr_reason
+        operator: required
+
+    - id: cst_lr_start_future
+      rule: Start Date must be after today.
+      expression:
+        field: fld_lr_start_date
+        operator: after
+        value: today
+
+  permissions:
+    - role: Employee
+      events: [ evt_lr_submit, evt_lr_cancel ]
+
+    - role: Manager
+      events: [ evt_lr_approve, evt_lr_reject ]
+
+  views:
+    - id: vw_lr_form
+      name: Leave Request Form
+      type: form
+      fields:
+        - fld_lr_employee
+        - fld_lr_leave_type
+        - fld_lr_start_date
+        - fld_lr_end_date
+        - fld_lr_reason
+
+    - id: vw_lr_my_requests
+      name: My Requests
+      type: list
+      columns:
+        - fld_lr_leave_type
+        - fld_lr_start_date
+        - fld_lr_end_date
+        - fld_lr_status
+      default_sort:
+        field: fld_lr_start_date
+        direction: asc
+
+    - id: vw_lr_pending
+      name: Pending Approvals
+      type: list
+      columns:
+        - fld_lr_employee
+        - fld_lr_leave_type
+        - fld_lr_start_date
+        - fld_lr_end_date
+        - fld_lr_status
+      default_sort:
+        field: fld_lr_start_date
+        direction: asc
+
+    - id: vw_lr_detail
+      name: Leave Request Detail
+      type: detail
