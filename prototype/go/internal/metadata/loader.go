@@ -134,7 +134,7 @@ func (l *Loader) loadMachineDetails(ctx context.Context, m *model.Machine) error
 
 func (l *Loader) loadFields(ctx context.Context, machineID string) ([]*model.Field, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, machine_id, name, type, position, required, options
+		`SELECT id, machine_id, name, type, position, required, options::text
 		 FROM fields WHERE machine_id = $1 ORDER BY position`,
 		machineID)
 	if err != nil {
@@ -145,11 +145,12 @@ func (l *Loader) loadFields(ctx context.Context, machineID string) ([]*model.Fie
 	var out []*model.Field
 	for rows.Next() {
 		f := &model.Field{}
-		var optionsJSON []byte
-		if err := rows.Scan(&f.ID, &f.MachineID, &f.Name, &f.Type, &f.Position, &f.Required, &optionsJSON); err != nil {
+		var typeStr, optionsJSON string
+		if err := rows.Scan(&f.ID, &f.MachineID, &f.Name, &typeStr, &f.Position, &f.Required, &optionsJSON); err != nil {
 			return nil, err
 		}
-		if err := json.Unmarshal(optionsJSON, &f.Options); err != nil {
+		f.Type = model.FieldType(typeStr)
+		if err := json.Unmarshal([]byte(optionsJSON), &f.Options); err != nil {
 			return nil, fmt.Errorf("parse options for field %s: %w", f.ID, err)
 		}
 		out = append(out, f)
@@ -189,7 +190,7 @@ func (l *Loader) loadEvents(ctx context.Context, machineID string) ([]*model.Eve
 
 func (l *Loader) loadEventActions(ctx context.Context, eventID string) ([]*model.EventAction, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, event_id, type, position, params
+		`SELECT id, event_id, type, position, params::text
 		 FROM event_actions WHERE event_id = $1 ORDER BY position`,
 		eventID)
 	if err != nil {
@@ -200,11 +201,12 @@ func (l *Loader) loadEventActions(ctx context.Context, eventID string) ([]*model
 	var out []*model.EventAction
 	for rows.Next() {
 		a := &model.EventAction{}
-		var paramsJSON []byte
-		if err := rows.Scan(&a.ID, &a.EventID, &a.Type, &a.Position, &paramsJSON); err != nil {
+		var typeStr, paramsJSON string
+		if err := rows.Scan(&a.ID, &a.EventID, &typeStr, &a.Position, &paramsJSON); err != nil {
 			return nil, err
 		}
-		if err := json.Unmarshal(paramsJSON, &a.Params); err != nil {
+		a.Type = model.ActionType(typeStr)
+		if err := json.Unmarshal([]byte(paramsJSON), &a.Params); err != nil {
 			return nil, fmt.Errorf("parse params for action in event %s: %w", eventID, err)
 		}
 		out = append(out, a)
@@ -214,7 +216,7 @@ func (l *Loader) loadEventActions(ctx context.Context, eventID string) ([]*model
 
 func (l *Loader) loadConstraints(ctx context.Context, machineID string) ([]*model.Constraint, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, machine_id, rule, expression, condition, position
+		`SELECT id, machine_id, rule, expression::text, condition::text, position
 		 FROM constraints WHERE machine_id = $1 ORDER BY position`,
 		machineID)
 	if err != nil {
@@ -225,17 +227,17 @@ func (l *Loader) loadConstraints(ctx context.Context, machineID string) ([]*mode
 	var out []*model.Constraint
 	for rows.Next() {
 		c := &model.Constraint{}
-		var exprJSON []byte
-		var condJSON *[]byte
+		var exprJSON string
+		var condJSON *string
 		if err := rows.Scan(&c.ID, &c.MachineID, &c.Rule, &exprJSON, &condJSON, &c.Position); err != nil {
 			return nil, err
 		}
-		if err := json.Unmarshal(exprJSON, &c.Expression); err != nil {
+		if err := json.Unmarshal([]byte(exprJSON), &c.Expression); err != nil {
 			return nil, fmt.Errorf("parse expression for constraint %s: %w", c.ID, err)
 		}
 		if condJSON != nil {
 			c.Condition = &model.ConstraintExpression{}
-			if err := json.Unmarshal(*condJSON, c.Condition); err != nil {
+			if err := json.Unmarshal([]byte(*condJSON), c.Condition); err != nil {
 				return nil, fmt.Errorf("parse condition for constraint %s: %w", c.ID, err)
 			}
 		}
@@ -266,7 +268,7 @@ func (l *Loader) loadPermissions(ctx context.Context, machineID string) ([]*mode
 
 func (l *Loader) loadViews(ctx context.Context, machineID string) ([]*model.View, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, machine_id, name, type, position, config
+		`SELECT id, machine_id, name, type, position, config::text
 		 FROM views WHERE machine_id = $1 ORDER BY position`,
 		machineID)
 	if err != nil {
@@ -277,11 +279,12 @@ func (l *Loader) loadViews(ctx context.Context, machineID string) ([]*model.View
 	var out []*model.View
 	for rows.Next() {
 		v := &model.View{}
-		var configJSON []byte
-		if err := rows.Scan(&v.ID, &v.MachineID, &v.Name, &v.Type, &v.Position, &configJSON); err != nil {
+		var typeStr, configJSON string
+		if err := rows.Scan(&v.ID, &v.MachineID, &v.Name, &typeStr, &v.Position, &configJSON); err != nil {
 			return nil, err
 		}
-		if err := json.Unmarshal(configJSON, &v.Config); err != nil {
+		v.Type = model.ViewType(typeStr)
+		if err := json.Unmarshal([]byte(configJSON), &v.Config); err != nil {
 			return nil, fmt.Errorf("parse config for view %s: %w", v.ID, err)
 		}
 		out = append(out, v)

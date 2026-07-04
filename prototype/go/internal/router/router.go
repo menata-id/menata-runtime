@@ -1,6 +1,8 @@
 package router
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 
 	"menata.id/runtime/internal/handler"
@@ -18,6 +20,9 @@ import (
 //   POST /{machineID}                        create record
 //   POST /{machineID}/{recordID}/events/{eventID}  trigger event
 func Mount(r chi.Router, h *handler.Handler) {
+	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte("ok"))
+	})
 	r.Get("/", h.Home)
 
 	r.Get("/login", h.LoginForm)
