@@ -1,6 +1,6 @@
 # Development Guide — Drupal Prototype
 
-> This document describes how to set up and run the Menata Runtime Drupal Prototype locally.
+> How to set up Drupal and import the metadata proof config files.
 
 ---
 
@@ -18,77 +18,47 @@
 
 ## Installation
 
-### 1. Clone the repository
+### 1. Install Drupal
 
 ```bash
-git clone https://github.com/menata-id/menata.git
-cd menata/runtime/prototype/drupal
+composer create-project drupal/recommended-project drupal-menata
+cd drupal-menata
 ```
 
-### 2. Install Drupal via Composer
-
-```bash
-composer install
-```
-
-### 3. Set up PostgreSQL
-
-Create a database:
+### 2. Set up PostgreSQL
 
 ```sql
 CREATE DATABASE menata_drupal;
 ```
 
-### 4. Configure Drupal
-
-Copy the example settings file:
+### 3. Install Drupal
 
 ```bash
-cp web/sites/default/example.settings.php web/sites/default/settings.php
+drush site:install standard --db-url=pgsql://postgres:password@localhost/menata_drupal --account-name=admin --account-pass=admin -y
 ```
 
-Edit database connection in `settings.php`:
-
-```php
-$databases['default']['default'] = [
-  'driver'   => 'pgsql',
-  'database' => 'menata_drupal',
-  'username' => 'postgres',
-  'password' => 'password',
-  'host'     => 'localhost',
-  'port'     => '5432',
-];
-```
-
-### 5. Install Drupal
+### 4. Enable required modules
 
 ```bash
-drush site:install standard --account-name=admin --account-pass=admin -y
+drush en workflows eca eca_workflow views -y
 ```
 
-### 6. Enable required modules
+### 5. Import the metadata proof config files
 
 ```bash
-drush en menata_runtime workflows eca eca_workflow views -y
-```
-
-### 7. Realize example Runtime Metadata
-
-```bash
-drush menata:realize docs/examples/design-request.yaml
+cp docs/examples/drupal-config/*.yml web/sites/default/config/sync/
+drush config:import -y
 ```
 
 ---
 
-## Running the Prototype
+## Running
 
 ```bash
 drush serve
 ```
 
-The application will be available at `http://localhost:8888`.
-
-Log in with `admin` / `admin`.
+Available at `http://localhost:8888`. Log in with `admin` / `admin`.
 
 ---
 
@@ -96,95 +66,22 @@ Log in with `admin` / `admin`.
 
 ```
 drupal/
-├── web/
-│   ├── modules/
-│   │   └── custom/
-│   │       └── menata_runtime/       ← custom interpreter module
-│   │           ├── menata_runtime.info.yml
-│   │           ├── menata_runtime.module
-│   │           ├── src/
-│   │           │   ├── Interpreter/
-│   │           │   │   ├── MachineInterpreter.php    ← Machine → Content Type
-│   │           │   │   ├── FieldInterpreter.php      ← Field → Drupal Field
-│   │           │   │   ├── EventInterpreter.php      ← Event → Workflow + ECA
-│   │           │   │   ├── ConstraintInterpreter.php ← Constraint → Validation
-│   │           │   │   ├── PermissionInterpreter.php ← Permission → Roles
-│   │           │   │   └── ViewInterpreter.php       ← View → Views module
-│   │           │   ├── Validator/
-│   │           │   │   └── MetadataValidator.php     ← Runtime Metadata validation
-│   │           │   └── Commands/
-│   │           │       └── RealizeCommand.php        ← drush menata:realize
-│   │           └── tests/
-│   └── sites/
-│       └── default/
-├── composer.json
-├── composer.lock
-└── docs/
-    ├── drupal-mapping.md
-    ├── decisions/
-    │   └── 001-techstack.md
-    └── examples/
-        ├── design-request.menata
-        └── design-request.yaml
+├── docs/
+│   ├── drupal-mapping.md
+│   ├── decisions/
+│   │   └── 001-techstack.md
+│   └── examples/
+│       ├── design-request.menata           <- Business Knowledge (source)
+│       ├── design-request.yaml             <- Runtime Metadata
+│       └── drupal-config/                  <- Native Drupal YAML config files
+│           ├── node.type.design_request.yml
+│           ├── field.storage.node.*.yml
+│           ├── workflows.workflow.design_request.yml
+│           ├── eca.eca.design_request_notify.yml
+│           ├── views.view.design_request_my_requests.yml
+│           ├── user.role.requester.yml
+│           └── user.role.designer.yml
 ```
-
----
-
-## The `menata_runtime` Module
-
-The `menata_runtime` module is the interpreter.
-
-It reads Runtime Metadata YAML and realizes it using Drupal's built-in systems.
-
-### Drush Commands
-
-| Command | Description |
-|---------|-------------|
-| `drush menata:realize <file>` | Realize a Runtime Metadata YAML file |
-| `drush menata:validate <file>` | Validate a Runtime Metadata YAML file without applying |
-| `drush menata:status` | List realized machines and their status |
-| `drush menata:reset <machine_id>` | Remove a realized machine from Drupal |
-
-### Realization Flow
-
-```text
-drush menata:realize design-request.yaml
-        │
-        ▼
-MetadataValidator — validate YAML structure
-        │
-        ▼
-MachineInterpreter — create Content Type
-        │
-        ▼
-FieldInterpreter — create Fields
-        │
-        ▼
-EventInterpreter — create Workflow states + ECA rules
-        │
-        ▼
-ConstraintInterpreter — apply Field constraints
-        │
-        ▼
-PermissionInterpreter — assign Permissions to Roles
-        │
-        ▼
-ViewInterpreter — create Views
-        │
-        ▼
-config:export — export as Drupal config YAML
-```
-
----
-
-## Adding a New Machine
-
-1. Define Business Knowledge using Menata Language (see `docs/examples/`)
-2. Create Runtime Metadata YAML
-3. Run: `drush menata:realize path/to/metadata.yaml`
-4. Drupal immediately realizes the new machine as a running application
-
-No custom PHP code is required to add a new machine.
 
 ---
 
@@ -192,27 +89,23 @@ No custom PHP code is required to add a new machine.
 
 | Module | Purpose |
 |--------|---------|
-| `workflows` | State machine for event-driven status transitions |
-| `eca` | Events, Conditions, Actions — event response execution |
-| `eca_workflow` | ECA integration with Workflow module |
-| `views` | List and detail view realization |
-| `views_ui` | Views administration (development only) |
-| `field_ui` | Field administration (development only) |
+| workflows | State machine — event-driven status transitions |
+| eca | Events, Conditions, Actions — event response execution |
+| eca_workflow | ECA integration with Workflow module |
+| views | List and detail view realization |
 
 ---
 
 ## Troubleshooting
 
-**`drush menata:realize` fails**
+**Config import fails**
 
-Check validation output. The command validates before applying.
-
-Invalid Runtime Metadata is rejected without modifying Drupal.
+Run `drush config:import --preview` to see what would change.
 
 **Views not appearing**
 
-Clear Drupal cache: `drush cache:rebuild`
+Clear cache: `drush cache:rebuild`
 
 **Workflow transitions not working**
 
-Ensure ECA rules were created correctly: `drush eca:list`
+Check ECA rules are imported: `drush config:get eca.eca.design_request_notify`
