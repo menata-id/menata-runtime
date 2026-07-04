@@ -298,17 +298,32 @@ Compose **all prior cases as one organization**: general domains (Cases 1–8) +
 - **`[SCALE FINDING]` CAP-X11 lazy per-workspace metadata cache** — unifies ADR-002's LISTEN/NOTIFY live reload with the scale cache: one mechanism, two problems solved.
 - CAP-X06 (workspace isolation) gets its implementation strategy: PostgreSQL Row-Level Security — enforced by the database, not developer discipline.
 
-## Study 9 — Capability Lifecycle Governance (closing)
-
-The meta-study: what happens when a **new capability** is proposed?
-
-1. **Admission test — is it worthy?** Evidence from ≥2 independent sources (a case *and* a benchmark); universality check against the platform survey; single-responsibility fit within Grammar; cannot be composed from existing capabilities; business language exists for it (if domain experts can't say it, it doesn't belong in the language).
-2. **Completeness design — is it whole?** A capability definition-of-done spanning every layer: Language expression → Metadata schema → Loader → Application Model → Engine (executor/constraint/permission) → UI → Conformance test → Docs → Registry row. Each layer either implemented or explicitly deferred with reason.
-3. **Architecture pattern — how does the runtime grow?** Extension points per engine (small-core lesson from VS Code in `architecture-benchmark.md`), versioned metadata schema, backward-compatibility rule (old metadata must keep working), feature flags for incubating capabilities.
+## Study 9 — Capability Lifecycle Governance (closing) ✅ done (2026-07-04)
 
 **Deliverables:**
-- [ ] `capability-lifecycle.md` — governance document: proposal template, admission criteria, definition-of-done checklist, extension architecture pattern
-- [ ] Retrofit check: apply the admission test retroactively to 2–3 registered capabilities as calibration
+- [x] `capability-lifecycle.md` — lifecycle states (Proposed → Admitted → Incubating → Supported → Deprecated), 5-criteria admission test (dual evidence, universality, single responsibility, non-composability, business language), 9-layer definition-of-done, extension architecture (registries at every engine seam, versioned schema, backward compatibility, incubation flags), proposal template
+- [x] Retrofit calibration on 3 capabilities — CAP-F16 PASS, CAP-A11 PASS, **CAP-V11 correctly caught** (single source, possibly composable → HOLD at Proposed, registry annotated `evidence-thin`). The test discriminates: neither vacuous nor impossible.
+
+**Headline notes:**
+- Domain engines (Study 6's posting derivation) land at the action-executor seam — pluggable beneath declarative metadata, resolving the metadata-vs-engine boundary architecturally.
+- "Unknown = explicit": unrecognized types/operators are load-time reports, honoring the Language spec's conformance clause.
+
+---
+
+# Phase 2 complete
+
+All five Phase 2 studies done (2026-07-04). Registry: **79 capabilities** across 10 areas, 16 supported with conformance proof. The full loop is now operational:
+
+```text
+evidence (cases + benchmarks) → admission test → registry → definition-of-done
+    → implementation via extension seams → conformance ratchet → repeat
+```
+
+**Next concrete work (implementation, per registry priority):**
+1. CAP-F13 reference fields (Prio 1)
+2. CAP-E06 state guards + CAP-C09 constraints-on-events (Prio 2 — correctness)
+3. CAP-F16 line items + CAP-A02 dynamic values (Prio 3)
+4. Then Case 5–9 implementations exercise them.
 
 ## Sequencing
 
