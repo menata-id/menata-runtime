@@ -188,15 +188,21 @@ Map Menata Grammar against Workflow Patterns subset.
 - **CAP-R02** — no record edit form exists (CRUD's U missing).
 - The Language layer is nearly complete (almost all ✅) — gaps concentrate in Metadata schema and Runtime, confirming the language design is ahead of the runtime as intended.
 
-## Study 2 — Cross-Platform Capability Survey ⏳ next
+## Study 2 — Cross-Platform Capability Survey ✅ done (2026-07-04)
 
 Consolidate what the 6 platform prototypes already documented: which capabilities do **all** platforms provide that Menata does not yet name?
 
 **Deliverables:**
-- [ ] `benchmarks/platform-capability-survey.md`
-- [ ] New registry entries from survey findings
+- [x] `benchmarks/platform-capability-survey.md` — consolidated 23-capability matrix across Salesforce/Frappe/Drupal/Camunda/Directus/Budibase vs Menata Go
+- [x] New registry entries from survey findings — 9 new capabilities (registry v0.2): CRUD-level permissions, field-level visibility, list search/filter, data import/export, auto REST API, metadata package portability, computed fields, field defaults, notification delivery channels
 
-## Study 3 — Case Portfolio Design
+**Headline findings:**
+- 9 "table stakes" capabilities are universal across platforms but were unnamed in Menata.
+- State machine enforcement is *the* differentiator — the two lowest-scoring platforms (Directus, Budibase) lost points precisely for lacking it; independently confirms CAP-E06's Prio 2.
+- Frappe's DocType is the closest architectural model — the gap list ≈ distance between Menata Machine and DocType.
+- DMN is the proven growth path for the constraint engine.
+
+## Study 3 — Case Portfolio Design ⏳ next
 
 Formalize the 8-case portfolio; define target patterns per case before writing it.
 
