@@ -1,6 +1,6 @@
 # Menata Runtime — Prototype
 
-> One Business Knowledge. Two runtimes. Same result.
+> One Business Knowledge. Many runtimes. Same result.
 
 ---
 
@@ -21,9 +21,13 @@ The same Business Knowledge can be realized by different runtimes.
 ```text
 design-request.menata
         │
-        ├──▶ Go Runtime     ──▶ Running Application (Go + HTMX)
-        │
-        └──▶ Drupal Runtime ──▶ Running Application (Drupal)
+        ├──▶ Go Runtime          ──▶ Running Application (Go + HTMX)
+        ├──▶ Drupal Runtime      ──▶ Running Application (Drupal)
+        ├──▶ Frappe Runtime      ──▶ Running Application (Frappe)
+        ├──▶ Directus Runtime    ──▶ Running Application (Directus)
+        ├──▶ Budibase Runtime    ──▶ Running Application (Budibase)
+        ├──▶ Salesforce Runtime  ──▶ Running Application (Salesforce)
+        └──▶ Camunda Runtime     ──▶ Running Application (Camunda)
 ```
 
 The Menata Language remains unchanged.
@@ -54,9 +58,9 @@ This validates the core Menata principle:
 
 ## Shared Runtime Metadata
 
-Both prototypes interpret the same Runtime Metadata format.
+All prototypes interpret the same Runtime Metadata format.
 
-The same YAML file that describes a Design Request in the Go prototype is the same YAML file used by the Drupal prototype.
+The same `design-request.yaml` that drives the Go prototype is the same file used by every other prototype.
 
 See examples in each prototype's `docs/examples/` directory.
 
@@ -64,7 +68,7 @@ See examples in each prototype's `docs/examples/` directory.
 
 ## Scope
 
-Both prototypes focus on validating core runtime concepts:
+All prototypes focus on validating core runtime concepts:
 
 - Runtime Metadata loading and validation
 - Object and Field realization
