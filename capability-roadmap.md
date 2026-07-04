@@ -171,18 +171,24 @@ Update Registry + Pattern Mapping → repeat
 
 # Work Plan
 
-## Study 1 — Pattern Mapping ⏳ next
+## Study 1 — Pattern Mapping ✅ done (2026-07-04)
 
 Map Menata Grammar against Workflow Patterns subset.
 
 **Deliverables:**
-- [ ] `benchmarks/workflow-patterns-mapping.md` (Artifact 2)
-- [ ] `capability-registry.md` initial content (Artifact 1) — seeded from:
+- [x] `benchmarks/workflow-patterns-mapping.md` (Artifact 2) — 20 control-flow + 7 data + 8 resource patterns + 4 event sources, assessed on 3 layers (Language / Metadata / Runtime)
+- [x] `capability-registry.md` initial content (Artifact 1) — 44 capabilities registered, seeded from:
   - the 16 features of the platform benchmark,
   - Case 3 gaps P1–P6,
   - patterns revealed by the mapping itself
 
-## Study 2 — Cross-Platform Capability Survey
+**Headline findings:**
+- **CAP-E06 (WCP-18 Milestone)** — events are filtered by role only, never by state: an Approved document can still be Rejected. Found by the benchmark, not by any case — validates the dual-track method.
+- **CAP-C09** — constraints run only on Create, never on event trigger.
+- **CAP-R02** — no record edit form exists (CRUD's U missing).
+- The Language layer is nearly complete (almost all ✅) — gaps concentrate in Metadata schema and Runtime, confirming the language design is ahead of the runtime as intended.
+
+## Study 2 — Cross-Platform Capability Survey ⏳ next
 
 Consolidate what the 6 platform prototypes already documented: which capabilities do **all** platforms provide that Menata does not yet name?
 
