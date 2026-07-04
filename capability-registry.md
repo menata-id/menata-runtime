@@ -22,10 +22,10 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
-| CAP-F01 | `text` field | ✅ | Case 1 | — | | manual curl (Case 1) |
-| CAP-F02 | `rich_text` field (textarea) | ✅ | Case 1 | — | | manual curl (Case 1) |
-| CAP-F03 | `value_list` field (select + badge) | ✅ | Case 1 | — | | manual curl (Case 1) |
-| CAP-F04 | `date` field | ✅ | Case 1 | — | | manual curl (Case 1) |
+| CAP-F01 | `text` field | ✅ | Case 1 | — | | conformance T06–T08 |
+| CAP-F02 | `rich_text` field (textarea) | ✅ | Case 1 | — | | conformance T02/T08 |
+| CAP-F03 | `value_list` field (select + badge) | ✅ | Case 1 | — | | conformance T06–T08 |
+| CAP-F04 | `date` field | ✅ | Case 1 | — | | conformance T05/T08 |
 | CAP-F05 | `user` field | ⚠️ | Case 1 | — | 8 | renders as free text; no user picker, no identity link |
 | CAP-F06 | `file` field | ⚠️ | Case 1 | — | 9 | input renders; upload is not stored |
 | CAP-F07 | `number` field | ⚠️ | schema doc | — | 10 | falls back to text input; no numeric validation |
@@ -40,7 +40,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
-| CAP-E01 | Business activity event (`When X`) | ✅ | Case 1 | WCP-5/10 | | manual curl (Case 2) |
+| CAP-E01 | Business activity event (`When X`) | ✅ | Case 1 | WCP-5/10 | | conformance T10/T12 |
 | CAP-E02 | Time-driven event (`Every Day 08:00`) | ❌ | spec 003 + mapping | escalation (WRP) | 7 | — |
 | CAP-E03 | Date-driven event (`When Due Date - 1 Day`) | ❌ | spec 003 + mapping | — | 11 | — |
 | CAP-E04 | External event (webhook, payment) | ❌ | spec 003 + mapping | — | 12 | — |
@@ -55,7 +55,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
-| CAP-A01 | `set_field` with static value | ✅ | Case 1 | — | | manual curl (Case 2) |
+| CAP-A01 | `set_field` with static value | ✅ | Case 1 | — | | conformance T10 |
 | CAP-A02 | `set_field` with dynamic value (`now`, `today`, `current_user`) | ❌ | Case 3 (P2) | WDP-7 Environment Data | 3 | — |
 | CAP-A03 | `notify` to role | ⚠️ | Case 1 | — | 5 | slog only — no real delivery channel |
 | CAP-A04 | `notify` to dynamic recipient (record's approver/submitter) | ❌ | Case 3 | WRP | 5 | — |
@@ -70,10 +70,10 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
-| CAP-C01 | `required` operator | ✅ | Case 1 | — | | manual curl (Case 2) |
-| CAP-C02 | `after: today` operator | ✅ | Case 1 | — | | manual curl (Case 2) |
-| CAP-C03 | `equals` / `not_equals` (in conditions) | ✅ | Case 1 | — | | manual curl (Case 1) |
-| CAP-C04 | Conditional constraint (`condition` block) | ✅ | Case 1 | WDP-38 | | manual curl (Case 1) |
+| CAP-C01 | `required` operator | ✅ | Case 1 | — | | conformance T04 |
+| CAP-C02 | `after: today` operator | ✅ | Case 1 | — | | conformance T05 |
+| CAP-C03 | `equals` / `not_equals` (in conditions) | ✅ | Case 1 | — | | conformance T06 |
+| CAP-C04 | Conditional constraint (`condition` block) | ✅ | Case 1 | WDP-38 | | conformance T06/T07 |
 | CAP-C05 | Comparison operators (`greater_than`, `less_than`, date `before`) | ❌ | schema doc + Case 4 | — | 10 | only `after: today` exists |
 | CAP-C07 | Cross-field comparison (End Date after Start Date) | ❌ | Study 1 mapping | — | 10 | — |
 | CAP-C08 | Cross-record constraint (one request per employee per day) | ❌ | spec 004 + mapping | — | 14 | — |
@@ -83,7 +83,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
-| CAP-P01 | Role-based event permission | ✅ | Case 1 | WRP-2 | | manual curl (Case 2, 403) |
+| CAP-P01 | Role-based event permission | ✅ | Case 1 | WRP-2 | | conformance T11/T12 |
 | CAP-P02 | Record-level ownership (only assigned user may act) | ❌ | Case 3 (P5) | WRP-1 Direct Allocation | 6 | — |
 | CAP-P03 | Separation of duties (Requester ≠ Approver) | ❌ | spec 004 + mapping | WRP-5 | 11 | — |
 | CAP-P04 | Delegation | ❌ | Study 1 mapping | WRP detour | 15 | — |
@@ -94,9 +94,9 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
-| CAP-V01 | `form` view (fields config drives inputs) | ✅ | Case 1 | — | | manual curl (Case 2) |
-| CAP-V02 | `list` view (columns config drives table) | ✅ | Case 1 | — | | manual curl (Case 2) |
-| CAP-V03 | `detail` view (all fields) | ✅ | Case 1 | — | | manual curl (Case 2) |
+| CAP-V01 | `form` view (fields config drives inputs) | ✅ | Case 1 | — | | conformance T02 |
+| CAP-V02 | `list` view (columns config drives table) | ✅ | Case 1 | — | | conformance T03 |
+| CAP-V03 | `detail` view (all fields) | ✅ | Case 1 | — | | conformance T09 |
 | CAP-V04 | `default_sort` honored in list | ⚠️ | Study 1 code check | — | 9 | loaded into model; store hardcodes `created_at DESC` |
 | CAP-V05 | Filtered list (my records / pending my approval) | ❌ | Case 3 | — | 8 | — |
 | CAP-V06 | Child records sub-list on parent detail | ❌ | Case 3 (P1) | — | 3 | depends on CAP-F13 |
@@ -108,7 +108,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
-| CAP-R01 | Create record (with default status) | ✅ | Case 1 | — | | manual curl (Case 2) |
+| CAP-R01 | Create record (with default status) | ✅ | Case 1 | — | | conformance T08 |
 | CAP-R02 | **Edit / update record via form** | ❌ | **Study 1 code check** | — | **5** | no update form exists — CRUD's U is missing |
 | CAP-R03 | Delete / archive record | ❌ | Study 1 code check | — | 12 | — |
 | CAP-R04 | Event audit log (record_events, snapshot before mutation) | ⚠️ | Case 1 | — | 9 | logged to DB; no UI to view history |
@@ -119,7 +119,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
-| CAP-X01 | Multi-application, multi-machine in one workspace | ✅ | Case 2 | — | | manual curl (Case 2) |
+| CAP-X01 | Multi-application, multi-machine in one workspace | ✅ | Case 2 | — | | conformance T01 |
 | CAP-X02 | Real authentication (today: prototype role cookie) | ❌ | prototype design | WRP-4 | 13 | — |
 | CAP-X03 | Machine-level config block (approval_mode etc.) | ❌ | Case 3 (P4) | — | 4 | — |
 | CAP-X04 | Metadata live reload (today: restart required) | ❌ | ADR-002 | K8s reconciliation | 14 | plan in `decisions/002-metadata-loading.md` |

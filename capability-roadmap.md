@@ -214,14 +214,24 @@ Formalize the 8-case portfolio; define target patterns per case before writing i
 - Declare-targets-first works: Case 4 confirmed all 4 declared gaps (E02, A09, A02, A04) **and** surfaced 2 untargeted findings — CAP-A11 (date arithmetic in actions) and CAP-V09 (declarative view-level filter).
 - Registry now at 55 capabilities (v0.2 + Case 4 additions).
 
-## Study 4 — Conformance Harness ⏳ next
+## Study 4 — Conformance Harness ✅ done (2026-07-04)
 
 Formalize executable verification so ✅ capabilities cannot silently regress.
 
 **Deliverables:**
-- [ ] Conformance test design (curl-based or Go test)
-- [ ] Tests retrofitted for Cases 1–2 supported capabilities
-- [ ] Registry `Proof` column populated
+- [x] Conformance test design — HTTP black-box, curl-based: `prototype/go/conformance/README.md`
+- [x] Tests retrofitted for Cases 1–2 supported capabilities — `prototype/go/conformance/run.sh`, 13 tests (T00–T12), all passing against the live prototype
+- [x] Registry `Proof` column populated — all 16 ✅ capabilities now reference their conformance test IDs
+
+**Notes:**
+- Run: `./conformance/run.sh` (local) or `BASE_URL=… ./conformance/run.sh` (any deployment). Exit non-zero = regression.
+- When CAP-E06 (state guards) lands, add negative-transition tests (see caveat in conformance README).
+
+---
+
+# All studies complete
+
+All four studies of the initial work plan are done (2026-07-04). Ongoing operation now follows the **Process Loop** above: next concrete work is implementing registry Prio 1–2 (CAP-F13 reference fields, CAP-E06 state guards, CAP-C09 constraints-on-events), then continuing the case portfolio (Cases 5–8).
 
 ---
 
