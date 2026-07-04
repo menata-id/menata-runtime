@@ -229,9 +229,94 @@ Formalize executable verification so ✅ capabilities cannot silently regress.
 
 ---
 
-# All studies complete
+# Phase 1 complete
 
-All four studies of the initial work plan are done (2026-07-04). Ongoing operation now follows the **Process Loop** above: next concrete work is implementing registry Prio 1–2 (CAP-F13 reference fields, CAP-E06 state guards, CAP-C09 constraints-on-events), then continuing the case portfolio (Cases 5–8).
+All four studies of the initial work plan are done (2026-07-04). Ongoing operation follows the **Process Loop** above. Two work streams run from here:
+
+- **Implementation:** registry Prio 1–2 (CAP-F13 reference fields, CAP-E06 state guards, CAP-C09 constraints-on-events), then the case portfolio (Cases 5–8).
+- **Phase 2 studies** below — composite and scale benchmarks.
+
+---
+
+# Phase 2 — Composite & Scale Benchmarks (planned 2026-07-04)
+
+Phase 1 benchmarked **single-machine** capability. Phase 2 asks the questions that only appear when capabilities compose: across domains, across applications, across workspaces — and closes with governance for capability growth itself.
+
+## Study 5 — Portal GA Cross-Domain Benchmark
+
+Benchmark against a real production system: Portal GA v3 (35 domains, DDD/CQRS, Go+Templ+HTMX — the same stack family as the prototype). Three angles:
+
+1. **Input patterns** — forms, multi-step wizards, photo/file upload flows, HTMX partial interaction.
+2. **Cross-domain integration patterns** — ADR-0012 Pattern A (cron batch) / B (direct call via interface) / C (domain events); PICA→AAR→Improvement universal flow; consumer-driven contracts.
+3. **Cross-domain information display** — dashboards composing sections from many domains, email digest composition, snapshot sections reuse.
+
+**Sources (portal-ga3 repo):** `README`/`CLAUDE.md`, `docs/explanation/strategy/domain-integration/01-CONSTITUTIONAL-BRD.md`, `02-IMPLEMENTATION-GUIDE.md`, appendices (Context Map Matrix, Canonical Event Schema, Consumer Contract Registry), `ADR-0012`.
+
+**Key question:** can Menata express integration *between* machines/applications as metadata (events, contracts, composed views) — or does this require a new Grammar?
+
+**Deliverables:**
+- [ ] `benchmarks/portal-ga-cross-domain-survey.md` — pattern inventory mapped to Menata concepts
+- [ ] New registry entries for cross-domain capabilities (domain events, integration contracts, composed dashboard views)
+- [ ] Position statement: integration as existing Grammar composition vs new Grammar proposal
+
+## Study 6 — Accounting Vertical Benchmark (Odoo / ERPNext)
+
+Deep vertical benchmark: accounting, tax, financial reporting, data visualization — against Odoo Accounting and ERPNext (Frappe) accounting modules.
+
+Scope of survey: chart of accounts, journal entries, **double-entry invariants** (debit = credit — a constraint class Menata has never seen), tax rules and computation, fiscal periods and closing (immutability-after-state), financial reports (trial balance, balance sheet, P&L), drill-down visualization.
+
+**Key question:** where is the boundary between metadata-expressible accounting and what needs a domain engine? Odoo/ERPNext answer this with code; how much can Menata answer with metadata?
+
+**Deliverables:**
+- [ ] `benchmarks/accounting-vertical-survey.md` — Odoo/ERPNext capability inventory vs Menata registry
+- [ ] Case 9 (Accounting) target declaration in `case-portfolio.md`
+- [ ] New registry entries (multi-record invariant constraints, computed aggregation, report/visualization views, period-close immutability)
+
+## Study 7 — Organization-Wide Composite Integration
+
+Compose **all prior cases as one organization**: general domains (Cases 1–8) + specific domains (Portal GA patterns from Study 5, accounting from Study 6) — shared users and roles across applications, cross-application references, org-wide dashboards and notifications.
+
+**Key question:** are new capabilities needed that **no single case reveals**? Hypothesis: yes — capabilities that only emerge at composition: shared identity, shared master data (employee, department, customer used by many applications), cross-application navigation, global search, cross-domain reporting.
+
+**Deliverables:**
+- [ ] Case 10 (Organization Composite) — written as a portfolio case with declared targets
+- [ ] Emergent-capability findings registered (flagged `[COMPOSITION FINDING]`)
+- [ ] Assessment: does Workspace/Application hierarchy suffice, or is a shared-kernel concept needed?
+
+## Study 8 — Multi-Workspace Scale & Performance Architecture
+
+If all capabilities are used and workspaces multiply: what data structure and programming strategy delivers the best performance with optimal resources?
+
+Topics: tenancy models (shared schema + workspace_id vs schema-per-workspace vs database-per-workspace), `records` JSONB indexing strategy (GIN, expression indexes per hot field), per-workspace metadata caching and reload, connection pooling, workspace isolation guarantees (closes CAP-X06), noisy-neighbor mitigation, horizontal scaling of the interpreter.
+
+**Key question:** what breaks first at 100 workspaces × 50 machines × 1M records — and which architecture defers that point longest with the least resources?
+
+**Deliverables:**
+- [ ] `benchmarks/scale-architecture-study.md` — tenancy option analysis + recommendation
+- [ ] Load-test plan (synthetic workspace/machine/record generator against the prototype)
+- [ ] ADR: tenancy and indexing decision for the next runtime iteration
+
+## Study 9 — Capability Lifecycle Governance (closing)
+
+The meta-study: what happens when a **new capability** is proposed?
+
+1. **Admission test — is it worthy?** Evidence from ≥2 independent sources (a case *and* a benchmark); universality check against the platform survey; single-responsibility fit within Grammar; cannot be composed from existing capabilities; business language exists for it (if domain experts can't say it, it doesn't belong in the language).
+2. **Completeness design — is it whole?** A capability definition-of-done spanning every layer: Language expression → Metadata schema → Loader → Application Model → Engine (executor/constraint/permission) → UI → Conformance test → Docs → Registry row. Each layer either implemented or explicitly deferred with reason.
+3. **Architecture pattern — how does the runtime grow?** Extension points per engine (small-core lesson from VS Code in `architecture-benchmark.md`), versioned metadata schema, backward-compatibility rule (old metadata must keep working), feature flags for incubating capabilities.
+
+**Deliverables:**
+- [ ] `capability-lifecycle.md` — governance document: proposal template, admission criteria, definition-of-done checklist, extension architecture pattern
+- [ ] Retrofit check: apply the admission test retroactively to 2–3 registered capabilities as calibration
+
+## Sequencing
+
+```text
+Study 5 (Portal GA) ──┐
+                      ├──► Study 7 (Composite) ──► Study 8 (Scale) ──► Study 9 (Governance)
+Study 6 (Accounting) ─┘
+```
+
+Studies 5 and 6 are independent and can run in either order. Study 7 composes their findings. Study 8 stresses the composed picture. Study 9 closes the loop by governing everything the previous studies taught us about how capabilities are born.
 
 ---
 
