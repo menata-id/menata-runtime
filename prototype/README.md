@@ -51,15 +51,19 @@ The metadata proof prototypes test one specific question:
 
 The Menata Runtime interpreter (Go prototype) is a separate code layer. The metadata proofs are independent of it — they test whether each platform's own engine can interpret the metadata natively.
 
-| Prototype | Metadata Coverage | Limitation |
-|-----------|-----------------|------------|
-| [directus/](directus/) | Mostly full | Conditional constraint not yet in proof (achievable via Flow, metadata-only) |
-| [salesforce/](salesforce/) | Full | — |
-| [budibase/](budibase/) | Partial | Conditional field validation needs JavaScript code |
-| [frappe/](frappe/) | Partial | Conditional constraint needs Python validate() method |
-| [drupal/](drupal/) | Partial | Conditional constraint needs PHP; interpreter bridge is code |
-| [camunda/](camunda/) | Partial | Service Task (notify) needs connector worker code |
-| [go/](go/) | — | Custom runtime — not a metadata-only test |
+Coverage is scored against 16 features derived from design-request.menata (Machine, Fields, Events, Constraints, Permissions, Views).
+
+| Prototype | Score | Coverage | Not Coverable Without Code |
+|-----------|-------|----------|---------------------------|
+| [salesforce/](salesforce/) | **100%** | 16/16 | — |
+| [frappe/](frappe/) | **~85%** | 14/16 | Due date constraint, conditional attachment constraint |
+| [drupal/](drupal/) | **~85%** | 14/16 | Due date constraint, conditional attachment constraint |
+| [camunda/](camunda/) | **~80%** | 13/16 | Service Task notify (connector worker code) |
+| [directus/](directus/) | **~70%** | 11/16 | State machine enforcement (no workflow module), 2 constraints not yet in proof |
+| [budibase/](budibase/) | **~65%** | 10/16 | State machine enforcement, date constraint, conditional constraint |
+| [go/](go/) | — | — | Custom runtime — not a metadata-only test |
+
+Note: Camunda scores higher than Directus/Budibase because DMN covers all 4 constraints as pure metadata (including the hardest conditional one), even though its notifications need connector code.
 
 ---
 

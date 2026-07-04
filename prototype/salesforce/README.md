@@ -74,18 +74,28 @@ Salesforce has been doing this since 2000.
 
 ## Metadata Coverage
 
-Salesforce is the only platform in this proof set where **all features are covered by metadata alone**.
+**Score: 100% (16/16 features)**
 
-| Feature | File | Status |
-|---------|------|--------|
-| Machine + Fields | DesignRequest__c.object-meta.xml | ✅ Metadata only |
-| Constraint: title required | ValidationRule in object-meta.xml | ✅ Metadata only |
-| Constraint: due date future | ValidationRule with formula | ✅ Metadata only |
-| Constraint: attachment if Banner | ValidationRule with conditional formula | ✅ Metadata only |
-| Event: notify Designer on Submit | DesignRequestSubmit.flow-meta.xml | ✅ Metadata only |
-| Event: notify Requester on Complete | DesignRequestComplete.flow-meta.xml | ✅ Metadata only |
-| Permissions | Requester + Designer permissionset-meta.xml | ✅ Metadata only |
-| Views (list, form, detail) | List Views in object-meta.xml; form auto-generated | ✅ Metadata only |
+Salesforce is the only platform in this proof set where **all features are covered by metadata alone** — including the hardest case: conditional constraint via formula expression.
+
+| # | Feature | File | Status |
+|---|---------|------|--------|
+| 1 | Machine definition | DesignRequest__c.object-meta.xml | ✅ Metadata only |
+| 2 | All Fields with correct types | DesignRequest__c.object-meta.xml | ✅ Metadata only |
+| 3 | Status field + all states | Picklist field | ✅ Metadata only |
+| 4 | State machine enforcement | Record-Triggered Flow (prior status check) | ✅ Metadata only |
+| 5 | Event action: set status on transition | Flow: Update Records element | ✅ Metadata only |
+| 6 | Event action: notify Designer on Submit | DesignRequestSubmit.flow-meta.xml | ✅ Metadata only |
+| 7 | Event action: notify Requester on Complete | DesignRequestComplete.flow-meta.xml | ✅ Metadata only |
+| 8 | Constraint: Title required | ValidationRule | ✅ Metadata only |
+| 9 | Constraint: Description required | ValidationRule | ✅ Metadata only |
+| 10 | Constraint: Due Date after today | ValidationRule with DATEVALUE > TODAY() formula | ✅ Metadata only |
+| 11 | Constraint: Attachment if Design Type = Banner | ValidationRule with conditional formula | ✅ Metadata only |
+| 12 | Permission: Requester role | Requester.permissionset-meta.xml | ✅ Metadata only |
+| 13 | Permission: Designer role | Designer.permissionset-meta.xml | ✅ Metadata only |
+| 14 | View: Form | Page Layout (auto-generated) | ✅ Metadata only |
+| 15 | View: List | List Views in object-meta.xml | ✅ Metadata only |
+| 16 | View: Detail | Record Page (Lightning, auto-generated) | ✅ Metadata only |
 
 No additional code required for any feature in this proof.
 

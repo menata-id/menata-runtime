@@ -49,16 +49,26 @@ design-request.yaml
 
 ## Metadata Coverage
 
-| Feature | File | Status |
-|---------|------|--------|
-| Machine + Fields | Design Request.json (DocType) | ✅ Metadata only |
-| Permissions | Design Request.json (DocPerm) | ✅ Metadata only |
-| Workflow: states + transitions | Design Request Workflow.json | ✅ Metadata only |
-| Constraint: title required, description required | Design Request.json (reqd: 1) | ✅ Metadata only |
-| Event: notify Designer on Submit | Notify Designer on Submit.json | ✅ Metadata only |
-| Event: notify Requester on Complete | Notify Requester on Complete.json | ✅ Metadata only |
-| Views (form, list, detail) | auto-generated from DocType | ✅ Metadata only |
-| Constraint: attachment required if Design Type = Banner | — | ❌ Cannot be done without code — requires Python `validate()` method in a DocType Controller |
+**Score: ~85% (14/16 features)**
+
+| # | Feature | File | Status |
+|---|---------|------|--------|
+| 1 | Machine definition | Design Request.json (DocType) | ✅ Metadata only |
+| 2 | All Fields with correct types | Design Request.json | ✅ Metadata only |
+| 3 | Status field + all states | Design Request.json (Select) | ✅ Metadata only |
+| 4 | State machine enforcement | Design Request Workflow.json (role per transition) | ✅ Metadata only |
+| 5 | Event action: set status on transition | Workflow state update | ✅ Metadata only |
+| 6 | Event action: notify Designer on Submit | Notify Designer on Submit.json | ✅ Metadata only |
+| 7 | Event action: notify Requester on Complete | Notify Requester on Complete.json | ✅ Metadata only |
+| 8 | Constraint: Title required | Design Request.json (reqd: 1) | ✅ Metadata only |
+| 9 | Constraint: Description required | Design Request.json (reqd: 1) | ✅ Metadata only |
+| 10 | Constraint: Due Date after today | — | ❌ Cannot be done without code — Frappe Date field has no native "after today" constraint in DocType JSON; requires Python `validate()` in Controller |
+| 11 | Constraint: Attachment if Design Type = Banner | — | ❌ Cannot be done without code — requires Python `validate()` method in a DocType Controller |
+| 12 | Permission: Requester role | Design Request.json (DocPerm) | ✅ Metadata only |
+| 13 | Permission: Designer role | Design Request.json (DocPerm) | ✅ Metadata only |
+| 14 | View: Form | auto-generated from DocType | ✅ Metadata only |
+| 15 | View: List | auto-generated from DocType | ✅ Metadata only |
+| 16 | View: Detail | auto-generated from DocType | ✅ Metadata only |
 
 ---
 

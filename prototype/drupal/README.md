@@ -88,20 +88,30 @@ Out of scope (future iterations):
 
 ## Metadata Coverage
 
+**Score: ~85% (14/16 features)**
+
 The metadata files in `docs/examples/drupal-config/` are native Drupal configuration — importable via `drush config:import` without any custom code.
 
-| Feature | File | Status |
-|---------|------|--------|
-| Content Type + Fields | node.type.design_request.yml + field.*.yml | ✅ Metadata only |
-| Workflow: states + transitions | workflows.workflow.design_request.yml | ✅ Metadata only |
-| Event notifications via ECA | eca.eca.design_request_notify.yml | ✅ Metadata only |
-| Views: list view | views.view.design_request_my_requests.yml | ✅ Metadata only |
-| Roles + Permissions | user.role.requester.yml, user.role.designer.yml | ✅ Metadata only |
-| Constraint: title required, description required | field config (required flag) | ✅ Metadata only |
-| Constraint: attachment required if Design Type = Banner | — | ❌ Cannot be done without code — needs PHP validation in a custom module |
-| Interpreter bridge (`menata_runtime` module) | — | ❌ Code layer — this is the Drupal runtime interpreter, not part of the metadata proof |
+| # | Feature | File | Status |
+|---|---------|------|--------|
+| 1 | Machine definition | node.type.design_request.yml | ✅ Metadata only |
+| 2 | All Fields with correct types | field.storage.node.*.yml | ✅ Metadata only |
+| 3 | Status field + all states | field.storage.node.field_status.yml | ✅ Metadata only |
+| 4 | State machine enforcement | workflows.workflow.design_request.yml (role per transition) | ✅ Metadata only |
+| 5 | Event action: set status on transition | Workflow state update | ✅ Metadata only |
+| 6 | Event action: notify Designer on Submit | eca.eca.design_request_notify.yml | ✅ Metadata only |
+| 7 | Event action: notify Requester on Complete | eca.eca.design_request_notify.yml | ✅ Metadata only |
+| 8 | Constraint: Title required | field config (required flag) | ✅ Metadata only |
+| 9 | Constraint: Description required | field config (required flag) | ✅ Metadata only |
+| 10 | Constraint: Due Date after today | — | ❌ Cannot be done without code — Drupal has no native "after today" date constraint configurable via YAML; requires PHP constraint plugin |
+| 11 | Constraint: Attachment if Design Type = Banner | — | ❌ Cannot be done without code — needs PHP validation in a custom module |
+| 12 | Permission: Requester role | user.role.requester.yml | ✅ Metadata only |
+| 13 | Permission: Designer role | user.role.designer.yml | ✅ Metadata only |
+| 14 | View: Form | Drupal edit form (auto-generated) | ✅ Metadata only |
+| 15 | View: List | views.view.design_request_my_requests.yml | ✅ Metadata only |
+| 16 | View: Detail | Node display mode (auto-generated) | ✅ Metadata only |
 
-Note: The `menata_runtime` custom module described in the architecture is the Drupal implementation of the Menata Runtime interpreter. It is a separate code layer. The metadata proof tests only what native Drupal configuration can express.
+Note: The `menata_runtime` custom module described in the architecture is the Drupal implementation of the Menata Runtime interpreter — a separate code layer. The metadata proof tests only what native Drupal configuration can express without it.
 
 ## Getting Started
 

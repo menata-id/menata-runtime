@@ -48,15 +48,26 @@ budibase-config/
 
 ## Metadata Coverage
 
-| Feature | File | Status |
-|---------|------|--------|
-| Machine + Fields | app.json (table schema) | ✅ Metadata only |
-| Roles | app.json | ✅ Metadata only |
-| Screens: form, list | app.json | ✅ Metadata only |
-| Event: notify Designer on Submit | app.json (automation) | ✅ Metadata only |
-| Event: notify Requester on Complete | app.json (automation) | ✅ Metadata only |
-| Constraint: title required, description required | app.json (field constraints) | ✅ Metadata only |
-| Constraint: attachment required if Design Type = Banner | — | ❌ Cannot be done without code — Budibase field validation is static; conditional validation requires JavaScript in an automation step |
+**Score: ~65% (10/16 features)**
+
+| # | Feature | File | Status |
+|---|---------|------|--------|
+| 1 | Machine definition | app.json (table) | ✅ Metadata only |
+| 2 | All Fields with correct types | app.json (table schema) | ✅ Metadata only |
+| 3 | Status field + all states | app.json (options field) | ✅ Metadata only |
+| 4 | State machine enforcement | — | ❌ Budibase has no workflow module — status field is freely editable by anyone with access; transition enforcement is not expressible in metadata |
+| 5 | Event action: set status on transition | — | ❌ Budibase automations trigger AFTER row save, not during — cannot set status as part of a controlled transition |
+| 6 | Event action: notify Designer on Submit | app.json (automation: ROW_UPDATED + FILTER + SEND_EMAIL) | ✅ Metadata only |
+| 7 | Event action: notify Requester on Complete | app.json (automation) | ✅ Metadata only |
+| 8 | Constraint: Title required | app.json (field constraint: presence) | ✅ Metadata only |
+| 9 | Constraint: Description required | app.json (field constraint: presence) | ✅ Metadata only |
+| 10 | Constraint: Due Date after today | — | ❌ Cannot be done without code — Budibase field constraints are static (type/presence only); date range validation requires JavaScript |
+| 11 | Constraint: Attachment if Design Type = Banner | — | ❌ Cannot be done without code — conditional validation requires JavaScript in automation step |
+| 12 | Permission: Requester role | app.json (roles) | ✅ Metadata only |
+| 13 | Permission: Designer role | app.json (roles) | ✅ Metadata only |
+| 14 | View: Form | app.json (screen with Form component) | ✅ Metadata only |
+| 15 | View: List | app.json (screen with Table component) | ✅ Metadata only |
+| 16 | View: Detail | — | ❌ Budibase Table shows row detail via modal by default, but a dedicated Detail screen is not in current proof |
 
 ---
 

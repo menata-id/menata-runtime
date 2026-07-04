@@ -54,15 +54,28 @@ directus-config/
 
 ## Metadata Coverage
 
-| Feature | File | Status |
-|---------|------|--------|
-| Machine + Fields | schema-snapshot.json | ✅ Metadata only |
-| Roles + Permissions | roles-permissions.json | ✅ Metadata only |
-| Event: notify Designer on Submit | flows.json | ✅ Metadata only |
-| Event: notify Requester on Complete | flows.json | ✅ Metadata only |
-| Constraint: title required, description required | schema field validation | ✅ Metadata only |
-| Views (list, form, detail) | auto-generated from collection | ✅ Metadata only |
-| Constraint: attachment required if Design Type = Banner | — | ⚠️ Not in current proof — achievable via Flow with Action(Before) trigger (metadata-only), but not yet demonstrated |
+**Score: ~70% (11/16 features)**
+
+| # | Feature | File | Status |
+|---|---------|------|--------|
+| 1 | Machine definition | schema-snapshot.json (collection) | ✅ Metadata only |
+| 2 | All Fields with correct types | schema-snapshot.json | ✅ Metadata only |
+| 3 | Status field + all states | schema-snapshot.json (Select Dropdown) | ✅ Metadata only |
+| 4 | State machine enforcement | — | ❌ Directus has no workflow module — anyone with edit permission can set any status value; transition enforcement is not expressible in metadata |
+| 5 | Event action: set status on transition | flows.json (update item operation) | ✅ Metadata only |
+| 6 | Event action: notify Designer on Submit | flows.json (condition + mail op) | ✅ Metadata only |
+| 7 | Event action: notify Requester on Complete | flows.json (condition + mail op) | ✅ Metadata only |
+| 8 | Constraint: Title required | schema-snapshot.json (required: true) | ✅ Metadata only |
+| 9 | Constraint: Description required | schema-snapshot.json (required: true) | ✅ Metadata only |
+| 10 | Constraint: Due Date after today | — | ⚠️ Not in current proof — achievable via Flow with Action(Before) trigger (metadata-only), but not yet demonstrated |
+| 11 | Constraint: Attachment if Design Type = Banner | — | ⚠️ Same as above — achievable via Flow (metadata-only) but not yet demonstrated |
+| 12 | Permission: Requester role (create, edit own) | roles-permissions.json | ✅ Metadata only |
+| 13 | Permission: Designer role (read all, edit status) | roles-permissions.json | ✅ Metadata only |
+| 14 | View: Form | auto-generated from collection | ✅ Metadata only |
+| 15 | View: List | auto-generated from collection | ✅ Metadata only |
+| 16 | View: Detail | auto-generated from collection | ✅ Metadata only |
+
+Note on #10 and #11: these are scored as not-yet-demonstrated (not as ❌) because Directus Flows with Action(Before) trigger can handle them in metadata. The gap in the score is primarily #4 (architectural — no workflow module).
 
 ---
 

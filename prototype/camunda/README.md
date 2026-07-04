@@ -57,16 +57,28 @@ camunda-config/
 
 ## Metadata Coverage
 
-| Feature | File | Status |
-|---------|------|--------|
-| Process: user tasks, gateways, sequence flows | design-request.bpmn | ✅ Metadata only |
-| Permissions: candidate groups per task | design-request.bpmn | ✅ Metadata only |
-| Constraint: attachment required if Banner | design-request.dmn | ✅ Metadata only (DMN decision table) |
-| Constraint: due date must be after today | design-request.dmn | ✅ Metadata only (DMN decision table) |
-| View (form) | design-request.form | ✅ Metadata only |
-| View (list) | Camunda Tasklist | ✅ Built-in, no metadata needed |
-| Event action: notify Designer on Submit | design-request.bpmn (Service Task) | ❌ Cannot be done without code — Service Task needs connector worker implementation (Java/JS) or Camunda 8 Cloud built-in connector |
-| Event action: notify Requester on Complete | design-request.bpmn (Service Task) | ❌ Same as above |
+**Score: ~80% (13/16 features)**
+
+Camunda's unique strength: DMN covers **all 4 constraints as pure metadata** — including the hardest conditional case. This scores higher than Directus and Budibase despite the notification gap.
+
+| # | Feature | File | Status |
+|---|---------|------|--------|
+| 1 | Machine definition | design-request.bpmn (Process) | ✅ Metadata only |
+| 2 | All Fields | design-request.form | ✅ Metadata only |
+| 3 | Status (process state as implicit status) | BPMN process variables | ✅ Metadata only |
+| 4 | State machine enforcement | BPMN sequence flows + gateways | ✅ Metadata only |
+| 5 | Event action: set status on transition | BPMN process variable update | ✅ Metadata only |
+| 6 | Event action: notify Designer on Submit | design-request.bpmn (Service Task) | ❌ Cannot be done without code — Service Task needs connector worker (Java/JS) or Camunda 8 Cloud built-in connector |
+| 7 | Event action: notify Requester on Complete | design-request.bpmn (Service Task) | ❌ Same as above |
+| 8 | Constraint: Title required | design-request.form (validate.required) | ✅ Metadata only |
+| 9 | Constraint: Description required | design-request.form (validate.required) | ✅ Metadata only |
+| 10 | Constraint: Due Date after today | design-request.form (validate.min: now) | ✅ Metadata only |
+| 11 | Constraint: Attachment if Design Type = Banner | design-request.dmn (decision table) | ✅ Metadata only |
+| 12 | Permission: Requester role | design-request.bpmn (candidateGroups) | ✅ Metadata only |
+| 13 | Permission: Designer role | design-request.bpmn (candidateGroups) | ✅ Metadata only |
+| 14 | View: Form | design-request.form | ✅ Metadata only |
+| 15 | View: List | Camunda Tasklist (built-in) | ✅ Metadata only |
+| 16 | View: Detail | — | ❌ Camunda Tasklist shows active tasks, not a full record detail view for all states |
 
 ---
 
