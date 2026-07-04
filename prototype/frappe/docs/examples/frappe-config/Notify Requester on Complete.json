@@ -1,0 +1,21 @@
+{
+ "_comment": "Source: evt_complete -> notify(Requester) in design-request.yaml",
+ "doctype": "Notification",
+ "name": "Notify Requester on Complete",
+ "document_type": "Design Request",
+ "event": "Value Change",
+ "value_changed": "status",
+ "condition": "doc.status == 'Completed'",
+ "enabled": 1,
+ "send_system_notification": 1,
+ "subject": "Your Design Request is Complete: {{ doc.title }}",
+ "message": "Your design request has been completed.\n\nTitle: {{ doc.title }}\nDesign Type: {{ doc.design_type }}",
+ "channel": "Email",
+ "recipients": [
+  {
+   "_comment": "Source: notify(role=Requester) - send to requester field value",
+   "receiver_by_document_field": "requester",
+   "cc": ""
+  }
+ ]
+}

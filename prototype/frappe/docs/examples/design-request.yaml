@@ -1,0 +1,165 @@
+# Design Request — Runtime Metadata
+# This is the Runtime Metadata realization of design-request.menata
+# Produced by: manual authoring (prototype phase)
+# Menata Runtime Prototype v0.1
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_design
+  name: Design
+  workspace: ws_default
+
+machine:
+  id: mch_design_request
+  name: Design Request
+  application: app_design
+
+  fields:
+    - id: fld_requester
+      name: Requester
+      type: user
+
+    - id: fld_design_type
+      name: Design Type
+      type: value_list
+      values:
+        - Poster
+        - Thumbnail
+        - Banner 2:1
+
+    - id: fld_due_date
+      name: Due Date
+      type: date
+
+    - id: fld_title
+      name: Title
+      type: text
+
+    - id: fld_description
+      name: Description
+      type: rich_text
+
+    - id: fld_attachment
+      name: Attachment
+      type: file
+
+    - id: fld_status
+      name: Status
+      type: value_list
+      values:
+        - Draft
+        - Submitted
+        - Accepted
+        - Rejected
+        - In Progress
+        - Completed
+
+  events:
+    - id: evt_submit
+      name: Submit
+      actions:
+        - set_field: { field: fld_status, value: Submitted }
+        - notify: { role: Designer }
+
+    - id: evt_accept
+      name: Accept
+      actions:
+        - set_field: { field: fld_status, value: Accepted }
+
+    - id: evt_reject
+      name: Reject
+      actions:
+        - set_field: { field: fld_status, value: Rejected }
+
+    - id: evt_start
+      name: Start
+      actions:
+        - set_field: { field: fld_status, value: In Progress }
+
+    - id: evt_complete
+      name: Complete
+      actions:
+        - set_field: { field: fld_status, value: Completed }
+        - notify: { role: Requester }
+
+  constraints:
+    - id: cst_title_required
+      rule: Title is required.
+      expression:
+        field: fld_title
+        operator: required
+
+    - id: cst_description_required
+      rule: Description is required.
+      expression:
+        field: fld_description
+        operator: required
+
+    - id: cst_due_date_future
+      rule: Due Date must be after today.
+      expression:
+        field: fld_due_date
+        operator: after
+        value: today
+
+    - id: cst_attachment_required_for_banner
+      rule: Attachment is required for Banner design type.
+      expression:
+        field: fld_attachment
+        operator: required
+      condition:
+        field: fld_design_type
+        operator: equals
+        value: Banner 2:1
+
+  permissions:
+    - role: Requester
+      events: [ evt_submit ]
+
+    - role: Designer
+      events: [ evt_accept, evt_reject, evt_start, evt_complete ]
+
+  views:
+    - id: vw_request_form
+      name: Request Form
+      type: form
+      fields:
+        - fld_design_type
+        - fld_due_date
+        - fld_title
+        - fld_description
+        - fld_attachment
+
+    - id: vw_my_requests
+      name: My Requests
+      type: list
+      columns:
+        - fld_title
+        - fld_design_type
+        - fld_due_date
+        - fld_status
+      default_sort:
+        field: created_at
+        direction: desc
+
+    - id: vw_design_queue
+      name: Design Queue
+      type: list
+      columns:
+        - fld_title
+        - fld_requester
+        - fld_design_type
+        - fld_due_date
+        - fld_status
+      default_sort:
+        field: fld_due_date
+        direction: asc
+
+    - id: vw_request_detail
+      name: Request Detail
+      type: detail

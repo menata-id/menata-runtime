@@ -48,7 +48,7 @@ This validates the core Menata principle:
 |-----------|-----------|------|--------|
 | [go/](go/) | Go + PostgreSQL + Templ + HTMX + Hyperscript | Custom runtime | In Progress |
 | [drupal/](drupal/) | Drupal 10 + PHP + PostgreSQL | CMS framework | Metadata Proof |
-| [frappe/](frappe/) | Frappe Framework + Python + PostgreSQL | Business framework | Planned |
+| [frappe/](frappe/) | Frappe Framework + Python + PostgreSQL | Business framework | Metadata Proof |
 | [directus/](directus/) | Directus 10 + Node.js + PostgreSQL | Database-first | Metadata Proof |
 | [budibase/](budibase/) | Budibase + Node.js + PostgreSQL | Low-code platform | Metadata Proof |
 | [salesforce/](salesforce/) | Salesforce Metadata API | Enterprise platform | Metadata Proof |

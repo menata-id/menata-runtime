@@ -1,0 +1,95 @@
+{
+ "_comment": "Generated from events[] in design-request.yaml",
+ "doctype": "Workflow",
+ "name": "Design Request Workflow",
+ "document_type": "Design Request",
+ "is_active": 1,
+ "workflow_state_field": "status",
+ "send_email_alert": 0,
+ "states": [
+  {
+   "state": "Draft",
+   "doc_status": "0",
+   "allow_edit": "Requester",
+   "update_field": "status",
+   "update_value": "Draft"
+  },
+  {
+   "state": "Submitted",
+   "doc_status": "0",
+   "allow_edit": "Designer",
+   "update_field": "status",
+   "update_value": "Submitted"
+  },
+  {
+   "state": "Accepted",
+   "doc_status": "0",
+   "allow_edit": "Designer",
+   "update_field": "status",
+   "update_value": "Accepted"
+  },
+  {
+   "state": "Rejected",
+   "doc_status": "0",
+   "allow_edit": "",
+   "update_field": "status",
+   "update_value": "Rejected"
+  },
+  {
+   "state": "In Progress",
+   "doc_status": "0",
+   "allow_edit": "Designer",
+   "update_field": "status",
+   "update_value": "In Progress"
+  },
+  {
+   "state": "Completed",
+   "doc_status": "1",
+   "allow_edit": "",
+   "update_field": "status",
+   "update_value": "Completed"
+  }
+ ],
+ "transitions": [
+  {
+   "_comment": "Source: evt_submit - Permission: Requester",
+   "action": "Submit",
+   "state": "Draft",
+   "next_state": "Submitted",
+   "allowed": "Requester",
+   "allow_self_approval": 1
+  },
+  {
+   "_comment": "Source: evt_accept - Permission: Designer",
+   "action": "Accept",
+   "state": "Submitted",
+   "next_state": "Accepted",
+   "allowed": "Designer",
+   "allow_self_approval": 0
+  },
+  {
+   "_comment": "Source: evt_reject - Permission: Designer",
+   "action": "Reject",
+   "state": "Submitted",
+   "next_state": "Rejected",
+   "allowed": "Designer",
+   "allow_self_approval": 0
+  },
+  {
+   "_comment": "Source: evt_start - Permission: Designer",
+   "action": "Start",
+   "state": "Accepted",
+   "next_state": "In Progress",
+   "allowed": "Designer",
+   "allow_self_approval": 0
+  },
+  {
+   "_comment": "Source: evt_complete - Permission: Designer",
+   "action": "Complete",
+   "state": "In Progress",
+   "next_state": "Completed",
+   "allowed": "Designer",
+   "allow_self_approval": 0
+  }
+ ]
+}

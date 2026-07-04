@@ -1,0 +1,21 @@
+{
+ "_comment": "Source: evt_submit -> notify(Designer) in design-request.yaml",
+ "doctype": "Notification",
+ "name": "Notify Designer on Submit",
+ "document_type": "Design Request",
+ "event": "Value Change",
+ "value_changed": "status",
+ "condition": "doc.status == 'Submitted'",
+ "enabled": 1,
+ "send_system_notification": 1,
+ "subject": "New Design Request: {{ doc.title }}",
+ "message": "A design request has been submitted and is awaiting your review.\n\nTitle: {{ doc.title }}\nDesign Type: {{ doc.design_type }}\nDue Date: {{ doc.due_date }}\nRequester: {{ doc.requester }}",
+ "channel": "Email",
+ "recipients": [
+  {
+   "_comment": "Source: notify(role=Designer)",
+   "receiver_by_role": "Designer",
+   "cc": ""
+  }
+ ]
+}
