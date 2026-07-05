@@ -450,6 +450,25 @@ Prompted by a direct question: for metadata-driven apps, what does world-class G
 
 ---
 
+# Phase 5 — CAP-F13 Pre-Implementation Refinement
+
+Before starting the actual implementation of Prio 1 (CAP-F13 reference fields), one more question surfaced: several fields already modeled across Cases 1–4 (`Requester`, `Employee`, `Approver`, `Equipment`, ...) look like they should be `reference` — is there a rigorous way to decide, instead of case-by-case intuition?
+
+## Study 15 — Field Modeling Decision Framework ✅ done (2026-07-05)
+
+**Deliverables:**
+- [x] `benchmarks/005-field-modeling-decision-framework.md` — a decision tree (identity/lifecycle test → growth test → target-type test) plus four supporting tests (growth, identity, reuse, cardinality), grounded in Codd's normalization theory, DDD Entity vs. Value Object, MDM, and the platform conventions already surveyed in Studies 2 and 6
+- [x] Retrofit calibration against every field in Cases 1–10 — reproduces every prior ad hoc choice correctly, and isolates exactly one true modeling gap (`Equipment`) from many merely-unimplemented-but-correct choices
+- [x] `guides/writing-menata.md` §"Tips memilih tipe" rewritten — plain-language version of the same tree for domain experts, pointing to the full framework
+- [x] `capability-registry.md` refined — CAP-F13 gains an explicit two-target-flavor scope note (workspace Machine vs. built-in identity), CAP-F05 gains its long-term resolution note (sugar over CAP-F13 + CAP-O01), CAP-O02 gains a second independent case (`Equipment`) satisfying the dual-evidence admission criterion
+
+**Headline findings:**
+- **Two distinct failure modes**, easily conflated: **Failure Mode 1 (modeling gap)** — the tree runs out of an answer because no target Machine or master-data designation exists yet (only `Equipment` lands here); **Failure Mode 2 (execution gap)** — the tree resolves correctly (`user`, `reference`, `number`, `date_time`, `file`) but the runtime hasn't finished implementing that type yet (CAP-F05/F06/F07/F10/F13 — already tracked, already prioritized).
+- `type: user` is not a permanently distinct field type — it is `reference` with a reserved built-in target, kept separate only until CAP-O01 (identity & role registry) exists. This directly shapes CAP-F13's Definition of Done: it must support both target flavors from day one, or a breaking change is needed later.
+- `Equipment` (Case 4) independently confirms the CAP-O02 gap first surfaced by Case 10 (Study 7) — satisfying the dual-evidence admission criterion a second time over.
+
+---
+
 # Principles
 
 - **The map before the territory** — benchmark catalogs predict gaps before cases find them.

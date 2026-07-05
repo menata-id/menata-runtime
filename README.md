@@ -425,6 +425,7 @@ The runtime's capability is being built and verified through a deliberate discov
 | [benchmarks/002-portal-ga-cross-domain-survey.md](benchmarks/002-portal-ga-cross-domain-survey.md) | Study 5 — Portal GA v3 cross-domain integration patterns |
 | [benchmarks/003-accounting-vertical-survey.md](benchmarks/003-accounting-vertical-survey.md) | Study 6 — accounting vertical (Odoo / ERPNext) |
 | [benchmarks/004-scale-architecture-study.md](benchmarks/004-scale-architecture-study.md) | Study 8 — multi-workspace scale & performance architecture |
+| [benchmarks/005-field-modeling-decision-framework.md](benchmarks/005-field-modeling-decision-framework.md) | Study 15 — field type selection: reference vs. value_list vs. primitive |
 
 ## Reference Implementation
 

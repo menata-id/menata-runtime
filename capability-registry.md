@@ -5,16 +5,18 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.7 — + Study 9 lifecycle annotations | Updated: 2026-07-04
+> Status: v0.8 — + Study 15 field modeling refinements | Updated: 2026-07-05
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
+> Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
 Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 gaps P1–P6
 (`prototype/go/docs/examples/README.md`), Study 1 pattern mapping
 (`benchmarks/000-workflow-patterns-mapping.md`), Study 2 platform survey
 (`benchmarks/001-platform-capability-survey.md`), Study 5 Portal GA survey
 (`benchmarks/002-portal-ga-cross-domain-survey.md`), Study 6 accounting vertical survey
-(`benchmarks/003-accounting-vertical-survey.md`), and Study 7 Case 10 composition findings
-(`prototype/go/docs/examples/organization-composite.md`).
+(`benchmarks/003-accounting-vertical-survey.md`), Study 7 Case 10 composition findings
+(`prototype/go/docs/examples/organization-composite.md`), and Study 15 field modeling framework
+(`benchmarks/005-field-modeling-decision-framework.md`).
 
 **Status** reflects the Go prototype runtime: ✅ supported · ⚠️ partial · ❌ not yet.
 **Prio** is the global implementation ordering (blank = supported or not yet prioritized).
@@ -30,13 +32,13 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-F02 | `rich_text` field (textarea) | ✅ | Case 1 | — | | conformance T02/T08 |
 | CAP-F03 | `value_list` field (select + badge) | ✅ | Case 1 | — | | conformance T06–T08 |
 | CAP-F04 | `date` field | ✅ | Case 1 | — | | conformance T05/T08 |
-| CAP-F05 | `user` field | ⚠️ | Case 1 | — | 8 | renders as free text; no user picker, no identity link |
+| CAP-F05 | `user` field | ⚠️ | Case 1 | — | 8 | renders as free text; no user picker, no identity link. Long-term: sugar over CAP-F13 + CAP-O01 (Study 15), not a permanently separate type — kept distinct only until CAP-O01 exists |
 | CAP-F06 | `file` field | ⚠️ | Case 1 | — | 9 | input renders; upload is not stored |
 | CAP-F07 | `number` field | ⚠️ | schema doc | — | 10 | falls back to text input; no numeric validation |
 | CAP-F08 | `money` field | ⚠️ | schema doc | — | 10 | same fallback |
 | CAP-F09 | `boolean` field | ⚠️ | schema doc | — | 10 | same fallback |
 | CAP-F10 | `time` / `date_time` / `duration` fields | ⚠️ | schema doc | — | 10 | same fallback |
-| CAP-F13 | `reference` field (link to another machine) | ❌ | Case 3 (P1) | WCP-2/13/14, WRP-3 | **1** | includes tree/hierarchy option (self-reference + rollup — COA, Study 6) |
+| CAP-F13 | `reference` field (link to another machine) | ❌ | Case 3 (P1) | WCP-2/13/14, WRP-3 | **1** | includes tree/hierarchy option (self-reference + rollup — COA, Study 6). Scope note (Study 15): must support two target flavors from day one — (a) workspace-authored Machine, (b) reserved built-in identity target for CAP-F05/CAP-O01 — designing only for (a) forces a breaking change later |
 | CAP-F14 | Computed / formula field | ❌ | Study 2 survey | Salesforce formula, Frappe | 13 | design req: derived line generation (tax templates, Study 6) |
 | CAP-F15 | Field default values (beyond status first-value) | ⚠️ | Study 2 survey | universal (6/6 platforms) | 8 | status default works; other fields have none |
 | CAP-F16 | Line items / child table inside a record (header-detail document) | ❌ | Study 6 accounting | Odoo One2many, Frappe Table — universal to document apps | **3** | joins CAP-F13 atop the structural queue |
@@ -162,7 +164,7 @@ All discovered by Case 10 `[COMPOSITION FINDING]` — capabilities that belong t
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
 | CAP-O01 | Workspace identity & role registry (users, namespaced roles, user→role assignment as metadata) | ❌ | Case 10 | spec 005 (roles ≠ users) | 6 | prototype role cookie is workspace-blind |
-| CAP-O02 | Master data designation (canonical machines: ownership, cross-app referenceability, deactivation semantics) | ❌ | Case 10 | DDD shared kernel, Portal GA PICA + Data Mesh | 8 | flag + rules on machine, not a new hierarchy level |
+| CAP-O02 | Master data designation (canonical machines: ownership, cross-app referenceability, deactivation semantics) | ❌ | Case 10, Study 15 (`Equipment` field, Case 4) | DDD shared kernel, Portal GA PICA + Data Mesh | 8 | flag + rules on machine, not a new hierarchy level. Second independent case now confirms this gap (dual-evidence, `capability-lifecycle.md` §2 A1) |
 | CAP-O03 | Navigation metadata (app grouping, role-aware menus, workspace home) | ❌ | Case 10 | runtime/004 already names Navigation — spec predicted it | 9 | — |
 | CAP-O04 | Workspace-wide search across machines (permission-trimmed) | ❌ | Case 10 | — | 12 | depends on CAP-P05 |
 | CAP-O05 | Unified notification center (inbox, per-user channel preferences, digest grouping) | ❌ | Case 10 | Portal GA message dispatcher | 8 | extends CAP-A10 to workspace service |
