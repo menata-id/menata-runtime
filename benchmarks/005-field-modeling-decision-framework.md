@@ -457,7 +457,12 @@ sugar without changing any existing `.menata` source — a domain expert never s
 
 The sections above show the *reasoning journey* across five adversarial passes (that is
 deliberate — a framework worth trusting should show its work). This section is the single place to
-read the *settled* answer for every field type discussed, without re-deriving it.
+read the *settled* answer, without re-deriving it — split into three parts that must not be
+conflated: actual field **types**, worked **examples** of applying those types to real fields, and
+concepts that were tested against this framework and explicitly **excluded** from Field grammar
+entirely. Mixing the third group into a "field types" table would misrepresent what was decided.
+
+## Field Types
 
 | Field type | Settled classification | Why | Registry note |
 |-----------|------------------------|-----|----------------|
@@ -471,14 +476,32 @@ read the *settled* answer for every field type discussed, without re-deriving it
 | `money` | **Reference sugar** (amount is primitive; currency is the sugar component) | Currency passes all four supporting tests (identity, lifecycle via exchange rates, reuse, cardinality); independently named as an Object in `specification/001-object.md` | CAP-F17 (❌), currency is a CAP-O02 master-data candidate. `type: money`'s `currency:`/`currency_field:` key should be schema-required, rejected at load if missing (CAP-X05) |
 | `file` | **Reference sugar** | Own storage identity + lifecycle (versioning, replacement); matches Frappe/Salesforce/Drupal platform convention (Study 2) | CAP-F06 (⚠️ partial — Failure Mode 2), long-term sugar over CAP-F13 + a runtime-managed File/Document entity |
 | `reference` | General mechanism | Target has independent identity and is a workspace-authored (or master-data-designated) Machine | CAP-F13 (❌, Prio 1) |
+| `Quantity` (count + Unit of Measure, anticipated for Case 5) — **predicted, not yet a confirmed type** | **Default is simple — declaring the field stays one line, same as any other type.** Only the *conversion schema*, if actually needed, is tiered — a metadata-authoring decision made once, never the same thing as the conversion *values*, which are business data entered later through the resulting application (out of scope here). | Tier 1 (the common case): two flat fields on the referencing Machine's metadata, no reference at all — as easy to declare as any primitive. Tier 2 (multiple unit pairs for one item): a child table (CAP-F16). Tier 3 (factor needs history): a dedicated Machine. Whichever tier, CAP-X05 should reject metadata that declares `money`/`quantity` without its required companion. | Predicted only — no case evidence yet (Case 5 unwritten); default to Tier 1, escalate only when Case 5 actually shows a real need |
+
+## Worked Examples — Applying These Types to Real Fields
+
+These rows are not new field types — they are field *usages* already covered by `reference` above,
+recorded because they were the cases that first surfaced a real modeling question.
+
+| Field usage | Settled answer | Why | Registry note |
+|-------------|-----------------|-----|----------------|
 | `Equipment`-class fields, used within **one** application | Should be `reference` to an ordinary workspace Machine — plain `reference`, nothing more | **Failure Mode 1, but fully resolved by CAP-F13 alone** — author the target Machine (Vehicle Type / Vehicle Asset / Service Record / …, connected purely by `reference`), change the field from `text` to `reference`. No governance capability needed. | CAP-F13 (❌, Prio 1) — same mechanism as any other reference, no special treatment |
 | `Equipment`/`Employee`/`Customer`-class fields, referenced from **more than one** application | Still `reference`, but the target Machine's cross-app ownership is undefined | **Failure Mode 1, genuinely needs CAP-O02** — CAP-F13 supplies the pointer mechanics; CAP-O02 answers who owns the Machine and what happens across applications when it's deactivated | CAP-O02 (❌), confirmed by Case 10 (narrative), reinforced by `Currency` (via CAP-F17) |
-| `Quantity`-class fields (count + Unit of Measure, anticipated for Case 5) | **Default is simple — declaring the field stays one line, same as any other type.** Only the *conversion schema*, if actually needed, is tiered — a metadata-authoring decision made once, never the same thing as the conversion *values*, which are business data entered later through the resulting application (out of scope here). | Tier 1 (the common case): two flat fields on the referencing Machine's metadata, no reference at all — as easy to declare as any primitive. Tier 2 (multiple unit pairs for one item): a child table (CAP-F16). Tier 3 (factor needs history): a dedicated Machine. Whichever tier, CAP-X05 should reject metadata that declares `money`/`quantity` without its required companion. | Predicted only — no case evidence yet (Case 5 unwritten); default to Tier 1, escalate only when Case 5 actually shows a real need |
-| **Recurring schedules** (`Every Day`, `Every Monday`, "repeats every N months") | **Not a Field concept at all — belongs to Event.** A `date` value is a point in time; a recurrence rule describes a pattern of occurrence, which is a property of something that *happens*, not of a stored value. | Spec `003-runtime-language.md`'s Event grammar already names Time as one of four Event sources, with `Every Day` / `Every Monday` as its own examples — recurrence was placed in Event from the start, matching the iCalendar `RRULE` standard (RFC 5545), which attaches recurrence to an Event (`VEVENT`), never to a bare date/timestamp value. | CAP-E02 (recurring trigger) + CAP-A11 (date arithmetic reacting to a business event, e.g. advancing a due date) — both already registered from Case 4, both Event/Action grammar, not Field |
 
-**How to read "settled":** every row above has survived at least the initial pass; `money`, `file`,
-`Equipment`, `Quantity`, and the recurring-schedules boundary check additionally survived one or
-more corrections across the second through fifth adversarial passes. None of this is expected to be
+## Boundary Exclusions — Considered, But Not Field Concepts
+
+These were evaluated *against* this framework specifically to check whether they belonged here —
+and the settled answer is that they do not. Listed here so the exclusion itself is not lost, without
+polluting the Field Types table above with a "type" that isn't one.
+
+| Concept | Verdict | Why | Where it actually belongs |
+|---------|---------|-----|----------------------------|
+| **Recurring schedules** (`Every Day`, `Every Monday`, "repeats every N months") | **Not a Field concept.** A `date` value is a point in time; a recurrence rule describes a pattern of occurrence — a property of something that *happens*, not of a stored value. | Spec `003-runtime-language.md`'s Event grammar already names Time as one of four Event sources, with `Every Day` / `Every Monday` as its own examples — recurrence was placed in Event from the start, matching the iCalendar `RRULE` standard (RFC 5545), which attaches recurrence to an Event (`VEVENT`), never to a bare date/timestamp value. | **Event/Action grammar** — CAP-E02 (recurring trigger) + CAP-A11 (date arithmetic reacting to a business event, e.g. advancing a due date), both already registered from Case 4 |
+
+**How to read "settled":** every Field Types row has survived at least the initial pass; `money`,
+`file`, and the Quantity tiering additionally survived a correction across the second through fifth
+adversarial passes. The Worked Examples and Boundary Exclusion rows exist precisely *because* a
+follow-up question forced re-checking something that looked settled. None of this is expected to be
 truly final forever — `duration` or `value_list` could in principle be overturned by a future case
 the same way `money`/`file` were, if new evidence surfaces. The discipline that matters is
 re-running the tests when challenged, not treating any row as beyond question.
