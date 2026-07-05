@@ -579,6 +579,18 @@ plain language for domain experts (no DDD/Codd/MDM terminology — just the four
 The guide keeps its own copy, phrased for its audience; this document is the rigorous source it is
 derived from.
 
+Two additional documents were found out of sync and corrected to match this framework's settled
+answers:
+
+- **`runtime/runtime-metadata-schema.md`** — the Field Types table now notes `money`/`user`/`file`
+  as reference sugar, lists `target_machine` as a mandatory `reference` key and `currency`/
+  `currency_field` as a mandatory `money` key, and links here for the full decision tree.
+- **`runtime/guides/writing-runtime-metadata.md`** — the "Tipe Field — pemetaan" table had a real
+  bug independent of this study: it showed `{"machine":"mch_x"}` for `reference`, inconsistent with
+  the `target_machine` key actually used in `prototype/go/docs/examples/approval-step.yaml`. Fixed,
+  plus the same reference-sugar notes, a mandatory-`currency`-for-`money` checklist item, and a
+  pointer to this framework.
+
 ---
 
 # Maintenance

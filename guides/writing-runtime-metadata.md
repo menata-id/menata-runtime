@@ -5,7 +5,8 @@ Panduan ini menjelaskan cara menerjemahkan file `.menata` menjadi Runtime Metada
 **Untuk siapa:** Developer yang mengimplementasikan machine baru ke Menata Runtime.  
 **Prasyarat:** Sudah ada file `.menata` yang ditulis domain expert (lihat `guides/writing-menata.md`).
 
-Referensi schema lengkap: `runtime/runtime-metadata-schema.md`
+Referensi schema lengkap: `runtime/runtime-metadata-schema.md`  
+Cara memilih tipe field yang tepat (primitif vs `value_list` vs `reference`): `runtime/benchmarks/005-field-modeling-decision-framework.md`
 
 ---
 
@@ -158,7 +159,7 @@ INSERT INTO fields (id, machine_id, name, type, position, required, options) VAL
 | `Text` | `text` | `{}` |
 | `Rich Text` | `rich_text` | `{}` |
 | `Number` | `number` | `{}` |
-| `Money` | `money` | `{}` |
+| `Money` | `money` | `{"currency":"IDR"}` — **wajib**, lihat catatan di bawah |
 | `Boolean` | `boolean` | `{}` |
 | `Date` | `date` | `{}` |
 | `Time` | `time` | `{}` |
@@ -167,7 +168,30 @@ INSERT INTO fields (id, machine_id, name, type, position, required, options) VAL
 | `User` | `user` | `{}` |
 | `File` | `file` | `{}` |
 | `A \| B \| C` | `value_list` | `{"values":["A","B","C"]}` |
-| `Reference: X` | `reference` | `{"machine":"mch_x"}` |
+| `Reference: X` | `reference` | `{"target_machine":"mch_x"}` |
+
+> ⚠️ **Key yang benar untuk `reference` adalah `target_machine`, bukan `machine`.** Konsisten dengan
+> contoh nyata di `prototype/go/docs/examples/approval-step.yaml` (`Document` field, `mch_approval_document`).
+
+#### Money, User, File — "reference sugar" (Study 15)
+
+`money`, `user`, dan `file` bukan tipe primitif berdiri sendiri secara konseptual — ketiganya adalah
+**reference dengan target yang sudah ditentukan di depan**, dipertahankan sebagai tipe bernama
+terpisah hanya karena runtime belum punya target-nya:
+
+| Tipe | Target reference-nya | Status target |
+|------|----------------------|----------------|
+| `user` | Identitas platform (siapa penggunanya) | Menunggu CAP-O01 (identity & role registry) |
+| `money` | Currency (kode + kurs) | Menunggu CAP-O02 (master data designation) |
+| `file` | Entitas File/Document terkelola runtime | Belum ada — CAP-F06 masih ⚠️ partial |
+
+Detail lengkap pohon keputusan + kalibrasi: `runtime/benchmarks/005-field-modeling-decision-framework.md`.
+
+**Wajib untuk `type: money`:** sertakan `currency` di `options` (contoh: `{"currency":"IDR"}`), atau
+`currency_field` kalau nilainya bisa beda per record (referensi ke field lain di machine yang sama).
+Metadata `type: money` **tanpa** salah satu dari keduanya dianggap tidak lengkap — sama seperti
+`value_list` tanpa `values` atau `reference` tanpa `target_machine`. Ini dicegah CAP-X05 (metadata
+validation before load) begitu diimplementasikan; untuk saat ini pastikan manual saat menulis seed.
 
 #### Field `required`
 
@@ -473,6 +497,9 @@ Gunakan `ON CONFLICT (id) DO NOTHING` agar seed aman dijalankan ulang.
 - [ ] Setiap Event yang ada di `.menata` tercantum di Permissions
 - [ ] View Form tidak menyertakan field Status di `config.fields`
 - [ ] View Detail menggunakan `config = '{}'`
+- [ ] Field `reference` pakai key `target_machine` (bukan `machine`), menunjuk ke machine yang benar-benar ada
+- [ ] Field `money` punya `currency` atau `currency_field` di `options` — jangan biarkan kosong
+- [ ] Sudah cek `005-field-modeling-decision-framework.md` kalau ragu antara `value_list` vs `reference` vs primitif
 
 ---
 
@@ -480,5 +507,6 @@ Gunakan `ON CONFLICT (id) DO NOTHING` agar seed aman dijalankan ulang.
 
 - `guides/writing-menata.md` — cara menulis `.menata` (langkah sebelum ini)
 - `runtime/runtime-metadata-schema.md` — schema lengkap
+- `runtime/benchmarks/005-field-modeling-decision-framework.md` — cara memilih tipe field yang tepat (primitif vs `value_list` vs `reference`), termasuk kenapa `money`/`user`/`file` adalah reference sugar
 - `prototype/go/docs/examples/` — contoh lengkap Design Request dan Leave Request
 - `prototype/go/docs/decisions/002-metadata-loading.md` — kapan restart diperlukan

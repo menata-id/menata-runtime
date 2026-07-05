@@ -141,21 +141,41 @@ machine:
 
 ## Field Types
 
-| Type | Description | Example |
-|------|-------------|---------|
-| `text` | Short text | Title, Name |
-| `rich_text` | Formatted text | Description, Notes |
-| `number` | Numeric value | Quantity |
-| `money` | Monetary value | Amount, Price |
-| `boolean` | True/False | Is Active |
-| `date` | Calendar date | Due Date, Start Date |
-| `time` | Time of day | Meeting Time |
-| `date_time` | Date and time | Submitted At |
-| `duration` | Time span | Estimated Hours |
-| `user` | Reference to a User | Requester, Assignee |
-| `file` | File attachment | Document, Photo |
-| `value_list` | Predefined values | Status, Priority, Type |
-| `reference` | Reference to another Machine | Department, Project |
+| Type | Description | Example | Required `options` key |
+|------|-------------|---------|-------------------------|
+| `text` | Short text | Title, Name | — |
+| `rich_text` | Formatted text | Description, Notes | — |
+| `number` | Numeric value | Quantity | — |
+| `money` | Monetary value | Amount, Price | `currency` or `currency_field` — **mandatory**, see note below |
+| `boolean` | True/False | Is Active | — |
+| `date` | Calendar date | Due Date, Start Date | — |
+| `time` | Time of day | Meeting Time | — |
+| `date_time` | Date and time | Submitted At | — |
+| `duration` | Time span | Estimated Hours | — |
+| `user` | Reference to a User | Requester, Assignee | — (see note below) |
+| `file` | File attachment | Document, Photo | — (see note below) |
+| `value_list` | Predefined values | Status, Priority, Type | `values` — mandatory array |
+| `reference` | Reference to another Machine | Department, Project | `target_machine` — mandatory |
+
+### `money`, `user`, `file` are "reference sugar"
+
+These three are not independent primitive types conceptually — each is `reference` to a
+predetermined target, kept as its own named type today only because the runtime does not yet have
+that target to point at:
+
+| Type | Reference target | Target status |
+|------|-------------------|-----------------|
+| `user` | Platform identity | Pending CAP-O01 (identity & role registry) |
+| `money` | Currency (code + exchange rate) | Pending CAP-O02 (master data designation) |
+| `file` | Runtime-managed File/Document entity | Not yet implemented — CAP-F06 ⚠️ partial |
+
+**`type: money` MUST include `currency` (fixed code, e.g. `"IDR"`) or `currency_field` (a reference
+to another field on the same record) in its `options`.** Metadata declaring `money` without either
+is incomplete — the same discipline already required for `value_list` (`values`) and `reference`
+(`target_machine`). This is validated at load time by CAP-X05 once implemented.
+
+Full reasoning, the decision tree for choosing between `value_list` / `reference` / a primitive, and
+worked examples: `runtime/benchmarks/005-field-modeling-decision-framework.md`.
 
 ---
 
