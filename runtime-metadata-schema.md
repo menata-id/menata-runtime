@@ -178,7 +178,8 @@ is incomplete — the same discipline already required for `value_list` (`values
 
 `file` does not get a separate `image` type. Whether a file is an image is a **processing policy**
 on the same reference-sugar `file` type, not a different reference target — the same reasoning that
-keeps `rich_text` a variant of text handling rather than a different kind of reference.
+keeps `rich_text` a variant of text handling rather than a different kind of reference. This is the
+metadata-facing fact; only the `options` schema below is something a metadata author writes.
 
 ```yaml
 - id: fld_ad_photo
@@ -191,21 +192,10 @@ keeps `rich_text` a variant of text handling rather than a different kind of ref
     format: webp            # target storage format
 ```
 
-**Dual-path contract (Study 15 sixth-pass, matching Portal GA's proven `NativeCompressedUpload*`
-pattern):**
-
-1. **Client-side (fast path)** — the upload widget compresses to `format`/`max_dimension` in-browser
-   (e.g. via a non-blocking Web Worker) *before* transmitting. When this succeeds, the oversized
-   original is never sent — saving upload bandwidth and server disk.
-2. **Server-side (authoritative fallback)** — the loader/store step **never trusts** that step 1
-   happened. It checks the incoming file against `options`; if it doesn't already comply (older
-   browser without Web Worker/WebP support, a direct API call bypassing the widget, JS disabled), the
-   server applies the same compression pipeline itself before persisting.
-
-This is the same "client is advisory, server enforces" rule already applied to Constraints
-(CAP-C09) — a client that skips compression must never be able to store an unprocessed file merely
-because it bypassed the official widget. Full reasoning: `capability-registry.md` CAP-F06,
-`nfr-standards.md` §2.1.
+*How* the runtime realizes `compress: true` (client-side vs. server-side, and the enforcement rule
+that the server never trusts client-side compression alone) is a runtime-behavior concern, not a
+metadata-schema one — it is documented once, authoritatively, in `capability-registry.md` (CAP-F06)
+and `nfr-standards.md` §2.1, not repeated here.
 
 Full reasoning, the decision tree for choosing between `value_list` / `reference` / a primitive, and
 worked examples: `runtime/benchmarks/005-field-modeling-decision-framework.md`.
