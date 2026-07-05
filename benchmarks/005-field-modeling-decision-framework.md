@@ -9,7 +9,7 @@
 > "some of these fields look like they should be reference — is there a
 > world-class framework for deciding this?" There wasn't one; this is it.
 >
-> Status: v0.1 | Created: 2026-07-05
+> Status: v0.5 — 5 adversarial passes; consistently scoped to the metadata-author/runtime perspective, never the resulting application's end-user | Created: 2026-07-05
 
 ---
 
@@ -295,24 +295,84 @@ established for `reference` vs. `value_list` in general (Two Orthogonal Axes, ab
 recursively to how the conversion data itself is modeled. Case 5, when written, should declare which
 tier its scenario actually needs rather than assuming Tier 3 by default.
 
-### Fourth-pass correction — "declaring the field" and "setting up the conversion data" are different moments
+### Fourth-pass correction — "declaring the field" and "authoring the conversion schema" are different moments
 
 A follow-up question caught that presenting the three tiers side by side, as if choosing between
 them were part of using `Money` or `Quantity`, overstates the field's everyday complexity. This
-conflates two separate authoring moments that should stay separate:
+conflates two separate metadata-authoring moments that should stay separate:
 
 | Moment | Example | Who does it, how often |
 |--------|---------|--------------------------|
-| **Declaring the field** in a Machine | `- Amount : Money`, `- Quantity : Number` | Every author, every time — stays exactly **one line**, identical in effort to declaring any other field type |
-| **Setting up the conversion data** (only if Tier 2/3 is actually needed) | Filling in exchange rates, or an item's unit-conversion factors | **Once**, by whoever manages that master data — not repeated per form, per machine, or per use of the field type |
+| **Declaring the field** in a Machine's metadata | `- Amount : Money`, `- Quantity : Number` | Every metadata author (domain expert, developer, or AI writing `.menata`/Runtime Metadata), every time — stays exactly **one line**, identical in effort to declaring any other field type |
+| **Authoring the conversion schema** (only if Tier 2/3 is actually needed) | Declaring the extra fields/child-table/Machine that will *hold* conversion factors (Tier 1/2/3, above) | **Once**, by whoever designs that part of the metadata — not repeated per form, per machine, or per use of the field type |
 
-This mirrors how `- Department : Department` already works today: writing that field is one line;
-the fact that Department carries its own records is a separate, one-time authoring concern, not a
-burden repeated everywhere Department is referenced. `Money` and `Quantity` are no different — the
-tiering is a statement about how the *conversion data* is modeled when it exists, not a checklist a
-domain expert or an AI re-derives every time they write a field. The default experience of using
-either type should read as simply as any other field; only the (rare) act of first setting up
-multi-unit or multi-currency support touches the tiers at all.
+Both rows above are still **metadata** — schema declarations written in `.menata` or Runtime
+Metadata, not data entry. The *actual conversion factor values* (e.g. "this specific item's factor
+is 40") are business data, entered later through whatever form the resulting application renders
+from that schema — a different layer entirely, and out of scope for this document (see next
+section). This mirrors how `- Department : Department` already works today: writing that field is
+one line of metadata; the fact that Department *records* exist is a separate concern at a different
+layer, not a burden on the field declaration itself.
+
+### Fifth-pass clarification — three layers, and where this framework stops
+
+Keeping "declaring" and "authoring the conversion schema" separate only holds up if the layers
+underneath are also kept separate. This framework, end to end, speaks from **one** perspective —
+the metadata author and the runtime that loads what they wrote — never the end-user of the
+resulting application:
+
+| Layer | Who | What happens here | In scope for this document? |
+|-------|-----|--------------------|-------------------------------|
+| **Metadata** | Domain expert, developer, or AI writing `.menata` / Runtime Metadata | Declares field types, Machine structure, and — for `Money`/`Quantity` — how much schema (Tier 1/2/3's *shape*) the conversion mechanism needs | **Yes — this is what the whole framework decides** |
+| **Runtime** | The loader / validator / interpreter | Loads metadata, checks it is complete and well-formed (CAP-X05), builds the Application Model | **Yes — this is where the safeguard below lives** |
+| **Data** | End-user of the *resulting application* (e.g. a warehouse clerk, an accountant) | Enters actual records: this item's actual conversion factor, this currency's actual exchange rate on a given date | **No — explicitly out of scope.** This document never discusses end-user forms, data-entry UI, or hints inside the generated app — Menata Runtime interprets metadata into that app, it does not design this document around it. |
+
+Every Tier 1/2/3 distinction above is a statement about **how much schema must exist**, never about
+the values that will eventually populate it. Conflating "authoring the conversion schema" (metadata)
+with "typing in today's exchange rate" (data) is exactly the perspective slip the next section
+closes off explicitly.
+
+### Language-Level Safeguard Against Forgotten Setup
+
+A related risk in keeping "declare" and "author the conversion schema" separate: if declaring
+`type: money` stays simple and its conversion schema is authored separately, what stops a metadata
+author — human or AI — from *forgetting* to author that schema at all? The answer has to live in
+the **metadata language and the runtime** (the two in-scope layers above), not in an end-user
+application's UI hints — Menata Runtime does not build that UI, it interprets metadata into it, so
+"give the user a hint" is not a lever available at this layer.
+
+**The safeguard: make the companion a required, inline part of the type's own schema — not a second
+field the author must remember to add separately.** Menata's schema already does this for other
+types: `value_list` requires a `values:` array; `reference` requires a `target_machine:`. The same
+discipline extends to `money`:
+
+```yaml
+- id: fld_amount
+  name: Amount
+  type: money
+  currency: IDR              # required key of `type: money` itself — omitting it is malformed metadata
+```
+
+Metadata declaring `type: money` without a `currency:` (or `currency_field:`, for the multi-currency
+tier) is not "the simple case" — it is **incomplete metadata**, exactly as `type: value_list`
+without `values:` would be. This turns "the author might forget" into "the metadata cannot describe
+a valid `money` field without it" — a schema-completeness property enforced by the language and the
+loader, not a matter of authoring discipline or memory.
+
+**Enforced by CAP-X05 (metadata validation before load) — no new capability required.** CAP-X05
+already exists to catch dangling references and malformed metadata (Terraform's plan-before-apply is
+its yardstick, Study 1). Its scope now explicitly includes: every composite/reference-sugar type
+(`money`, and a future `quantity` if registered) must have its required companion present in the
+metadata; a missing companion is a load-time rejection — the same discipline CAP-X05 already applies
+to a dangling `reference` target under CAP-F13.
+
+**Convention over Configuration still applies — the default must be visible, never silent.** If an
+organization only ever uses one currency, requiring `currency: IDR` on every money field is one
+short, explicit key, not a burden. The runtime may still apply a workspace-wide default when the key
+is omitted — but it must report what it resolved (e.g. a load-time note that a field defaulted to
+the workspace base currency) rather than leave the assumption unstated. This closes the "might
+forget" risk entirely within the metadata/runtime layer, without needing an interactive, hint-giving
+application to compensate for it.
 
 ### Where the conversion calculation belongs — not inside the Constraint
 
@@ -408,12 +468,12 @@ read the *settled* answer for every field type discussed, without re-deriving it
 | `duration` | Composite, but stays primitive | Magnitude + unit, but unit set is small/universal/never grows (no exchange-rate-like lifecycle) — unit resolves as an inline `value_list`-shaped selector, not `reference` | — |
 | `value_list` | Bounded enumeration (not primitive, not reference) | Closed domain, but fixed — the runtime can validate membership; distinguished from `reference` only by whether the set grows | — |
 | `user` | **Reference sugar** | Passes identity/lifecycle test; target is platform identity, not a workspace Machine | CAP-F05 (⚠️ partial — Failure Mode 2), long-term sugar over CAP-F13 + CAP-O01 |
-| `money` | **Reference sugar** (amount is primitive; currency is the sugar component) | Currency passes all four supporting tests (identity, lifecycle via exchange rates, reuse, cardinality); independently named as an Object in `specification/001-object.md` | CAP-F17 (❌), currency is a CAP-O02 master-data candidate |
+| `money` | **Reference sugar** (amount is primitive; currency is the sugar component) | Currency passes all four supporting tests (identity, lifecycle via exchange rates, reuse, cardinality); independently named as an Object in `specification/001-object.md` | CAP-F17 (❌), currency is a CAP-O02 master-data candidate. `type: money`'s `currency:`/`currency_field:` key should be schema-required, rejected at load if missing (CAP-X05) |
 | `file` | **Reference sugar** | Own storage identity + lifecycle (versioning, replacement); matches Frappe/Salesforce/Drupal platform convention (Study 2) | CAP-F06 (⚠️ partial — Failure Mode 2), long-term sugar over CAP-F13 + a runtime-managed File/Document entity |
 | `reference` | General mechanism | Target has independent identity and is a workspace-authored (or master-data-designated) Machine | CAP-F13 (❌, Prio 1) |
 | `Equipment`-class fields, used within **one** application | Should be `reference` to an ordinary workspace Machine — plain `reference`, nothing more | **Failure Mode 1, but fully resolved by CAP-F13 alone** — author the target Machine (Vehicle Type / Vehicle Asset / Service Record / …, connected purely by `reference`), change the field from `text` to `reference`. No governance capability needed. | CAP-F13 (❌, Prio 1) — same mechanism as any other reference, no special treatment |
 | `Equipment`/`Employee`/`Customer`-class fields, referenced from **more than one** application | Still `reference`, but the target Machine's cross-app ownership is undefined | **Failure Mode 1, genuinely needs CAP-O02** — CAP-F13 supplies the pointer mechanics; CAP-O02 answers who owns the Machine and what happens across applications when it's deactivated | CAP-O02 (❌), confirmed by Case 10 (narrative), reinforced by `Currency` (via CAP-F17) |
-| `Quantity`-class fields (count + Unit of Measure, anticipated for Case 5) | **Default is simple — declaring the field stays one line, same as any other type.** Only the *underlying conversion data*, if actually needed, is tiered — and that data is authored once, separately, not re-decided every time the field is used. | Tier 1 (the common case): two flat fields on the referencing Machine, no reference at all — as easy to write as any primitive. Tier 2 (multiple unit pairs for one item): a child table (CAP-F16). Tier 3 (factor needs history): a dedicated Machine. | Predicted only — no case evidence yet (Case 5 unwritten); default to Tier 1, escalate only when Case 5 actually shows a real need |
+| `Quantity`-class fields (count + Unit of Measure, anticipated for Case 5) | **Default is simple — declaring the field stays one line, same as any other type.** Only the *conversion schema*, if actually needed, is tiered — a metadata-authoring decision made once, never the same thing as the conversion *values*, which are business data entered later through the resulting application (out of scope here). | Tier 1 (the common case): two flat fields on the referencing Machine's metadata, no reference at all — as easy to declare as any primitive. Tier 2 (multiple unit pairs for one item): a child table (CAP-F16). Tier 3 (factor needs history): a dedicated Machine. Whichever tier, CAP-X05 should reject metadata that declares `money`/`quantity` without its required companion. | Predicted only — no case evidence yet (Case 5 unwritten); default to Tier 1, escalate only when Case 5 actually shows a real need |
 | **Recurring schedules** (`Every Day`, `Every Monday`, "repeats every N months") | **Not a Field concept at all — belongs to Event.** A `date` value is a point in time; a recurrence rule describes a pattern of occurrence, which is a property of something that *happens*, not of a stored value. | Spec `003-runtime-language.md`'s Event grammar already names Time as one of four Event sources, with `Every Day` / `Every Monday` as its own examples — recurrence was placed in Event from the start, matching the iCalendar `RRULE` standard (RFC 5545), which attaches recurrence to an Event (`VEVENT`), never to a bare date/timestamp value. | CAP-E02 (recurring trigger) + CAP-A11 (date arithmetic reacting to a business event, e.g. advancing a due date) — both already registered from Case 4, both Event/Action grammar, not Field |
 
 **How to read "settled":** every row above has survived at least the initial pass; `money`, `file`,
@@ -477,6 +537,14 @@ Refines existing entries, no new capability IDs required:
   the iCalendar `RRULE` (RFC 5545) precedent of attaching recurrence to an Event, never to a bare
   date value. No scope change — this closes an open question about where recurrence belongs, rather
   than adding new requirements.
+- **CAP-X05** (metadata validation before load) — scope extended (fifth-pass): validation must check
+  that every composite/reference-sugar field type (`money`, and any future `quantity`) has its
+  required companion declared inline (`currency:`/`currency_field:` for `money`) — a missing
+  companion is a load-time rejection, the same discipline already applied to a dangling `reference`
+  target under CAP-F13. This is the language-level safeguard against a metadata author (human or AI)
+  forgetting to set up the conversion mechanism — enforced by the schema and the loader, not by
+  hints in the resulting application's UI (out of scope for Menata Runtime, which interprets
+  metadata rather than authoring that UI's design).
 
 ---
 

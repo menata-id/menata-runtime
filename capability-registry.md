@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.11 — + Study 15 fourth-pass (CAP-O02 scope narrowed, CAP-E02/A11 confirmed) | Updated: 2026-07-05
+> Status: v0.12 — + Study 15 fifth-pass (CAP-X05 language-level safeguard against forgotten setup) | Updated: 2026-07-05
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -139,7 +139,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-X02 | Real authentication (today: prototype role cookie) | ❌ | prototype design | WRP-4 | 13 | — |
 | CAP-X03 | Machine-level config block (approval_mode etc.) | ❌ | Case 3 (P4) | — | 4 | — |
 | CAP-X04 | Metadata live reload (today: restart required) | ❌ | ADR-002 | K8s reconciliation | 14 | plan in `decisions/002-metadata-loading.md` |
-| CAP-X05 | Metadata validation before load (dangling refs, bad operators) | ❌ | Study 1 mapping | Terraform plan-before-apply | 7 | — |
+| CAP-X05 | Metadata validation before load (dangling refs, bad operators) | ❌ | Study 1 mapping | Terraform plan-before-apply | 7 | Scope extended (Study 15, fifth-pass): composite/reference-sugar types (`money`, future `quantity`) must have their required companion (`currency:`/`currency_field:`) declared inline — missing companion = load-time rejection, same discipline as CAP-F13's dangling-reference check. Language-level safeguard against a metadata author (human or AI) forgetting the conversion setup — not an app-UI concern |
 | CAP-X06 | Workspace isolation in routing/authz | ⚠️ | prototype design | — | 8 | implementation strategy decided: PostgreSQL RLS (ADR-003) |
 | CAP-X07 | Auto-generated REST API per machine | ❌ | Study 2 survey | 5/6 platforms | 10 | — |
 | CAP-X08 | Metadata package export/import (portable app definition) | ❌ | Study 2 survey | universal (6/6 platforms) | 9 | today: hand-written SQL seeds; blocks "one knowledge, many runtimes" operationally |
