@@ -9,7 +9,7 @@
 > "some of these fields look like they should be reference — is there a
 > world-class framework for deciding this?" There wasn't one; this is it.
 >
-> Status: v0.5 — 5 adversarial passes; consistently scoped to the metadata-author/runtime perspective, never the resulting application's end-user | Created: 2026-07-05
+> Status: v0.6 — 6 adversarial passes; consistently scoped to the metadata-author/runtime perspective, never the resulting application's end-user | Created: 2026-07-05
 
 ---
 
@@ -474,7 +474,7 @@ entirely. Mixing the third group into a "field types" table would misrepresent w
 | `value_list` | Bounded enumeration (not primitive, not reference) | Closed domain, but fixed — the runtime can validate membership; distinguished from `reference` only by whether the set grows | — |
 | `user` | **Reference sugar** | Passes identity/lifecycle test; target is platform identity, not a workspace Machine | CAP-F05 (⚠️ partial — Failure Mode 2), long-term sugar over CAP-F13 + CAP-O01 |
 | `money` | **Reference sugar** (amount is primitive; currency is the sugar component) | Currency passes all four supporting tests (identity, lifecycle via exchange rates, reuse, cardinality); independently named as an Object in `specification/001-object.md` | CAP-F17 (❌), currency is a CAP-O02 master-data candidate. `type: money`'s `currency:`/`currency_field:` key should be schema-required, rejected at load if missing (CAP-X05) |
-| `file` | **Reference sugar** | Own storage identity + lifecycle (versioning, replacement); matches Frappe/Salesforce/Drupal platform convention (Study 2) | CAP-F06 (⚠️ partial — Failure Mode 2), long-term sugar over CAP-F13 + a runtime-managed File/Document entity |
+| `file` | **Reference sugar** | Own storage identity + lifecycle (versioning, replacement); matches Frappe/Salesforce/Drupal platform convention (Study 2) | CAP-F06 (⚠️ partial — Failure Mode 2), long-term sugar over CAP-F13 + a runtime-managed File/Document entity. Image handling (sixth-pass): a processing *option* on `file`, not a new type — see `runtime-metadata-schema.md` §"file — image handling options" for the `options` schema and the dual-path (client fast-path + server-authoritative) enforcement contract |
 | `reference` | General mechanism | Target has independent identity and is a workspace-authored (or master-data-designated) Machine | CAP-F13 (❌, Prio 1) |
 | `Quantity` (count + Unit of Measure, anticipated for Case 5) — **predicted, not yet a confirmed type** | **Default is simple — declaring the field stays one line, same as any other type.** Only the *conversion schema*, if actually needed, is tiered — a metadata-authoring decision made once, never the same thing as the conversion *values*, which are business data entered later through the resulting application (out of scope here). | Tier 1 (the common case): two flat fields on the referencing Machine's metadata, no reference at all — as easy to declare as any primitive. Tier 2 (multiple unit pairs for one item): a child table (CAP-F16). Tier 3 (factor needs history): a dedicated Machine. Whichever tier, CAP-X05 should reject metadata that declares `money`/`quantity` without its required companion. | Predicted only — no case evidence yet (Case 5 unwritten); default to Tier 1, escalate only when Case 5 actually shows a real need |
 
@@ -499,7 +499,7 @@ polluting the Field Types table above with a "type" that isn't one.
 | **Recurring schedules** (`Every Day`, `Every Monday`, "repeats every N months") | **Not a Field concept.** A `date` value is a point in time; a recurrence rule describes a pattern of occurrence — a property of something that *happens*, not of a stored value. | Spec `003-runtime-language.md`'s Event grammar already names Time as one of four Event sources, with `Every Day` / `Every Monday` as its own examples — recurrence was placed in Event from the start, matching the iCalendar `RRULE` standard (RFC 5545), which attaches recurrence to an Event (`VEVENT`), never to a bare date/timestamp value. | **Event/Action grammar** — CAP-E02 (recurring trigger) + CAP-A11 (date arithmetic reacting to a business event, e.g. advancing a due date), both already registered from Case 4 |
 
 **How to read "settled":** every Field Types row has survived at least the initial pass; `money`,
-`file`, and the Quantity tiering additionally survived a correction across the second through fifth
+`file`, and the Quantity tiering additionally survived a correction across the second through sixth
 adversarial passes. The Worked Examples and Boundary Exclusion rows exist precisely *because* a
 follow-up question forced re-checking something that looked settled. None of this is expected to be
 truly final forever — `duration` or `value_list` could in principle be overturned by a future case

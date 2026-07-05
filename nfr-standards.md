@@ -7,7 +7,7 @@
 > as Definition-of-Done gates when each capability is implemented
 > (`capability-lifecycle.md` §3b).
 >
-> Status: v0.1 — study only, no implementation | Created: 2026-07-04
+> Status: v0.2 — study only, no implementation | Created: 2026-07-04 | §2.1 refined 2026-07-05 (Study 15 sixth-pass: image/compression dual-path enforcement)
 
 **External standards used as yardsticks:**
 
@@ -65,8 +65,8 @@ Rule: a synchronous request path may not contain a P4 operation — slow work is
 
 ### 2.1 Field Types (CAP-F*)
 
-- **Security** — ASVS V5 (input validation), V12 (files). All field values validated server-side by *type* (number parses, date parses, value_list value ∈ declared set — currently unchecked!). `rich_text` sanitized on output (allow-list, never raw HTML). File uploads (F06): content-type sniffing not extension, size limits, stored outside webroot with generated names, served with `Content-Disposition`. Reference fields (F13): target existence + *same-workspace* check at write time (IDOR via forged reference ID).
-- **Performance** — P1/P2. Rendering O(fields) with zero per-field queries; reference display names batch-resolved (no N+1); hot fields indexable (CAP-X10).
+- **Security** — ASVS V5 (input validation), V12 (files). All field values validated server-side by *type* (number parses, date parses, value_list value ∈ declared set — currently unchecked!). `rich_text` sanitized on output (allow-list, never raw HTML). File uploads (F06): content-type sniffing not extension, size limits, stored outside webroot with generated names, served with `Content-Disposition`. **Image/compression policy (F06, Study 15 sixth-pass): the server MUST NOT trust that client-side compression happened** — it re-verifies the incoming file against the declared `options` (format, `max_dimension`) and re-applies the same pipeline if it doesn't already comply, exactly the same "client is advisory, server enforces" rule already applied to Constraints (CAP-C09). A client that skips or fails compression (unsupported browser, direct API call) must never be able to store an unprocessed file merely because it bypassed the widget. Reference fields (F13): target existence + *same-workspace* check at write time (IDOR via forged reference ID).
+- **Performance** — P1/P2. Rendering O(fields) with zero per-field queries; reference display names batch-resolved (no N+1); hot fields indexable (CAP-X10). **Image fields (F06):** client-side compression (WebP, dimension cap) is the fast path — when it succeeds, the oversized original is never transmitted, saving both upload bandwidth (P2 budget) and server disk (storage cost, long-term P1 read cost for smaller assets). Server-side re-compression (the security fallback above) is strictly heavier — budget it as P4 (async/queued), never inline on the request path, so a client that needs the fallback doesn't stall the write.
 - **Architecture** — each type = one registered triple (renderer, validator, storer) at the field-type seam; no type-switch sprawl in handlers. Fitness function: no field-type conditionals outside the registry.
 
 ### 2.2 Event Sources (CAP-E*)

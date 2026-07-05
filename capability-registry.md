@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.12 — + Study 15 fifth-pass (CAP-X05 language-level safeguard against forgotten setup) | Updated: 2026-07-05
+> Status: v0.13 — + Study 15 sixth-pass (CAP-F06 image/compression scope, dual-path enforcement) | Updated: 2026-07-05
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -33,7 +33,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-F03 | `value_list` field (select + badge) | ✅ | Case 1 | — | | conformance T06–T08 |
 | CAP-F04 | `date` field | ✅ | Case 1 | — | | conformance T05/T08 |
 | CAP-F05 | `user` field | ⚠️ | Case 1 | — | 8 | renders as free text; no user picker, no identity link. Long-term: sugar over CAP-F13 + CAP-O01 (Study 15), not a permanently separate type — kept distinct only until CAP-O01 exists |
-| CAP-F06 | `file` field | ⚠️ | Case 1 | Frappe Attach→File DocType, Salesforce File/ContentDocument, Drupal file entity | 9 | input renders; upload is not stored. Long-term (Study 15): sugar over CAP-F13 + a runtime-managed File/Document entity — files have their own identity/lifecycle (storage key, versioning), same shape of gap as CAP-F05 waiting on CAP-O01 |
+| CAP-F06 | `file` field | ⚠️ | Case 1, reinforced by Study 5 (Portal GA `NativeCompressedUpload*`) and a direct follow-up question | Frappe Attach→File DocType, Salesforce File/ContentDocument, Drupal file entity | 9 | input renders; upload is not stored. Long-term (Study 15): sugar over CAP-F13 + a runtime-managed File/Document entity — files have their own identity/lifecycle (storage key, versioning), same shape of gap as CAP-F05 waiting on CAP-O01. **Scope refined (sixth-pass):** not a new capability, but `type: file` gains `options` for image handling — `accept`, `compress`, `max_dimension`, `format` — with a dual-path contract: client-side compression is the fast path (saves upload bandwidth), but the server-side `Store` step never trusts it happened and re-applies the same pipeline whenever an incoming file doesn't already satisfy the declared policy. Matches Portal GA's proven pattern (client WebP compression via Web Worker + server-side fallback for unsupported browsers) and the same "client is advisory, server enforces" principle already applied to Constraints (CAP-C09). |
 | CAP-F07 | `number` field | ⚠️ | schema doc | — | 10 | falls back to text input; no numeric validation |
 | CAP-F08 | `money` field | ⚠️ | schema doc | — | 10 | same fallback |
 | CAP-F09 | `boolean` field | ⚠️ | schema doc | — | 10 | same fallback |

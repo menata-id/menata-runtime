@@ -174,6 +174,39 @@ to another field on the same record) in its `options`.** Metadata declaring `mon
 is incomplete — the same discipline already required for `value_list` (`values`) and `reference`
 (`target_machine`). This is validated at load time by CAP-X05 once implemented.
 
+### `file` — image handling `options`
+
+`file` does not get a separate `image` type. Whether a file is an image is a **processing policy**
+on the same reference-sugar `file` type, not a different reference target — the same reasoning that
+keeps `rich_text` a variant of text handling rather than a different kind of reference.
+
+```yaml
+- id: fld_ad_photo
+  name: Photo Evidence
+  type: file
+  options:
+    accept: image/*        # MIME types accepted; triggers the compression policy below
+    compress: true          # apply the compression pipeline
+    max_dimension: 1920     # resize policy (longest edge, px)
+    format: webp            # target storage format
+```
+
+**Dual-path contract (Study 15 sixth-pass, matching Portal GA's proven `NativeCompressedUpload*`
+pattern):**
+
+1. **Client-side (fast path)** — the upload widget compresses to `format`/`max_dimension` in-browser
+   (e.g. via a non-blocking Web Worker) *before* transmitting. When this succeeds, the oversized
+   original is never sent — saving upload bandwidth and server disk.
+2. **Server-side (authoritative fallback)** — the loader/store step **never trusts** that step 1
+   happened. It checks the incoming file against `options`; if it doesn't already comply (older
+   browser without Web Worker/WebP support, a direct API call bypassing the widget, JS disabled), the
+   server applies the same compression pipeline itself before persisting.
+
+This is the same "client is advisory, server enforces" rule already applied to Constraints
+(CAP-C09) — a client that skips compression must never be able to store an unprocessed file merely
+because it bypassed the official widget. Full reasoning: `capability-registry.md` CAP-F06,
+`nfr-standards.md` §2.1.
+
 Full reasoning, the decision tree for choosing between `value_list` / `reference` / a primitive, and
 worked examples: `runtime/benchmarks/005-field-modeling-decision-framework.md`.
 
