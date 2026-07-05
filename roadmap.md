@@ -435,6 +435,19 @@ Address the 7 world-class gaps identified in Study 11.
 - [ ] `CONTRIBUTING.md`
 - [ ] Language conformance test corpus — deferred as documented future work (not built now), noted alongside the existing capability conformance suite
 
+## Study 14 — Internal Package Architecture ✅ done (2026-07-05)
+
+Prompted by a direct question: for metadata-driven apps, what does world-class Go `internal/` structure look like? The current prototype layout is flat (one package per concern) — sufficient to validate Cases 1–2, but not yet shaped to carry the extension seams `capability-lifecycle.md` §4 already sketches (field type / action type / operator / event source / view type / workspace service registries) or the cross-cutting security boundaries `nfr-standards.md` names.
+
+**Deliverables:**
+- [x] `prototype/go/docs/decisions/004-internal-package-architecture.md` — target layered structure (`core/`, `engine/`, `metadata/`, `store/`, `security/`, `web/`, `platform/`), reasoning, and a **capability-triggered migration table** (no big-bang refactor)
+- [x] `prototype/go/ARCHITECTURE.md` updated — new "Package Structure" section pointing to the ADR, explicit that today's flat layout is correct-for-now, not final
+
+**Headline findings:**
+- Three proven patterns combine into the target: **Ports & Adapters** (same family as Portal GA's CBA/Clean, benchmarked in Study 5), **registry-at-init seam** (Go's own `database/sql.Register` idiom — the concrete mechanism behind capability-lifecycle §4's sketched registries), and **consumer-side interfaces** (the same decoupling rule validated in Portal GA's ADR-0012).
+- Migration is explicitly **capability-triggered**: `engine/fieldtype/` is created when CAP-F13 implementation begins, not before — moving code into a registry before a second implementation needs one would be premature abstraction, which this project's own `001-design-principles.md` (Infer Before Configure) already warns against.
+- `security/` gives the NFR gates (`capability-lifecycle.md` §3b) a concrete home instead of scattering checks across handlers as they're added piecemeal.
+
 ---
 
 # Principles

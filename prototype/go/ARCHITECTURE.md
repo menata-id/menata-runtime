@@ -233,3 +233,20 @@ This prototype intentionally simplifies some runtime concepts.
 - No notification system
 
 These limitations exist to keep the prototype focused on validating the core interpretation model.
+
+---
+
+## Package Structure
+
+The current `internal/` layout is flat — one package per concern (`config`, `constraint`, `db`,
+`executor`, `handler`, `interpreter`, `metadata`, `model`, `permission`, `router`, `store`, `ui`).
+This is correct for what the prototype validates today (Cases 1–2). It is not the final shape.
+
+As the runtime grows to support the capabilities tracked in `../capability-registry.md` — reference
+fields, pluggable actions, time-driven events, report views, workspace services — the package
+structure evolves into layered seams (`core/`, `engine/`, `metadata/`, `store/`, `security/`,
+`web/`, `platform/`) so that new capabilities are additive (register a plugin) rather than edits to
+existing `switch` statements.
+
+The target layout, the reasoning, and the capability-triggered migration plan (no big-bang refactor)
+are recorded in [docs/decisions/004-internal-package-architecture.md](docs/decisions/004-internal-package-architecture.md).
