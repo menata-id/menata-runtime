@@ -11,9 +11,9 @@
 Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 gaps P1–P6
 (`prototype/go/docs/examples/README.md`), Study 1 pattern mapping
 (`benchmarks/000-workflow-patterns-mapping.md`), Study 2 platform survey
-(`benchmarks/002-platform-capability-survey.md`), Study 5 Portal GA survey
-(`benchmarks/003-portal-ga-cross-domain-survey.md`), Study 6 accounting vertical survey
-(`benchmarks/004-accounting-vertical-survey.md`), and Study 7 Case 10 composition findings
+(`benchmarks/001-platform-capability-survey.md`), Study 5 Portal GA survey
+(`benchmarks/002-portal-ga-cross-domain-survey.md`), Study 6 accounting vertical survey
+(`benchmarks/003-accounting-vertical-survey.md`), and Study 7 Case 10 composition findings
 (`prototype/go/docs/examples/organization-composite.md`).
 
 **Status** reflects the Go prototype runtime: ✅ supported · ⚠️ partial · ❌ not yet.

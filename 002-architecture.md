@@ -290,6 +290,12 @@ Business Knowledge remains the long-term organizational asset.
 
 ---
 
+# Related Research
+
+The layered architecture above was informed by studying architecture patterns from other world-class systems — browser engines, Kubernetes, Terraform, React, VS Code, and others. See [architecture-benchmark.md](architecture-benchmark.md) for the full comparison and the design implications drawn from each.
+
+---
+
 # Summary
 
 Menata Runtime follows a simple architectural philosophy.

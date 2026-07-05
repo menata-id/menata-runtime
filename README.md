@@ -368,7 +368,15 @@ Any tool capable of producing compatible Runtime Metadata can be used.
 
 # Documentation
 
-## Foundational Specification (stable)
+This directory mixes documents that change on different rhythms. To read the numbering correctly:
+
+- **Numbered `001`–`006`** — the core specification. Stable, read in sequence, changes rarely (mirrors `specification/000`–`006` at the repo root — same convention, one level down).
+- **Unnumbered, at this level** — supporting reference or governance documents. Two different kinds, distinguished below.
+- **`benchmarks/` — numbered `000`–`004`** — evidence studies, numbered by production order (Study 1 → `000`, Study 2 → `001`, …), not a required reading sequence.
+
+This stable/evolving split mirrors the pattern Portal GA v3 uses for its own domain-integration framework (`01-CONSTITUTIONAL-BRD.md` + `02-IMPLEMENTATION-GUIDE.md` as STABLE, `appendices/` as EVOLVING) — see `benchmarks/002-portal-ga-cross-domain-survey.md`.
+
+## Tier 1 — Core Specification (stable, numbered)
 
 | Document | Covers |
 |----------|--------|
@@ -378,8 +386,15 @@ Any tool capable of producing compatible Runtime Metadata can be used.
 | [004-runtime-metadata.md](004-runtime-metadata.md) | Runtime Metadata — scope, hierarchy, versioning |
 | [005-runtime-lifecycle.md](005-runtime-lifecycle.md) | How metadata continuously realizes running applications |
 | [006-runtime-model.md](006-runtime-model.md) | Runtime object model — Workspace, Application, Machine, and beyond |
-| [runtime-metadata-schema.md](runtime-metadata-schema.md) | Concrete YAML/DB schema for Runtime Metadata (shared by all prototypes) |
-| [architecture-benchmark.md](architecture-benchmark.md) | Architecture references from other world-class systems |
+
+## Tier 2 — Supporting Reference (unnumbered, informs Tier 1)
+
+Not part of the numbered reading sequence — each elaborates or grounds one Tier 1 document with concrete detail or external research, rather than adding new normative content.
+
+| Document | Elaborates | Role |
+|----------|-----------|------|
+| [runtime-metadata-schema.md](runtime-metadata-schema.md) | §004 | Concrete YAML/DB schema for Runtime Metadata (shared by all prototypes) |
+| [architecture-benchmark.md](architecture-benchmark.md) | §002 | Architecture references from other world-class systems (Chromium, Kubernetes, VS Code, …) — one-time research that informed the architecture, not part of the growing `benchmarks/` evidence series below |
 
 ## Practical Guides
 
@@ -388,9 +403,9 @@ Any tool capable of producing compatible Runtime Metadata can be used.
 | [../guides/writing-menata.md](../guides/writing-menata.md) | Domain expert — how to write `.menata` |
 | [guides/writing-runtime-metadata.md](guides/writing-runtime-metadata.md) | Developer — how to translate `.menata` into Runtime Metadata |
 
-## Capability Discovery & Governance (evolving)
+## Tier 3 — Capability Discovery & Governance (evolving)
 
-The runtime's capability is being built and verified through a deliberate discovery process — cases, external benchmarks, and lifecycle governance — rather than ad hoc feature addition.
+The runtime's capability is being built and verified through a deliberate discovery process — cases, external benchmarks, and lifecycle governance — rather than ad hoc feature addition. These documents change continuously as each study/phase completes; unlike Tier 1, there is no expectation of stability.
 
 | Document | Role |
 |----------|------|
@@ -399,7 +414,17 @@ The runtime's capability is being built and verified through a deliberate discov
 | [case-portfolio.md](case-portfolio.md) | Deliberately chosen test cases and their declared targets |
 | [capability-lifecycle.md](capability-lifecycle.md) | How a new capability is proposed, admitted, and completed |
 | [nfr-standards.md](nfr-standards.md) | Architecture / performance / security standards per capability area |
-| [benchmarks/](benchmarks/) | External evidence: workflow patterns, platform surveys, vertical studies |
+| [benchmarks/](benchmarks/) | Tier 4 — external evidence studies (see below) |
+
+## Tier 4 — Evidence Studies (`benchmarks/`, numbered by production order)
+
+| Document | Study |
+|----------|-------|
+| [benchmarks/000-workflow-patterns-mapping.md](benchmarks/000-workflow-patterns-mapping.md) | Study 1 — Menata vs Workflow Patterns Initiative |
+| [benchmarks/001-platform-capability-survey.md](benchmarks/001-platform-capability-survey.md) | Study 2 — cross-platform capability survey (Salesforce, Frappe, Drupal, Directus, Budibase, Camunda) |
+| [benchmarks/002-portal-ga-cross-domain-survey.md](benchmarks/002-portal-ga-cross-domain-survey.md) | Study 5 — Portal GA v3 cross-domain integration patterns |
+| [benchmarks/003-accounting-vertical-survey.md](benchmarks/003-accounting-vertical-survey.md) | Study 6 — accounting vertical (Odoo / ERPNext) |
+| [benchmarks/004-scale-architecture-study.md](benchmarks/004-scale-architecture-study.md) | Study 8 — multi-workspace scale & performance architecture |
 
 ## Reference Implementation
 
