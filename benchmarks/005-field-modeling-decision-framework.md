@@ -127,7 +127,7 @@ realization is unfinished, and it is already tracked in `capability-registry.md`
 | `Document` (Approval Step → Approval Document) | 3 | Identity ✓, is a workspace Machine | `reference` — **correct type, Failure Mode 2** (CAP-F13) — the original case that discovered CAP-F13 |
 | `Sequence` | 3 | Primitive value, no identity | `number` — **correct type, Failure Mode 2** (CAP-F07) |
 | `Decided At` | 3 | Primitive value, no identity | `date_time` — **correct type, Failure Mode 2** (CAP-F10) |
-| `File` / `Attachment` | 1, 3 | **Identity ✓** (own storage key, versioning, lifecycle) | **Reclassified — see below.** Was scored as Failure Mode 2 in the first pass; a second pass (prompted by a direct question) shows this was wrong — see "Second-Pass Corrections" |
+| `File` / `Attachment` | 1, 3 | **Identity ✓** (own storage key, versioning, lifecycle) | **Reclassified to reference sugar** (was scored Failure Mode 2 / plain primitive in the first pass — see "Second-Pass Corrections" and "Final Recap" below for the settled answer) |
 | `Equipment` | 4 | Identity ✓ (reusable asset), not a workspace Machine, not platform identity | **Failure Mode 1** — currently mis-modeled as `text`; should be `reference` once an Equipment Machine + CAP-O02 exist |
 | Employee / Customer / Equipment (cross-application) | 10 (narrative) | Same as Equipment, generalized | **Failure Mode 1** — the general case that motivated registering CAP-O02 in Study 7 |
 
@@ -314,6 +314,36 @@ yet exist to be referenced. The same applies to `money`'s currency component (pe
 `file` (pending a runtime-managed File/Document entity). Once those exist, each can be redefined as
 sugar without changing any existing `.menata` source — a domain expert never sees the distinction;
 `- Employee : User`, `- Amount : Money`, and `- Attachment : File` read the same either way.
+
+---
+
+# Final Recap — Every Field Type, Settled Answer
+
+The sections above show the *reasoning journey* across three adversarial passes (that is
+deliberate — a framework worth trusting should show its work). This section is the single place to
+read the *settled* answer for every field type discussed, without re-deriving it.
+
+| Field type | Settled classification | Why | Registry note |
+|-----------|------------------------|-----|----------------|
+| `text`, `rich_text` | Pure primitive | Open domain, no identity | — |
+| `number` (ordinal/count use, e.g. `Sequence`) | Pure primitive | Open domain, no identity, no unit | — |
+| `boolean` | Pure primitive | Open domain, no identity | — |
+| `date`, `time`, `date_time` | Pure primitive | Open domain; timezone dependency is contextual (org-level, CAP-X09), not a per-field hidden reference | — |
+| `duration` | Composite, but stays primitive | Magnitude + unit, but unit set is small/universal/never grows (no exchange-rate-like lifecycle) — unit resolves as an inline `value_list`-shaped selector, not `reference` | — |
+| `value_list` | Bounded enumeration (not primitive, not reference) | Closed domain, but fixed — the runtime can validate membership; distinguished from `reference` only by whether the set grows | — |
+| `user` | **Reference sugar** | Passes identity/lifecycle test; target is platform identity, not a workspace Machine | CAP-F05 (⚠️ partial — Failure Mode 2), long-term sugar over CAP-F13 + CAP-O01 |
+| `money` | **Reference sugar** (amount is primitive; currency is the sugar component) | Currency passes all four supporting tests (identity, lifecycle via exchange rates, reuse, cardinality); independently named as an Object in `specification/001-object.md` | CAP-F17 (❌), currency is a CAP-O02 master-data candidate |
+| `file` | **Reference sugar** | Own storage identity + lifecycle (versioning, replacement); matches Frappe/Salesforce/Drupal platform convention (Study 2) | CAP-F06 (⚠️ partial — Failure Mode 2), long-term sugar over CAP-F13 + a runtime-managed File/Document entity |
+| `reference` | General mechanism | Target has independent identity and is a workspace-authored (or master-data-designated) Machine | CAP-F13 (❌, Prio 1) |
+| `Equipment`-class fields (reusable organizational assets) | Should be `reference`, currently mis-modeled as `text` | **Failure Mode 1** — no target Machine exists yet, and CAP-O02 (master-data designation) doesn't exist to formalize it | CAP-O02 (❌), confirmed by 3 independent instances (Equipment, Currency, Case 10 narrative) |
+| `Quantity`-class fields (count + Unit of Measure, anticipated for Case 5) | **Tiered** — not a single answer | Resolution depends on cardinality: Tier 1 (one fixed pair) = two flat fields, no reference; Tier 2 (multiple pairs) = child table under the referencing Machine (CAP-F16); Tier 3 (factor has its own history) = dedicated Machine | Predicted only — no case evidence yet (Case 5 unwritten); do not assume Tier 3 by default |
+
+**How to read "settled":** every row above has survived at least the initial pass; `money`, `file`,
+and the Quantity tiering additionally survived a correction after a second or third adversarial
+pass. None of this is expected to be truly final forever — `duration` or `value_list` could in
+principle be overturned by a future case the same way `money`/`file` were, if new evidence surfaces.
+The discipline that matters is re-running the tests when challenged, not treating any row as beyond
+question.
 
 ---
 
