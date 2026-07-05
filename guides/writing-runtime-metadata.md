@@ -5,7 +5,7 @@ Panduan ini menjelaskan cara menerjemahkan file `.menata` menjadi Runtime Metada
 **Untuk siapa:** Developer yang mengimplementasikan machine baru ke Menata Runtime.  
 **Prasyarat:** Sudah ada file `.menata` yang ditulis domain expert (lihat `guides/writing-menata.md`).
 
-Referensi schema lengkap: `prototype/go/docs/runtime-metadata-schema.md`
+Referensi schema lengkap: `runtime/runtime-metadata-schema.md`
 
 ---
 
@@ -479,6 +479,6 @@ Gunakan `ON CONFLICT (id) DO NOTHING` agar seed aman dijalankan ulang.
 ## Referensi
 
 - `guides/writing-menata.md` — cara menulis `.menata` (langkah sebelum ini)
-- `prototype/go/docs/runtime-metadata-schema.md` — schema lengkap
+- `runtime/runtime-metadata-schema.md` — schema lengkap
 - `prototype/go/docs/examples/` — contoh lengkap Design Request dan Leave Request
 - `prototype/go/docs/decisions/002-metadata-loading.md` — kapan restart diperlukan

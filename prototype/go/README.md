@@ -78,6 +78,6 @@ See [DEVELOPMENT.md](DEVELOPMENT.md).
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how this prototype maps to the runtime specification
 - [DEVELOPMENT.md](DEVELOPMENT.md) — setup and local development
-- [docs/runtime-metadata-schema.md](docs/runtime-metadata-schema.md) — Runtime Metadata format reference
+- [../../runtime-metadata-schema.md](../../runtime-metadata-schema.md) — Runtime Metadata format reference
 - [docs/examples/](docs/examples/) — example Business Knowledge and Runtime Metadata
 - [docs/decisions/](docs/decisions/) — architectural decisions

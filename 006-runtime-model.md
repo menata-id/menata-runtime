@@ -101,6 +101,8 @@ Machine is the primary realization unit.
 
 A machine realizes a single business capability.
 
+A Machine is the runtime realization of an **Object** as defined in the Menata Language Specification (`specification/001-object.md`). The Object names the Business Concept; the Machine is how this runtime executes it — carrying the Object's Fields, Events, Constraints, Permissions, and Views as Runtime Metadata. See `specification/000-language-spec.md` §Object and Machine.
+
 Examples include:
 
 - Purchase Request

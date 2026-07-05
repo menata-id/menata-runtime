@@ -17,7 +17,7 @@ Dokumentasi di folder ini khusus untuk prototype Go. Panduan bahasa dan Runtime 
 
 | Dokumen | Isi |
 |---------|-----|
-| [runtime-metadata-schema.md](runtime-metadata-schema.md) | Schema lengkap Runtime Metadata (YAML/DB) — semua field, tipe, contoh |
+| [../../../runtime-metadata-schema.md](../../../runtime-metadata-schema.md) | Schema lengkap Runtime Metadata (YAML/DB) — semua field, tipe, contoh |
 
 ---
 

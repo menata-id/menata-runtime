@@ -366,6 +366,50 @@ Any tool capable of producing compatible Runtime Metadata can be used.
 
 ---
 
+# Documentation
+
+## Foundational Specification (stable)
+
+| Document | Covers |
+|----------|--------|
+| [001-design-principles.md](001-design-principles.md) | Runtime architectural philosophy |
+| [002-architecture.md](002-architecture.md) | Conceptual architecture, layer responsibilities |
+| [003-runtime-language.md](003-runtime-language.md) | Runtime Language — how applications are described |
+| [004-runtime-metadata.md](004-runtime-metadata.md) | Runtime Metadata — scope, hierarchy, versioning |
+| [005-runtime-lifecycle.md](005-runtime-lifecycle.md) | How metadata continuously realizes running applications |
+| [006-runtime-model.md](006-runtime-model.md) | Runtime object model — Workspace, Application, Machine, and beyond |
+| [runtime-metadata-schema.md](runtime-metadata-schema.md) | Concrete YAML/DB schema for Runtime Metadata (shared by all prototypes) |
+| [architecture-benchmark.md](architecture-benchmark.md) | Architecture references from other world-class systems |
+
+## Practical Guides
+
+| Document | Audience |
+|----------|----------|
+| [../guides/writing-menata.md](../guides/writing-menata.md) | Domain expert — how to write `.menata` |
+| [guides/writing-runtime-metadata.md](guides/writing-runtime-metadata.md) | Developer — how to translate `.menata` into Runtime Metadata |
+
+## Capability Discovery & Governance (evolving)
+
+The runtime's capability is being built and verified through a deliberate discovery process — cases, external benchmarks, and lifecycle governance — rather than ad hoc feature addition.
+
+| Document | Role |
+|----------|------|
+| [capability-roadmap.md](capability-roadmap.md) | The method + phased work plan (start here) |
+| [capability-registry.md](capability-registry.md) | Single source of record — every known capability, its status, and priority |
+| [case-portfolio.md](case-portfolio.md) | Deliberately chosen test cases and their declared targets |
+| [capability-lifecycle.md](capability-lifecycle.md) | How a new capability is proposed, admitted, and completed |
+| [nfr-standards.md](nfr-standards.md) | Architecture / performance / security standards per capability area |
+| [benchmarks/](benchmarks/) | External evidence: workflow patterns, platform surveys, vertical studies |
+
+## Reference Implementation
+
+| Location | What it is |
+|----------|-----------|
+| [prototype/go/](prototype/go/) | The working Go + PostgreSQL + Templ + HTMX prototype |
+| [prototype/{salesforce,frappe,drupal,directus,budibase,camunda}/](prototype/) | Metadata-only proofs on other platforms — see [prototype/README.md](prototype/README.md) for the comparison scorecard |
+
+---
+
 # Contributing
 
 Menata Runtime is currently focused on:

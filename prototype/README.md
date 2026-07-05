@@ -113,6 +113,6 @@ These prototypes implement concepts defined in the Menata Runtime specification.
 | Design Principles | [../001-design-principles.md](../001-design-principles.md) |
 | Architecture | [../002-architecture.md](../002-architecture.md) |
 | Runtime Language | [../003-runtime-language.md](../003-runtime-language.md) |
-| Runtime Metadata | [../004-runtime-metada.md](../004-runtime-metada.md) |
+| Runtime Metadata | [../004-runtime-metadata.md](../004-runtime-metadata.md) |
 | Runtime Lifecycle | [../005-runtime-lifecycle.md](../005-runtime-lifecycle.md) |
 | Runtime Model | [../006-runtime-model.md](../006-runtime-model.md) |

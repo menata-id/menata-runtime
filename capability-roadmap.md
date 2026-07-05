@@ -404,21 +404,23 @@ A self-audit of the repository itself: `specification/000-006`, `runtime/001-006
 6. No language conformance test corpus (parallel to the capability side's `conformance/run.sh`).
 7. No `CONTRIBUTING.md` despite README inviting contribution.
 
-## Study 12 — Structural Fixes ⏳ next
+## Study 12 — Structural Fixes ✅ done (2026-07-05)
 
-Execute Tahap 1 (quick factual fixes) and Tahap 2 (light restructuring) from Study 11's findings.
+Executed Tahap 1 (quick factual fixes) and Tahap 2 (light restructuring) from Study 11's findings.
 
 **Deliverables:**
-- [ ] Add `LICENSE` (Apache 2.0)
-- [ ] Rename `004-runtime-metada.md` → `004-runtime-metadata.md`, fix cross-references
-- [ ] Remove `prototype/.gitkeep` and empty `web/templates/`
-- [ ] Rewrite `runtime/README.md` to index all Phase 1–4 artifacts
-- [ ] Add documentation map to root `README.md`
-- [ ] Promote `runtime-metadata-schema.md` from `prototype/go/docs/` to `runtime/`
-- [ ] Trim duplication between `003` and `004`
-- [ ] Add explicit Object↔Machine bridging sentence in spec `000` and `runtime/006`
-- [ ] Add cross-references between `design-principles.md` and spec `000` §Language Goals
-- [ ] Register the Study 11 model/registry gap (Page/Workflow/Service/API/Theme) as tracked-but-not-yet-studied in `capability-registry.md`
+- [x] Added `LICENSE` (canonical Apache 2.0 text)
+- [x] Renamed `004-runtime-metada.md` → `004-runtime-metadata.md`; fixed the 2 cross-references (`prototype/README.md`, `organization-composite.md`)
+- [x] Removed `prototype/.gitkeep` and empty `web/templates/`
+- [x] Rewrote `runtime/README.md` — added a full Documentation section (Foundational Specification, Practical Guides, Capability Discovery & Governance, Reference Implementation) without disturbing the existing narrative
+- [x] Added documentation map to root `README.md` — "I want to..." table routing to the right doc
+- [x] Promoted `runtime-metadata-schema.md` from `prototype/go/docs/` to `runtime/`; fixed 3 referencing docs
+- [x] Trimmed `003-runtime-language.md` — removed 8 sections duplicating `001-design-principles.md` and `004`; kept only what's unique to the Language-vs-Metadata distinction, added explicit cross-references instead of restating
+- [x] Added explicit Object↔Machine bridging section in spec `000` (§Object and Machine) and `runtime/006` (Machine section)
+- [x] Added cross-references between `design-principles.md` and spec `000` §Language Goals (both directions)
+- [x] Registered the Study 11 model/registry gap as a new "Tracked but Not Yet Studied" section in `capability-registry.md` — Page, Service, Workflow (deliberately emergent, not a gap), API-as-declared-surface, Theme
+
+**Note:** `capability-lifecycle.md` and `capability-roadmap.md` mentions of `runtime-metadata-schema.md` were left as bare filenames (no path) — accurate before and after the move, no fix needed.
 
 ## Study 13 — World-Class Completeness ⏳ after Study 12
 

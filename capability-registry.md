@@ -187,6 +187,25 @@ Case 3 numbering map: P1→CAP-F13 · P2→CAP-A02 · P3→CAP-A07/A08 · P4→C
 
 ---
 
+# Tracked but Not Yet Studied
+
+`runtime/006-runtime-model.md` declares a hierarchy under Machine — Page, View, Service, Workflow, Navigation, API, Configuration. Per the "silence is not a decision" rule, each is recorded here rather than silently left out:
+
+| Model concept | Registry coverage | Note |
+|---------------|-------------------|------|
+| View | CAP-V01…V13 | Studied (Study 1–8) |
+| Navigation | CAP-O03 | Studied (Study 7, as a Workspace Service) |
+| Configuration | CAP-X03 (machine-level) | Studied (Case 3) |
+| **Page** | none | Not yet studied — how a Page composes multiple Views is undefined in the registry |
+| **Service** | none | Not yet studied — background jobs, scheduled execution as a declared concept (overlaps CAP-E02 but not identical) |
+| **Workflow** | none | Not yet studied as its own concept — current registry treats workflow as emergent from Event+Constraint+Permission+Action, per `runtime/004`'s own stated design ("Workflow behavior should emerge from events, constraints, permissions, actions"); revisit if a case shows this is insufficient |
+| **API** | CAP-X07 (auto-generated REST) | Partially studied — API *as declared surface* (vs auto-generated) not yet examined |
+| **Theme** | none | Not yet studied — presentation/branding metadata |
+
+Action: candidates for a future study once Phase 4 restructuring completes.
+
+---
+
 # Rules
 
 1. **Ratchet** — rows are never deleted; status only moves ❌→⚠️→✅.

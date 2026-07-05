@@ -64,7 +64,7 @@ Portal GA answers this with Data Mesh ownership + a canonical machine mandate (P
 
 The prototype home lists all machines flat. With 15+ machines across 8 applications, Ibu Sari needs: application grouping, role-aware menus (she never sees Finance), favorites/recents.
 
-Notably `runtime/004-runtime-metada.md` **already lists Navigation in the metadata hierarchy** — the spec predicted this; no case ever exercised it.
+Notably `runtime/004-runtime-metadata.md` **already lists Navigation in the metadata hierarchy** — the spec predicted this; no case ever exercised it.
 
 → **CAP-O03** — Navigation metadata: menu structure per application, role-visibility, workspace home composition.
 
