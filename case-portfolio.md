@@ -99,5 +99,5 @@ Files: `prototype/go/docs/examples/maintenance-reminder.menata` / `.yaml`
 3. Write .yaml with [SUPPORTED]/[NOT YET]/[PARTIAL] annotations
 4. Register new findings in capability-registry.md (flag [UNTARGETED FINDING])
 5. Seed + exercise the supported subset
-6. Update workflow-patterns-mapping.md marks if a pattern is newly exercised
+6. Update 000-workflow-patterns-mapping.md marks if a pattern is newly exercised
 ```

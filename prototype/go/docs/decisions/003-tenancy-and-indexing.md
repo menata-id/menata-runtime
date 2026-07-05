@@ -2,7 +2,7 @@
 
 **Status:** Accepted (for the next runtime iteration)
 **Date:** 2026-07-04
-**Source study:** `runtime/benchmarks/scale-architecture-study.md` (Study 8)
+**Source study:** `runtime/benchmarks/005-scale-architecture-study.md` (Study 8)
 
 ## Context
 

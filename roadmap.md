@@ -95,8 +95,8 @@ runtime/
 ├── roadmap.md            ← this document (method + work plan)
 ├── capability-registry.md           ← ARTIFACT 1 — single source of record
 ├── benchmarks/
-│   ├── workflow-patterns-mapping.md ← ARTIFACT 2 — map vs external catalog
-│   └── platform-capability-survey.md    (consolidated from 6 prototypes)
+│   ├── 000-workflow-patterns-mapping.md ← ARTIFACT 2 — map vs external catalog
+│   └── 002-platform-capability-survey.md    (consolidated from 6 prototypes)
 └── case-portfolio.md                ← ARTIFACT 3 — deliberate case selection
 ```
 
@@ -177,7 +177,7 @@ Update Registry + Pattern Mapping → repeat
 Map Menata Grammar against Workflow Patterns subset.
 
 **Deliverables:**
-- [x] `benchmarks/workflow-patterns-mapping.md` (Artifact 2) — 20 control-flow + 7 data + 8 resource patterns + 4 event sources, assessed on 3 layers (Language / Metadata / Runtime)
+- [x] `benchmarks/000-workflow-patterns-mapping.md` (Artifact 2) — 20 control-flow + 7 data + 8 resource patterns + 4 event sources, assessed on 3 layers (Language / Metadata / Runtime)
 - [x] `capability-registry.md` initial content (Artifact 1) — 44 capabilities registered, seeded from:
   - the 16 features of the platform benchmark,
   - Case 3 gaps P1–P6,
@@ -194,7 +194,7 @@ Map Menata Grammar against Workflow Patterns subset.
 Consolidate what the 6 platform prototypes already documented: which capabilities do **all** platforms provide that Menata does not yet name?
 
 **Deliverables:**
-- [x] `benchmarks/platform-capability-survey.md` — consolidated 23-capability matrix across Salesforce/Frappe/Drupal/Camunda/Directus/Budibase vs Menata Go
+- [x] `benchmarks/002-platform-capability-survey.md` — consolidated 23-capability matrix across Salesforce/Frappe/Drupal/Camunda/Directus/Budibase vs Menata Go
 - [x] New registry entries from survey findings — 9 new capabilities (registry v0.2): CRUD-level permissions, field-level visibility, list search/filter, data import/export, auto REST API, metadata package portability, computed fields, field defaults, notification delivery channels
 
 **Headline findings:**
@@ -248,7 +248,7 @@ Phase 1 benchmarked **single-machine** capability. Phase 2 asks the questions th
 Benchmark against a real production system: Portal GA v3 (35 domains, DDD/CQRS, Go+Templ+HTMX — the same stack family as the prototype). Three angles: input patterns, cross-domain integration (ADR-0012 A/B/C, PICA→AAR, consumer contracts), cross-domain information display.
 
 **Deliverables:**
-- [x] `benchmarks/portal-ga-cross-domain-survey.md` — three-angle inventory mapped to Menata concepts
+- [x] `benchmarks/003-portal-ga-cross-domain-survey.md` — three-angle inventory mapped to Menata concepts
 - [x] New registry entries — 9 capabilities (registry v0.3): new **Cross-Machine Integration** area (CAP-I01…I05) + CAP-X09 organizational scoping + CAP-V10/V11/V12 (composed dashboard, channel-independent rendering, wizard forms)
 - [x] Position statement — **no new Language Grammar needed** (cross-machine events fit the existing Event grammar's "sources"); Runtime Metadata needs a new **Integration** section (subscriptions, contracts, event schemas); dispatcher error-isolation semantics are constitutional runtime requirements
 
@@ -263,7 +263,7 @@ Benchmark against a real production system: Portal GA v3 (35 domains, DDD/CQRS, 
 Deep vertical benchmark: accounting, tax, financial reporting, data visualization — against Odoo Accounting and ERPNext (Frappe) accounting modules.
 
 **Deliverables:**
-- [x] `benchmarks/accounting-vertical-survey.md` — Odoo/ERPNext structural inventory (12 concepts) vs Menata registry
+- [x] `benchmarks/004-accounting-vertical-survey.md` — Odoo/ERPNext structural inventory (12 concepts) vs Menata registry
 - [x] Case 9 (Accounting) target declaration in `case-portfolio.md` — F16, C10, E06+R07, C11, F18, V13, A02; posting derivation & reconciliation deliberately out of scope
 - [x] New registry entries — 7 capabilities (registry v0.4): CAP-F16 line items/child table, CAP-F17 multi-currency, CAP-F18 auto-numbering, CAP-C10 aggregate line constraint, CAP-C11 period lock, CAP-R07 immutability-after-state, CAP-V13 aggregate report view
 
@@ -289,7 +289,7 @@ Compose **all prior cases as one organization**: general domains (Cases 1–8) +
 ## Study 8 — Multi-Workspace Scale & Performance Architecture ✅ done (2026-07-04)
 
 **Deliverables:**
-- [x] `benchmarks/scale-architecture-study.md` — tenancy analysis (A: shared schema + RLS chosen; C database-per-tenant as escape hatch), data structure strategy, programming strategy
+- [x] `benchmarks/005-scale-architecture-study.md` — tenancy analysis (A: shared schema + RLS chosen; C database-per-tenant as escape hatch), data structure strategy, programming strategy
 - [x] Load-test plan — synthetic generator + workload mix + matrix (X10 on/off) + falsifiable pass thresholds (p95 list < 200ms @ W=100/1M rows, boot < 5s, zero cross-workspace rows under RLS probe)
 - [x] ADR-003 — `prototype/go/docs/decisions/003-tenancy-and-indexing.md`
 
