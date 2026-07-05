@@ -1,9 +1,10 @@
-# Capability Roadmap
+# Roadmap
 
 > How Menata Runtime discovers, structures, and closes capability gaps —
-> so that the runtime can eventually realize the full range of business process possibilities.
+> so that the runtime can eventually realize the full range of business process possibilities —
+> and, as the effort matured, how the repository's own documentation and structure are kept to the same standard (Phase 4).
 >
-> Status: Active | Created: 2026-07-04
+> Status: Active | Created: 2026-07-04 | Renamed from `capability-roadmap.md` 2026-07-05 (scope grew beyond capability discovery)
 
 ---
 
@@ -91,7 +92,7 @@ From the Java Technology Compatibility Kit: **a capability exists only if an exe
 
 ```text
 runtime/
-├── capability-roadmap.md            ← this document (method + work plan)
+├── roadmap.md            ← this document (method + work plan)
 ├── capability-registry.md           ← ARTIFACT 1 — single source of record
 ├── benchmarks/
 │   ├── workflow-patterns-mapping.md ← ARTIFACT 2 — map vs external catalog
@@ -420,7 +421,7 @@ Executed Tahap 1 (quick factual fixes) and Tahap 2 (light restructuring) from St
 - [x] Added cross-references between `design-principles.md` and spec `000` §Language Goals (both directions)
 - [x] Registered the Study 11 model/registry gap as a new "Tracked but Not Yet Studied" section in `capability-registry.md` — Page, Service, Workflow (deliberately emergent, not a gap), API-as-declared-surface, Theme
 
-**Note:** `capability-lifecycle.md` and `capability-roadmap.md` mentions of `runtime-metadata-schema.md` were left as bare filenames (no path) — accurate before and after the move, no fix needed.
+**Note:** `capability-lifecycle.md` and `roadmap.md` mentions of `runtime-metadata-schema.md` were left as bare filenames (no path) — accurate before and after the move, no fix needed.
 
 ## Study 13 — World-Class Completeness ⏳ after Study 12
 

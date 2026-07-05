@@ -1,6 +1,6 @@
 # Portal GA Cross-Domain Benchmark
 
-> Study 5 deliverable (`../capability-roadmap.md`).
+> Study 5 deliverable (`../roadmap.md`).
 >
 > Benchmark against Portal GA v3 — a production Go application (35 domains,
 > DDD/CQRS, Go + Templ + HTMX: the same stack family as the Menata prototype)

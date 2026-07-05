@@ -1,6 +1,6 @@
 # Multi-Workspace Scale & Performance Architecture
 
-> Study 8 deliverable (`../capability-roadmap.md`).
+> Study 8 deliverable (`../roadmap.md`).
 >
 > If all capabilities are used and workspaces multiply: what data structure and
 > programming strategy delivers the best performance with optimal resources?

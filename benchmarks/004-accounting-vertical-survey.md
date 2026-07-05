@@ -1,6 +1,6 @@
 # Accounting Vertical Benchmark (Odoo / ERPNext)
 
-> Study 6 deliverable (`../capability-roadmap.md`).
+> Study 6 deliverable (`../roadmap.md`).
 >
 > Deep vertical benchmark: accounting, tax, financial reporting, visualization —
 > against Odoo Accounting and ERPNext (Frappe) accounting modules.

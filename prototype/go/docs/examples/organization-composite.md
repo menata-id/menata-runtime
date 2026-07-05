@@ -1,6 +1,6 @@
 # Case 10 — Organization Composite
 
-> Study 7 deliverable (`runtime/capability-roadmap.md`).
+> Study 7 deliverable (`runtime/roadmap.md`).
 >
 > A thought-experiment case: **one organization runs everything at once.**
 > Unlike Cases 1–9 (one machine or one vertical), this case composes all prior

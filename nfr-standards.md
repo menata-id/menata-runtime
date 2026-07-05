@@ -1,6 +1,6 @@
 # NFR Standards per Capability Area
 
-> Study 10 deliverable (`capability-roadmap.md` Phase 3).
+> Study 10 deliverable (`roadmap.md` Phase 3).
 >
 > World-class **architecture, performance, and security** requirements for every
 > capability area in the registry — as *kajian* (study/standard), enforced later

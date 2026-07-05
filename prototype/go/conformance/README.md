@@ -1,6 +1,6 @@
 # Conformance Suite
 
-> Study 4 deliverable (`runtime/capability-roadmap.md`).
+> Study 4 deliverable (`runtime/roadmap.md`).
 >
 > A capability exists only if an executable test proves it (TCK discipline).
 > Every ✅ capability in `runtime/capability-registry.md` must keep its test

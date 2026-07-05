@@ -1,6 +1,6 @@
 # Capability Lifecycle Governance
 
-> Study 9 deliverable (`capability-roadmap.md`) — the closing artifact of Phase 2.
+> Study 9 deliverable (`roadmap.md`) — the closing artifact of Phase 2.
 >
 > Answers: when a **new capability** is proposed — how do we test whether it
 > deserves admission, design it completely, and grow the runtime architecture
@@ -143,5 +143,5 @@ capability-registry.md       → single source of record, lifecycle state per ro
 implementation + conformance/run.sh
         │
         ▼  ratchet
-capability-roadmap.md        → phase planning over the whole loop
+roadmap.md        → phase planning over the whole loop
 ```
