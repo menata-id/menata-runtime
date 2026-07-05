@@ -230,10 +230,83 @@ same Axis 2 test as any other closed-and-fixed enumeration. Composite structure 
 **Predicted, not yet evidenced — flagged for Case 5.** `number` in its ordinal/count use (e.g.
 `Sequence` in Approval Step) is genuinely primitive — no unit, no identity. But a **Quantity** field
 (count + Unit of Measure — kg, pcs, box, liter, with conversion factors between them) would be a
-third instance of the exact `money`/currency pattern, expected when Case 5 (Inventory / Stock
+third instance of the same general pattern as `money`, expected when Case 5 (Inventory / Stock
 Movement) is written. Not corrected now — Case 5 doesn't exist yet, so there is no case evidence,
 only the benchmark-side prediction. Recorded here so the case-portfolio process (declare targets
 first) can check this prediction against what Case 5 actually surfaces.
+
+## Third-Pass Refinement — Quantity Is Not "Same as Money", It's Tiered
+
+A follow-up question ("must there be conversion if units differ, and where does it live?") caught
+that treating Quantity as a straight copy of the `money`/Currency resolution — i.e. assuming it
+always needs a dedicated reference Machine — is itself an overreach in the opposite direction from
+the original mistake. The first pass under-modeled `money`/`file` as plain primitives; a naive
+application of the correction over-models Quantity as always needing full reference machinery. The
+correct answer is conditional on actual cardinality, and splits into three tiers:
+
+**Tier 1 — one fixed conversion pair per item (the common case).** Two extra fields directly on the
+`Item` Machine are enough — no new Machine at all:
+
+```yaml
+- id: fld_item_base_unit
+  name: Base Unit
+  type: value_list          # SAK, TON, KG, PCS — a small, fixed, closed set
+  values: [SAK, TON, KG, PCS]
+- id: fld_item_conversion_factor
+  name: Conversion Factor    # how many Base Unit per alternate unit
+  type: number
+```
+
+Note the correction folded in here: **the unit label itself** (`SAK`, `TON`, `KG`) is usually
+`value_list` — small and closed, exactly like a Currency *code* often is for an organization that
+only ever deals in 3–4 currencies. It is **only the conversion factor** that behaves like an
+exchange rate (changeable, needs a place to live as data) — the earlier framing conflated "the unit
+label" with "the thing that needs governance." They are not the same component.
+
+**Tier 2 — one item convertible to more than one other unit.** A single factor no longer fits as two
+flat fields (the cardinality is one Item to many Unit/Factor pairs). This becomes a **child table
+under Item** — i.e. CAP-F16 (line items), not a new top-level Machine:
+
+```text
+Item: Cement
+  ├─ Unit: BOX,   Factor: 1
+  ├─ Unit: DOZEN, Factor: 12
+  └─ Unit: PCS,   Factor: 1
+```
+
+**Tier 3 — conversion factors themselves need history** (the factor changes over time and old
+movement records must keep reinterpreting under the old factor, e.g. a supplier changes bag size).
+Only here does a dedicated, effective-dated reference Machine (what the first pass jumped straight
+to) actually earn its cost.
+
+**Escalate only when cardinality or history actually demands it** — the same principle already
+established for `reference` vs. `value_list` in general (Two Orthogonal Axes, above) applies
+recursively to how the conversion data itself is modeled. Case 5, when written, should declare which
+tier its scenario actually needs rather than assuming Tier 3 by default.
+
+### Where the conversion calculation belongs — not inside the Constraint
+
+A related correction: conversion (looking up a factor and multiplying) must not be embedded inside
+a Constraint's logic ("check the unit, if different, convert"). Per spec `004-constraint.md`, a
+Constraint expresses a rule to validate — it does not transform data. Mixing "look up and convert"
+into a Constraint conflates two Grammar responsibilities that Menata's own language design keeps
+separate (each Grammar owns one decision). The correct division:
+
+```text
+Raw fields (amount + unit)
+        │
+        ▼
+Computed Field (CAP-F14) — resolves the factor (from Tier 1/2/3, wherever it lives)
+        and derives a Normalized Quantity in the item's base unit
+        │
+        ▼
+Constraint (CAP-C05/C07/C10) — validates the already-normalized numbers only
+        ("sum(in) − sum(out) ≥ 0"), never touches units or lookups itself
+```
+
+This mirrors exactly how `money`'s aggregate constraint (CAP-C10, debit = credit) should work too:
+the constraint checks already-comparable numbers; whatever normalizes them into a comparable form
+(currency conversion, unit conversion) is a Computed Field concern, not a Constraint concern.
 
 Long-term, `user` is not a permanently distinct field type — it is `reference` with a reserved
 target, kept as its own named type today only because CAP-O01 (identity & role registry) does not
@@ -269,9 +342,19 @@ Refines existing entries, no new capability IDs required:
   (via CAP-F17) are two concrete, named, independent examples of the same gap Case 10 (Study 7) first
   surfaced, strengthening the dual-evidence requirement (`capability-lifecycle.md` §2, criterion A1)
   well past the minimum bar.
-- **Predicted, not registered:** a future **Quantity** field (Case 5) would be a third instance of
-  the same pattern (count + Unit of Measure). Not added as a capability now — no case evidence yet,
-  per the admission test's dual-evidence rule (`capability-lifecycle.md` §2, criterion A1).
+- **Predicted, not registered:** a future **Quantity** field (Case 5) would be a related instance of
+  the same general pattern (count + Unit of Measure) — but *not* a straight copy of the
+  `money`/Currency resolution. Third-pass refinement above shows it resolves in **tiers**: a fixed
+  conversion pair as two flat fields on Item (no reference needed), escalating to a child table
+  (CAP-F16) only with multiple unit pairs, escalating further to a dedicated Machine only if
+  conversion history must be preserved. Not added as a capability now — no case evidence yet, per
+  the admission test's dual-evidence rule (`capability-lifecycle.md` §2, criterion A1); when Case 5
+  is written, it should declare which tier it actually needs rather than assuming the most complex one.
+- **CAP-F14** (computed/formula field) — scope clarified: this is the correct home for unit/currency
+  conversion calculations (deriving a Normalized Quantity or a base-currency amount), not the
+  Constraint grammar. Constraints (CAP-C05/C07/C10) must only validate already-normalized values —
+  mixing lookup-and-convert logic into a Constraint's expression conflates two Grammar
+  responsibilities that Menata's language design keeps separate.
 
 ---
 
