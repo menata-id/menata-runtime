@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.8 — + Study 15 field modeling refinements | Updated: 2026-07-05
+> Status: v0.9 — + Study 15 second-pass corrections (money, file reclassified) | Updated: 2026-07-05
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -33,7 +33,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-F03 | `value_list` field (select + badge) | ✅ | Case 1 | — | | conformance T06–T08 |
 | CAP-F04 | `date` field | ✅ | Case 1 | — | | conformance T05/T08 |
 | CAP-F05 | `user` field | ⚠️ | Case 1 | — | 8 | renders as free text; no user picker, no identity link. Long-term: sugar over CAP-F13 + CAP-O01 (Study 15), not a permanently separate type — kept distinct only until CAP-O01 exists |
-| CAP-F06 | `file` field | ⚠️ | Case 1 | — | 9 | input renders; upload is not stored |
+| CAP-F06 | `file` field | ⚠️ | Case 1 | Frappe Attach→File DocType, Salesforce File/ContentDocument, Drupal file entity | 9 | input renders; upload is not stored. Long-term (Study 15): sugar over CAP-F13 + a runtime-managed File/Document entity — files have their own identity/lifecycle (storage key, versioning), same shape of gap as CAP-F05 waiting on CAP-O01 |
 | CAP-F07 | `number` field | ⚠️ | schema doc | — | 10 | falls back to text input; no numeric validation |
 | CAP-F08 | `money` field | ⚠️ | schema doc | — | 10 | same fallback |
 | CAP-F09 | `boolean` field | ⚠️ | schema doc | — | 10 | same fallback |
@@ -42,7 +42,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-F14 | Computed / formula field | ❌ | Study 2 survey | Salesforce formula, Frappe | 13 | design req: derived line generation (tax templates, Study 6) |
 | CAP-F15 | Field default values (beyond status first-value) | ⚠️ | Study 2 survey | universal (6/6 platforms) | 8 | status default works; other fields have none |
 | CAP-F16 | Line items / child table inside a record (header-detail document) | ❌ | Study 6 accounting | Odoo One2many, Frappe Table — universal to document apps | **3** | joins CAP-F13 atop the structural queue |
-| CAP-F17 | Multi-currency money (transaction currency + rate + base mirror) | ❌ | Study 6 accounting | Odoo/ERPNext | 14 | — |
+| CAP-F17 | Multi-currency money (transaction currency + rate + base mirror) | ❌ | Study 6 accounting + Study 15 (independent derivation) | Odoo/ERPNext; spec 001-object.md names Currency as an Object example | 14 | Study 15 reclassified `money` from primitive to reference sugar — Currency fails identity/lifecycle/reuse/cardinality tests, is a CAP-O02 master-data candidate |
 | CAP-F18 | Auto-numbering / document sequences | ❌ | Study 6 accounting | ir.sequence, Naming Series — universal | 7 | Study 2 missed it |
 
 ## Event Sources
@@ -164,7 +164,7 @@ All discovered by Case 10 `[COMPOSITION FINDING]` — capabilities that belong t
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
 | CAP-O01 | Workspace identity & role registry (users, namespaced roles, user→role assignment as metadata) | ❌ | Case 10 | spec 005 (roles ≠ users) | 6 | prototype role cookie is workspace-blind |
-| CAP-O02 | Master data designation (canonical machines: ownership, cross-app referenceability, deactivation semantics) | ❌ | Case 10, Study 15 (`Equipment` field, Case 4) | DDD shared kernel, Portal GA PICA + Data Mesh | 8 | flag + rules on machine, not a new hierarchy level. Second independent case now confirms this gap (dual-evidence, `capability-lifecycle.md` §2 A1) |
+| CAP-O02 | Master data designation (canonical machines: ownership, cross-app referenceability, deactivation semantics) | ❌ | Case 10, Study 15 (`Equipment` field Case 4; `Currency` via CAP-F17) | DDD shared kernel, Portal GA PICA + Data Mesh | 8 | flag + rules on machine, not a new hierarchy level. Now confirmed by 3 independent instances (Case 10 narrative, Equipment, Currency) — well past the dual-evidence minimum (`capability-lifecycle.md` §2 A1) |
 | CAP-O03 | Navigation metadata (app grouping, role-aware menus, workspace home) | ❌ | Case 10 | runtime/004 already names Navigation — spec predicted it | 9 | — |
 | CAP-O04 | Workspace-wide search across machines (permission-trimmed) | ❌ | Case 10 | — | 12 | depends on CAP-P05 |
 | CAP-O05 | Unified notification center (inbox, per-user channel preferences, digest grouping) | ❌ | Case 10 | Portal GA message dispatcher | 8 | extends CAP-A10 to workspace service |

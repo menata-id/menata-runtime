@@ -127,14 +127,55 @@ realization is unfinished, and it is already tracked in `capability-registry.md`
 | `Document` (Approval Step → Approval Document) | 3 | Identity ✓, is a workspace Machine | `reference` — **correct type, Failure Mode 2** (CAP-F13) — the original case that discovered CAP-F13 |
 | `Sequence` | 3 | Primitive value, no identity | `number` — **correct type, Failure Mode 2** (CAP-F07) |
 | `Decided At` | 3 | Primitive value, no identity | `date_time` — **correct type, Failure Mode 2** (CAP-F10) |
-| `File` / `Attachment` | 1, 3 | Primitive value (stored blob), no identity | `file` — **correct type, Failure Mode 2** (CAP-F06) |
+| `File` / `Attachment` | 1, 3 | **Identity ✓** (own storage key, versioning, lifecycle) | **Reclassified — see below.** Was scored as Failure Mode 2 in the first pass; a second pass (prompted by a direct question) shows this was wrong — see "Second-Pass Corrections" |
 | `Equipment` | 4 | Identity ✓ (reusable asset), not a workspace Machine, not platform identity | **Failure Mode 1** — currently mis-modeled as `text`; should be `reference` once an Equipment Machine + CAP-O02 exist |
 | Employee / Customer / Equipment (cross-application) | 10 (narrative) | Same as Equipment, generalized | **Failure Mode 1** — the general case that motivated registering CAP-O02 in Study 7 |
 
-**Calibration result:** the framework reproduces every prior ad hoc decision correctly (no field
-that was already right gets flagged wrong), and it correctly isolates `Equipment` as the one true
-modeling gap versus the many merely-unimplemented-yet-correct choices. This mirrors the calibration
-discipline used for the capability admission test in Study 9 (`capability-lifecycle.md` §6).
+**Calibration result:** the framework reproduces almost every prior ad hoc decision correctly, and
+correctly isolates `Equipment` as a true modeling gap versus merely-unimplemented-yet-correct
+choices. One field type (`file`) was initially miscategorized — corrected below. This mirrors the
+calibration discipline used for the capability admission test in Study 9
+(`capability-lifecycle.md` §6): a good framework should survive a second, adversarial pass, and
+this one found something on the second pass — which is a feature, not a failure, of doing the pass.
+
+---
+
+# Two Orthogonal Axes Behind "Reference vs. Primitive vs. value_list"
+
+A follow-up question exposed that the tree's second branch ("small, fixed, stable set of options")
+was stated as a practical heuristic without naming the deeper reason. Making it explicit prevents a
+common misreading: that `value_list` is just "a list of values, which could be text or number,"
+differing from `text`/`number` only in input widget (dropdown vs. free text).
+
+That reading conflates three concerns that are actually independent:
+
+| Concern | Example | Level |
+|---------|---------|-------|
+| **Semantic domain — closed or open?** | `value_list`: only the declared values are valid. `text`/`number`: any value is syntactically valid. | **This is what determines the field type.** |
+| **Input widget** | dropdown, radio buttons, chips, autocomplete | Presentation / View concern — orthogonal to type |
+| **Storage representation** | stored as a string, or as an integer code (1=Poster, 2=Thumbnail) | Implementation detail — spec `002-field.md` is explicit: "Value Lists describe Business Knowledge. They do not prescribe how values are stored or implemented." |
+
+The real distinction: a `value_list` field has a **closed domain** — the runtime can validate
+membership, render category-aware presentation (e.g. `StatusBadge`), and reason about
+exhaustiveness ("there are exactly N possible states"). A `text`/`number` field has an **open
+domain** — any value is syntactically valid; only a Constraint can narrow it, and even then a
+Constraint expresses an arbitrary rule, not an intrinsic, named set of categories.
+
+This means the framework actually has **two orthogonal axes**, not one linear tree:
+
+```text
+Axis 1 — Is the domain of valid values CLOSED or OPEN?
+    CLOSED → value_list or reference
+    OPEN   → primitive (text / number / date / ...)
+
+Axis 2 — If CLOSED, is the enumeration FIXED or does it GROW / need its own governance?
+    FIXED  → value_list
+    GROWS  → reference (needs identity, lifecycle, possibly master-data governance)
+```
+
+The original decision tree already asks these two questions in sequence — this section makes the
+*reason* for the second question explicit, rather than leaving it as an unexplained heuristic
+("small, fixed, stable").
 
 ---
 
@@ -144,16 +185,62 @@ Classifying every type in `runtime-metadata-schema.md` against the framework:
 
 | Category | Types |
 |----------|-------|
-| **Pure primitives** (never reference) | `text`, `rich_text`, `number`, `money`, `boolean`, `date`, `time`, `date_time`, `duration`, `file` |
-| **Reference sugar** (resolves through `reference`, to a special built-in target) | `user` (target: platform identity, pending CAP-O01) |
+| **Pure primitives** (open domain, never reference) | `text`, `rich_text`, `number`, `boolean`, `date`, `time`, `date_time` |
+| **Composite primitive** (open domain, but internally pairs a magnitude with a unit) | `duration` — see note below |
+| **Reference sugar** (resolves through `reference`, to a special built-in target) | `user` (target: platform identity, pending CAP-O01), `money`'s currency component (target: Currency, a CAP-O02 master-data candidate), `file` (target: a runtime-managed File/Document entity) |
 | **General mechanism** | `reference` (target: any workspace Machine, or a master-data-designated Machine per CAP-O02) |
-| **Bounded enumeration** | `value_list` (not a reference — a closed, stable set declared inline) |
+| **Bounded enumeration** | `value_list` (closed domain, fixed — not a reference; see "Two Orthogonal Axes" above) |
+
+## Second-Pass Corrections
+
+Running the same tests a second time (prompted directly, rather than accepted at face value)
+surfaced two corrections and one clarification the first pass got wrong or left implicit:
+
+**`money` — reclassified from primitive to reference sugar.** `money` is not a single scalar; it
+pairs a numeric amount with a currency. The amount alone is a genuine primitive (no identity), but
+the currency component passes all four supporting tests: it has identity (a code, symbol, decimal
+precision), a lifecycle (exchange rates change over time — this is exactly what CAP-F17,
+"multi-currency: transaction currency + rate + base mirror," already named), it is reused across
+every money field in every machine, and two records both saying "USD" must resolve against the same
+rate source, not independent free-text labels. `specification/001-object.md` independently confirms
+this — it lists **Currency** as an example Object in its own right, alongside Customer and
+Department, not as an attribute folded into another type. Currency is therefore a CAP-O02
+master-data candidate, joining `Equipment` as a second, independent instance of the same gap.
+
+**`file` — reclassified from primitive to reference sugar.** A stored file has its own identity
+(storage key/URL), its own lifecycle (versioning, replacement, deletion, scan status), and can be
+reused across records (a shared document attached to multiple approval steps). This is not a
+storage-format detail — it is a structural fact about files as a concept. Study 2's platform survey
+already contains the evidence for this without it having been named at the time: Frappe's `Attach`
+field is a reference to a **File DocType**, Salesforce's file field is `File`/`ContentDocument` (a
+distinct object), and Drupal's `file` type is an entity reference — every major platform surveyed
+models files as referenceable entities, not inline primitives. CAP-F06's existing gap note ("upload
+is not stored") was already symptomatic of exactly this: there is no File entity to point at yet,
+the same shape of problem as CAP-F05 waiting on CAP-O01.
+
+**`duration` — checked, confirmed primitive, but the reasoning needed to be explicit.** `duration`
+is structurally similar to `money` — it also pairs a magnitude with a unit (100 *minutes* vs. 100
+*days* are as different as 100 USD vs. 100 IDR). The difference is the growth axis, not the
+identity axis: the set of possible time units is small, universal, and fixed forever (seconds
+through weeks) — there is no "exchange rate between units" that changes, no lifecycle, no growing
+catalog. It resolves to a `value_list`-shaped inline unit selector, not `reference`, applying the
+same Axis 2 test as any other closed-and-fixed enumeration. Composite structure alone does not imply
+`reference` — only composite structure *plus* a growing/lifecycle-bearing component does.
+
+**Predicted, not yet evidenced — flagged for Case 5.** `number` in its ordinal/count use (e.g.
+`Sequence` in Approval Step) is genuinely primitive — no unit, no identity. But a **Quantity** field
+(count + Unit of Measure — kg, pcs, box, liter, with conversion factors between them) would be a
+third instance of the exact `money`/currency pattern, expected when Case 5 (Inventory / Stock
+Movement) is written. Not corrected now — Case 5 doesn't exist yet, so there is no case evidence,
+only the benchmark-side prediction. Recorded here so the case-portfolio process (declare targets
+first) can check this prediction against what Case 5 actually surfaces.
 
 Long-term, `user` is not a permanently distinct field type — it is `reference` with a reserved
 target, kept as its own named type today only because CAP-O01 (identity & role registry) does not
-yet exist to be referenced. Once CAP-O01 lands, `type: user` can be redefined as sugar without
-changing any existing `.menata` source (a domain expert never sees the distinction — `- Employee : User`
-reads the same either way).
+yet exist to be referenced. The same applies to `money`'s currency component (pending CAP-O02) and
+`file` (pending a runtime-managed File/Document entity). Once those exist, each can be redefined as
+sugar without changing any existing `.menata` source — a domain expert never sees the distinction;
+`- Employee : User`, `- Amount : Money`, and `- Attachment : File` read the same either way.
 
 ---
 
@@ -161,15 +248,30 @@ reads the same either way).
 
 Refines existing entries, no new capability IDs required:
 
-- **CAP-F13** (reference field) — scope note added: must support two target flavors from day one:
-  (a) a workspace-authored Machine, (b) a reserved built-in identity target (for `user`, once CAP-O01
-  exists). Designing only for (a) would require a breaking change later.
+- **CAP-F13** (reference field) — scope note added: must support **three** target flavors from day
+  one: (a) a workspace-authored Machine, (b) a reserved built-in identity target (for `user`, once
+  CAP-O01 exists), (c) a reserved built-in File/Document target (for `file`, once a runtime-managed
+  file entity exists). Designing only for (a) would require a breaking change later.
 - **CAP-F05** (`user` field) — relationship clarified: this capability's long-term resolution is
   "sugar over CAP-F13 + CAP-O01", not a permanently separate implementation. Its current ⚠️ partial
   status (free text, no picker) is Failure Mode 2, unaffected by this framework.
-- **CAP-O02** (master data designation) — reinforced: `Equipment` (Case 4) is now a second concrete,
-  named example of the same gap Case 10 (Study 7) first surfaced, strengthening the dual-evidence
-  requirement (`capability-lifecycle.md` §2, criterion A1).
+- **CAP-F06** (`file` field) — relationship clarified (second-pass correction): this capability's
+  long-term resolution is "sugar over CAP-F13 + a runtime-managed File/Document entity" — files have
+  their own identity and lifecycle (storage key, versioning, replacement), matching the Frappe
+  Attach→File-DocType / Salesforce File-ContentDocument / Drupal file-entity pattern already surveyed
+  in `001-platform-capability-survey.md`. Its current ⚠️ partial status ("upload is not stored") is
+  the same shape of problem as CAP-F05 waiting on CAP-O01 — not a separate bug, a missing target.
+- **CAP-F17** (multi-currency money) — reinforced: this framework independently derives the same
+  requirement from first principles (Currency fails the identity/lifecycle/reuse/cardinality tests),
+  not only from the Odoo/ERPNext benchmark (Study 6). Currency is also named as an example Object in
+  `specification/001-object.md`, independent confirmation from the language spec itself.
+- **CAP-O02** (master data designation) — reinforced twice: `Equipment` (Case 4) and now `Currency`
+  (via CAP-F17) are two concrete, named, independent examples of the same gap Case 10 (Study 7) first
+  surfaced, strengthening the dual-evidence requirement (`capability-lifecycle.md` §2, criterion A1)
+  well past the minimum bar.
+- **Predicted, not registered:** a future **Quantity** field (Case 5) would be a third instance of
+  the same pattern (count + Unit of Measure). Not added as a capability now — no case evidence yet,
+  per the admission test's dual-evidence rule (`capability-lifecycle.md` §2, criterion A1).
 
 ---
 
