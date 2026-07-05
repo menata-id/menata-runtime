@@ -372,6 +372,68 @@ These migrate into the Capability Registry as its first entries (Study 1).
 
 ---
 
+# Phase 4 — Documentation & Structure Quality
+
+A self-audit of the repository itself: `specification/000-006`, `runtime/001-006`, `design-principles.md`, `README.md`, and the folder structure across `guides/`, `specification/`, `runtime/` (including `prototype/*`). Triggered by a full read-through of every foundational document after Phase 3 closed. Two questions: **(a)** what in the existing structure/content needs updating, merging, or removing, and **(b)** what is missing to meet world-class specification/documentation standards (yardsticks: W3C/IETF spec practice, Kubernetes KEP process, semver, Diátaxis documentation framework).
+
+## Study 11 — Repository Structure & Content Audit ✅ done (2026-07-05)
+
+**Findings (factual issues):**
+- No `LICENSE` file despite both READMEs claiming Apache 2.0.
+- Filename typo: `runtime/004-runtime-metada.md` (missing `ta`), already propagated into a cross-reference.
+- `runtime/README.md` does not index any Phase 1–3 artifact (roadmap, registry, lifecycle, nfr-standards, case-portfolio, benchmarks/).
+- No sentence anywhere bridges **Object** (specification term) and **Machine** (runtime term) — new readers must infer the mapping themselves.
+
+**Findings (duplication / merge candidates):**
+- `runtime/003-runtime-language.md` and `004-runtime-metadata.md` overlap ~70% (machine-first, serialization-independence, scope lists nearly identical). Recommendation: trim, don't merge — 003 keeps language principles, 004 keeps artifact concerns (scope, hierarchy, versioning).
+- `runtime-metadata-schema.md` lives under `prototype/go/docs/` but is the normative schema shared by all 7 prototypes — belongs at `runtime/` level.
+
+**Findings (removal candidates):**
+- `runtime/prototype/.gitkeep` (folder already populated).
+- `prototype/go/web/templates/` (empty, pre-Templ leftover).
+
+**Findings (model/registry gap):**
+- `006-runtime-model.md` declares Page/Workflow/Service/API/Theme in the hierarchy; the capability registry has not yet studied most of them (only Navigation → CAP-O03 is covered). Flagged per the "silence is not a decision" principle, not silently dropped.
+
+**World-class gaps identified:**
+1. No formal grammar (EBNF) for `.menata` — prose semantics only.
+2. No unified RFC/proposal process for *language* grammar (the capability side already has one in `capability-lifecycle.md` §5).
+3. Inconsistent document header/changelog format across all `.md` files.
+4. No documentation map (Diátaxis-style) in the root README for new readers.
+5. No unified glossary bridging specification and runtime terminology.
+6. No language conformance test corpus (parallel to the capability side's `conformance/run.sh`).
+7. No `CONTRIBUTING.md` despite README inviting contribution.
+
+## Study 12 — Structural Fixes ⏳ next
+
+Execute Tahap 1 (quick factual fixes) and Tahap 2 (light restructuring) from Study 11's findings.
+
+**Deliverables:**
+- [ ] Add `LICENSE` (Apache 2.0)
+- [ ] Rename `004-runtime-metada.md` → `004-runtime-metadata.md`, fix cross-references
+- [ ] Remove `prototype/.gitkeep` and empty `web/templates/`
+- [ ] Rewrite `runtime/README.md` to index all Phase 1–4 artifacts
+- [ ] Add documentation map to root `README.md`
+- [ ] Promote `runtime-metadata-schema.md` from `prototype/go/docs/` to `runtime/`
+- [ ] Trim duplication between `003` and `004`
+- [ ] Add explicit Object↔Machine bridging sentence in spec `000` and `runtime/006`
+- [ ] Add cross-references between `design-principles.md` and spec `000` §Language Goals
+- [ ] Register the Study 11 model/registry gap (Page/Workflow/Service/API/Theme) as tracked-but-not-yet-studied in `capability-registry.md`
+
+## Study 13 — World-Class Completeness ⏳ after Study 12
+
+Address the 7 world-class gaps identified in Study 11.
+
+**Deliverables:**
+- [ ] `specification/007-syntax.md` — formal EBNF grammar for `.menata`
+- [ ] `PROCESS.md` — unified RFC/proposal process (language grammar + runtime capability, cross-referencing `capability-lifecycle.md` §5)
+- [ ] Standardized header + changelog format applied across all specification/runtime documents
+- [ ] Unified glossary (specification + runtime terms, with Object↔Machine mapping)
+- [ ] `CONTRIBUTING.md`
+- [ ] Language conformance test corpus — deferred as documented future work (not built now), noted alongside the existing capability conformance suite
+
+---
+
 # Principles
 
 - **The map before the territory** — benchmark catalogs predict gaps before cases find them.
