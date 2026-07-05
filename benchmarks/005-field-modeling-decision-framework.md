@@ -455,7 +455,7 @@ sugar without changing any existing `.menata` source — a domain expert never s
 
 # Final Recap — Every Field Type, Settled Answer
 
-The sections above show the *reasoning journey* across three adversarial passes (that is
+The sections above show the *reasoning journey* across five adversarial passes (that is
 deliberate — a framework worth trusting should show its work). This section is the single place to
 read the *settled* answer for every field type discussed, without re-deriving it.
 
@@ -477,11 +477,11 @@ read the *settled* answer for every field type discussed, without re-deriving it
 | **Recurring schedules** (`Every Day`, `Every Monday`, "repeats every N months") | **Not a Field concept at all — belongs to Event.** A `date` value is a point in time; a recurrence rule describes a pattern of occurrence, which is a property of something that *happens*, not of a stored value. | Spec `003-runtime-language.md`'s Event grammar already names Time as one of four Event sources, with `Every Day` / `Every Monday` as its own examples — recurrence was placed in Event from the start, matching the iCalendar `RRULE` standard (RFC 5545), which attaches recurrence to an Event (`VEVENT`), never to a bare date/timestamp value. | CAP-E02 (recurring trigger) + CAP-A11 (date arithmetic reacting to a business event, e.g. advancing a due date) — both already registered from Case 4, both Event/Action grammar, not Field |
 
 **How to read "settled":** every row above has survived at least the initial pass; `money`, `file`,
-and the Quantity tiering additionally survived a correction after a second or third adversarial
-pass. None of this is expected to be truly final forever — `duration` or `value_list` could in
-principle be overturned by a future case the same way `money`/`file` were, if new evidence surfaces.
-The discipline that matters is re-running the tests when challenged, not treating any row as beyond
-question.
+`Equipment`, `Quantity`, and the recurring-schedules boundary check additionally survived one or
+more corrections across the second through fifth adversarial passes. None of this is expected to be
+truly final forever — `duration` or `value_list` could in principle be overturned by a future case
+the same way `money`/`file` were, if new evidence surfaces. The discipline that matters is
+re-running the tests when challenged, not treating any row as beyond question.
 
 ---
 
