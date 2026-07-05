@@ -128,15 +128,26 @@ realization is unfinished, and it is already tracked in `capability-registry.md`
 | `Sequence` | 3 | Primitive value, no identity | `number` — **correct type, Failure Mode 2** (CAP-F07) |
 | `Decided At` | 3 | Primitive value, no identity | `date_time` — **correct type, Failure Mode 2** (CAP-F10) |
 | `File` / `Attachment` | 1, 3 | **Identity ✓** (own storage key, versioning, lifecycle) | **Reclassified to reference sugar** (was scored Failure Mode 2 / plain primitive in the first pass — see "Second-Pass Corrections" and "Final Recap" below for the settled answer) |
-| `Equipment` | 4 | Identity ✓ (reusable asset), not a workspace Machine, not platform identity | **Failure Mode 1** — currently mis-modeled as `text`; should be `reference` once an Equipment Machine + CAP-O02 exist |
-| Employee / Customer / Equipment (cross-application) | 10 (narrative) | Same as Equipment, generalized | **Failure Mode 1** — the general case that motivated registering CAP-O02 in Study 7 |
+| `Equipment` (used only within Case 4's own application, Facility) | 4 | Identity ✓ (reusable asset), not a workspace Machine, not platform identity | **Failure Mode 1, but resolved by CAP-F13 alone** — currently mis-modeled as `text`; fix is to author an `Equipment` Machine and change the field to `reference` (Vehicle Type / Vehicle Asset / Service Record / Workshop Entry, connected purely by `reference`, exactly like `Document` below). No CAP-O02 required — CAP-O02 only matters once *another application* also needs the same Equipment records. |
+| Employee / Customer / Equipment referenced **across more than one application** | 10 (narrative) | Same identity/reuse pattern as Equipment, but the reuse crosses application boundaries | **Failure Mode 1, genuinely needs CAP-O02** — CAP-F13 alone answers "how do I point at another Machine," not "who owns this Machine when two applications both want to reference it, and what happens on deactivation." This cross-application governance question is what CAP-O02 exists for — it is not required for the single-application case above. |
+
+**Fourth-pass correction:** the first three passes correctly separated *Failure Mode 1* (no reference
+target exists) from *Failure Mode 2* (target type resolved, implementation incomplete) — but conflated
+two different reasons a Failure-Mode-1 field could be blocked. `Equipment` used only inside one
+application is solved completely by CAP-F13 (Prio 1, already top of the queue) plus authoring an
+ordinary workspace Machine — no new capability needed at all. Only when the *same* Equipment Machine
+must be referenced from a *second, different* application does the harder CAP-O02 question (cross-app
+ownership, deactivation semantics) actually arise. Treating every "should be reference" field as
+automatically needing master-data governance overstates the blocker for the common, single-application
+case — the same shape of overcorrection the third pass caught for Quantity (below).
 
 **Calibration result:** the framework reproduces almost every prior ad hoc decision correctly, and
 correctly isolates `Equipment` as a true modeling gap versus merely-unimplemented-yet-correct
-choices. One field type (`file`) was initially miscategorized — corrected below. This mirrors the
-calibration discipline used for the capability admission test in Study 9
-(`capability-lifecycle.md` §6): a good framework should survive a second, adversarial pass, and
-this one found something on the second pass — which is a feature, not a failure, of doing the pass.
+choices — while a follow-up question caught that the gap's *size* was initially overstated (see
+fourth-pass correction above). One field type (`file`) was initially miscategorized — corrected below.
+This mirrors the calibration discipline used for the capability admission test in Study 9
+(`capability-lifecycle.md` §6): a good framework should survive repeated adversarial passes, and
+this one found something on each pass — which is a feature, not a failure, of doing the passes.
 
 ---
 
@@ -284,6 +295,25 @@ established for `reference` vs. `value_list` in general (Two Orthogonal Axes, ab
 recursively to how the conversion data itself is modeled. Case 5, when written, should declare which
 tier its scenario actually needs rather than assuming Tier 3 by default.
 
+### Fourth-pass correction — "declaring the field" and "setting up the conversion data" are different moments
+
+A follow-up question caught that presenting the three tiers side by side, as if choosing between
+them were part of using `Money` or `Quantity`, overstates the field's everyday complexity. This
+conflates two separate authoring moments that should stay separate:
+
+| Moment | Example | Who does it, how often |
+|--------|---------|--------------------------|
+| **Declaring the field** in a Machine | `- Amount : Money`, `- Quantity : Number` | Every author, every time — stays exactly **one line**, identical in effort to declaring any other field type |
+| **Setting up the conversion data** (only if Tier 2/3 is actually needed) | Filling in exchange rates, or an item's unit-conversion factors | **Once**, by whoever manages that master data — not repeated per form, per machine, or per use of the field type |
+
+This mirrors how `- Department : Department` already works today: writing that field is one line;
+the fact that Department carries its own records is a separate, one-time authoring concern, not a
+burden repeated everywhere Department is referenced. `Money` and `Quantity` are no different — the
+tiering is a statement about how the *conversion data* is modeled when it exists, not a checklist a
+domain expert or an AI re-derives every time they write a field. The default experience of using
+either type should read as simply as any other field; only the (rare) act of first setting up
+multi-unit or multi-currency support touches the tiers at all.
+
 ### Where the conversion calculation belongs — not inside the Constraint
 
 A related correction: conversion (looking up a factor and multiplying) must not be embedded inside
@@ -307,6 +337,52 @@ Constraint (CAP-C05/C07/C10) — validates the already-normalized numbers only
 This mirrors exactly how `money`'s aggregate constraint (CAP-C10, debit = credit) should work too:
 the constraint checks already-comparable numbers; whatever normalizes them into a comparable form
 (currency conversion, unit conversion) is a Computed Field concern, not a Constraint concern.
+
+## Boundary Check — Recurring Schedules Belong to Event, Not Field
+
+A recurring operational need — "every day," "every Monday," "repeats every N months" — raised a
+different kind of question from money/quantity: not *which* field type to use, but *whether this is
+a field concept at all*. Worth answering explicitly here, since it tests the edge of this
+framework's own scope (field modeling) against the neighboring Event grammar.
+
+**Recurrence is not a Field concept.** A `date` field holds a single point in time — a value.
+Recurrence describes a *pattern of occurrence* — a rule that generates many future points in time.
+That is a property of something that *happens* (an Event), not a property of a stored value. Some
+tools bundle a "repeat" toggle into their date-picker widget for convenience, but that is the same
+widget/type conflation already addressed in "Two Orthogonal Axes" above (§ on `value_list`) — a UI
+convenience, not evidence that recurrence belongs to the Date *type*.
+
+**External precedent confirms this placement.** iCalendar (RFC 5545) — the standard behind Google
+Calendar, Outlook, and most calendar software — attaches its recurrence rule (`RRULE`) to an
+**Event** (`VEVENT`), never to a bare date/timestamp value. This is the most authoritative existing
+answer to "where does recurrence live," and it agrees with Menata's own placement.
+
+**Menata already placed it in Event, from the specification onward.** `003-runtime-language.md`
+(via the Menata Language's Event grammar) names **Time** as one of four Event sources, with `Every
+Day` and `Every Monday` as its own worked examples — the word "Every" is the recurrence signal,
+built into Event grammar's vocabulary from the start, not discovered as an afterthought. Case 4
+(Maintenance Reminder) already modeled this concretely:
+
+```yaml
+evt_mt_due_check:
+  trigger: { type: schedule, cron: "0 7 * * *" }   # Event, not Field
+```
+
+**Does this fall into a gap if Event only handles single-shot triggers?** No — CAP-E02
+("Time-driven event") was registered specifically *because* Time is a recurring source, distinct
+from Business Activity events (`When Submit`) which fire once per user action. Two related,
+already-registered capabilities cover the full need:
+
+- **CAP-E02** — the recurring trigger itself ("wake up and check every day at 7am")
+- **CAP-A11** — date arithmetic reacting to a business event ("advance Next Due Date by Frequency
+  when Complete happens")
+
+Both are Event/Action grammar. Neither is a Quantity-style tiered field-modeling problem, because
+recurrence doesn't involve an ambiguous *value* needing external reference data to interpret — a
+recurrence rule ("every 3 months") is fully meaningful on its own, unlike a bare number needing a
+currency or unit to mean anything. It only touches shared/external data at all if the schedule must
+respect an organization-wide calendar (skip holidays) — already anticipated as CAP-O06 (Business
+Calendar, Study 7), a narrow, optional dependency, not a tiering problem of its own.
 
 Long-term, `user` is not a permanently distinct field type — it is `reference` with a reserved
 target, kept as its own named type today only because CAP-O01 (identity & role registry) does not
@@ -335,8 +411,10 @@ read the *settled* answer for every field type discussed, without re-deriving it
 | `money` | **Reference sugar** (amount is primitive; currency is the sugar component) | Currency passes all four supporting tests (identity, lifecycle via exchange rates, reuse, cardinality); independently named as an Object in `specification/001-object.md` | CAP-F17 (❌), currency is a CAP-O02 master-data candidate |
 | `file` | **Reference sugar** | Own storage identity + lifecycle (versioning, replacement); matches Frappe/Salesforce/Drupal platform convention (Study 2) | CAP-F06 (⚠️ partial — Failure Mode 2), long-term sugar over CAP-F13 + a runtime-managed File/Document entity |
 | `reference` | General mechanism | Target has independent identity and is a workspace-authored (or master-data-designated) Machine | CAP-F13 (❌, Prio 1) |
-| `Equipment`-class fields (reusable organizational assets) | Should be `reference`, currently mis-modeled as `text` | **Failure Mode 1** — no target Machine exists yet, and CAP-O02 (master-data designation) doesn't exist to formalize it | CAP-O02 (❌), confirmed by 3 independent instances (Equipment, Currency, Case 10 narrative) |
-| `Quantity`-class fields (count + Unit of Measure, anticipated for Case 5) | **Tiered** — not a single answer | Resolution depends on cardinality: Tier 1 (one fixed pair) = two flat fields, no reference; Tier 2 (multiple pairs) = child table under the referencing Machine (CAP-F16); Tier 3 (factor has its own history) = dedicated Machine | Predicted only — no case evidence yet (Case 5 unwritten); do not assume Tier 3 by default |
+| `Equipment`-class fields, used within **one** application | Should be `reference` to an ordinary workspace Machine — plain `reference`, nothing more | **Failure Mode 1, but fully resolved by CAP-F13 alone** — author the target Machine (Vehicle Type / Vehicle Asset / Service Record / …, connected purely by `reference`), change the field from `text` to `reference`. No governance capability needed. | CAP-F13 (❌, Prio 1) — same mechanism as any other reference, no special treatment |
+| `Equipment`/`Employee`/`Customer`-class fields, referenced from **more than one** application | Still `reference`, but the target Machine's cross-app ownership is undefined | **Failure Mode 1, genuinely needs CAP-O02** — CAP-F13 supplies the pointer mechanics; CAP-O02 answers who owns the Machine and what happens across applications when it's deactivated | CAP-O02 (❌), confirmed by Case 10 (narrative), reinforced by `Currency` (via CAP-F17) |
+| `Quantity`-class fields (count + Unit of Measure, anticipated for Case 5) | **Default is simple — declaring the field stays one line, same as any other type.** Only the *underlying conversion data*, if actually needed, is tiered — and that data is authored once, separately, not re-decided every time the field is used. | Tier 1 (the common case): two flat fields on the referencing Machine, no reference at all — as easy to write as any primitive. Tier 2 (multiple unit pairs for one item): a child table (CAP-F16). Tier 3 (factor needs history): a dedicated Machine. | Predicted only — no case evidence yet (Case 5 unwritten); default to Tier 1, escalate only when Case 5 actually shows a real need |
+| **Recurring schedules** (`Every Day`, `Every Monday`, "repeats every N months") | **Not a Field concept at all — belongs to Event.** A `date` value is a point in time; a recurrence rule describes a pattern of occurrence, which is a property of something that *happens*, not of a stored value. | Spec `003-runtime-language.md`'s Event grammar already names Time as one of four Event sources, with `Every Day` / `Every Monday` as its own examples — recurrence was placed in Event from the start, matching the iCalendar `RRULE` standard (RFC 5545), which attaches recurrence to an Event (`VEVENT`), never to a bare date/timestamp value. | CAP-E02 (recurring trigger) + CAP-A11 (date arithmetic reacting to a business event, e.g. advancing a due date) — both already registered from Case 4, both Event/Action grammar, not Field |
 
 **How to read "settled":** every row above has survived at least the initial pass; `money`, `file`,
 and the Quantity tiering additionally survived a correction after a second or third adversarial
@@ -368,10 +446,16 @@ Refines existing entries, no new capability IDs required:
   requirement from first principles (Currency fails the identity/lifecycle/reuse/cardinality tests),
   not only from the Odoo/ERPNext benchmark (Study 6). Currency is also named as an example Object in
   `specification/001-object.md`, independent confirmation from the language spec itself.
-- **CAP-O02** (master data designation) — reinforced twice: `Equipment` (Case 4) and now `Currency`
-  (via CAP-F17) are two concrete, named, independent examples of the same gap Case 10 (Study 7) first
-  surfaced, strengthening the dual-evidence requirement (`capability-lifecycle.md` §2, criterion A1)
-  well past the minimum bar.
+- **CAP-O02** (master data designation) — scope corrected (fourth-pass): its evidence is `Currency`
+  (via CAP-F17) and the Case 10 cross-application narrative — **not** `Equipment` used only within
+  Case 4's own application, which is fully resolved by CAP-F13 alone and needs no governance
+  capability. CAP-O02 is specifically about a Machine referenced from **more than one** application;
+  it does not gate the basic "this should be reference, not text" fix for a single-application field.
+  This narrows the evidence but the requirement still clears the dual-evidence bar (Case 10 + CAP-F17).
+- **CAP-F13** (reference field) — scope note reinforced: fixing a mis-modeled field like `Equipment`
+  from `text` to `reference`, *when used within one application*, requires nothing beyond CAP-F13
+  itself plus authoring an ordinary workspace Machine. CAP-O02 is an additional, separate capability
+  for the cross-application case, not a prerequisite for the basic fix.
 - **Predicted, not registered:** a future **Quantity** field (Case 5) would be a related instance of
   the same general pattern (count + Unit of Measure) — but *not* a straight copy of the
   `money`/Currency resolution. Third-pass refinement above shows it resolves in **tiers**: a fixed
@@ -380,11 +464,19 @@ Refines existing entries, no new capability IDs required:
   conversion history must be preserved. Not added as a capability now — no case evidence yet, per
   the admission test's dual-evidence rule (`capability-lifecycle.md` §2, criterion A1); when Case 5
   is written, it should declare which tier it actually needs rather than assuming the most complex one.
+  Fourth-pass note: *declaring* the field stays one line regardless of tier — only the underlying
+  conversion data (when Tier 2/3 is genuinely needed) is authored separately, once, by whoever
+  manages that master data.
 - **CAP-F14** (computed/formula field) — scope clarified: this is the correct home for unit/currency
   conversion calculations (deriving a Normalized Quantity or a base-currency amount), not the
   Constraint grammar. Constraints (CAP-C05/C07/C10) must only validate already-normalized values —
   mixing lookup-and-convert logic into a Constraint's expression conflates two Grammar
   responsibilities that Menata's language design keeps separate.
+- **CAP-E02** (time-driven event) and **CAP-A11** (date arithmetic) — reinforced by an explicit
+  boundary check: recurring schedules are Event/Action grammar, never a Field concern, confirmed by
+  the iCalendar `RRULE` (RFC 5545) precedent of attaching recurrence to an Event, never to a bare
+  date value. No scope change — this closes an open question about where recurrence belongs, rather
+  than adding new requirements.
 
 ---
 

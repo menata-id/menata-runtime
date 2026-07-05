@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.10 — + Study 15 third-pass refinement (tiered Quantity resolution, CAP-F14/C10 scope) | Updated: 2026-07-05
+> Status: v0.11 — + Study 15 fourth-pass (CAP-O02 scope narrowed, CAP-E02/A11 confirmed) | Updated: 2026-07-05
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -38,7 +38,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-F08 | `money` field | ⚠️ | schema doc | — | 10 | same fallback |
 | CAP-F09 | `boolean` field | ⚠️ | schema doc | — | 10 | same fallback |
 | CAP-F10 | `time` / `date_time` / `duration` fields | ⚠️ | schema doc | — | 10 | same fallback |
-| CAP-F13 | `reference` field (link to another machine) | ❌ | Case 3 (P1) | WCP-2/13/14, WRP-3 | **1** | includes tree/hierarchy option (self-reference + rollup — COA, Study 6). Scope note (Study 15): must support two target flavors from day one — (a) workspace-authored Machine, (b) reserved built-in identity target for CAP-F05/CAP-O01 — designing only for (a) forces a breaking change later |
+| CAP-F13 | `reference` field (link to another machine) | ❌ | Case 3 (P1) | WCP-2/13/14, WRP-3 | **1** | includes tree/hierarchy option (self-reference + rollup — COA, Study 6). Scope note (Study 15): must support two target flavors from day one — (a) workspace-authored Machine, (b) reserved built-in identity target for CAP-F05/CAP-O01 — designing only for (a) forces a breaking change later. Fourth-pass: this alone (plus an ordinary Machine) fully fixes a single-application mis-modeled field (e.g. `Equipment`) — CAP-O02 is a separate, additional capability only for the cross-application case |
 | CAP-F14 | Computed / formula field | ❌ | Study 2 survey | Salesforce formula, Frappe | 13 | design req: derived line generation (tax templates, Study 6). Study 15 (third-pass): this is the correct home for unit/currency conversion (amount × factor → normalized value) — NOT the Constraint grammar |
 | CAP-F15 | Field default values (beyond status first-value) | ⚠️ | Study 2 survey | universal (6/6 platforms) | 8 | status default works; other fields have none |
 | CAP-F16 | Line items / child table inside a record (header-detail document) | ❌ | Study 6 accounting | Odoo One2many, Frappe Table — universal to document apps | **3** | joins CAP-F13 atop the structural queue |
@@ -50,7 +50,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
 | CAP-E01 | Business activity event (`When X`) | ✅ | Case 1 | WCP-5/10 | | conformance T10/T12 |
-| CAP-E02 | Time-driven event (`Every Day 08:00`) | ❌ | spec 003 + mapping | escalation (WRP) | 7 | — |
+| CAP-E02 | Time-driven event (`Every Day 08:00`) | ❌ | spec 003 + mapping | escalation (WRP); Study 15 boundary check confirms placement against iCalendar RRULE (RFC 5545) | 7 | recurring schedules are Event/Action grammar, never a Field concern — confirmed, not just assumed |
 | CAP-E03 | Date-driven event (`When Due Date - 1 Day`) | ❌ | spec 003 + mapping | — | 11 | — |
 | CAP-E04 | External event (webhook, payment) | ❌ | spec 003 + mapping | — | 12 | — |
 | CAP-E05 | Internal / system-triggered event | ❌ | Case 3 (P6) | WRP-11 | 6 | — |
@@ -73,7 +73,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-A08 | `aggregate_status` (parent rollup: all-approved / any-rejected / cancel cascade) | ❌ | Case 3 (P3) | WCP-3/9/19/20 | 4 | — |
 | CAP-A09 | Conditional actions (`if` inside events) | ❌ | spec 003 + mapping | WCP-4/6, WDP-39 | 7 | — |
 | CAP-A10 | Notification delivery channels (email, in-app) | ❌ | Study 2 survey | universal (6/6 platforms) | 5 | prerequisite for CAP-A03 being real |
-| CAP-A11 | Date arithmetic in actions (advance by frequency, `+ 1 Month`) | ❌ | Case 4 [UNTARGETED FINDING] | spec 003 date events (`Due Date - 1 Day`) | 7 | — |
+| CAP-A11 | Date arithmetic in actions (advance by frequency, `+ 1 Month`) | ❌ | Case 4 [UNTARGETED FINDING] | spec 003 date events (`Due Date - 1 Day`); Study 15 confirms this + CAP-E02 fully cover recurring-schedule needs | 7 | — |
 
 ## Constraints
 
@@ -164,7 +164,7 @@ All discovered by Case 10 `[COMPOSITION FINDING]` — capabilities that belong t
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
 | CAP-O01 | Workspace identity & role registry (users, namespaced roles, user→role assignment as metadata) | ❌ | Case 10 | spec 005 (roles ≠ users) | 6 | prototype role cookie is workspace-blind |
-| CAP-O02 | Master data designation (canonical machines: ownership, cross-app referenceability, deactivation semantics) | ❌ | Case 10, Study 15 (`Equipment` field Case 4; `Currency` via CAP-F17) | DDD shared kernel, Portal GA PICA + Data Mesh | 8 | flag + rules on machine, not a new hierarchy level. Now confirmed by 3 independent instances (Case 10 narrative, Equipment, Currency) — well past the dual-evidence minimum (`capability-lifecycle.md` §2 A1) |
+| CAP-O02 | Master data designation (canonical machines: ownership, cross-app referenceability, deactivation semantics) | ❌ | Case 10 (cross-app narrative), Study 15 (`Currency` via CAP-F17) | DDD shared kernel, Portal GA PICA + Data Mesh | 8 | flag + rules on machine, not a new hierarchy level. Scope corrected (Study 15 fourth-pass): `Equipment` used only within one application does NOT need this — that's fully resolved by CAP-F13 alone. CAP-O02 evidence is specifically the cross-application case (Case 10) + Currency, still clearing the dual-evidence bar |
 | CAP-O03 | Navigation metadata (app grouping, role-aware menus, workspace home) | ❌ | Case 10 | runtime/004 already names Navigation — spec predicted it | 9 | — |
 | CAP-O04 | Workspace-wide search across machines (permission-trimmed) | ❌ | Case 10 | — | 12 | depends on CAP-P05 |
 | CAP-O05 | Unified notification center (inbox, per-user channel preferences, digest grouping) | ❌ | Case 10 | Portal GA message dispatcher | 8 | extends CAP-A10 to workspace service |
