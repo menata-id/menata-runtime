@@ -1,0 +1,32 @@
+# E-learning Certificate
+# Example Business Knowledge expressed in Menata Language
+# Domain: E-learning — a rendered document generated from a template + the
+# Enrollment's data. The new pattern this case exists to surface: generating a
+# FILE from a template is different from storing an uploaded one (CAP-F06) or
+# creating a structured record (CAP-A06).
+# Case 21 of the Case Portfolio (runtime/case-portfolio.md)
+# References: elearning-enrollment.menata
+
+Certificate
+
+Fields
+
+- Enrollment : Enrollment
+- Certificate Number : Text
+- Issued At : Date
+- Generated File : File
+
+Constraints
+
+- Enrollment is required.
+
+Permissions
+
+Student
+
+- View
+
+Views
+
+- My Certificates : List
+- Certificate Detail : Detail

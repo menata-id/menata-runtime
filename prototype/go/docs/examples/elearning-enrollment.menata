@@ -1,0 +1,46 @@
+# E-learning Enrollment
+# Example Business Knowledge expressed in Menata Language
+# Domain: E-learning — a Student's enrollment in a Course, fourth CAP-F20
+# many-to-many instance (after Follow, Like, Membership); completing it triggers
+# a generated Certificate
+# Case 21 of the Case Portfolio (runtime/case-portfolio.md)
+# References: elearning-course.menata, elearning-certificate.menata
+
+Enrollment
+
+Fields
+
+- Student : User
+- Course : Course
+- Enrolled At : Date
+- Progress : Number
+- Status : In Progress | Completed
+
+Events
+
+When Complete
+
+    if Progress is greater than or equal to 100
+
+        Status Completed
+
+        Issue Certificate
+
+Constraints
+
+- Student is required.
+- Course is required.
+
+    A Student may enroll in a given Course only once.
+
+Permissions
+
+Student
+
+- Enroll
+- Complete
+
+Views
+
+- My Enrollments : List
+- Course Roster : List

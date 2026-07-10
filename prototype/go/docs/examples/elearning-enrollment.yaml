@@ -1,0 +1,76 @@
+# E-learning Enrollment — Runtime Metadata
+# Realization of elearning-enrollment.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: elearning-course.yaml, elearning-certificate.yaml
+# Fourth CAP-F20 (many-to-many) instance, after Follow, Like, Membership.
+
+version: "0.1"
+
+machine:
+  id: mch_enrollment                    # [NOT YET] — CAP-F20, fourth instance
+  name: Enrollment
+  application: app_elearning
+
+  fields:
+    - id: fld_enr_student                # [NOT YET] — CAP-F13, built-in identity target
+      name: Student
+      type: reference
+      target_machine: "$identity"
+      required: true
+    - id: fld_enr_course                  # [NOT YET] — CAP-F13
+      name: Course
+      type: reference
+      target_machine: mch_course
+      required: true
+    - id: fld_enr_enrolled_at              # [SUPPORTED] — as a field; stamping is not
+      name: Enrolled At
+      type: date
+      required: false
+    - id: fld_enr_progress                  # [PARTIAL] — CAP-F07
+      name: Progress
+      type: number
+      required: false
+    - id: fld_enr_status                     # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [In Progress, Completed]
+
+  events:
+    - id: evt_enr_complete                    # [NOT YET] — composes CAP-A09 (condition)
+      name: Complete                           #   + CAP-A06 + the new certificate-
+      condition:                                #   generation finding
+        field: fld_enr_progress
+        operator: greater_than_or_equal
+        value: 100
+      actions:
+        - set_field: { field: fld_enr_status, value: Completed }
+        - create_record: { machine: mch_certificate, fields: { enrollment: "{{ this.id }}" } }
+          # [NOT YET] The created Certificate record's `Generated File` is itself
+          # not producible today (see elearning-certificate.yaml) — create_record
+          # alone gives structured data, not a rendered document.
+
+  constraints:
+    - id: cst_enr_student_required             # [SUPPORTED]
+      rule: Student is required.
+      expression: { field: fld_enr_student, operator: required }
+    - id: cst_enr_course_required               # [SUPPORTED]
+      rule: Course is required.
+      expression: { field: fld_enr_course, operator: required }
+    - id: cst_enr_unique_pair                    # [NOT YET] — CAP-C12, fourth instance
+      rule: A Student may enroll in a given Course only once.
+      expression: { operator: unique, fields: [ fld_enr_student, fld_enr_course ] }
+
+  permissions:
+    - role: Student                               # [SUPPORTED]
+      events: [ evt_enr_complete ]
+
+  views:
+    - id: vw_enr_my_enrollments                     # [NOT YET] — CAP-V05, filter Student = current_user
+      name: My Enrollments
+      type: list
+      columns: [ fld_enr_course, fld_enr_progress, fld_enr_status ]
+    - id: vw_enr_course_roster                       # [NOT YET] — CAP-V05, filter Course = this
+      name: Course Roster
+      type: list
+      columns: [ fld_enr_student, fld_enr_progress, fld_enr_status ]

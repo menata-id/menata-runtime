@@ -1,0 +1,59 @@
+# E-learning Course — Runtime Metadata
+# Realization of elearning-course.menata (Case 21 — final case of this batch:
+# sequential unlock reuses CAP-E06, templated certificate generation is new)
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_elearning                     # [SUPPORTED]
+  name: E-learning
+  workspace: ws_default
+
+machine:
+  id: mch_course                        # [SUPPORTED]
+  name: Course
+  application: app_elearning
+
+  fields:
+    - id: fld_crs_title                 # [SUPPORTED]
+      name: Title
+      type: text
+      required: true
+    - id: fld_crs_description            # [SUPPORTED]
+      name: Description
+      type: rich_text
+      required: false
+    - id: fld_crs_lessons                 # [NOT YET] — CAP-F16, same Language-layer
+      name: Lessons                        #   gap as every prior child-table field.
+      type: child_table                    #   Sequential unlock (Lesson N gated on
+      target_machine: mch_course_lesson    #   Lesson N-1 completed) reuses CAP-E06's
+      required: false                      #   state-guard shape — no new capability.
+
+  constraints:
+    - id: cst_crs_title_required           # [SUPPORTED]
+      rule: Title is required.
+      expression: { field: fld_crs_title, operator: required }
+
+  permissions:
+    - role: Instructor                      # [SUPPORTED]
+      events: []
+    - role: Student                         # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_crs_form                        # [SUPPORTED]
+      name: Course Form
+      type: form
+      fields: [ fld_crs_title, fld_crs_description, fld_crs_lessons ]
+    - id: vw_crs_catalog                      # [SUPPORTED]
+      name: Course Catalog
+      type: list
+      columns: [ fld_crs_title ]
+    - id: vw_crs_detail                        # [SUPPORTED]
+      name: Course Detail
+      type: detail

@@ -1,0 +1,60 @@
+# E-learning Certificate — Runtime Metadata
+# Realization of elearning-certificate.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: elearning-enrollment.yaml
+#
+# THE NEW FINDING THIS CASE EXISTS TO SURFACE: `Generated File` must be RENDERED
+# from a template (course title, student name, issue date merged into a PDF/image
+# layout) — the reverse direction of CAP-F06 (which only stores an uploaded file).
+# No capability names generating a file from a template + record data.
+
+version: "0.1"
+
+machine:
+  id: mch_certificate                    # [SUPPORTED] — as a plain Machine
+  name: Certificate
+  application: app_elearning
+
+  fields:
+    - id: fld_cert_enrollment              # [NOT YET] — CAP-F13
+      name: Enrollment
+      type: reference
+      target_machine: mch_enrollment
+      required: true
+    - id: fld_cert_number                   # [NOT YET] — CAP-F18
+      name: Certificate Number
+      type: text
+      required: true
+      generated: true
+      pattern: "CERT-{00001}"
+    - id: fld_cert_issued_at                 # [SUPPORTED] — as a field; stamping is not
+      name: Issued At
+      type: date
+      required: false
+    - id: fld_cert_generated_file              # [NOT YET] — new finding: CAP-F06 covers
+      name: Generated File                      #   a file a USER uploads; nothing covers a
+      type: file                                 #   file the RUNTIME renders from a template
+      required: false
+      # [NOT YET] Needs: a template (layout + merge fields), a render step
+      # (template + Enrollment/Course/Student data -> PDF or image), and
+      # storage identical to any other `file` field once rendered. The
+      # rendering step itself is the new capability — everything after it
+      # reuses CAP-F06's existing storage-identity shape (Study 15).
+
+  constraints:
+    - id: cst_cert_enrollment_required          # [SUPPORTED]
+      rule: Enrollment is required.
+      expression: { field: fld_cert_enrollment, operator: required }
+
+  permissions:
+    - role: Student                              # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_cert_my_certificates                  # [NOT YET] — CAP-V05, filter via Enrollment.Student = current_user
+      name: My Certificates
+      type: list
+      columns: [ fld_cert_number, fld_cert_issued_at ]
+    - id: vw_cert_detail                            # [SUPPORTED]
+      name: Certificate Detail
+      type: detail

@@ -1,0 +1,34 @@
+# E-learning Course
+# Example Business Knowledge expressed in Menata Language
+# Domain: E-learning — Lessons unlock in sequence, reusing CAP-E06's state-guard
+# shape (a Lesson is only reachable once its predecessor is completed)
+# Case 21 of the Case Portfolio (runtime/case-portfolio.md)
+# References: elearning-enrollment.menata
+
+Course
+
+Fields
+
+- Title : Text
+- Description : Rich Text
+- Lessons : Table of (Lesson Title, Content, Sequence)
+
+Constraints
+
+- Title is required.
+
+Permissions
+
+Instructor
+
+- Author
+
+Student
+
+- View
+
+Views
+
+- Course Form : Form
+- Course Catalog : List
+- Course Detail : Detail

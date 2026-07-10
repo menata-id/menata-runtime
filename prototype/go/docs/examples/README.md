@@ -615,6 +615,29 @@ hospital-medical-record.menata / .yaml   Medical Record (first CAP-P06 evidence)
 
 ---
 
+## Case 21 — E-learning
+
+**Domain:** E-learning — courses, sequential lessons, enrollment, generated certificates
+**Application:** E-learning
+**Roles:** Instructor, Student
+**Status:** ⚠️ Documented boundary test — closes the Extended Portfolio (Cases 11–21), see `runtime/case-portfolio.md`
+
+```
+elearning-course.menata / .yaml        Course
+elearning-enrollment.menata / .yaml    Enrollment (fourth CAP-F20 instance)
+elearning-certificate.menata / .yaml   Certificate (new: templated generation)
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| Templated document generation | **[UNTARGETED FINDING]** → registered as CAP-F21 — the reverse direction of CAP-F06, rendering a file at runtime rather than storing an upload |
+| Many-to-many enrollment | reinforces CAP-F20/CAP-C12 — fourth instance |
+| Sequential unlock | reuses CAP-E06, no new capability |
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

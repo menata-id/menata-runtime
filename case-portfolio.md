@@ -246,7 +246,7 @@ their capability cluster already has case evidence.
 | 18 | HR Operations | Low — Employee master only; payroll flagged domain-engine | F13 tree (2nd), O02 (3rd) | ⚠️ documented |
 | 19 | Project Management (Trello-like) | Medium — manual ordering | V14(new), F13, F16 | ⚠️ documented |
 | 20 | Hospital System | Medium — scheduling + compliance weight | V07 (1st evidence), P06 (1st evidence), F16 | ⚠️ documented |
-| 21 | E-learning | Medium — sequential unlock + certificates | E06 (reused), new (doc generation) | planned |
+| 21 | E-learning | Medium — sequential unlock + certificates | F21(new), F20, C12, E06 (reused) | ⚠️ documented |
 
 ## Case 11 — Social App / Instagram-like (target declaration)
 
@@ -405,6 +405,22 @@ same domain-engine boundary Study 6 drew for posting derivation, Case 18 drew fo
 
 Files: `prototype/go/docs/examples/hospital-patient.{menata,yaml}`,
 `hospital-appointment.{menata,yaml}`, `hospital-medical-record.{menata,yaml}` (three Machines)
+
+## Case 21 — E-learning (target declaration, closes the Extended Portfolio)
+
+**Business reality:** Students enroll in Courses, progress through sequentially-unlocked Lessons,
+and receive a rendered Certificate once complete.
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| `Certificate.Generated File` rendered from a template | **CAP-F21 (new)** | The reverse direction of CAP-F06 — rendering a file at runtime, not storing an upload |
+| `Enrollment` join Machine | CAP-F20 + CAP-C12 | Fourth instance of both |
+| Sequential Lesson unlock | CAP-E06 | Reused, no new capability |
+
+Files: `prototype/go/docs/examples/elearning-course.{menata,yaml}`,
+`elearning-enrollment.{menata,yaml}`, `elearning-certificate.{menata,yaml}` (three Machines)
 
 ---
 
