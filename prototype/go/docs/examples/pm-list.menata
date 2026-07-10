@@ -1,0 +1,35 @@
+# Project Management List
+# Example Business Knowledge expressed in Menata Language
+# Domain: Project Management — a column on a Board; its order among sibling Lists is
+# freely dragged by a Member, not computed from any field. Same for Card below.
+# Case 19 of the Case Portfolio (runtime/case-portfolio.md)
+# References: pm-board.menata, pm-card.menata
+#
+# THE NEW FINDING THIS CASE EXISTS TO SURFACE: CAP-V04 (default_sort) is a
+# *declarative* sort rule in metadata — e.g. "order by Sequence ascending." Position
+# here is different: a Member drags a List or Card to a new spot, and the *data
+# itself* changes to reflect an arbitrary, user-chosen order with no formula behind
+# it. No capability names user-editable manual ordering.
+
+List
+
+Fields
+
+- Board : Board
+- Name : Text
+- Position : Number
+
+Constraints
+
+- Board is required.
+- Name is required.
+
+Permissions
+
+Member
+
+- Reorder
+
+Views
+
+- Board Lists : List

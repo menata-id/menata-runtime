@@ -568,6 +568,29 @@ hr-employee.menata / .yaml    Employee (one Machine, deliberately)
 
 ---
 
+## Case 19 — Project Management (Trello-like)
+
+**Domain:** Project management — Boards of Lists of Cards, manually reordered
+**Application:** Project Management
+**Roles:** Member
+**Status:** ⚠️ Documented boundary test — first case needing user-editable manual ordering, see `runtime/case-portfolio.md`
+
+```
+pm-board.menata / .yaml    Board
+pm-list.menata / .yaml     List (first CAP-V14 instance)
+pm-card.menata / .yaml     Card (second CAP-V14 instance, plus cross-List move)
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| Manual/free ordering | **[UNTARGETED FINDING]** → registered as CAP-V14 — distinct from CAP-V04's declarative sort; the reorder action renumbers every sibling record |
+| Card moving between Lists | reuses CAP-F13 + CAP-A13 |
+| Checklist child table | reuses CAP-F16 |
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

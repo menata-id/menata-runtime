@@ -1,0 +1,58 @@
+# Project Management List — Runtime Metadata
+# Realization of pm-list.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: pm-board.yaml, pm-card.yaml
+#
+# THE NEW FINDING: `Position` is stored as a plain number today (CAP-F07-shaped),
+# but the REORDER ACTION — renumbering every sibling List when one is dragged to a
+# new spot — has no capability behind it. Registered as CAP-V14.
+
+version: "0.1"
+
+machine:
+  id: mch_list                          # [SUPPORTED] — as a plain Machine
+  name: List
+  application: app_project_management
+
+  fields:
+    - id: fld_lst_board                  # [NOT YET] — CAP-F13
+      name: Board
+      type: reference
+      target_machine: mch_board
+      required: true
+    - id: fld_lst_name                    # [SUPPORTED]
+      name: Name
+      type: text
+      required: true
+    - id: fld_lst_position                 # [PARTIAL] — CAP-F07; the field itself is
+      name: Position                        #   ordinary, but see evt_lst_reorder below
+      type: number
+      required: false
+
+  events:
+    - id: evt_lst_reorder                   # [NOT YET] — CAP-V14 (new): manual ordering
+      name: Reorder
+      actions:
+        - renumber_siblings: { scope: fld_lst_board, order_field: fld_lst_position }
+          # [NOT YET] Not a real action type. Distinct from CAP-A15 (batch
+          # generation, creates new records) — this RENUMBERS existing sibling
+          # records to reflect a drag-and-drop move, with no formula behind
+          # the new order at all, just the user's chosen position.
+
+  constraints:
+    - id: cst_lst_board_required            # [SUPPORTED]
+      rule: Board is required.
+      expression: { field: fld_lst_board, operator: required }
+    - id: cst_lst_name_required              # [SUPPORTED]
+      rule: Name is required.
+      expression: { field: fld_lst_name, operator: required }
+
+  permissions:
+    - role: Member                            # [SUPPORTED]
+      events: [ evt_lst_reorder ]
+
+  views:
+    - id: vw_lst_board_lists                    # [NOT YET] — CAP-V05 filter Board = this,
+      name: Board Lists                          #   sorted by Position (CAP-V04, but the
+      type: list                                  #   underlying values are user-set, not
+      columns: [ fld_lst_name, fld_lst_position ]  #   declared)

@@ -1,0 +1,35 @@
+# Project Management Card
+# Example Business Knowledge expressed in Menata Language
+# Domain: Project Management — a task card, freely reordered within and across Lists
+# Case 19 of the Case Portfolio (runtime/case-portfolio.md)
+# References: pm-list.menata
+
+Card
+
+Fields
+
+- List : List
+- Title : Text
+- Description : Rich Text
+- Position : Number
+- Assignee : User
+- Due Date : Date
+- Checklist : Table of (Item Text, Done)
+
+Constraints
+
+- List is required.
+- Title is required.
+
+Permissions
+
+Member
+
+- Move
+- Edit
+
+Views
+
+- Card Form : Form
+- List Cards : List
+- Card Detail : Detail

@@ -1,0 +1,28 @@
+# Project Management Board
+# Example Business Knowledge expressed in Menata Language
+# Domain: Project Management — a Trello-like board of Lists and Cards
+# Case 19 of the Case Portfolio (runtime/case-portfolio.md)
+# References: pm-list.menata
+
+Board
+
+Fields
+
+- Name : Text
+- Owner : User
+
+Constraints
+
+- Name is required.
+
+Permissions
+
+Member
+
+- View
+
+Views
+
+- Board Form : Form
+- Board List : List
+- Board Detail : Detail

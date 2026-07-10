@@ -244,7 +244,7 @@ their capability cluster already has case evidence.
 | 16 | Point of Sale | Low — composition of Case 5+8+15 | composes only, no new CAP | ⚠️ documented |
 | 17 | Helpdesk | Low — re-proves Case 7, domain-portability only | composes Case 7, no new CAP | ⚠️ documented |
 | 18 | HR Operations | Low — Employee master only; payroll flagged domain-engine | F13 tree (2nd), O02 (3rd) | ⚠️ documented |
-| 19 | Project Management (Trello-like) | Medium — manual ordering | new (manual order), F16 | planned |
+| 19 | Project Management (Trello-like) | Medium — manual ordering | V14(new), F13, F16 | ⚠️ documented |
 | 20 | Hospital System | Medium — scheduling + compliance weight | V07 (calendar, not yet studied), R04, R07 | planned |
 | 21 | E-learning | Medium — sequential unlock + certificates | E06 (reused), new (doc generation) | planned |
 
@@ -368,6 +368,23 @@ Employee master itself, which Leave Request, Helpdesk, and every future app need
 posting derivation, not a metadata concept.
 
 Files: `prototype/go/docs/examples/hr-employee.{menata,yaml}` (one Machine)
+
+## Case 19 — Project Management / Trello-like (target declaration)
+
+**Business reality:** Boards contain Lists (columns); Lists contain Cards; both Lists and Cards
+are freely reordered by drag-and-drop, and Cards move between Lists.
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| `List.Reorder`, `Card.Move` — user-set position, no formula | **CAP-V14 (new)** | Manual/free ordering — distinct from CAP-V04's declarative `default_sort` |
+| Renumbering every sibling on reorder | CAP-V14 | Batch update shaped like CAP-A15, rewriting existing records instead of creating new ones |
+| `Card.Move` changing List | CAP-F13 + CAP-A13 | Reused |
+| `Checklist` child table | CAP-F16 | Same shape as every prior case |
+
+Files: `prototype/go/docs/examples/pm-board.{menata,yaml}`, `pm-list.{menata,yaml}`,
+`pm-card.{menata,yaml}` (three Machines)
 
 ---
 

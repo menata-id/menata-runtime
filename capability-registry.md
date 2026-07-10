@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.22 — + Cases 16/17/18 (no new capabilities — composition/portability proofs; CAP-F13 tree second instance, CAP-O02 third instance) | Updated: 2026-07-10
+> Status: v0.23 — + Case 19 (CAP-V14 manual/free ordering, new) | Updated: 2026-07-10
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -126,6 +126,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-V11 | Channel-independent view rendering (web + email from one section) | ❌ | Study 5 Portal GA | ADH email digest reuse | 14 | **evidence-thin** (Study 9 retrofit: single source, possibly composable) — HOLD at Proposed until second independent source |
 | CAP-V12 | Multi-step form (wizard) view | ❌ | Study 5 Portal GA | HIRADC wizard | 11 | — |
 | CAP-V13 | Aggregate report view (group-by, hierarchy rollup, period compare, running balance) | ❌ | Study 6 accounting, field-level design in Case 9 | Trial Balance, P&L, GL | 9 | the report class every vertical needs. Case 9's Trial Balance requires CAP-F16 child-table rows (Journal Entry Line) to be independently queryable across parent documents — see CAP-F16's reporting-independence note |
+| CAP-V14 | Manual/free ordering (a record's position is directly user-edited via drag-and-drop, with no formula behind the order — distinct from CAP-V04's *declarative* `default_sort`) | ❌ | Case 19 [UNTARGETED FINDING] — `List.Reorder`, `Card.Move` | Trello/Jira/Notion board reordering — universal to kanban-style tools | 9 | The reorder action must renumber every *sibling* record when one moves, not just the moved record — a batch update shaped like CAP-A15 (series generation) but rewriting existing records instead of creating new ones. `Card.Move` composes this with a cross-record reference write (CAP-F13/A13) when a card changes List |
 
 ## Record Lifecycle
 

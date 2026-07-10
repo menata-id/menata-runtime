@@ -1,0 +1,54 @@
+# Project Management Board — Runtime Metadata
+# Realization of pm-board.menata (Case 19 — manual/free ordering, new pattern)
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+#
+# Case 19 declared targets: new (manual ordering, CAP-V14), CAP-F13, CAP-F16
+# (Checklist), reuses Case 3's Sequence field precedent for numeric ordering fields.
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_project_management            # [SUPPORTED]
+  name: Project Management
+  workspace: ws_default
+
+machine:
+  id: mch_board                         # [SUPPORTED]
+  name: Board
+  application: app_project_management
+
+  fields:
+    - id: fld_brd_name                  # [SUPPORTED]
+      name: Name
+      type: text
+      required: true
+    - id: fld_brd_owner                 # [PARTIAL] — CAP-F05
+      name: Owner
+      type: user
+      required: false
+
+  constraints:
+    - id: cst_brd_name_required          # [SUPPORTED]
+      rule: Name is required.
+      expression: { field: fld_brd_name, operator: required }
+
+  permissions:
+    - role: Member                       # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_brd_form                     # [SUPPORTED]
+      name: Board Form
+      type: form
+      fields: [ fld_brd_name ]
+    - id: vw_brd_list                      # [SUPPORTED]
+      name: Board List
+      type: list
+      columns: [ fld_brd_name, fld_brd_owner ]
+    - id: vw_brd_detail                     # [SUPPORTED]
+      name: Board Detail
+      type: detail
