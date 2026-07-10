@@ -82,6 +82,11 @@ Menata Language describes business.
 
 Runtime Language describes application realization.
 
+Menata Language itself — its grammar, and how to write Business Knowledge in it — is owned by a
+separate repository, [`menata-id/menata`](https://github.com/menata-id/menata). This repo
+(`menata-runtime`) begins at Runtime Metadata; everything above that line in the diagram belongs
+to `menata-id/menata`, not here.
+
 ---
 
 # Runtime Metadata

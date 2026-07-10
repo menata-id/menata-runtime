@@ -10,6 +10,12 @@ Business Knowledge explains how organizations work.
 
 Menata provides a language for expressing that knowledge.
 
+**That language itself — Menata Language, `.menata`, and how to write Business Knowledge in
+it — lives in a separate repository: [`menata-id/menata`](https://github.com/menata-id/menata).**
+That repo owns the business process language layer only, with no machine or application
+concerns. Everything in *this* repo (`menata-runtime`) starts one layer downstream — realizing
+Business Knowledge as Runtime Metadata, and Runtime Metadata as a living application.
+
 However, Business Knowledge alone does not become software.
 
 Applications must be realized.
