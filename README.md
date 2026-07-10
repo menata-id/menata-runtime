@@ -358,18 +358,6 @@ Designed for machines.
 
 Realizes Runtime Metadata into applications.
 
-## Menata Apps Builder
-
-Application Builder.
-
-Designed for platform builders.
-
-Produces Runtime Metadata.
-
-The runtime does not depend on Menata Apps Builder.
-
-Any tool capable of producing compatible Runtime Metadata can be used.
-
 ---
 
 # Documentation
