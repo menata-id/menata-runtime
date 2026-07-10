@@ -421,6 +421,32 @@ social-comment.menata / .yaml    Comment (ordinary one-to-many, for contrast)
 
 ---
 
+## Case 12 — Community Site
+
+**Domain:** Community — groups, events, status posts, participation points, auto-awarded badges
+**Application:** Community
+**Roles:** Member, Admin, System
+**Seed:** — (pending reference field + join Machine + aggregate-conditioned action support)
+**Status:** ⚠️ Documented boundary test — builds on Case 11's many-to-many finding, adds gamification, see `runtime/case-portfolio.md`
+
+```
+community-group.menata / .yaml          Group
+community-membership.menata / .yaml     Membership (third CAP-F20 join instance)
+community-event.menata / .yaml          Event
+community-points.menata / .yaml         Point Ledger Entry (ledger-shaped, like Case 6)
+community-badge-award.menata / .yaml    Badge Award (auto-triggered on threshold)
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| Many-to-many (CAP-F20) | reinforced — third case instance |
+| Uniqueness (CAP-C12) | reinforced — second and third instance |
+| Aggregate-conditioned action | **[UNTARGETED FINDING]** → registered as CAP-A14 — a badge trigger gated on `sum(points)`, not a single field |
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

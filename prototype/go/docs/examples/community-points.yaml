@@ -1,0 +1,76 @@
+# Community Point Ledger Entry — Runtime Metadata
+# Realization of community-points.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: community-badge-award.yaml
+#
+# THE NEW PATTERN THIS FILE SURFACES: evt_pts_award's Badge trigger condition is on
+# an AGGREGATE (sum of this Member's points), not a single field's value. Every prior
+# conditional action (CAP-A09, e.g. Case 4's "if Status = Overdue") tests one field
+# on one record. This tests a computed sum across many records. No capability names
+# "aggregate-conditioned action" today — closest relative is CAP-C10 (aggregate
+# constraint), but that blocks a write; this triggers a downstream action.
+
+version: "0.1"
+
+machine:
+  id: mch_point_ledger_entry           # [SUPPORTED] — as a plain Machine
+  name: Point Ledger Entry
+  application: app_community
+
+  fields:
+    - id: fld_pts_member                # [NOT YET] — CAP-F13
+      name: Member
+      type: reference
+      target_machine: "$identity"
+      required: true
+    - id: fld_pts_points                # [PARTIAL] — CAP-F07
+      name: Points
+      type: number
+      required: true
+    - id: fld_pts_reason                 # [SUPPORTED]
+      name: Reason
+      type: value_list
+      required: true
+      values: [Joined Group, Posted Status, Hosted Event, Attended Event]
+    - id: fld_pts_awarded_at              # [SUPPORTED] — as a field; stamping is not
+      name: Awarded At
+      type: date
+      required: false
+
+  events:
+    - id: evt_pts_award                   # [NOT YET] — aggregate-conditioned action,
+      name: Award                          #   new finding, no CAP registered yet
+      condition:
+        aggregate: sum
+        field: fld_pts_points
+        scope: fld_pts_member
+        operator: greater_than_or_equal
+        value: 100
+      actions:
+        - create_record: { machine: mch_badge_award, fields: { member: "{{ this.member }}", badge: "Rising Star", triggering_rule: "sum(points) >= 100" } }
+
+  constraints:
+    - id: cst_pts_member_required        # [SUPPORTED]
+      rule: Member is required.
+      expression: { field: fld_pts_member, operator: required }
+    - id: cst_pts_points_required        # [SUPPORTED]
+      rule: Points is required.
+      expression: { field: fld_pts_points, operator: required }
+    - id: cst_pts_reason_required        # [SUPPORTED]
+      rule: Reason is required.
+      expression: { field: fld_pts_reason, operator: required }
+
+  permissions:
+    - role: System                        # [SUPPORTED]
+      events: [ evt_pts_award ]
+
+  views:
+    - id: vw_pts_my_points                 # [NOT YET] — CAP-V05, filter Member = current_user
+      name: My Points
+      type: list
+      columns: [ fld_pts_reason, fld_pts_points, fld_pts_awarded_at ]
+    - id: vw_pts_leaderboard                # [NOT YET] — CAP-V13, group by Member, sum Points
+      name: Leaderboard
+      type: aggregate_report
+      group_by: fld_pts_member
+      aggregates: [ { field: fld_pts_points, op: sum } ]

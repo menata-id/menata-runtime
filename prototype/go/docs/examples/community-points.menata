@@ -1,0 +1,40 @@
+# Community Point Ledger Entry
+# Example Business Knowledge expressed in Menata Language
+# Domain: Community — gamification points, ledger-shaped like Case 6's Petty Cash Voucher
+# (append-only entries that sum to a running total) — not itself a new pattern.
+# Case 12 of the Case Portfolio (runtime/case-portfolio.md)
+# References: community-badge-award.menata
+
+Point Ledger Entry
+
+Fields
+
+- Member : User
+- Points : Number
+- Reason : Joined Group | Posted Status | Hosted Event | Attended Event
+- Awarded At : Date
+
+Events
+
+When Award
+
+    if sum of Point Ledger Entry Points for this Member is greater than or equal to 100
+
+        Award Badge
+
+Constraints
+
+- Member is required.
+- Points is required.
+- Reason is required.
+
+Permissions
+
+System
+
+- Award
+
+Views
+
+- My Points : List
+- Leaderboard : Report

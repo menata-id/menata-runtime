@@ -1,0 +1,64 @@
+# Community Membership — Runtime Metadata
+# Realization of community-membership.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: community-group.yaml, community-points.yaml
+# Third case instance of CAP-F20 (many-to-many join), after Case 11's Follow and Like.
+
+version: "0.1"
+
+machine:
+  id: mch_membership                   # [NOT YET] — CAP-F20, third instance
+  name: Membership
+  application: app_community
+
+  fields:
+    - id: fld_mem_group                # [NOT YET] — CAP-F13
+      name: Group
+      type: reference
+      target_machine: mch_group
+      required: true
+    - id: fld_mem_member                # [NOT YET] — CAP-F13, built-in identity target
+      name: Member
+      type: reference
+      target_machine: "$identity"
+      required: true
+    - id: fld_mem_role                  # [SUPPORTED]
+      name: Role
+      type: value_list
+      required: false
+      values: [Member, Admin]
+    - id: fld_mem_joined_at             # [SUPPORTED] — as a field; stamping is not
+      name: Joined At
+      type: date
+      required: false
+
+  events:
+    - id: evt_mem_join                  # [NOT YET] — CAP-A06 create_record chain to
+      name: Join                        #   Point Ledger Entry
+      actions:
+        - create_record: { machine: mch_point_ledger_entry, fields: { member: "{{ this.member }}", points: 10, reason: "Joined Group" } }
+
+  constraints:
+    - id: cst_mem_group_required        # [SUPPORTED]
+      rule: Group is required.
+      expression: { field: fld_mem_group, operator: required }
+    - id: cst_mem_member_required       # [SUPPORTED]
+      rule: Member is required.
+      expression: { field: fld_mem_member, operator: required }
+    - id: cst_mem_unique_pair           # [NOT YET] — CAP-C12, second instance
+      rule: A Member may join a given Group only once.
+      expression: { operator: unique, fields: [ fld_mem_group, fld_mem_member ] }
+
+  permissions:
+    - role: Member                      # [SUPPORTED]
+      events: [ evt_mem_join ]
+
+  views:
+    - id: vw_mem_group_members          # [NOT YET] — CAP-V05, filter Group = this
+      name: Group Members
+      type: list
+      columns: [ fld_mem_member, fld_mem_role, fld_mem_joined_at ]
+    - id: vw_mem_my_groups              # [NOT YET] — CAP-V05, filter Member = current_user
+      name: My Groups
+      type: list
+      columns: [ fld_mem_group, fld_mem_role ]

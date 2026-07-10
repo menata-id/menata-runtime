@@ -1,0 +1,35 @@
+# Community Badge Award
+# Example Business Knowledge expressed in Menata Language
+# Domain: Community — an achievement automatically awarded when a Member's total
+# points crosses a declared threshold. The genuinely new pattern this case exists
+# to surface: a trigger condition evaluated against an AGGREGATE (sum of points),
+# not a single field's value like every prior conditional action (CAP-A09).
+# Case 12 of the Case Portfolio (runtime/case-portfolio.md)
+# References: community-points.menata
+
+Badge Award
+
+Fields
+
+- Member : User
+- Badge : Rising Star | Super Connector | Community Pillar
+- Awarded At : Date
+- Triggering Rule : Text
+
+Constraints
+
+- Member is required.
+- Badge is required.
+
+    A Member may earn a given Badge only once.
+
+Permissions
+
+System
+
+- Award
+
+Views
+
+- My Badges : List
+- Badge Detail : Detail

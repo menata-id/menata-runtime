@@ -1,0 +1,66 @@
+# Community Group — Runtime Metadata
+# Realization of community-group.menata (Case 12 — builds on Case 11's many-to-many
+# finding, adds gamification as a new pattern)
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+#
+# Case 12 declared targets: CAP-F20 (third instance), new (threshold-triggered
+# achievement, aggregate-conditioned action). See runtime/case-portfolio.md.
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_community                    # [SUPPORTED]
+  name: Community
+  workspace: ws_default
+
+machine:
+  id: mch_group                        # [SUPPORTED]
+  name: Group
+  application: app_community
+
+  fields:
+    - id: fld_grp_name                 # [SUPPORTED]
+      name: Name
+      type: text
+      required: true
+    - id: fld_grp_description          # [SUPPORTED]
+      name: Description
+      type: rich_text
+      required: false
+    - id: fld_grp_created_by           # [PARTIAL] — CAP-F05
+      name: Created By
+      type: user
+      required: false
+    - id: fld_grp_visibility           # [SUPPORTED]
+      name: Visibility
+      type: value_list
+      required: false
+      values: [Public, Private]
+
+  constraints:
+    - id: cst_grp_name_required        # [SUPPORTED]
+      rule: Name is required.
+      expression: { field: fld_grp_name, operator: required }
+
+  permissions:
+    - role: Member                     # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_grp_form                  # [SUPPORTED]
+      name: Group Form
+      type: form
+      fields: [ fld_grp_name, fld_grp_description, fld_grp_visibility ]
+    - id: vw_grp_list                  # [SUPPORTED]
+      name: Group List
+      type: list
+      columns: [ fld_grp_name, fld_grp_visibility ]
+    - id: vw_grp_detail                # [SUPPORTED]
+      name: Group Detail
+      type: detail

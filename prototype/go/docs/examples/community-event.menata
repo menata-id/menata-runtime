@@ -1,0 +1,38 @@
+# Community Event
+# Example Business Knowledge expressed in Menata Language
+# Domain: Community — an event hosted by a Group
+# Case 12 of the Case Portfolio (runtime/case-portfolio.md)
+# References: community-group.menata
+#
+# Note: RSVP (who is attending) is deliberately NOT written as its own Machine
+# here — it would be a fourth instance of the same many-to-many join shape
+# already proven twice in Case 11 (Follow, Like) and once above (Membership).
+# Composable from CAP-F20 without new design effort.
+
+Event
+
+Fields
+
+- Group : Group
+- Title : Text
+- Description : Rich Text
+- Start Date Time : Date Time
+- Location : Text
+
+Constraints
+
+- Group is required.
+- Title is required.
+- Start Date Time is required.
+
+Permissions
+
+Admin
+
+- Create Event
+
+Views
+
+- Event Form : Form
+- Upcoming Events : List
+- Event Detail : Detail

@@ -237,7 +237,7 @@ their capability cluster already has case evidence.
 | # | Case | Novelty vs. Cases 1–10 | Primary targets (CAP) | Status |
 |---|------|------------------------|----------------------|--------|
 | 11 | Social App (Instagram-like) | **High** — many-to-many relationships, feed | F20(new), C12(new), F14, V05 | ⚠️ documented |
-| 12 | Community Site | Medium — builds on 11 + gamification | F20, O05, new (gamification) | planned |
+| 12 | Community Site | Medium — builds on 11 + gamification | F20, C12, A14(new) | ⚠️ documented |
 | 13 | Blog / One-Page Site | **High** — public/unauthenticated access | new (public read), Page, Theme | planned |
 | 14 | Lending Services | **High** — schedule generation | new (schedule gen), F13, A07/A08, C08 | planned |
 | 15 | E-commerce | Medium — cart as mutable pre-commit doc | new (draft doc), composes Case 5/8/9 | planned |
@@ -264,6 +264,26 @@ follow each other and see a feed of posts from people they follow.
 
 Files: `prototype/go/docs/examples/social-post.{menata,yaml}`, `social-follow.{menata,yaml}`,
 `social-like.{menata,yaml}`, `social-comment.{menata,yaml}` (four Machines, one file pair each)
+
+## Case 12 — Community Site (target declaration)
+
+**Business reality:** Members join Groups, Groups host Events, members post within a Group, and
+earn points for participation that automatically unlock badges once a threshold is crossed.
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| `Membership` join Machine | CAP-F20 | Third case instance (after Case 11's Follow, Like) |
+| `(Group, Member)` / `(Member, Badge)` uniqueness | CAP-C12 | Second and third instance |
+| Badge auto-awarded when `sum(points) >= 100` | **CAP-A14 (new)** | Aggregate-conditioned action — distinct from CAP-A09 (single-field condition) and CAP-C10 (aggregate constraint blocks a write; this triggers one) |
+
+**Deliberately not written as its own Machine:** RSVP (Event attendance) — a fourth instance of
+the same CAP-F20 shape already proven three times; composable without new design effort.
+
+Files: `prototype/go/docs/examples/community-group.{menata,yaml}`,
+`community-membership.{menata,yaml}`, `community-event.{menata,yaml}`,
+`community-points.{menata,yaml}`, `community-badge-award.{menata,yaml}` (five Machines)
 
 ---
 

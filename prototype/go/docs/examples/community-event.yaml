@@ -1,0 +1,62 @@
+# Community Event — Runtime Metadata
+# Realization of community-event.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: community-group.yaml
+
+version: "0.1"
+
+machine:
+  id: mch_event                        # [SUPPORTED] — as a plain Machine
+  name: Event
+  application: app_community
+
+  fields:
+    - id: fld_evt_group                # [NOT YET] — CAP-F13
+      name: Group
+      type: reference
+      target_machine: mch_group
+      required: true
+    - id: fld_evt_title                # [SUPPORTED]
+      name: Title
+      type: text
+      required: true
+    - id: fld_evt_description          # [SUPPORTED]
+      name: Description
+      type: rich_text
+      required: false
+    - id: fld_evt_start                # [SUPPORTED]
+      name: Start Date Time
+      type: date_time
+      required: true
+    - id: fld_evt_location             # [SUPPORTED]
+      name: Location
+      type: text
+      required: false
+
+  constraints:
+    - id: cst_evt_group_required       # [SUPPORTED]
+      rule: Group is required.
+      expression: { field: fld_evt_group, operator: required }
+    - id: cst_evt_title_required       # [SUPPORTED]
+      rule: Title is required.
+      expression: { field: fld_evt_title, operator: required }
+    - id: cst_evt_start_required       # [SUPPORTED]
+      rule: Start Date Time is required.
+      expression: { field: fld_evt_start, operator: required }
+
+  permissions:
+    - role: Admin                      # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_evt_form                  # [SUPPORTED]
+      name: Event Form
+      type: form
+      fields: [ fld_evt_group, fld_evt_title, fld_evt_start, fld_evt_location ]
+    - id: vw_evt_upcoming               # [NOT YET] — CAP-V09, filter Start Date Time > today
+      name: Upcoming Events
+      type: list
+      columns: [ fld_evt_title, fld_evt_start, fld_evt_location ]
+    - id: vw_evt_detail                # [SUPPORTED]
+      name: Event Detail
+      type: detail

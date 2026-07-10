@@ -1,0 +1,30 @@
+# Community Group
+# Example Business Knowledge expressed in Menata Language
+# Domain: Community — a group members join, host Events in, and earn points within
+# Case 12 of the Case Portfolio (runtime/case-portfolio.md)
+# References: community-membership.menata, community-event.menata
+
+Group
+
+Fields
+
+- Name : Text
+- Description : Rich Text
+- Created By : User
+- Visibility : Public | Private
+
+Constraints
+
+- Name is required.
+
+Permissions
+
+Member
+
+- View
+
+Views
+
+- Group Form : Form
+- Group List : List
+- Group Detail : Detail

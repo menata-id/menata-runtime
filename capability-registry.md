@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.17 — + Case 11 (CAP-F20 many-to-many, CAP-C12 uniqueness, both new) | Updated: 2026-07-10
+> Status: v0.18 — + Case 12 (CAP-A14 aggregate-conditioned action, new; CAP-F20/CAP-C12 reinforced) | Updated: 2026-07-10
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -78,6 +78,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-A11 | Date arithmetic in actions (advance by frequency, `+ 1 Month`) | ❌ | Case 4 [UNTARGETED FINDING] | spec 003 date events (`Due Date - 1 Day`); Study 15 confirms this + CAP-E02 fully cover recurring-schedule needs | 7 | Case 7 adds two related but distinct arithmetic needs, kept as scope notes here rather than new IDs pending a second case: (a) *priority-keyed* date offset (`sla_offset(priority)` — High/Medium/Low resolve to different `+N days`, not a flat frequency like Case 4's), (b) plain numeric increment (`reopen_count + 1`) — same "arithmetic in actions" family, but numeric, not date |
 | CAP-A12 | Ordinal/enum stepping in actions (move a `value_list` field to its next value in a declared sequence, e.g. `Low → Medium → High`) | ❌ | Case 7 [UNTARGETED FINDING] — `Escalate`'s Priority raise | — | 11 | Distinct from CAP-A11 (arithmetic on numbers/dates): stepping through a closed, ordered `value_list` has no "+1" — needs the sequence itself declared somewhere (on the field, most likely) |
 | CAP-A13 | Cross-record field write (`set_field` on a different Machine's record, not just the record whose event fired) | ❌ | Case 8 [UNTARGETED FINDING] — `Payment.Reconcile` writing `Invoice.Amount Paid` / `Invoice.Status` | — | 8 | Distinct from CAP-A06 (`create_record`, makes a new record) and CAP-A08 (`aggregate_status`, a specific status-only rollup) — this is an arbitrary field write on an *existing*, different record. Guarded by CAP-X12 (cross-record write atomicity) once both exist |
+| CAP-A14 | Aggregate-conditioned action (an event's action gated on a computed sum/count across many records, not one field on one record) | ❌ | Case 12 [UNTARGETED FINDING] — `Point Ledger Entry.Award`'s badge trigger (`sum(points) >= 100`) | achievement/badge engines (game platforms), threshold alerting | 9 | Every prior conditional action (CAP-A09) tests one field on one record (e.g. Case 4's `if Status = Overdue`). This tests a computed aggregate across many related records — closest relative is CAP-C10 (aggregate constraint), but that *blocks a write*; this *triggers a downstream action*. Composes CAP-F14 (aggregate) + CAP-A09 (condition) + CAP-A06 (create_record), but the combination has no name yet |
 
 ## Constraints
 

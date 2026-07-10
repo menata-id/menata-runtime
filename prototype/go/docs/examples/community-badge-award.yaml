@@ -1,0 +1,55 @@
+# Community Badge Award — Runtime Metadata
+# Realization of community-badge-award.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: community-points.yaml
+
+version: "0.1"
+
+machine:
+  id: mch_badge_award                  # [SUPPORTED] — as a plain Machine
+  name: Badge Award
+  application: app_community
+
+  fields:
+    - id: fld_ba_member                 # [NOT YET] — CAP-F13
+      name: Member
+      type: reference
+      target_machine: "$identity"
+      required: true
+    - id: fld_ba_badge                  # [SUPPORTED]
+      name: Badge
+      type: value_list
+      required: true
+      values: [Rising Star, Super Connector, Community Pillar]
+    - id: fld_ba_awarded_at             # [SUPPORTED]
+      name: Awarded At
+      type: date
+      required: false
+    - id: fld_ba_triggering_rule        # [SUPPORTED]
+      name: Triggering Rule
+      type: text
+      required: false
+
+  constraints:
+    - id: cst_ba_member_required        # [SUPPORTED]
+      rule: Member is required.
+      expression: { field: fld_ba_member, operator: required }
+    - id: cst_ba_badge_required         # [SUPPORTED]
+      rule: Badge is required.
+      expression: { field: fld_ba_badge, operator: required }
+    - id: cst_ba_unique_pair            # [NOT YET] — CAP-C12, third instance
+      rule: A Member may earn a given Badge only once.
+      expression: { operator: unique, fields: [ fld_ba_member, fld_ba_badge ] }
+
+  permissions:
+    - role: System                       # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_ba_my_badges                 # [NOT YET] — CAP-V05, filter Member = current_user
+      name: My Badges
+      type: list
+      columns: [ fld_ba_badge, fld_ba_awarded_at ]
+    - id: vw_ba_detail                    # [SUPPORTED]
+      name: Badge Detail
+      type: detail
