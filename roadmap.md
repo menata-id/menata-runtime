@@ -4,7 +4,7 @@
 > so that the runtime can eventually realize the full range of business process possibilities —
 > and, as the effort matured, how the repository's own documentation and structure are kept to the same standard (Phase 4).
 >
-> Status: Active | Created: 2026-07-04 | Renamed from `capability-roadmap.md` 2026-07-05 (scope grew beyond capability discovery)
+> Status: Active | Created: 2026-07-04 | Renamed from `capability-roadmap.md` 2026-07-05 (scope grew beyond capability discovery) | Phase 6 (case portfolio field-level design, Cases 5–21) added 2026-07-10
 
 ---
 
@@ -326,6 +326,11 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 3. CAP-F16 line items + CAP-A02 dynamic values (Prio 3)
 4. Then Case 5–9 implementations exercise them.
 
+> **Status update (2026-07-10, see Phase 6):** Cases 5–9's *field-level design* is now
+> complete (`.menata`/`.yaml` written, gaps registered) — the *implementation* above has
+> not started. "Then Case 5–9 implementations exercise them" above still describes real
+> future work, just no longer blocked on the cases being written first.
+
 ---
 
 # Phase 3 — NFR Standards (study-only)
@@ -476,6 +481,72 @@ Before starting the actual implementation of Prio 1 (CAP-F13 reference fields), 
 - **Fourth-pass correction:** a follow-up question ("doesn't plain reference already solve Equipment — vehicle type, vehicle asset, service record, workshop entry tables?") caught that CAP-O02 had been overstated as a blocker. `Equipment` used only within one application is fully resolved by CAP-F13 alone plus an ordinary workspace Machine — no governance capability required at all. CAP-O02's real evidence is narrower but still valid: the Case 10 cross-application narrative and `Currency` (via CAP-F17). A second follow-up ("isn't Quantity's tiering itself the complexity — the field looks simple by name, but choosing Tier 2/3 adds an unusual extra data-entry step") caught that the tiers had been presented as a per-use decision instead of a one-time, separately-authored master-data concern — *declaring* `Money`/`Quantity` should stay one line, identical in effort to any other field type. A third follow-up ("is recurring time a Date feature?") confirmed CAP-E02/CAP-A11 are the right, sufficient answer, validated against the iCalendar `RRULE` (RFC 5545) precedent — recurrence belongs to Event, not Field, and does not fall into a gap between the two.
 - **Fifth-pass — closing a real risk, and a full perspective audit:** a follow-up question ("if declaring stays simple but setup is separate, won't an AI or a human just forget the setup?") identified a genuine gap in the fourth-pass fix — nothing prevented a metadata author from omitting the conversion mechanism entirely. The closing correction stays strictly at the metadata/runtime layer (per explicit request, not the resulting application's end-user experience): `type: money` must carry its `currency:`/`currency_field:` companion as a **required key of the type's own schema** — the same discipline `value_list` already applies to `values:` and `reference` already applies to `target_machine:` — enforced by CAP-X05 at load time, exactly like a dangling reference is rejected today. A full audit of the document's language then confirmed (and where needed, corrected) that every section speaks from the metadata-author/runtime perspective throughout — the framework's own new "Data" layer row makes explicit that end-user data entry in the resulting application is out of scope everywhere in this study.
 - **Sixth-pass — CAP-F06 image/compression scope, and a two-source correction of the enforcement model:** a practical question about image vs. non-image files (raised independently of the field-modeling tree — it's a policy question, not an identity/reference question) confirmed `file` needs no new type: whether a file is an image is a **processing policy** in `options` (`accept`, `compress`, `max_dimension`, `format`), not a different reference target — the same reasoning already applied to `rich_text` vs. `text`. A first pass placed server-side compression as merely a fallback for API callers bypassing the widget; a direct correction (drawing on first-hand knowledge of Portal GA's actual `NativeCompressedUpload*` behavior) established the real reason for server-side compression is **browser incapability** (older browsers lacking Web Worker/WebP support), not just bypass — meaning the server-side step is not optional validation but an **authoritative enforcement path**, structurally identical to "client validation is advisory, server enforces" already established for Constraints (CAP-C09). Written into `capability-registry.md` (CAP-F06 scope), `nfr-standards.md` §2.1 (Security: server never trusts client compression; Performance: client-side is the fast path, server fallback is P4/async, never inline), and `runtime-metadata-schema.md` (concrete `options` schema + dual-path contract). **Self-correction within the same pass:** a follow-up question caught that the full dual-path enforcement narrative had initially been written into `runtime-metadata-schema.md` itself — a metadata-schema document — when only the `options` schema belongs there. The *how* (client Web Worker vs. server fallback, "never trust the client") is runtime behavior, already correctly homed in `capability-registry.md`/`nfr-standards.md`; the schema doc was trimmed to a pointer instead of a duplicate, directly applying this study's own "Metadata vs. Runtime vs. Data" layering (Fifth-pass) to its own output.
+
+---
+
+# Phase 6 — Case Portfolio Field-Level Design
+
+Phases 1–5 built the method and the registry. This phase executes the Process Loop
+(`case-portfolio.md`) against it: writing every planned case's actual `.menata`/`.yaml`
+field-level design, not just its target declaration.
+
+## Study 16 — Cases 5–9 Field-Level Design ✅ done (2026-07-10)
+
+Completes the field-level design for all five remaining cases in the original 10-case
+portfolio (Cases 3–4 and 10 were already done; Cases 5–9 had target declarations only).
+
+**Deliverables:**
+- [x] Case 5 (Inventory/Stock Movement) — proves Study 15's Quantity tiering (Tier 1/2)
+  in a real case; new: CAP-F19, CAP-X12
+- [x] Case 9 (Accounting) — checked against GAAP + SOX directly (`benchmarks/003`
+  World-Class Standards Addendum), not just the Odoo/ERPNext platform survey; catches
+  a real gap in the original declared targets (CAP-P03, CAP-R04 — control capabilities,
+  not just structural ones)
+- [x] Cases 6–8 (Petty Cash, Complaint, Payment Webhook) — each grounded in a real
+  external standard (imprest-fund control practice, CMMN, Stripe/Shopify webhook
+  idempotency convention); new: CAP-A12, CAP-A13, CAP-X13
+
+**Headline findings:**
+- Case 7 states a real language-design boundary explicitly: Menata expresses CMMN's
+  *bounded* flexibility (many predefined paths, gated by state) but not its *unbounded*
+  flexibility (a case worker inventing a new task at runtime) — a deliberate limit, not
+  a gap to close.
+- CAP-C08 (cross-record constraint) went from zero case evidence to three instances,
+  including a genuinely reverse-direction shape (Case 9's Fiscal Period checks all its
+  Journal Entries, rather than one record against an aggregate).
+- Registry: 79 → 89 capabilities.
+
+## Study 17 — Extended Portfolio, Cases 11–21 ✅ done (2026-07-10)
+
+Screened 12 new business-domain ideas (social app, community site, blog, lending,
+e-commerce, POS, helpdesk, HR, project management, hospital, e-learning) against the
+registry *before* writing anything, per Rule 3 (business realism, not synthetic
+coverage) — several would only re-prove an existing case's capability cluster.
+
+**Deliverables:**
+- [x] `case-portfolio.md` "Extended Portfolio (Cases 11–21)" — a novelty-screening
+  table grading each case by what it actually adds vs. what it composes
+- [x] 7 cases with genuinely new findings (11, 12, 13, 14, 15, 19, 21) — full design
+- [x] 4 cases kept deliberately light-touch (16, 17, 18, and 20 for its lower-novelty
+  half) — composition/portability proofs, explicitly labeled as such rather than
+  padded to look novel
+
+**Headline findings:**
+- **CAP-F20 (many-to-many relationship)** — no case before Case 11 needed a
+  relationship where neither side owns the row; four independent instances now
+  (Follow, Like, Membership, Enrollment). Forced **CAP-C12 (uniqueness constraint)**
+  into existence at the same time — a gap every prior case had silently assumed away.
+- **CAP-P07 (public/unauthenticated access)** — every case since Case 1 assumed a
+  logged-in workspace role; Case 13's Blog is the first to need a role that is the
+  *absence* of a session.
+- **CAP-R08 (editable scratch state)** — Case 15's Cart is the opposite end of
+  CAP-R07's spectrum: unconstrained *before* a commit point, not frozen *after* one.
+- Two long-registered, never-exercised capabilities finally got real case evidence:
+  **CAP-V07** (calendar/timeline views, Case 20) and **CAP-P06** (field-level
+  visibility, Case 20) — both had sat in the registry since Study 1/Study 2 with only
+  a schema-doc or spec-example behind them.
+- Registry: 89 → 103 capabilities. No implementation started — this phase is
+  documentation/design only, same status as Phase 1's initial 79.
 
 ---
 
