@@ -243,7 +243,7 @@ their capability cluster already has case evidence.
 | 15 | E-commerce | Medium — cart as mutable pre-commit doc | R08(new), composes Case 5/8/9 | ⚠️ documented |
 | 16 | Point of Sale | Low — composition of Case 5+8+15 | composes only, no new CAP | ⚠️ documented |
 | 17 | Helpdesk | Low — re-proves Case 7, domain-portability only | composes Case 7, no new CAP | ⚠️ documented |
-| 18 | HR Operations | Low — re-proves Cases 1/2/9 | composes 1/2/9; payroll flagged domain-engine | planned |
+| 18 | HR Operations | Low — Employee master only; payroll flagged domain-engine | F13 tree (2nd), O02 (3rd) | ⚠️ documented |
 | 19 | Project Management (Trello-like) | Medium — manual ordering | new (manual order), F16 | planned |
 | 20 | Hospital System | Medium — scheduling + compliance weight | V07 (calendar, not yet studied), R04, R07 | planned |
 | 21 | E-learning | Medium — sequential unlock + certificates | E06 (reused), new (doc generation) | planned |
@@ -356,6 +356,18 @@ CAP-E02/A11 (SLA), CAP-E06 (Reopen guard), CAP-C09 (Resolution Notes at event ti
 new capability expected or found.
 
 Files: `prototype/go/docs/examples/helpdesk-ticket.{menata,yaml}` (one Machine)
+
+## Case 18 — HR Operations (target declaration)
+
+**Business reality:** Case 2 (Leave Request) already is an HR process. What's missing is the
+Employee master itself, which Leave Request, Helpdesk, and every future app need to reference.
+
+**Declared targets:** `Manager` self-reference (CAP-F13 tree option, second instance after Case
+9's Chart of Account), `Employee` as a cross-app master-data candidate (CAP-O02, third instance).
+**Deliberately out of scope:** payroll calculation — same domain-engine boundary Study 6 drew for
+posting derivation, not a metadata concept.
+
+Files: `prototype/go/docs/examples/hr-employee.{menata,yaml}` (one Machine)
 
 ---
 

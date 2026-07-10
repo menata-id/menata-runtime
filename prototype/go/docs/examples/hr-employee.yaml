@@ -1,0 +1,88 @@
+# HR Employee — Runtime Metadata
+# Realization of hr-employee.menata (Case 18 — Employee master, HR ops otherwise
+# composes Cases 1/2/9)
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+#
+# Case 18 declared targets: CAP-F13 tree option (second instance after Case 9's
+# Chart of Account), CAP-O02 (master-data designation — Employee is a textbook
+# candidate: cross-app referenceability, ownership, deactivation semantics via
+# Status). Payroll calculation explicitly out of scope (domain-engine boundary,
+# same as Case 9's posting derivation) — not a gap, a stated design decision.
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_hr                           # [SUPPORTED]
+  name: HR
+  workspace: ws_default
+
+machine:
+  id: mch_employee                     # [SUPPORTED]
+  name: Employee
+  application: app_hr
+
+  fields:
+    - id: fld_emp_id                   # [NOT YET] — CAP-F18, auto-numbering
+      name: Employee ID
+      type: text
+      required: true
+      generated: true
+      pattern: "EMP-{00001}"
+    - id: fld_emp_name                  # [SUPPORTED]
+      name: Name
+      type: text
+      required: true
+    - id: fld_emp_department             # [SUPPORTED]
+      name: Department
+      type: text
+      required: false
+    - id: fld_emp_position                # [SUPPORTED]
+      name: Position
+      type: text
+      required: false
+    - id: fld_emp_manager                  # [NOT YET] — CAP-F13, self-reference/tree,
+      name: Manager                         #   second case instance after Case 9's COA
+      type: reference
+      target_machine: mch_employee
+      required: false
+    - id: fld_emp_hire_date                 # [SUPPORTED]
+      name: Hire Date
+      type: date
+      required: true
+    - id: fld_emp_status                     # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Active, Terminated]
+
+  constraints:
+    - id: cst_emp_id_required                 # [SUPPORTED]
+      rule: Employee ID is required.
+      expression: { field: fld_emp_id, operator: required }
+    - id: cst_emp_name_required                # [SUPPORTED]
+      rule: Name is required.
+      expression: { field: fld_emp_name, operator: required }
+    - id: cst_emp_hire_date_required             # [SUPPORTED]
+      rule: Hire Date is required.
+      expression: { field: fld_emp_hire_date, operator: required }
+
+  permissions:
+    - role: HR                                    # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_emp_form                              # [SUPPORTED]
+      name: Employee Form
+      type: form
+      fields: [ fld_emp_name, fld_emp_department, fld_emp_position, fld_emp_manager, fld_emp_hire_date ]
+    - id: vw_emp_directory                          # [SUPPORTED]
+      name: Employee Directory
+      type: list
+      columns: [ fld_emp_id, fld_emp_name, fld_emp_department, fld_emp_status ]
+    - id: vw_emp_org_chart                           # [NOT YET] — CAP-F13's tree-rendering
+      name: Org Chart                                 #   presentation detail, same as Case 9's
+      type: detail                                     #   Chart of Account list (flat rows today)

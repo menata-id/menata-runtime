@@ -547,6 +547,27 @@ helpdesk-ticket.menata / .yaml    Ticket (one Machine, deliberately)
 
 ---
 
+## Case 18 — HR Operations
+
+**Domain:** HR — the Employee master data other apps reference
+**Application:** HR
+**Roles:** HR
+**Status:** ⚠️ Documented — Employee master only; payroll flagged as domain-engine territory, see `runtime/case-portfolio.md`
+
+```
+hr-employee.menata / .yaml    Employee (one Machine, deliberately)
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| Manager self-reference | reinforces CAP-F13's tree option — second instance after Case 9's Chart of Account |
+| Employee as master data | reinforces CAP-O02 — third instance after Case 10 and Currency |
+| Payroll calculation | explicitly out of scope — domain-engine boundary, same as Case 9's posting derivation |
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

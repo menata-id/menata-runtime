@@ -1,0 +1,42 @@
+# HR Employee
+# Example Business Knowledge expressed in Menata Language
+# Domain: HR — the master-data record other HR/cross-app processes reference (leave
+# requests, tickets, org charts); Manager is a self-reference hierarchy, same
+# tree/rollup option as Case 9's Chart of Account
+# Case 18 of the Case Portfolio (runtime/case-portfolio.md)
+#
+# Deliberately light-touch: Case 2 (Leave Request) already IS an HR process. This
+# case adds only what Case 2 didn't need — the Employee master itself. Payroll
+# calculation is explicitly out of scope: same domain-engine boundary Study 6 drew
+# for posting derivation (multi-step, conditional, tax-rule-dependent — not a
+# metadata concept).
+
+Employee
+
+Fields
+
+- Employee ID : Text
+- Name : Text
+- Department : Text
+- Position : Text
+- Manager : Employee
+- Hire Date : Date
+- Status : Active | Terminated
+
+Constraints
+
+- Employee ID is required.
+- Name is required.
+- Hire Date is required.
+
+Permissions
+
+HR
+
+- View
+
+Views
+
+- Employee Form : Form
+- Employee Directory : List
+- Org Chart : Detail
