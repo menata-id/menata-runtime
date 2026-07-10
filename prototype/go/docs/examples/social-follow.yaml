@@ -1,0 +1,78 @@
+# Social Follow — Runtime Metadata
+# Realization of social-follow.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# THE FINDING THIS FILE EXISTS TO SURFACE:
+# Every prior case's relationships were one-directional (CAP-F13 reference: a Movement
+# points to one Item) or parent-owned (CAP-F16 child table: a Unit Conversion row has
+# exactly one Item owner). Follow is neither: a Follow row belongs equally to a
+# Follower and a Followee, either side can be queried independently ("who do I
+# follow" / "who follows me"), and the (Follower, Followee) pair must be unique.
+# No field type or table shape in the schema names this today.
+
+version: "0.1"
+
+machine:
+  id: mch_follow                                # [NOT YET] — CAP-F20 (new)
+  name: Follow
+  application: app_social
+
+  fields:
+    - id: fld_follow_follower                    # [NOT YET] — CAP-F13, target: built-in
+      name: Follower                             #   identity (same flavor as CAP-F05/CAP-O01)
+      type: reference
+      target_machine: "$identity"
+      required: true
+
+    - id: fld_follow_followee                     # [NOT YET] — CAP-F13, same target flavor
+      name: Followee
+      type: reference
+      target_machine: "$identity"
+      required: true
+
+    - id: fld_follow_followed_at                   # [SUPPORTED] — as a field; stamping it
+      name: Followed At                            #   is not (CAP-A02)
+      type: date
+      required: false
+
+  constraints:
+    - id: cst_follow_follower_required             # [SUPPORTED]
+      rule: Follower is required.
+      expression: { field: fld_follow_follower, operator: required }
+
+    - id: cst_follow_followee_required              # [SUPPORTED]
+      rule: Followee is required.
+      expression: { field: fld_follow_followee, operator: required }
+
+    - id: cst_follow_unique_pair                    # [NOT YET] — CAP-F20's other half:
+      rule: A Follower may follow a given Followee only once.  # composite uniqueness across
+      expression:                                    # two reference fields together — distinct
+        operator: unique                              # from any single-field uniqueness rule,
+        fields: [ fld_follow_follower, fld_follow_followee ]  # which nothing in the registry
+      # [NOT YET] No uniqueness-constraint mechanism exists at all today (single-
+      # or multi-field) — this is actually two stacked gaps: (a) uniqueness as a
+      # constraint operator, at all, and (b) it needing to span two fields together.
+
+  permissions:
+    - role: Member                                  # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_follow_following                        # [NOT YET] — CAP-V05, "my" filter on
+      name: My Following                              #   Follower = current_user
+      type: list
+      columns:
+        - fld_follow_followee
+        - fld_follow_followed_at
+
+    - id: vw_follow_followers                         # [NOT YET] — same, "my" filter on
+      name: My Followers                               #   Followee = current_user (the reverse
+      type: list                                       #   direction of the same join Machine)
+      columns:
+        - fld_follow_follower
+        - fld_follow_followed_at

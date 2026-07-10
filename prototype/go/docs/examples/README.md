@@ -389,6 +389,38 @@ Trial Balance: Journal Entry Line grouped by Account, Debit/Credit summed across
 
 ---
 
+# Extended Portfolio (Cases 11–21)
+
+Screened against the registry first — cases that would only re-prove an earlier case's capability
+cluster are marked light-touch rather than written as if novel. See `runtime/case-portfolio.md` for
+the full novelty screening table.
+
+## Case 11 — Social App (Instagram-like)
+
+**Domain:** Social — posts, likes, comments, follows, feed
+**Application:** Social
+**Roles:** Member
+**Seed:** — (pending reference field + join Machine + counter support)
+**Status:** ⚠️ Documented boundary test — first case to need a many-to-many relationship, see `runtime/case-portfolio.md`
+
+```
+social-post.menata / .yaml       Post (the content)
+social-follow.menata / .yaml     Follow (many-to-many join — new pattern)
+social-like.menata / .yaml       Like (second many-to-many join instance)
+social-comment.menata / .yaml    Comment (ordinary one-to-many, for contrast)
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| Many-to-many relationship | **[UNTARGETED FINDING]** → registered as CAP-F20 — neither CAP-F13 (one-directional) nor CAP-F16 (parent-owned) names a join Machine where both sides are independently queryable |
+| Composite uniqueness | **[UNTARGETED FINDING]** → registered as CAP-C12 — also retroactively explains an assumption every case since Case 1 made silently for single-field uniqueness |
+| Counter fields (Like Count, Comment Count) | confirmed gap — surfaces an open design question (maintained counter vs. read-time aggregate) rather than resolving it |
+| Feed as relationship-filtered list | confirmed gap — a two-hop extension of CAP-V05, not a new capability |
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

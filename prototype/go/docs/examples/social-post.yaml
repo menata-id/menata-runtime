@@ -1,0 +1,112 @@
+# Social Post — Runtime Metadata
+# Realization of social-post.menata (Case 11 — many-to-many relationships, feed aggregation)
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# Case 11 declared targets: CAP-F20 (new — many-to-many join), CAP-F14 (computed
+# counters), CAP-A11-sibling (increment/decrement), CAP-V05 (feed as relationship-
+# filtered list, new sub-pattern). See runtime/case-portfolio.md.
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_social                              # [SUPPORTED]
+  name: Social
+  workspace: ws_default
+
+machine:
+  id: mch_post                                # [SUPPORTED]
+  name: Post
+  application: app_social
+
+  fields:
+    - id: fld_post_author                     # [PARTIAL] — CAP-F05
+      name: Author
+      type: user
+      required: true
+
+    - id: fld_post_caption                    # [SUPPORTED]
+      name: Caption
+      type: rich_text
+      required: true
+
+    - id: fld_post_image                      # [PARTIAL] — CAP-F06, upload not stored
+      name: Image
+      type: file
+      required: true
+
+    - id: fld_post_posted_at                  # [SUPPORTED] — as a field; stamping it is not
+      name: Posted At
+      type: date_time
+      required: false
+
+    - id: fld_post_like_count                  # [NOT YET] — computed field (CAP-F14),
+      name: Like Count                         #   but NOT the aggregate-rollup sub-pattern —
+      type: number                             #   this one increments on Like/Unlike rather
+      computed: true                           #   than summing a child/related table on read.
+      formula: "count(social_like where post = this)"
+      # [NOT YET] Could be implemented either as a live count-on-read (like Case
+      # 5/6's aggregate rollup) or as a maintained counter incremented by
+      # social-like.yaml's evt_like_like/evt_like_unlike — a genuine open
+      # design question this case surfaces but does not resolve.
+
+    - id: fld_post_comment_count                # [NOT YET] — same shape as Like Count
+      name: Comment Count
+      type: number
+      computed: true
+      formula: "count(social_comment where post = this)"
+
+  constraints:
+    - id: cst_post_caption_required             # [SUPPORTED]
+      rule: Caption is required.
+      expression: { field: fld_post_caption, operator: required }
+
+    - id: cst_post_image_required               # [SUPPORTED]
+      rule: Image is required.
+      expression: { field: fld_post_image, operator: required }
+
+  permissions:
+    - role: Member                              # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_post_form                          # [SUPPORTED]
+      name: Post Form
+      type: form
+      fields:
+        - fld_post_caption
+        - fld_post_image
+
+    - id: vw_post_feed                          # [NOT YET] — CAP-V05, but a new sub-pattern:
+      name: Feed                                #   filtered not by a direct field match ("my
+      type: list                                #   records") but by membership in a related
+      relationship_filter:                      #   join Machine ("posts by anyone I follow via
+        via: mch_follow                          #   social_follow"). CAP-V05's current framing
+        join_field: fld_follow_followee           #   ("pending my approval") is a direct-field
+        match: current_user                       #   shape; this is a two-hop relationship shape.
+      columns:
+        - fld_post_author
+        - fld_post_caption
+        - fld_post_posted_at
+        - fld_post_like_count
+
+    - id: vw_post_my_posts                       # [PARTIAL] — CAP-V05, "my" filter
+      name: My Posts
+      type: list
+      columns:
+        - fld_post_caption
+        - fld_post_posted_at
+        - fld_post_like_count
+        - fld_post_comment_count
+
+    - id: vw_post_detail                         # [SUPPORTED]
+      name: Post Detail
+      type: detail

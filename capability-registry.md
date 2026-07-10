@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.16 — + Cases 6/7/8 field-level design (CAP-X13, CAP-A12, CAP-A13 new; CAP-P04/CAP-E04 first case evidence; CAP-F08 first real case evidence) | Updated: 2026-07-10
+> Status: v0.17 — + Case 11 (CAP-F20 many-to-many, CAP-C12 uniqueness, both new) | Updated: 2026-07-10
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -45,6 +45,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-F17 | Multi-currency money (transaction currency + rate + base mirror) | ❌ | Study 6 accounting + Study 15 (independent derivation) | Odoo/ERPNext; spec 001-object.md names Currency as an Object example | 14 | Study 15 reclassified `money` from primitive to reference sugar — Currency fails identity/lifecycle/reuse/cardinality tests, is a CAP-O02 master-data candidate |
 | CAP-F18 | Auto-numbering / document sequences | ❌ | Study 6 accounting | ir.sequence, Naming Series — universal | 7 | Study 2 missed it |
 | CAP-F19 | Quantity / unit-of-measure conversion pattern — **not a new field type**; composed from `number` (CAP-F07) + `value_list` (CAP-F03) for the unit label, escalating only when cardinality demands it: Tier 1 flat factor pair · Tier 2 child table (CAP-F16) · Tier 3 history-tracked Machine (CAP-F13) | ❌ | Study 15 (prediction) + Case 5 (case evidence) | SAP/Odoo UoM categories; APICS UoM conversion | 14 | Study 15's Quantity prediction, now cleared to registered status by dual evidence. Unlike CAP-F17 (`money`, genuine reference sugar), Quantity resolves through composition, never a dedicated `type: quantity` — Tier 1/2 both exercised by Case 5 (Rice, Cement), Tier 3 deliberately not exercised — no case has evidenced factor history yet |
+| CAP-F20 | Many-to-many relationship (join/junction Machine — both sides independently queryable, neither side "owns" the row) | ❌ | Case 11 [UNTARGETED FINDING] — `Follow`, `Like` | RDBMS junction table; Django/Rails `ManyToManyField` | 5 | Distinct from both CAP-F13 (one-directional reference: a record points to exactly one other) and CAP-F16 (parent-owned child table: a row belongs to exactly one parent, no independent identity). No case before Case 11 needed a relationship with two independent reference sides and no ownership direction |
 
 ## Event Sources
 
@@ -92,6 +93,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-C09 | **Constraints evaluated on event trigger** (today: Create only) | ❌ | **Study 1 mapping** | WDP-38 | **2** | — |
 | CAP-C10 | Aggregate constraint over line items (sum(debit) = sum(credit)) | ❌ | Study 6 accounting | double-entry invariant | 7 | depends on CAP-F16. Study 15 (third-pass): must operate on already-normalized values (post-conversion via CAP-F14) — the constraint itself never performs currency/unit conversion |
 | CAP-C11 | Temporal period constraint (no posting into closed period) | ❌ | Study 6 accounting | lock dates, Period Closing Voucher | 10 | — |
+| CAP-C12 | Uniqueness constraint (single-field or composite/multi-field) | ❌ | Case 11 [UNTARGETED FINDING] — `Follow`/`Like`'s "only once" rule | SQL `UNIQUE` constraint, Django `unique_together` | 6 | No uniqueness mechanism exists today at all, single-field or composite. CAP-F20 (many-to-many) is its first forcing case — a join Machine without this can record the same relationship twice — but single-field uniqueness (e.g. Account Code, Entry Number) has been silently assumed correct in every case since Case 1 |
 
 ## Permissions
 

@@ -1,0 +1,38 @@
+# Social Comment
+# Example Business Knowledge expressed in Menata Language
+# Domain: Social — an ordinary one-to-many: each Comment belongs to exactly one Post
+# and one Author, but (unlike a pure child-table row) has its own identity and can be
+# queried independently — "all comments by this user across every post"
+# Case 11 of the Case Portfolio (runtime/case-portfolio.md)
+# References: social-post.menata
+
+Comment
+
+Fields
+
+- Post : Post
+- Author : User
+- Body : Rich Text
+- Commented At : Date Time
+
+Events
+
+When Comment
+
+    Post Comment Count plus 1
+
+Constraints
+
+- Post is required.
+- Body is required.
+
+Permissions
+
+Member
+
+- Comment
+
+Views
+
+- Post Comments : List
+- My Comments : List

@@ -1,0 +1,42 @@
+# Social Like
+# Example Business Knowledge expressed in Menata Language
+# Domain: Social — a many-to-many relationship: any user may like any post, at most once
+# Case 11 of the Case Portfolio (runtime/case-portfolio.md)
+# References: social-post.menata
+# Second instance of the same join/junction shape as social-follow.menata.
+
+Like
+
+Fields
+
+- User : User
+- Post : Post
+- Liked At : Date
+
+Events
+
+When Like
+
+    Post Like Count plus 1
+
+When Unlike
+
+    Post Like Count minus 1
+
+Constraints
+
+- User is required.
+- Post is required.
+
+    A User may like a given Post only once.
+
+Permissions
+
+Member
+
+- Like
+- Unlike
+
+Views
+
+- Post Likers : List

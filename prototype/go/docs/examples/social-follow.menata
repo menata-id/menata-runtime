@@ -1,0 +1,37 @@
+# Social Follow
+# Example Business Knowledge expressed in Menata Language
+# Domain: Social — a many-to-many relationship: any user may follow any user
+# Case 11 of the Case Portfolio (runtime/case-portfolio.md)
+#
+# Note: this Machine has no natural single "owner" the way Item Unit Conversion
+# belonged to Item, or Journal Entry Line belonged to Journal Entry. A Follow
+# row belongs equally to a Follower and a Followee — the many-to-many shape
+# CAP-F13 (one-directional reference) and CAP-F16 (parent-owned child table)
+# don't name. This is the finding this case exists to surface.
+
+Follow
+
+Fields
+
+- Follower : User
+- Followee : User
+- Followed At : Date
+
+Constraints
+
+- Follower is required.
+- Followee is required.
+
+    A Follower may follow a given Followee only once.
+
+Permissions
+
+Member
+
+- Follow
+- Unfollow
+
+Views
+
+- My Following : List
+- My Followers : List

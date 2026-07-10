@@ -226,6 +226,47 @@ Files: `prototype/go/docs/examples/accounting-chart-of-account.{menata,yaml}`,
 
 ---
 
+# Extended Portfolio (Cases 11–21)
+
+The original 10-case portfolio (Study 3) targeted untested *pattern clusters*. This extension
+targets untested *business verticals*, screened first against the registry to avoid writing a case
+that only re-proves what an earlier case already proved (Rule 3: business realism, not synthetic
+coverage). Each row states its novelty honestly — several are deliberately light-touch because
+their capability cluster already has case evidence.
+
+| # | Case | Novelty vs. Cases 1–10 | Primary targets (CAP) | Status |
+|---|------|------------------------|----------------------|--------|
+| 11 | Social App (Instagram-like) | **High** — many-to-many relationships, feed | F20(new), C12(new), F14, V05 | ⚠️ documented |
+| 12 | Community Site | Medium — builds on 11 + gamification | F20, O05, new (gamification) | planned |
+| 13 | Blog / One-Page Site | **High** — public/unauthenticated access | new (public read), Page, Theme | planned |
+| 14 | Lending Services | **High** — schedule generation | new (schedule gen), F13, A07/A08, C08 | planned |
+| 15 | E-commerce | Medium — cart as mutable pre-commit doc | new (draft doc), composes Case 5/8/9 | planned |
+| 16 | Point of Sale | Low — composition of Case 5+8+15 | composes only | planned |
+| 17 | Helpdesk | Low — re-proves Case 7 | composes Case 7 | planned |
+| 18 | HR Operations | Low — re-proves Cases 1/2/9 | composes 1/2/9; payroll flagged domain-engine | planned |
+| 19 | Project Management (Trello-like) | Medium — manual ordering | new (manual order), F16 | planned |
+| 20 | Hospital System | Medium — scheduling + compliance weight | V07 (calendar, not yet studied), R04, R07 | planned |
+| 21 | E-learning | Medium — sequential unlock + certificates | E06 (reused), new (doc generation) | planned |
+
+## Case 11 — Social App / Instagram-like (target declaration)
+
+**Business reality:** Members post photos with captions; other members like and comment; members
+follow each other and see a feed of posts from people they follow.
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| `Follow` / `Like` join Machines | **CAP-F20 (new)** | Many-to-many relationship — neither CAP-F13 (one-directional) nor CAP-F16 (parent-owned) names this |
+| `(Follower, Followee)` / `(User, Post)` must be unique | **CAP-C12 (new)** | Composite uniqueness constraint — also retroactively explains an assumption every prior case made silently for single-field uniqueness (Account Code, Entry Number, ...) |
+| `Post.Like Count` / `Comment Count` | CAP-F14 | A maintained-counter sub-pattern, distinct from Case 5/9's read-time aggregate rollup — this case surfaces the open design question rather than resolving it |
+| Feed = posts by anyone I follow | CAP-V05 (extended) | A two-hop relationship-filtered list, not a direct-field "my records" match |
+
+Files: `prototype/go/docs/examples/social-post.{menata,yaml}`, `social-follow.{menata,yaml}`,
+`social-like.{menata,yaml}`, `social-comment.{menata,yaml}` (four Machines, one file pair each)
+
+---
+
 # Process per case
 
 ```text

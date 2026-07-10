@@ -1,0 +1,34 @@
+# Social Post
+# Example Business Knowledge expressed in Menata Language
+# Domain: Social — a post, liked and commented on by many users
+# Case 11 of the Case Portfolio (runtime/case-portfolio.md)
+# References: social-follow.menata, social-like.menata, social-comment.menata
+
+Post
+
+Fields
+
+- Author : User
+- Caption : Rich Text
+- Image : File
+- Posted At : Date Time
+- Like Count : Number
+- Comment Count : Number
+
+Constraints
+
+- Caption is required.
+- Image is required.
+
+Permissions
+
+Member
+
+- Post
+
+Views
+
+- Post Form : Form
+- Feed : List
+- My Posts : List
+- Post Detail : Detail

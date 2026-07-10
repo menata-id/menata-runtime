@@ -1,0 +1,81 @@
+# Social Like — Runtime Metadata
+# Realization of social-like.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# References: social-post.yaml. Second instance of Follow's join/junction shape (CAP-F20).
+
+version: "0.1"
+
+machine:
+  id: mch_like                                  # [NOT YET] — CAP-F20, second instance
+  name: Like
+  application: app_social
+
+  fields:
+    - id: fld_like_user                          # [NOT YET] — CAP-F13, built-in identity target
+      name: User
+      type: reference
+      target_machine: "$identity"
+      required: true
+
+    - id: fld_like_post                           # [NOT YET] — CAP-F13
+      name: Post
+      type: reference
+      target_machine: mch_post
+      required: true
+
+    - id: fld_like_liked_at                        # [SUPPORTED] — as a field; stamping not
+      name: Liked At
+      type: date
+      required: false
+
+  events:
+    - id: evt_like_like                            # [NOT YET] — CAP-A13 (cross-record field
+      name: Like                                   #   write, Case 8's finding, reused here for
+      actions:                                     #   Post.Like Count) composed with a plain
+        - set_field:                                #   +1 rather than Case 7's arbitrary numeric
+            machine: mch_post                        #   increment sibling of CAP-A11
+            record: "{{ this.post }}"
+            field: fld_post_like_count
+            value: "post.like_count + 1"
+
+    - id: evt_like_unlike                          # [NOT YET] — same, -1
+      name: Unlike
+      actions:
+        - set_field:
+            machine: mch_post
+            record: "{{ this.post }}"
+            field: fld_post_like_count
+            value: "post.like_count - 1"
+
+  constraints:
+    - id: cst_like_user_required                    # [SUPPORTED]
+      rule: User is required.
+      expression: { field: fld_like_user, operator: required }
+
+    - id: cst_like_post_required                     # [SUPPORTED]
+      rule: Post is required.
+      expression: { field: fld_like_post, operator: required }
+
+    - id: cst_like_unique_pair                       # [NOT YET] — CAP-F20 composite uniqueness,
+      rule: A User may like a given Post only once.    #   second instance
+      expression:
+        operator: unique
+        fields: [ fld_like_user, fld_like_post ]
+
+  permissions:
+    - role: Member                                    # [SUPPORTED]
+      events: [ evt_like_like, evt_like_unlike ]
+
+  views:
+    - id: vw_like_post_likers                          # [NOT YET] — CAP-V05, filter Post = this
+      name: Post Likers
+      type: list
+      columns:
+        - fld_like_user
+        - fld_like_liked_at

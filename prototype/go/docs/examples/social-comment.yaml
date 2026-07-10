@@ -1,0 +1,80 @@
+# Social Comment — Runtime Metadata
+# Realization of social-comment.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# References: social-post.yaml. An ordinary one-to-many (CAP-F13), not a CAP-F20
+# many-to-many — included for contrast with social-follow.yaml/social-like.yaml.
+
+version: "0.1"
+
+machine:
+  id: mch_comment                                # [SUPPORTED] — as a plain Machine
+  name: Comment
+  application: app_social
+
+  fields:
+    - id: fld_comment_post                        # [NOT YET] — CAP-F13
+      name: Post
+      type: reference
+      target_machine: mch_post
+      required: true
+
+    - id: fld_comment_author                       # [PARTIAL] — CAP-F05
+      name: Author
+      type: user
+      required: true
+
+    - id: fld_comment_body                          # [SUPPORTED]
+      name: Body
+      type: rich_text
+      required: true
+
+    - id: fld_comment_commented_at                   # [SUPPORTED] — as a field; stamping not
+      name: Commented At
+      type: date_time
+      required: false
+
+  events:
+    - id: evt_comment_comment                        # [NOT YET] — CAP-A13, same shape as
+      name: Comment                                   #   social-like.yaml's counter update
+      actions:
+        - set_field:
+            machine: mch_post
+            record: "{{ this.post }}"
+            field: fld_post_comment_count
+            value: "post.comment_count + 1"
+
+  constraints:
+    - id: cst_comment_post_required                   # [SUPPORTED]
+      rule: Post is required.
+      expression: { field: fld_comment_post, operator: required }
+
+    - id: cst_comment_body_required                    # [SUPPORTED]
+      rule: Body is required.
+      expression: { field: fld_comment_body, operator: required }
+
+  permissions:
+    - role: Member                                      # [SUPPORTED]
+      events: [ evt_comment_comment ]
+
+  views:
+    - id: vw_comment_post_comments                       # [NOT YET] — CAP-V05, filter Post = this
+      name: Post Comments
+      type: list
+      columns:
+        - fld_comment_author
+        - fld_comment_body
+        - fld_comment_commented_at
+
+    - id: vw_comment_my_comments                          # [PARTIAL] — CAP-V05, "my" filter
+      name: My Comments
+      type: list
+      columns:
+        - fld_comment_post
+        - fld_comment_body
+        - fld_comment_commented_at
