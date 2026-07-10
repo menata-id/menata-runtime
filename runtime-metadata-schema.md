@@ -156,6 +156,14 @@ machine:
 | `file` | File attachment | Document, Photo | — (see note below) |
 | `value_list` | Predefined values | Status, Priority, Type | `values` — mandatory array |
 | `reference` | Reference to another Machine | Department, Project | `target_machine` — mandatory |
+| `child_table` | Line items owned by a parent record (header-detail document) | Journal Entry Lines, Unit Conversions | `target_machine` — mandatory (points at the child Machine's schema) |
+
+**`child_table` (CAP-F16, ❌ not yet implemented)** is not a primitive either — its rows are ordinary
+records of a target Machine, scoped to one parent. See `capability-registry.md` (CAP-F16) for the
+reporting-independence distinction (some child Machines, e.g. Journal Entry Line, must stay
+independently queryable across parents for aggregate reports; others, e.g. Item Unit Conversion,
+never are) and `prototype/go/docs/examples/inventory-item.menata` for the current Language-layer
+notation (`Table of (...)`, itself provisional — no formal grammar exists for this yet).
 
 ### `money`, `user`, `file` are "reference sugar"
 
@@ -302,6 +310,7 @@ views:
 | `dashboard` | Summary and metrics presentation |
 | `calendar` | Date-based presentation |
 | `timeline` | Chronological presentation |
+| `aggregate_report` | Group-by / rollup presentation over many records (Trial Balance, Leaderboard) — requires `group_by` + `aggregates`; CAP-V13, ❌ not yet implemented |
 
 ---
 

@@ -169,9 +169,19 @@ INSERT INTO fields (id, machine_id, name, type, position, required, options) VAL
 | `File` | `file` | `{}` |
 | `A \| B \| C` | `value_list` | `{"values":["A","B","C"]}` |
 | `Reference: X` | `reference` | `{"target_machine":"mch_x"}` |
+| `Table of (...)` | `child_table` | `{"target_machine":"mch_x"}` — target-nya machine anak (line items), lihat catatan di bawah |
 
 > ⚠️ **Key yang benar untuk `reference` adalah `target_machine`, bukan `machine`.** Konsisten dengan
 > contoh nyata di `prototype/go/docs/examples/approval-step.yaml` (`Document` field, `mch_approval_document`).
+
+#### `child_table` (CAP-F16, ❌ belum diimplementasikan)
+
+Baris-baris `child_table` sebenarnya record biasa dari sebuah machine anak, di-scope ke satu induk —
+bukan tipe primitif baru. Contoh: `Journal Entry Line` (harus tetap bisa di-query lintas induk untuk
+laporan agregat — lihat catatan "reporting-independence" di `capability-registry.md` CAP-F16) vs.
+`Item Unit Conversion` (murni lookup per-induk, tidak pernah di-query lintas record). Notasi `Table
+of (...)` di `.menata` juga masih provisional — belum ada grammar formal untuk ini, lihat
+`prototype/go/docs/examples/inventory-item.menata`.
 
 #### Money, User, File — "reference sugar" (Study 15)
 
