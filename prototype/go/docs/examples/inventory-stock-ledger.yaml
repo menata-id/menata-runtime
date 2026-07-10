@@ -1,0 +1,63 @@
+# Inventory Stock Ledger Entry — Runtime Metadata
+# Realization of inventory-stock-ledger.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# References: inventory-item.yaml, inventory-stock-movement.yaml
+# Append-only by construction: no events beyond creation via
+# inventory-stock-movement.yaml's evt_sm_confirm create_record (CAP-A06). Forward
+# reference to Case 6's immutability pattern (CAP-R07) — not enforced here yet.
+
+version: "0.1"
+
+machine:
+  id: mch_stock_ledger_entry                     # [SUPPORTED] — as a plain Machine
+  name: Stock Ledger Entry
+  application: app_warehouse
+
+  fields:
+    - id: fld_sle_item                           # [NOT YET] — CAP-F13
+      name: Item
+      type: reference
+      target_machine: mch_item
+      required: true
+
+    - id: fld_sle_source_movement                 # [NOT YET] — CAP-F13
+      name: Source Movement
+      type: reference
+      target_machine: mch_stock_movement
+      required: true
+
+    - id: fld_sle_signed_quantity                  # [PARTIAL] — CAP-F07; value itself is only
+      name: Signed Quantity                        #   ever populated via evt_sm_confirm's
+      type: number                                 #   create_record (CAP-A06 + CAP-F14), never
+      required: true                               #   entered directly.
+
+    - id: fld_sle_recorded_at                       # [SUPPORTED] — as a field; stamping it is not
+      name: Recorded At
+      type: date
+      required: false
+
+  permissions:
+    - role: Warehouse Staff                        # [SUPPORTED]
+      events: []
+      # No events beyond record creation — append-only by construction, not by an
+      # enforced immutability rule (CAP-R07 would make this a guarantee, not a convention).
+
+  views:
+    - id: vw_sle_list                              # [SUPPORTED]
+      name: Ledger List
+      type: list
+      columns:
+        - fld_sle_item
+        - fld_sle_source_movement
+        - fld_sle_signed_quantity
+        - fld_sle_recorded_at
+
+    - id: vw_sle_detail                             # [SUPPORTED]
+      name: Ledger Detail
+      type: detail

@@ -6,7 +6,7 @@
 > (van der Aalst & ter Hofstede, workflowpatterns.com) —
 > the canonical benchmark used to evaluate BPEL, BPMN, YAWL, jBPM, and others.
 >
-> Status: v0.1 — Study 1 deliverable | Created: 2026-07-04
+> Status: v0.2 — + Case 5 case-evidence notes (CAP-A02, CAP-C07, CAP-C08, CAP-C09, WDP-9/10); retroactively credited Case 4 where it was missed | Created: 2026-07-04 | Updated: 2026-07-10
 
 ---
 
@@ -60,12 +60,12 @@ Capability IDs (`CAP-…`) reference `../capability-registry.md`.
 | # | Pattern | L | M | R | Notes | CAP |
 |---|---------|---|---|---|-------|-----|
 | WDP-4 | Case Data | ✅ | ✅ | ✅ | `records.data` JSONB — all fields visible across the record lifecycle. | — |
-| WDP-7 | Environment Data | ✅ | ❌ | ❌ | `now`, `today`, `current_user` in set_field values. | CAP-A02 |
-| WDP-9/10 | Data Interaction between cases | ✅ | ❌ | ❌ | Step updates Document — cross-record data flow. | CAP-F13, CAP-A08 |
-| WDP-38 | Data-based Routing (pre) | ✅ | ⚠️ | ⚠️ | Constraint `condition` works — but constraints run only on Create, never on event trigger. | CAP-C09 |
+| WDP-7 | Environment Data | ✅ | ❌ | ❌ | `now`, `today`, `current_user` in set_field values. Exercised by Case 4 (`Last Completed`) and Case 5 (`Movement Date` stamped at Confirm) — neither was recorded here at the time; caught retroactively. | CAP-A02 |
+| WDP-9/10 | Data Interaction between cases | ✅ | ❌ | ❌ | Step updates Document — cross-record data flow. Also the shape of Case 5's `Confirm` → Stock Ledger Entry append + Item balance read. | CAP-F13, CAP-A08 |
+| WDP-38 | Data-based Routing (pre) | ✅ | ⚠️ | ⚠️ | Constraint `condition` works — but constraints run only on Create, never on event trigger. Case 4 and Case 5 both need their conditional constraints evaluated at event time (Complete / Confirm), not Create. | CAP-C09 |
 | WDP-39 | Event conditions (post) | ✅ | ❌ | ❌ | `if` inside events (spec 003) has no metadata representation. | CAP-A09 |
-| — | Cross-field comparison | ✅ | ❌ | ❌ | "End Date must be after Start Date" — operators compare field↔literal only. | CAP-C07 |
-| — | Cross-record constraint | ✅ | ❌ | ❌ | "One leave request per employee per day" (spec 004 example). | CAP-C08 |
+| — | Cross-field comparison | ✅ | ❌ | ❌ | "End Date must be after Start Date" — operators compare field↔literal only. Case 5: `Movement Date >= Requested Date`. | CAP-C07 |
+| — | Cross-record constraint | ✅ | ❌ | ❌ | "One leave request per employee per day" (spec 004 example) — no case had exercised this until Case 5's negative-stock guard (`Item.Stock On Hand >= Normalized Quantity`), its first real case evidence. | CAP-C08 |
 
 ---
 

@@ -28,7 +28,7 @@
 | 2 | Leave Request | Domain portability (same cluster, different domain) | same as Case 1 | ✅ done |
 | 3 | Document Approval | Multi-instance workflow: sequence, synchronization, resource allocation | F13, A07, A08, X03, P02, E05 | ⚠️ documented, gaps registered |
 | 4 | Maintenance Reminder | **Time-driven behavior**: schedules, escalation, environment data | E02, E03, A02, A09, A11 | ⚠️ documented (this study) |
-| 5 | Inventory / Stock Movement | Calculation & multi-record transaction: quantity math, balance updates | F07, F14, A06, C05, C07 | planned |
+| 5 | Inventory / Stock Movement | Calculation & multi-record transaction: quantity math, balance updates | F07, F13, F14, F16, F19, A02, A06, C05, C07, C08, X12 | ⚠️ documented, gaps registered |
 | 6 | Petty Cash Ledger | Numeric aggregation & immutability: running balance, append-only, period close | F08, F14, C05, C08, R04 | planned |
 | 7 | Customer Complaint | Unstructured case management (CMMN-style): ad-hoc steps, SLA, escalation, reopen | E02, E05, A09, P04, WCP-10 cycles | planned |
 | 8 | Payment Confirmation | External events: webhook ingestion, idempotency, reconciliation | E04, X07, C08 | planned |
@@ -61,9 +61,40 @@ Files: `prototype/go/docs/examples/maintenance-reminder.menata` / `.yaml`
 
 # Case 5 — Inventory / Stock Movement (target declaration)
 
-**Business reality:** Goods in/out of a warehouse. Each movement changes stock on hand. Stock cannot go negative.
+**Business reality:** A distributor stocks items in more than one unit of measure (e.g. cement moves
+in box/dozen/piece; rice moves in kilogram/sack). Goods move in and out of a warehouse. Each
+confirmed movement appends an immutable ledger entry and the item's stock-on-hand recomputes from
+it. Stock can never go negative — an outgoing movement larger than what is on hand must be rejected.
 
-**Declared targets:** number fields with real numeric handling (F07), computed field for stock-on-hand (F14), `create_record` for movement log (A06), `greater_than` operators (C05), cross-field comparison (C07), and a new cluster: **multi-record atomicity** (movement + balance must update together).
+**External benchmark:** `benchmarks/006-inventory-warehouse-benchmark.md` — the six-stage WMS flow
+(receiving → putaway → storage → picking → packing → shipping) and APICS/ASCM inventory-control
+concepts (FIFO/FEFO, lot/serial tracking, reservation/allocation, multi-location balance, costed
+valuation) benchmarked first, so this case's scope is a deliberate subset — four follow-on case
+candidates are queued, not silently dropped.
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| `Item` → `Stock Movement` / `Stock Ledger` links | CAP-F13 | `reference` field |
+| `Stock On Hand` = rollup of Stock Ledger entries | CAP-F14 | Computed / aggregate field |
+| `Unit Conversions` child table on Item (Tier 2: Cement — BOX/DOZEN/PCS) | CAP-F16 | Line items — proves Study 15's Quantity Tier 2 |
+| `Quantity` + `Unit` with a fixed conversion pair (Tier 1: Rice — KG/SAK) | **CAP-F19 (new)** | Tiered UoM conversion — proves Study 15's Quantity Tier 1 |
+| `Movement Date` stamped `Today` at Confirm | CAP-A02 | WDP-7 Environment Data |
+| Confirm → `create_record` into Stock Ledger | CAP-A06 | WCP-13/14 Multiple Instance |
+| `Quantity greater_than 0` | CAP-C05 | Comparison operator |
+| `Movement Date >= Requested Date` (same record) | CAP-C07 | Cross-field comparison |
+| `Item.Stock On Hand >= Normalized Quantity` before an Out movement | CAP-C08 | Cross-record constraint |
+| Ledger append + balance recompute as one unit | **CAP-X12 (new)** | Cross-record write atomicity — the cluster the original declaration flagged as untargeted |
+
+**Predicted new findings:** CAP-F19 (Quantity's tiered UoM conversion) and CAP-X12 (multi-record
+write atomicity) have no registry entry before this case — both should be registered on write-up,
+each already carrying dual evidence (benchmark + case) per `capability-lifecycle.md`'s admission test.
+
+Files: `prototype/go/docs/examples/inventory-item.{menata,yaml}`,
+`inventory-stock-movement.{menata,yaml}`, `inventory-stock-ledger.{menata,yaml}`
+(three Machines, one file pair each — same convention as Case 3's
+`approval-document` / `approval-step`)
 
 ---
 

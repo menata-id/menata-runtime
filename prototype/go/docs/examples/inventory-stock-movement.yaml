@@ -1,0 +1,160 @@
+# Inventory Stock Movement — Runtime Metadata
+# Realization of inventory-stock-movement.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# References: inventory-item.yaml, inventory-stock-ledger.yaml
+
+version: "0.1"
+
+machine:
+  id: mch_stock_movement                    # [SUPPORTED] — as a plain Machine
+  name: Stock Movement
+  application: app_warehouse
+
+  fields:
+    - id: fld_sm_item                       # [NOT YET] — reference field (CAP-F13, Prio 1)
+      name: Item
+      type: reference
+      target_machine: mch_item
+      required: true
+
+    - id: fld_sm_movement_type              # [SUPPORTED]
+      name: Movement Type
+      type: value_list
+      required: true
+      values: [In, Out, Adjustment]
+
+    - id: fld_sm_quantity                   # [PARTIAL] — CAP-F07, same numeric-validation gap
+      name: Quantity
+      type: number
+      required: true
+
+    - id: fld_sm_unit                       # [SUPPORTED] — Tier 1 of CAP-F19 lives here inline:
+      name: Unit                            #   a plain value_list field, no child table needed.
+      type: value_list
+      required: true
+      values: [PCS, KG, BOX, SAK, DOZEN]
+
+    - id: fld_sm_normalized_quantity        # [NOT YET] — computed field (CAP-F14)
+      name: Normalized Quantity
+      type: number
+      computed: true
+      formula: "quantity * conversion_factor(item, unit)"
+      # [NOT YET] conversion_factor() must resolve to 1 when unit = item.base_unit,
+      # to item's flat Tier 1 factor pair when the item has one, or to the matching
+      # row in Item Unit Conversions (Tier 2) otherwise. This lookup — not the
+      # Constraint grammar — is where unit conversion belongs (Study 15, third-pass).
+
+    - id: fld_sm_requested_date             # [SUPPORTED]
+      name: Requested Date
+      type: date
+      required: true
+
+    - id: fld_sm_movement_date              # [SUPPORTED] — as a field; stamping it is not
+      name: Movement Date
+      type: date
+      required: false
+
+    - id: fld_sm_notes                      # [SUPPORTED]
+      name: Notes
+      type: rich_text
+      required: false
+
+    - id: fld_sm_status                     # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Requested, Confirmed]
+
+  events:
+    - id: evt_sm_confirm                     # [NOT YET] — every action below is gated on
+      name: Confirm                          #   the whole chain committing atomically (CAP-X12)
+      actions:
+        - set_field: { field: fld_sm_movement_date, value: today }
+          # [NOT YET] value: "today" — environment data (CAP-A02), same gap as Case 4.
+        - create_record:                      # [NOT YET] CAP-A06
+            machine: mch_stock_ledger_entry
+            fields:
+              item: "{{ this.item }}"
+              source_movement: "{{ this.id }}"
+              signed_quantity: "{{ movement_type == 'Out' ? -normalized_quantity : normalized_quantity }}"
+              recorded_at: today
+            # [NOT YET] this create_record must NOT commit if the balance check in
+            # constraints (cst_sm_no_negative_stock) failed, and Item.Stock On Hand
+            # must reflect the new ledger row before any concurrent Confirm reads it —
+            # the atomicity gap this case exists to surface. No CAP covered this
+            # before Case 5's original declaration; registered as CAP-X12.
+        - set_field: { field: fld_sm_status, value: Confirmed }
+          # [SUPPORTED] — static value works today.
+
+  constraints:
+    - id: cst_sm_item_required               # [SUPPORTED]
+      rule: Item is required.
+      expression: { field: fld_sm_item, operator: required }
+
+    - id: cst_sm_quantity_required            # [SUPPORTED]
+      rule: Quantity is required.
+      expression: { field: fld_sm_quantity, operator: required }
+
+    - id: cst_sm_quantity_positive             # [NOT YET] — CAP-C05, only "after: today" exists
+      rule: Quantity must be greater than 0.
+      expression: { field: fld_sm_quantity, operator: greater_than, value: 0 }
+
+    - id: cst_sm_movement_after_requested        # [NOT YET] — CAP-C07, cross-field, same record
+      rule: Movement Date must be on or after Requested Date.
+      expression:
+        field: fld_sm_movement_date
+        operator: greater_than_or_equal
+        compare_field: fld_sm_requested_date
+      # [NOT YET] Evaluated at Confirm time (when Movement Date is actually stamped),
+      # not at Create — also depends on CAP-C09 (constraints on event trigger).
+
+    - id: cst_sm_no_negative_stock                # [NOT YET] — CAP-C08, cross-record
+      rule: Item Stock On Hand must be greater than or equal to Normalized Quantity.
+      expression:
+        field: fld_item_stock_on_hand         # on the referenced Item record
+        operator: greater_than_or_equal
+        compare_field: fld_sm_normalized_quantity
+      condition:
+        field: fld_sm_movement_type
+        operator: equals
+        value: Out
+      # [NOT YET] The business rule "stock cannot go negative" (Case 5's headline
+      # invariant). Requires reading another Machine's record (Item) during this
+      # Machine's (Stock Movement) constraint evaluation — no cross-record
+      # constraint mechanism exists yet.
+
+  permissions:
+    - role: Warehouse Staff                      # [SUPPORTED]
+      events: [ evt_sm_confirm ]
+
+  views:
+    - id: vw_sm_form                             # [SUPPORTED]
+      name: Movement Form
+      type: form
+      fields:
+        - fld_sm_item
+        - fld_sm_movement_type
+        - fld_sm_quantity
+        - fld_sm_unit
+        - fld_sm_requested_date
+        - fld_sm_notes
+
+    - id: vw_sm_pending                          # [SUPPORTED] — as a plain list; filtering by
+      name: Pending Movements                    #   Status = Requested needs CAP-V09 (view filter,
+      type: list                                 #   already an [UNTARGETED FINDING] from Case 4).
+      columns:
+        - fld_sm_item
+        - fld_sm_movement_type
+        - fld_sm_quantity
+        - fld_sm_unit
+        - fld_sm_status
+
+    - id: vw_sm_detail                           # [SUPPORTED]
+      name: Movement Detail
+      type: detail

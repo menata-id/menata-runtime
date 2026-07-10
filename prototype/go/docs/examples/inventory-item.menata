@@ -1,0 +1,43 @@
+# Inventory Item
+# Example Business Knowledge expressed in Menata Language
+# Domain: Warehouse — items stocked in multiple units of measure
+# Case 5 of the Case Portfolio (runtime/case-portfolio.md)
+# External benchmark: runtime/benchmarks/006-inventory-warehouse-benchmark.md
+#
+# Note: "Unit Conversions" below is a table-of-rows field. No Menata Language grammar
+# for a child table/line-item field exists yet (CAP-F16 is a Runtime/Metadata gap
+# today; this case surfaces it is a Language-layer gap too) — written provisionally
+# as one Fields line, pending a formal grammar addition.
+#
+# Tier 1 of the Quantity/UoM framework (Study 15): Rice — Base Unit KG, one fixed
+# alternate unit (SAK) — needs no row in Unit Conversions at all, see Stock Movement.
+# Tier 2: Cement — Base Unit PCS, multiple alternate units (BOX, DOZEN) — needs the
+# Unit Conversions table below.
+
+Item
+
+Fields
+
+- Name : Text
+- Base Unit : PCS | KG | BOX | SAK
+- Minimum Stock Level : Number
+- Stock On Hand : Number
+- Unit Conversions : Table of (Unit, Factor)
+
+Constraints
+
+- Name is required.
+- Base Unit is required.
+
+Permissions
+
+Warehouse Staff
+
+- View
+
+Views
+
+- Item Form : Form
+- Item List : List
+- Low Stock Items : List
+- Item Detail : Detail

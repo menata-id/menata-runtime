@@ -1,0 +1,132 @@
+# Inventory Item — Runtime Metadata
+# Realization of inventory-item.menata (Case 5 — calculation & multi-record transaction)
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# Case 5 declared targets: CAP-F13, CAP-F14, CAP-F16, CAP-F19 (new), CAP-A02, CAP-A06,
+# CAP-C05, CAP-C07, CAP-C08, CAP-X12 (new). See runtime/case-portfolio.md.
+# External benchmark: runtime/benchmarks/006-inventory-warehouse-benchmark.md
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_warehouse                        # [SUPPORTED]
+  name: Warehouse
+  workspace: ws_default
+
+machine:
+  id: mch_item                             # [SUPPORTED]
+  name: Item
+  application: app_warehouse
+
+  fields:
+    - id: fld_item_name                    # [SUPPORTED]
+      name: Name
+      type: text
+      required: true
+
+    - id: fld_item_base_unit               # [SUPPORTED]
+      name: Base Unit
+      type: value_list
+      required: true
+      values: [PCS, KG, BOX, SAK]
+      # Tier 1 worked example: Rice — Base Unit = KG.
+      # Tier 2 worked example: Cement — Base Unit = PCS (see Unit Conversions below).
+
+    - id: fld_item_min_stock                # [PARTIAL] — CAP-F07, falls back to text input,
+      name: Minimum Stock Level             #   no numeric validation yet.
+      type: number
+      required: false
+
+    - id: fld_item_stock_on_hand            # [NOT YET] — computed field (CAP-F14)
+      name: Stock On Hand
+      type: number
+      computed: true
+      formula: "sum(stock_ledger_entry.signed_quantity where item = this)"
+      # [NOT YET] Cross-record aggregate rollup. No computed-field mechanism exists
+      # today (CAP-F14) — this is the "balance" half of the case's dominant cluster.
+
+    - id: fld_item_unit_conversions          # [NOT YET] — child table (CAP-F16)
+      name: Unit Conversions
+      type: child_table
+      target_machine: mch_item_unit_conversion
+      required: false
+      # [NOT YET] Tier 2 of CAP-F19: only needed when an Item converts to MORE THAN
+      # ONE alternate unit (Cement: BOX/DOZEN/PCS). Tier 1 (Rice: one fixed KG<->SAK
+      # pair) does NOT need this child table at all — see Stock Movement's own
+      # Quantity/Unit fields, which cover Tier 1 inline without a child table.
+
+  constraints:
+    - id: cst_item_name_required             # [SUPPORTED]
+      rule: Name is required.
+      expression: { field: fld_item_name, operator: required }
+
+    - id: cst_item_base_unit_required         # [SUPPORTED]
+      rule: Base Unit is required.
+      expression: { field: fld_item_base_unit, operator: required }
+
+  permissions:
+    - role: Warehouse Staff                   # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_item_form                        # [SUPPORTED]
+      name: Item Form
+      type: form
+      fields:
+        - fld_item_name
+        - fld_item_base_unit
+        - fld_item_min_stock
+        - fld_item_unit_conversions
+
+    - id: vw_item_list                        # [SUPPORTED]
+      name: Item List
+      type: list
+      columns:
+        - fld_item_name
+        - fld_item_base_unit
+        - fld_item_stock_on_hand
+
+    - id: vw_item_low_stock                   # [NOT YET] — list filtered by data value
+      name: Low Stock Items                   #   (Stock On Hand < Minimum Stock Level) —
+      type: list                              #   view-level filter does not exist (CAP-V09,
+      columns:                                #   already an [UNTARGETED FINDING] from Case 4).
+        - fld_item_name
+        - fld_item_stock_on_hand
+        - fld_item_min_stock
+      filter:
+        field: fld_item_stock_on_hand
+        operator: less_than
+        compare_field: fld_item_min_stock
+
+    - id: vw_item_detail                      # [SUPPORTED]
+      name: Item Detail
+      type: detail
+
+# [NOT YET] fld_item_unit_conversions' target_machine (mch_item_unit_conversion) has
+# no file of its own — unlike Stock Movement / Stock Ledger Entry, it has no
+# independent Business Knowledge existence (no separate .menata makes sense for it;
+# it is a table nested inside Item, not a standalone concept a domain expert would
+# name on its own). Illustrative row shape only, not a formal Machine declaration:
+#
+#   Item Unit Conversion (target of fld_item_unit_conversions, Tier 2 only)
+#     - Unit   : value_list [PCS, KG, BOX, SAK, DOZEN]
+#     - Factor : number       # how many Base Unit per this Unit
+#
+#   Example — Cement (Base Unit: PCS):
+#     BOX,   Factor 1
+#     DOZEN, Factor 12
+#     PCS,   Factor 1
+#
+#   Rice (Base Unit: KG, Tier 1) has NO rows here at all — its one fixed
+# conversion pair (KG <-> SAK) is covered inline on Stock Movement's own
+# Quantity/Unit fields, per Study 15's tiering rule: escalate to a child table
+# only when an Item needs more than one alternate unit.
