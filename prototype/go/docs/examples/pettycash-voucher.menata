@@ -1,0 +1,48 @@
+# Petty Cash Voucher
+# Example Business Knowledge expressed in Menata Language
+# Domain: Petty Cash — every expense recorded against the fund's running balance
+# Case 6 of the Case Portfolio (runtime/case-portfolio.md)
+# References: pettycash-fund.menata
+
+Petty Cash Voucher
+
+Fields
+
+- Fund : Petty Cash Fund
+- Voucher Number : Text
+- Voucher Date : Date
+- Amount : Money
+- Expense Category : Supplies | Transport | Meals | Utilities | Miscellaneous
+- Description : Rich Text
+- Recorded By : User
+- Status : Draft | Reconciled
+
+Events
+
+When Record
+
+    Recorded By Current User
+
+    Fund Current Balance must be greater than or equal to Amount
+
+Constraints
+
+- Fund is required.
+- Voucher Number is required.
+- Voucher Date is required.
+- Amount is required.
+- Description is required.
+
+    Fund Current Balance must be greater than or equal to Amount.
+
+Permissions
+
+Custodian
+
+- Record
+
+Views
+
+- Voucher Form : Form
+- Voucher List : List
+- Voucher Detail : Detail

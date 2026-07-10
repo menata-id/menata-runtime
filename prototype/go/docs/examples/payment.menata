@@ -1,0 +1,47 @@
+# Payment
+# Example Business Knowledge expressed in Menata Language
+# Domain: Payments — a confirmed payment, matched to an Invoice automatically where
+# possible, queued for manual reconciliation where not
+# Case 8 of the Case Portfolio (runtime/case-portfolio.md)
+# References: payment-invoice.menata, payment-webhook-event.menata
+
+Payment
+
+Fields
+
+- Webhook Event : Payment Webhook Event
+- Invoice : Invoice
+- Amount : Money
+- Paid At : Date
+- Match Status : Matched | Unmatched
+
+Events
+
+When Reconcile
+
+    Invoice set
+
+    Invoice Amount Paid plus Amount
+
+    if Invoice Amount Paid is greater than or equal to Invoice Amount Due
+
+        Invoice Status Paid
+
+    Match Status Matched
+
+Constraints
+
+- Webhook Event is required.
+- Amount is required.
+
+Permissions
+
+Finance
+
+- Reconcile
+
+Views
+
+- Payment List : List
+- Unmatched Payments : List
+- Payment Detail : Detail

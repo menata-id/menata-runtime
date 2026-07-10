@@ -1,0 +1,120 @@
+# Payment — Runtime Metadata
+# Realization of payment.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# References: payment-invoice.yaml, payment-webhook-event.yaml
+
+version: "0.1"
+
+machine:
+  id: mch_payment                              # [SUPPORTED] — as a plain Machine
+  name: Payment
+  application: app_payments
+
+  fields:
+    - id: fld_pay_webhook_event                 # [NOT YET] — CAP-F13
+      name: Webhook Event
+      type: reference
+      target_machine: mch_payment_webhook_event
+      required: true
+
+    - id: fld_pay_invoice                        # [NOT YET] — CAP-F13; nullable — a Payment
+      name: Invoice                              #   may exist with no Invoice match at all
+      type: reference
+      target_machine: mch_invoice
+      required: false
+
+    - id: fld_pay_amount                         # [PARTIAL] — CAP-F08
+      name: Amount
+      type: money
+      required: true
+      options:
+        currency: "IDR"
+
+    - id: fld_pay_paid_at                        # [SUPPORTED]
+      name: Paid At
+      type: date
+      required: false
+
+    - id: fld_pay_match_status                    # [SUPPORTED]
+      name: Match Status
+      type: value_list
+      required: false
+      values: [Matched, Unmatched]
+      # [NOT YET] Auto-matching at creation time (correlating a webhook payload
+      # to an Invoice by number/amount/customer heuristics) does not exist —
+      # every Payment starts Unmatched today and needs manual Reconcile. Real
+      # auto-matching is a fourth CAP-C08 sub-pattern (correlation matching,
+      # not a fixed-shape comparison like Case 5/6/9's balance/aggregate
+      # guards) — worth a dedicated capability if a future case needs it;
+      # this case deliberately keeps matching manual, per its declared scope.
+
+  events:
+    - id: evt_pay_reconcile                       # [NOT YET] — every action below composes
+      name: Reconcile                              #   CAP-A06's downstream write (updating a
+      actions:                                     #   DIFFERENT record, Invoice, from this one)
+        - set_field: { field: fld_pay_invoice, value: "{{ input.invoice_id }}" }
+          # [SUPPORTED] — plain set_field on this record.
+        - set_field:
+            machine: mch_invoice
+            record: "{{ this.invoice }}"
+            field: fld_inv_amount_paid
+            value: "invoice.amount_paid + this.amount"
+          # [NOT YET] set_field on a DIFFERENT machine's record — no action
+          # today can write to a record other than the one whose event fired.
+          # This is the write-side of CAP-F13 cross-record navigation, distinct
+          # from CAP-A06 (create_record) and CAP-A08 (aggregate_status, which
+          # is specifically a status rollup, not an arbitrary field write).
+        - set_field:
+            machine: mch_invoice
+            record: "{{ this.invoice }}"
+            field: fld_inv_status
+            value: Paid
+          condition:
+            field: fld_inv_amount_paid
+            operator: greater_than_or_equal
+            compare_field: fld_inv_amount_due
+          # [NOT YET] Same cross-record write gap, plus a conditional action
+          # (CAP-A09) evaluated against the OTHER record's fields.
+        - set_field: { field: fld_pay_match_status, value: Matched }
+          # [SUPPORTED] — static value works today.
+
+  constraints:
+    - id: cst_pay_webhook_event_required           # [SUPPORTED]
+      rule: Webhook Event is required.
+      expression: { field: fld_pay_webhook_event, operator: required }
+
+    - id: cst_pay_amount_required                  # [SUPPORTED]
+      rule: Amount is required.
+      expression: { field: fld_pay_amount, operator: required }
+
+  permissions:
+    - role: Finance                                 # [SUPPORTED]
+      events: [ evt_pay_reconcile ]
+
+  views:
+    - id: vw_pay_list                               # [SUPPORTED]
+      name: Payment List
+      type: list
+      columns:
+        - fld_pay_webhook_event
+        - fld_pay_invoice
+        - fld_pay_amount
+        - fld_pay_match_status
+
+    - id: vw_pay_unmatched                          # [SUPPORTED] — as a plain list; filtering
+      name: Unmatched Payments                      #   by Match Status = Unmatched needs CAP-V09
+      type: list
+      columns:
+        - fld_pay_webhook_event
+        - fld_pay_amount
+        - fld_pay_paid_at
+
+    - id: vw_pay_detail                             # [SUPPORTED]
+      name: Payment Detail
+      type: detail

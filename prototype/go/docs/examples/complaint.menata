@@ -1,0 +1,120 @@
+# Customer Complaint
+# Example Business Knowledge expressed in Menata Language
+# Domain: Customer Service — ad-hoc investigation, SLA-timed, reopenable, escalated on breach
+# Case 7 of the Case Portfolio (runtime/case-portfolio.md)
+#
+# Grounded in CMMN (Case Management Model and Notation, OMG standard): a complaint is
+# one Case File Item; Triage/Add Investigation Note/Request More Info/Delegate/Resolve
+# are discretionary Tasks a case worker may fire in any order the case actually needs,
+# gated by Status (a Sentry), not by a fixed Sequence. There is deliberately no
+# "Next Step" action anywhere below — that absence is the point of this case.
+
+Complaint
+
+Fields
+
+- Complainant Name : Text
+- Contact Info : Text
+- Category : Product Quality | Service | Billing | Other
+- Description : Rich Text
+- Priority : Low | Medium | High
+- Status : New | Triaged | Investigating | Awaiting Customer | Resolved | Closed | Reopened
+- Assigned To : User
+- Delegated By : User
+- Received Date : Date
+- SLA Due Date : Date
+- Resolution Notes : Rich Text
+- Reopen Count : Number
+
+Events
+
+When Triage
+
+    SLA Due Date set by Priority
+
+    Status Triaged
+
+When Add Investigation Note
+
+    Status Investigating
+
+When Request More Info
+
+    Status Awaiting Customer
+
+When Customer Responds
+
+    Status Investigating
+
+When Delegate
+
+    Delegated By previous Assigned To
+
+When Escalate
+
+    Priority raised one level
+
+    Assigned To Supervisor
+
+Every Day 08:00
+
+    if SLA Due Date is before Today
+
+    if Status = Investigating
+
+        Escalate
+
+When Resolve
+
+    Status Resolved
+
+When Close
+
+    Status Closed
+
+When Reopen
+
+    if Status = Resolved
+
+        Reopen Count plus 1
+
+        Status Reopened
+
+Constraints
+
+- Complainant Name is required.
+- Description is required.
+- Category is required.
+- Priority is required.
+
+    Resolution Notes is required.
+
+        if Status = Resolved
+
+Permissions
+
+Agent
+
+- Triage
+- Add Investigation Note
+- Request More Info
+- Delegate
+- Resolve
+
+Supervisor
+
+- Escalate
+- Close
+
+Customer
+
+- Customer Responds
+- Reopen
+
+Views
+
+- Complaint Form : Form
+- My Complaints : List
+- Open Complaints : List
+- Overdue Complaints : List
+- Complaint Detail : Detail

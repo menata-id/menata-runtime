@@ -1,0 +1,106 @@
+# Payment Webhook Event — Runtime Metadata
+# Realization of payment-webhook-event.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# References: payment.yaml
+
+version: "0.1"
+
+machine:
+  id: mch_payment_webhook_event                 # [NOT YET] — the machine itself needs
+  name: Payment Webhook Event                   #   CAP-X07 (inbound REST/webhook surface)
+  application: app_payments                     #   to ever receive a call at all
+
+  fields:
+    - id: fld_pwe_provider_event_id              # [SUPPORTED] — as a field; its role as an
+      name: Provider Event ID                    #   idempotency key is not enforced
+      type: text
+      required: true
+
+    - id: fld_pwe_provider                        # [SUPPORTED]
+      name: Provider
+      type: value_list
+      required: true
+      values: [Bank Transfer, Payment Gateway]
+
+    - id: fld_pwe_raw_payload                     # [SUPPORTED]
+      name: Raw Payload
+      type: rich_text
+      required: false
+
+    - id: fld_pwe_received_at                     # [SUPPORTED] — as a field; stamping it
+      name: Received At                           #   is not (CAP-A02)
+      type: date_time
+      required: false
+
+    - id: fld_pwe_processing_status                # [SUPPORTED]
+      name: Processing Status
+      type: value_list
+      required: false
+      values: [Received, Processed, Duplicate, Failed]
+
+  events:
+    - id: evt_pwe_receive                          # [NOT YET] — CAP-E04 (external event
+      name: Receive                                #   source doesn't exist at all — every
+      trigger:                                      #   event today is user-triggered) +
+        type: webhook                               #   CAP-X07 (no inbound API surface) +
+      actions:                                      #   CAP-X13 (idempotency, new capability)
+        - idempotency_check:                        #   composed together
+            field: fld_pwe_provider_event_id
+            scope: mch_payment_webhook_event
+            on_duplicate: { set_field: { field: fld_pwe_processing_status, value: Duplicate }, halt: true }
+          # [NOT YET] CAP-X13 (new): the check-and-claim must be one atomic
+          # operation (INSERT ... ON CONFLICT DO NOTHING, or equivalent) — never
+          # check-then-act, or two near-simultaneous retries both pass the check
+          # and both get processed. `halt: true` on duplicate means every action
+          # below is skipped; the webhook call still returns success (a
+          # duplicate is not a failure from the sender's perspective).
+        - set_field: { field: fld_pwe_received_at, value: now }
+          # [NOT YET] value: "now" — environment data (CAP-A02).
+        - create_record: { machine: mch_payment, fields: { webhook_event: "{{ this.id }}" } }
+          # [NOT YET] CAP-A06.
+        - set_field: { field: fld_pwe_processing_status, value: Processed }
+          # [SUPPORTED] — static value works today, but unreachable without
+          # everything above it.
+
+  constraints:
+    - id: cst_pwe_provider_event_id_required        # [SUPPORTED]
+      rule: Provider Event ID is required.
+      expression: { field: fld_pwe_provider_event_id, operator: required }
+
+    - id: cst_pwe_provider_required                  # [SUPPORTED]
+      rule: Provider is required.
+      expression: { field: fld_pwe_provider, operator: required }
+
+  permissions:
+    - role: System                                    # [SUPPORTED] — as a role string;
+      events: [ evt_pwe_receive ]                      #   "System" as caller identity for an
+      # unauthenticated inbound webhook is itself unresolved — depends on
+      # CAP-X02 (real authentication, today: prototype role cookie) having a
+      # answer for machine-to-machine calls, not just browser sessions.
+
+  views:
+    - id: vw_pwe_list                                 # [SUPPORTED]
+      name: Event List
+      type: list
+      columns:
+        - fld_pwe_provider_event_id
+        - fld_pwe_provider
+        - fld_pwe_received_at
+        - fld_pwe_processing_status
+
+    - id: vw_pwe_duplicates                           # [SUPPORTED] — as a plain list; filtering
+      name: Duplicate Events                          #   by Processing Status = Duplicate needs
+      type: list                                      #   CAP-V09
+      columns:
+        - fld_pwe_provider_event_id
+        - fld_pwe_received_at
+
+    - id: vw_pwe_detail                               # [SUPPORTED]
+      name: Event Detail
+      type: detail

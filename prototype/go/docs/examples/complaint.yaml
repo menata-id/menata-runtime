@@ -1,0 +1,273 @@
+# Customer Complaint — Runtime Metadata
+# Realization of complaint.menata (Case 7 — CMMN-style unstructured case management)
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# Case 7 declared targets: CAP-E02/E03 (SLA timers), CAP-P04 (delegation, first case
+# evidence), CAP-E02 escalation, WCP-10 (reopen, richer flow than Case 1's rework loop),
+# CAP-E05 (system-triggered, second instance after Case 3). See runtime/case-portfolio.md.
+#
+# THE LANGUAGE-BOUNDARY FINDING THIS CASE EXISTS TO ANSWER:
+# Menata's flat "When X" event model, once CAP-E06 (state guards) lands, can express
+# CMMN's *bounded* flexibility — many possible predefined paths, gated by Status, no
+# fixed Sequence (WCP-1) required. It canNOT express CMMN's *unbounded* flexibility —
+# a case worker inventing a genuinely new task type at runtime that was never named in
+# metadata. Every event a Complaint can receive (Triage, Delegate, Resolve, ...) must
+# still be declared in advance; only the ORDER is left open. This is a deliberate,
+# stated language-design boundary, not a gap to close later.
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_customer_service                    # [SUPPORTED]
+  name: Customer Service
+  workspace: ws_default
+
+machine:
+  id: mch_complaint                           # [SUPPORTED]
+  name: Complaint
+  application: app_customer_service
+
+  fields:
+    - id: fld_cmp_complainant_name              # [SUPPORTED]
+      name: Complainant Name
+      type: text
+      required: true
+
+    - id: fld_cmp_contact_info                   # [SUPPORTED]
+      name: Contact Info
+      type: text
+      required: false
+
+    - id: fld_cmp_category                       # [SUPPORTED]
+      name: Category
+      type: value_list
+      required: true
+      values: [Product Quality, Service, Billing, Other]
+
+    - id: fld_cmp_description                    # [SUPPORTED]
+      name: Description
+      type: rich_text
+      required: true
+
+    - id: fld_cmp_priority                       # [SUPPORTED]
+      name: Priority
+      type: value_list
+      required: true
+      values: [Low, Medium, High]
+
+    - id: fld_cmp_status                         # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [New, Triaged, Investigating, Awaiting Customer, Resolved, Closed, Reopened]
+
+    - id: fld_cmp_assigned_to                     # [PARTIAL] — CAP-F05
+      name: Assigned To
+      type: user
+      required: false
+
+    - id: fld_cmp_delegated_by                     # [PARTIAL] — CAP-F05; stamping the
+      name: Delegated By                           #   *previous* Assigned To at Delegate time
+      type: user                                   #   is CAP-A02 + a "value before this event's
+      required: false                              #   own actions ran" read, not just `current_user`
+      # [NOT YET] No expression today captures "the field's own value immediately
+      # before this event's actions mutate it" — a narrower gap than CAP-A02 alone.
+
+    - id: fld_cmp_received_date                    # [SUPPORTED]
+      name: Received Date
+      type: date
+      required: false
+
+    - id: fld_cmp_sla_due_date                     # [NOT YET] — computed at Triage from
+      name: SLA Due Date                           #   Priority (CAP-A11 date arithmetic:
+      type: date                                   #   High +1 day, Medium +3 days, Low +7 days)
+      required: false
+
+    - id: fld_cmp_resolution_notes                 # [SUPPORTED]
+      name: Resolution Notes
+      type: rich_text
+      required: false
+
+    - id: fld_cmp_reopen_count                     # [PARTIAL] — CAP-F07
+      name: Reopen Count
+      type: number
+      required: false
+
+  events:
+    - id: evt_cmp_triage                           # [PARTIAL] — Status transition works;
+      name: Triage                                 #   SLA Due Date derivation does not
+      actions:
+        - set_field: { field: fld_cmp_sla_due_date, value: "received_date + sla_offset(priority)" }
+          # [NOT YET] sla_offset(): High->+1 day, Medium->+3 days, Low->+7 days —
+          # a *priority-keyed* date-arithmetic lookup, a new flavor of CAP-A11
+          # (Case 4's was a flat "+ Frequency", not keyed by another field's value).
+        - set_field: { field: fld_cmp_status, value: Triaged }
+          # [SUPPORTED]
+
+    - id: evt_cmp_add_investigation_note           # [SUPPORTED] — pure status set; no
+      name: Add Investigation Note                 #   sequencing gate needed (CMMN discretionary
+      actions:                                     #   task shape: fireable any number of times)
+        - set_field: { field: fld_cmp_status, value: Investigating }
+
+    - id: evt_cmp_request_more_info                # [SUPPORTED]
+      name: Request More Info
+      actions:
+        - set_field: { field: fld_cmp_status, value: Awaiting Customer }
+
+    - id: evt_cmp_customer_responds                # [SUPPORTED]
+      name: Customer Responds
+      actions:
+        - set_field: { field: fld_cmp_status, value: Investigating }
+
+    - id: evt_cmp_delegate                         # [NOT YET] — CAP-P04, first case evidence
+      name: Delegate
+      actions:
+        - set_field: { field: fld_cmp_delegated_by, value: "previous(fld_cmp_assigned_to)" }
+          # [NOT YET] "previous(...)" — read a field's value before this event's
+          # own actions run. Distinct from CAP-P02 (record-level ownership) and
+          # CAP-E06 (state guards): this is a peer-to-peer handoff that keeps an
+          # accountability trail, WRP's actual Delegation pattern — CAP-P04 had
+          # no case evidence before this (only "not yet in language examples").
+        - set_field: { field: fld_cmp_assigned_to, value: "{{ input.new_assignee }}" }
+
+    - id: evt_cmp_escalate                          # [NOT YET] — CAP-A04 dynamic recipient +
+      name: Escalate                                 #   a "raise one level" value_list step,
+      actions:                                       #   plus CAP-A03/A10 for real notify delivery
+        - set_field: { field: fld_cmp_priority, value: "raise_one_level(priority)" }
+          # [NOT YET] raise_one_level(): Low->Medium, Medium->High, High stays High.
+          # A bounded value_list-stepping operation, distinct from CAP-A11's date
+          # arithmetic — no capability names this yet.
+        - set_field: { field: fld_cmp_assigned_to, value: "role:Supervisor" }
+          # [NOT YET] CAP-A04 — dynamic recipient (here: "whoever holds Supervisor
+          # role"), not a specific stamped user.
+
+    - id: evt_cmp_sla_breach_check                   # [NOT YET] — CAP-E02 (time-driven) +
+      name: SLA Breach Check                          #   CAP-E05 (system-triggered, no user
+      trigger:                                        #   request) + CAP-A09 (compound condition)
+        type: schedule
+        cron: "0 8 * * *"
+      conditions:
+        - field: fld_cmp_sla_due_date
+          operator: before
+          value: today
+        - field: fld_cmp_status
+          operator: equals
+          value: Investigating
+      actions:
+        - trigger_event: { event: evt_cmp_escalate }
+          # [NOT YET] one event firing another on the same record — a narrower
+          # instance of CAP-E05 than Case 3's aggregate_status (which fires an
+          # event on a *different*, parent record); this is same-record
+          # self-triggering. Worth a registry note if implementation reveals
+          # the two need different mechanisms.
+
+    - id: evt_cmp_resolve                            # [PARTIAL] — Status transition works;
+      name: Resolve                                  #   the conditional Resolution Notes
+      actions:                                       #   requirement does not run at event time
+        - set_field: { field: fld_cmp_status, value: Resolved }
+
+    - id: evt_cmp_close                              # [SUPPORTED]
+      name: Close
+      actions:
+        - set_field: { field: fld_cmp_status, value: Closed }
+
+    - id: evt_cmp_reopen                             # [PARTIAL] — set_field works; the
+      name: Reopen                                   #   increment and the state guard do not
+      actions:
+        - set_field: { field: fld_cmp_reopen_count, value: "reopen_count + 1" }
+          # [NOT YET] increment-by-1 is a narrower case of CAP-A11's arithmetic
+          # family (numeric, not date) — no operator for it exists today either.
+        - set_field: { field: fld_cmp_status, value: Reopened }
+      # [NOT YET] Should only be reachable from Status = Resolved (CAP-E06 state
+      # guard) — today any role with permission could fire Reopen from any state.
+
+  constraints:
+    - id: cst_cmp_complainant_required             # [SUPPORTED]
+      rule: Complainant Name is required.
+      expression: { field: fld_cmp_complainant_name, operator: required }
+
+    - id: cst_cmp_description_required             # [SUPPORTED]
+      rule: Description is required.
+      expression: { field: fld_cmp_description, operator: required }
+
+    - id: cst_cmp_category_required                # [SUPPORTED]
+      rule: Category is required.
+      expression: { field: fld_cmp_category, operator: required }
+
+    - id: cst_cmp_priority_required                # [SUPPORTED]
+      rule: Priority is required.
+      expression: { field: fld_cmp_priority, operator: required }
+
+    - id: cst_cmp_resolution_notes_if_resolved      # [PARTIAL] — conditional constraint
+      rule: Resolution Notes is required.            #   works on Create, but this rule matters
+      expression:                                    #   at Resolve time — constraints never run
+        field: fld_cmp_resolution_notes               #   on events (CAP-C09, same gap as Case 4
+        operator: required                            #   and every case since)
+      condition:
+        field: fld_cmp_status
+        operator: equals
+        value: Resolved
+
+  permissions:
+    - role: Agent                                    # [SUPPORTED]
+      events: [ evt_cmp_triage, evt_cmp_add_investigation_note, evt_cmp_request_more_info, evt_cmp_delegate, evt_cmp_resolve ]
+    - role: Supervisor                               # [SUPPORTED]
+      events: [ evt_cmp_escalate, evt_cmp_close ]
+      # evt_cmp_sla_breach_check has NO role — schedule-triggered, same gap as
+      # Case 4's Due/Overdue checks (CAP-E05: permission model has no concept of
+      # system-triggered events).
+    - role: Customer                                 # [SUPPORTED]
+      events: [ evt_cmp_customer_responds, evt_cmp_reopen ]
+
+  views:
+    - id: vw_cmp_form                                # [SUPPORTED]
+      name: Complaint Form
+      type: form
+      fields:
+        - fld_cmp_complainant_name
+        - fld_cmp_contact_info
+        - fld_cmp_category
+        - fld_cmp_description
+        - fld_cmp_priority
+
+    - id: vw_cmp_my_complaints                       # [PARTIAL] — CAP-V05, renders all records;
+      name: My Complaints                            #   "my" filter not implemented
+      type: list
+      columns:
+        - fld_cmp_complainant_name
+        - fld_cmp_category
+        - fld_cmp_priority
+        - fld_cmp_status
+
+    - id: vw_cmp_open                                # [SUPPORTED] — as a plain list; filtering
+      name: Open Complaints                          #   by Status != Closed needs CAP-V09
+      type: list
+      columns:
+        - fld_cmp_complainant_name
+        - fld_cmp_assigned_to
+        - fld_cmp_status
+        - fld_cmp_sla_due_date
+
+    - id: vw_cmp_overdue                             # [NOT YET] — CAP-V09, view-level filter
+      name: Overdue Complaints                       #   (SLA Due Date < today AND Status =
+      type: list                                     #   Investigating) — same gap as Case 4's
+      columns:                                       #   Overdue Tasks view, now a compound filter
+        - fld_cmp_complainant_name
+        - fld_cmp_assigned_to
+        - fld_cmp_sla_due_date
+      filter:
+        - { field: fld_cmp_sla_due_date, operator: before, value: today }
+        - { field: fld_cmp_status, operator: equals, value: Investigating }
+
+    - id: vw_cmp_detail                              # [SUPPORTED]
+      name: Complaint Detail
+      type: detail

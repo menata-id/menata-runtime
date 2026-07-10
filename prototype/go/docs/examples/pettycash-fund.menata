@@ -1,0 +1,38 @@
+# Petty Cash Fund
+# Example Business Knowledge expressed in Menata Language
+# Domain: Petty Cash — an imprest fund: a fixed float, one accountable Custodian
+# Case 6 of the Case Portfolio (runtime/case-portfolio.md)
+# Grounded in the imprest-fund control pattern: fixed float, single custodian,
+# independent reconciliation by someone other than the custodian.
+
+Petty Cash Fund
+
+Fields
+
+- Fund Name : Text
+- Custodian : User
+- Fixed Imprest Amount : Money
+- Current Balance : Money
+- Status : Active | Inactive
+
+Constraints
+
+- Fund Name is required.
+- Custodian is required.
+- Fixed Imprest Amount is required.
+
+Permissions
+
+Custodian
+
+- View
+
+Auditor
+
+- View
+
+Views
+
+- Fund Form : Form
+- Fund List : List
+- Fund Detail : Detail

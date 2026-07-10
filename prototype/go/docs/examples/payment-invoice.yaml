@@ -1,0 +1,118 @@
+# Payment Invoice — Runtime Metadata
+# Realization of payment-invoice.menata (Case 8 — external events: webhook ingestion,
+# idempotency, reconciliation)
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# Case 8 declared targets: CAP-E04 (external events), CAP-X07 (webhook/REST surface),
+# CAP-X13 (new — webhook idempotency), CAP-A06, CAP-C08 (fourth case instance, new
+# correlation-matching sub-pattern). See runtime/case-portfolio.md.
+# Grounded in webhook idempotency practice (Stripe/Shopify/GitHub convention):
+# at-least-once delivery, dedupe by provider event ID, atomic claim, return success
+# for duplicates.
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_payments                            # [SUPPORTED]
+  name: Payments
+  workspace: ws_default
+
+machine:
+  id: mch_invoice                             # [SUPPORTED]
+  name: Invoice
+  application: app_payments
+
+  fields:
+    - id: fld_inv_number                      # [SUPPORTED]
+      name: Invoice Number
+      type: text
+      required: true
+
+    - id: fld_inv_customer_name                # [SUPPORTED]
+      name: Customer Name
+      type: text
+      required: true
+
+    - id: fld_inv_amount_due                   # [PARTIAL] — CAP-F08
+      name: Amount Due
+      type: money
+      required: true
+      options:
+        currency: "IDR"
+
+    - id: fld_inv_amount_paid                  # [PARTIAL] — CAP-F08; only ever
+      name: Amount Paid                        #   incremented via Payment's Reconcile
+      type: money                              #   event (CAP-A06 chain), never entered
+      required: false                          #   directly
+      options:
+        currency: "IDR"
+
+    - id: fld_inv_status                       # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Unpaid, Partially Paid, Paid]
+
+    - id: fld_inv_due_date                     # [SUPPORTED]
+      name: Due Date
+      type: date
+      required: false
+
+  constraints:
+    - id: cst_inv_number_required               # [SUPPORTED]
+      rule: Invoice Number is required.
+      expression: { field: fld_inv_number, operator: required }
+
+    - id: cst_inv_customer_required             # [SUPPORTED]
+      rule: Customer Name is required.
+      expression: { field: fld_inv_customer_name, operator: required }
+
+    - id: cst_inv_amount_due_required           # [SUPPORTED]
+      rule: Amount Due is required.
+      expression: { field: fld_inv_amount_due, operator: required }
+
+  permissions:
+    - role: Finance                             # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_inv_form                           # [SUPPORTED]
+      name: Invoice Form
+      type: form
+      fields:
+        - fld_inv_number
+        - fld_inv_customer_name
+        - fld_inv_amount_due
+        - fld_inv_due_date
+
+    - id: vw_inv_list                           # [SUPPORTED]
+      name: Invoice List
+      type: list
+      columns:
+        - fld_inv_number
+        - fld_inv_customer_name
+        - fld_inv_amount_due
+        - fld_inv_amount_paid
+        - fld_inv_status
+
+    - id: vw_inv_unpaid                         # [SUPPORTED] — as a plain list; filtering
+      name: Unpaid Invoices                     #   by Status != Paid needs CAP-V09
+      type: list
+      columns:
+        - fld_inv_number
+        - fld_inv_customer_name
+        - fld_inv_amount_due
+        - fld_inv_due_date
+
+    - id: vw_inv_detail                         # [SUPPORTED]
+      name: Invoice Detail
+      type: detail

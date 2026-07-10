@@ -254,6 +254,85 @@ Item.Stock On Hand recomputes as the rollup of its Stock Ledger Entries
 
 ---
 
+## Case 6 — Petty Cash Ledger
+
+**Domain:** Small cash box run as an imprest fund — fixed float, one accountable Custodian, independent reconciliation
+**Application:** Petty Cash
+**Roles:** Custodian, Auditor
+**Seed:** — (pending reference field + computed field support)
+**Status:** ⚠️ Documented boundary test — grounded in imprest-fund control practice, see `runtime/case-portfolio.md`
+
+```
+pettycash-fund.menata / .yaml       Petty Cash Fund (master, running balance)
+pettycash-voucher.menata / .yaml    Petty Cash Voucher (each expense)
+pettycash-period.menata / .yaml     Cash Period (reconciliation cycle, closes and freezes)
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| `money` field (CAP-F08) | **first real case evidence** — previously schema-doc only |
+| Reference, computed rollup (CAP-F13, CAP-F14) | confirmed gap — same shapes as Case 5 |
+| Fund-balance guard (CAP-C08) | confirmed gap — third case instance |
+| Reconciliation formula (CAP-C10) | confirmed gap — a scalar-plus-aggregate variant of Case 9's debit=credit |
+| Independent reconciler (CAP-P03) | confirmed gap — third case instance (audit control, not approval) |
+| Period close + freeze (CAP-E06 + CAP-R07) | confirmed gap |
+
+---
+
+## Case 7 — Customer Complaint
+
+**Domain:** Customer service — ad-hoc investigation, SLA-timed, reopenable, escalated on breach
+**Application:** Customer Service
+**Roles:** Agent, Supervisor, Customer
+**Seed:** — (pending event-condition + state-guard support)
+**Status:** ⚠️ Documented boundary test — grounded in CMMN (OMG standard), see `runtime/case-portfolio.md`
+
+```
+complaint.menata / .yaml    Complaint (one Machine — see the CMMN finding below)
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| No fixed step sequence — any permitted event, any order, gated by Status | **The CMMN boundary finding**: Menata expresses *bounded* flexibility, not *unbounded* (case-worker-invented) flexibility. Stated explicitly, not a gap |
+| Priority-keyed SLA offset (CAP-A11) | confirmed gap — new sub-pattern (keyed offset, not flat frequency) |
+| Auto-escalation (CAP-E02 + CAP-A09 + CAP-E05) | confirmed gap — CAP-E05's second instance, a same-record self-trigger flavor |
+| Ordinal priority stepping | **[UNTARGETED FINDING]** → registered as CAP-A12 |
+| Delegation (CAP-P04) | **first real case evidence** — previously "not yet in language examples" |
+| Reopen cycle (WCP-10) | reinforced — a richer instance than Case 1's rework loop |
+
+---
+
+## Case 8 — Payment Confirmation
+
+**Domain:** Payments — webhook-confirmed payment, idempotent ingestion, manual reconciliation to Invoice
+**Application:** Payments
+**Roles:** Finance, System
+**Seed:** — (pending reference field + external event support)
+**Status:** ⚠️ Documented boundary test — grounded in Stripe/Shopify/GitHub webhook idempotency convention, see `runtime/case-portfolio.md`
+
+```
+payment-invoice.menata / .yaml         Invoice (the receivable)
+payment-webhook-event.menata / .yaml   Payment Webhook Event (raw ingestion, dedup)
+payment.menata / .yaml                 Payment (matched/unmatched, reconciled manually)
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| External event (CAP-E04) | **first real case evidence** |
+| Webhook idempotency | **[UNTARGETED FINDING]** → registered as CAP-X13 |
+| `create_record` on Receive (CAP-A06) | confirmed gap |
+| Cross-record field write | **[UNTARGETED FINDING]** → registered as CAP-A13 |
+| Write-chain atomicity (CAP-X12) | reinforced |
+| Payment↔Invoice matching (CAP-C08) | **deliberately kept manual** — correlation matching is a different sub-pattern, out of scope by design |
+
+---
+
 ## Case 9 — Accounting
 
 **Domain:** Small-org bookkeeping — chart of accounts, journal entries, monthly close, trial balance

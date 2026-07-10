@@ -1,0 +1,108 @@
+# Petty Cash Fund — Runtime Metadata
+# Realization of pettycash-fund.menata (Case 6 — numeric aggregation & immutability:
+# running balance, append-only, period close)
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# Case 6 declared targets: CAP-F08, CAP-F13, CAP-F14, CAP-A02, CAP-C08, CAP-C10,
+# CAP-P03 (third case instance), CAP-E06+R07, CAP-R04. See runtime/case-portfolio.md.
+# Grounded in imprest-fund control practice: fixed float, single custodian,
+# independent reconciliation.
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_pettycash                          # [SUPPORTED]
+  name: Petty Cash
+  workspace: ws_default
+
+machine:
+  id: mch_pettycash_fund                     # [SUPPORTED]
+  name: Petty Cash Fund
+  application: app_pettycash
+
+  fields:
+    - id: fld_pcf_fund_name                   # [SUPPORTED]
+      name: Fund Name
+      type: text
+      required: true
+
+    - id: fld_pcf_custodian                    # [PARTIAL] — CAP-F05, free text; no user picker
+      name: Custodian
+      type: user
+      required: true
+
+    - id: fld_pcf_fixed_imprest_amount           # [PARTIAL] — CAP-F08, first real case
+      name: Fixed Imprest Amount                 #   evidence for `money` (Case 9 used plain
+      type: money                                #   `number` for Debit/Credit — see registry
+      required: true                             #   note on the number-vs-money boundary)
+      options:
+        currency: "IDR"
+        # Single-currency fixed code — CAP-F17 (multi-currency) is explicitly out of
+        # scope for this case, same boundary Study 6 drew for Case 9.
+
+    - id: fld_pcf_current_balance                 # [NOT YET] — computed field (CAP-F14),
+      name: Current Balance                       #   aggregate-rollup sub-pattern (same shape
+      type: money                                 #   as Case 5's Stock On Hand)
+      computed: true
+      formula: "fixed_imprest_amount - sum(petty_cash_voucher.amount where fund = this and status != 'Reconciled')"
+      options:
+        currency: "IDR"
+      # [NOT YET] Running balance = float minus unreconciled vouchers. The
+      # "balance never negative" invariant is enforced on the Voucher side
+      # (see pettycash-voucher.yaml's cst_pcv_sufficient_balance).
+
+    - id: fld_pcf_status                          # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Active, Inactive]
+
+  constraints:
+    - id: cst_pcf_name_required                    # [SUPPORTED]
+      rule: Fund Name is required.
+      expression: { field: fld_pcf_fund_name, operator: required }
+
+    - id: cst_pcf_custodian_required                # [SUPPORTED]
+      rule: Custodian is required.
+      expression: { field: fld_pcf_custodian, operator: required }
+
+    - id: cst_pcf_imprest_required                  # [SUPPORTED]
+      rule: Fixed Imprest Amount is required.
+      expression: { field: fld_pcf_fixed_imprest_amount, operator: required }
+
+  permissions:
+    - role: Custodian                                # [SUPPORTED]
+      events: []
+    - role: Auditor                                  # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_pcf_form                                # [SUPPORTED]
+      name: Fund Form
+      type: form
+      fields:
+        - fld_pcf_fund_name
+        - fld_pcf_custodian
+        - fld_pcf_fixed_imprest_amount
+
+    - id: vw_pcf_list                                # [SUPPORTED]
+      name: Fund List
+      type: list
+      columns:
+        - fld_pcf_fund_name
+        - fld_pcf_custodian
+        - fld_pcf_current_balance
+        - fld_pcf_status
+
+    - id: vw_pcf_detail                              # [SUPPORTED]
+      name: Fund Detail
+      type: detail

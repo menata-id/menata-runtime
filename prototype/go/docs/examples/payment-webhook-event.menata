@@ -1,0 +1,49 @@
+# Payment Webhook Event
+# Example Business Knowledge expressed in Menata Language
+# Domain: Payments — the raw inbound notification, received and deduplicated before
+# any domain processing happens ("receive fast, process safe")
+# Case 8 of the Case Portfolio (runtime/case-portfolio.md)
+# Grounded in webhook idempotency practice: every provider delivers at-least-once,
+# so duplicates are part of the contract, not an edge case. Dedupe key = the
+# provider's own event ID; the check-and-claim must be one atomic operation.
+
+Payment Webhook Event
+
+Fields
+
+- Provider Event ID : Text
+- Provider : Bank Transfer | Payment Gateway
+- Raw Payload : Rich Text
+- Received At : Date Time
+- Processing Status : Received | Processed | Duplicate | Failed
+
+Events
+
+When Receive
+
+    if Provider Event ID already exists among Payment Webhook Event
+
+        Processing Status Duplicate
+
+    Received At Now
+
+    Create Payment
+
+    Processing Status Processed
+
+Constraints
+
+- Provider Event ID is required.
+- Provider is required.
+
+Permissions
+
+System
+
+- Receive
+
+Views
+
+- Event List : List
+- Duplicate Events : List
+- Event Detail : Detail

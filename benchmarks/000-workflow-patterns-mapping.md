@@ -6,7 +6,7 @@
 > (van der Aalst & ter Hofstede, workflowpatterns.com) —
 > the canonical benchmark used to evaluate BPEL, BPMN, YAWL, jBPM, and others.
 >
-> Status: v0.3 — + Case 9 case-evidence notes (CAP-A02, CAP-C07, CAP-C08, CAP-C09, CAP-P03 first evidence, WDP-9/10); retroactively credited Case 4/Case 5 where missed | Created: 2026-07-04 | Updated: 2026-07-10
+> Status: v0.4 — + Cases 6/7/8 case-evidence notes (WCP-10 richer cycle, WRP Delegation first evidence, WRP-11/CAP-E05 second instance, CAP-E04 first evidence, CAP-C08 third instance) | Created: 2026-07-04 | Updated: 2026-07-10
 
 ---
 
@@ -39,7 +39,7 @@ Capability IDs (`CAP-…`) reference `../capability-registry.md`.
 | WCP-7 | Structured Synchronizing Merge | — | — | — | Advanced merge semantics. Deferred until WCP-3/6 exist. |  |
 | WCP-8 | Multi-Merge | — | — | — | Same. |  |
 | WCP-9 | Structured Discriminator | ✅ | ❌ | ❌ | "Any step rejected → document rejected" — first negative decision wins. | CAP-A08 |
-| WCP-10 | Arbitrary Cycles | ✅ | ✅ | ✅ | Rework loops work today: an event may set Status back to Draft (e.g. Revise). | CAP-E01 |
+| WCP-10 | Arbitrary Cycles | ✅ | ✅ | ✅ | Rework loops work today: an event may set Status back to Draft (e.g. Revise). Case 7's Reopen (Resolved → Reopened → back to Investigating) proves a richer instance: a real business cycle, not just a linear rework loop, with a counter and a state guard. | CAP-E01 |
 | WCP-11 | Implicit Termination | ✅ | ✅ | ✅ | A record simply stops receiving events; no explicit terminator required. | — |
 | WCP-12 | MI without Synchronization | — | — | — | Multiple-instance activities without sync — no identified business case yet. |  |
 | WCP-13 | MI design-time knowledge | ✅ | ❌ | ❌ | Fixed set of approval steps per document type. Needs reference + child creation. | CAP-F13, CAP-A06 |
@@ -65,7 +65,7 @@ Capability IDs (`CAP-…`) reference `../capability-registry.md`.
 | WDP-38 | Data-based Routing (pre) | ✅ | ⚠️ | ⚠️ | Constraint `condition` works — but constraints run only on Create, never on event trigger. Case 4, Case 5, and Case 9 all need their conditional constraints evaluated at event time (Complete / Confirm / Post), not Create. | CAP-C09 |
 | WDP-39 | Event conditions (post) | ✅ | ❌ | ❌ | `if` inside events (spec 003) has no metadata representation. | CAP-A09 |
 | — | Cross-field comparison | ✅ | ❌ | ❌ | "End Date must be after Start Date" — operators compare field↔literal only. Case 5: `Movement Date >= Requested Date`. Case 9: `Posted By != Prepared By` (also WRP-5, below). | CAP-C07 |
-| — | Cross-record constraint | ✅ | ❌ | ❌ | "One leave request per employee per day" (spec 004 example) — no case had exercised this until Case 5's negative-stock guard (`Item.Stock On Hand >= Normalized Quantity`), its first real case evidence. Case 9's `Fiscal Period.Close` guard (every Journal Entry in the period must be Posted) is the same capability in the reverse direction — one-side-checks-all-many-side-rows, not one-record-against-an-aggregate. | CAP-C08 |
+| — | Cross-record constraint | ✅ | ❌ | ❌ | "One leave request per employee per day" (spec 004 example) — no case had exercised this until Case 5's negative-stock guard (`Item.Stock On Hand >= Normalized Quantity`), its first real case evidence. Case 9's `Fiscal Period.Close` guard (every Journal Entry in the period must be Posted) is the same capability in the reverse direction — one-side-checks-all-many-side-rows, not one-record-against-an-aggregate. Case 6's `Voucher Amount <= Fund Current Balance` is a third instance, same shape as Case 5. Case 8 deliberately does NOT exercise this — Payment↔Invoice matching is a different (fuzzy-correlation) sub-pattern, kept manual by design. | CAP-C08 |
 
 ---
 
@@ -77,10 +77,10 @@ Capability IDs (`CAP-…`) reference `../capability-registry.md`.
 | WRP-1 | Direct Allocation | ✅ | ❌ | ❌ | "Only the assigned Approver may act on their Step" — record-level ownership. | CAP-P02 |
 | WRP-3 | Deferred Allocation | ✅ | ❌ | ❌ | Approver chosen at submit time (Case 3) — depends on reference fields. | CAP-F13 |
 | WRP-4 | Authorization | ✅ | ✅ | ⚠️ | Role permissions exist; real authentication is a prototype cookie. | CAP-X02 |
-| WRP-5 | Separation of Duties | ✅ | ❌ | ❌ | "Requester must not be the Approver" (spec 004 example) — no case had exercised this until Case 9's `Posted By != Prepared By` (SOX requirement), its first real case evidence. | CAP-P03 |
-| WRP-11 | Automatic Execution | ✅ | ❌ | ❌ | System-triggered events without a user request. | CAP-E05 |
-| — | Delegation | ⚠️ | ❌ | ❌ | Not yet in language examples. Defer. | CAP-P04 |
-| — | Escalation | ✅ | ❌ | ❌ | "Every Day / if Due Date < Today / Notify" (spec 003 example) — needs time-driven events. | CAP-E02 |
+| WRP-5 | Separation of Duties | ✅ | ❌ | ❌ | "Requester must not be the Approver" (spec 004 example) — no case had exercised this until Case 9's `Posted By != Prepared By` (SOX requirement); Case 6's `Reconciled By != Custodian` is a second instance (independent-audit control, not approval). | CAP-P03 |
+| WRP-11 | Automatic Execution | ✅ | ❌ | ❌ | System-triggered events without a user request. Case 7's SLA breach auto-`Escalate` is a second case instance, and a same-record self-trigger flavor distinct from Case 3's cross-record `aggregate_status`. | CAP-E05 |
+| — | Delegation | ✅ | ❌ | ❌ | No longer "not yet in language examples" — Case 7's `Delegate` event (current assignee hands off to a peer, `Delegated By` keeps the accountability trail) is its first real case evidence. | CAP-P04 |
+| — | Escalation | ✅ | ❌ | ❌ | "Every Day / if Due Date < Today / Notify" (spec 003 example) — needs time-driven events. Case 4's Overdue check and Case 7's SLA breach are both worked instances now. | CAP-E02 |
 
 ---
 
@@ -93,7 +93,7 @@ The Event specification names four sources. Only one is realized:
 | Business Activity | `When Submit` | ✅ | ✅ | ✅ | CAP-E01 |
 | Time | `Every Day 08:00`, `Every Monday` | ✅ | ❌ | ❌ | CAP-E02 |
 | Date | `When Due Date - 1 Day` | ✅ | ❌ | ❌ | CAP-E03 |
-| External | `When Payment Received`, `When Webhook Received` | ✅ | ❌ | ❌ | CAP-E04 |
+| External | `When Payment Received`, `When Webhook Received` | ✅ | ❌ | ❌ | Case 8's `Payment Webhook Event.Receive` is the first case evidence — also needs CAP-X13 (idempotency) to be safe, not just functional. | CAP-E04 |
 
 ---
 

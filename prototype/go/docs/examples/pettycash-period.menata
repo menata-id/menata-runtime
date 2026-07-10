@@ -1,0 +1,51 @@
+# Petty Cash Period
+# Example Business Knowledge expressed in Menata Language
+# Domain: Petty Cash — the reconciliation cycle: cash counted + vouchers must equal the float,
+# closed independently by someone other than the Custodian, then frozen
+# Case 6 of the Case Portfolio (runtime/case-portfolio.md)
+# References: pettycash-fund.menata, pettycash-voucher.menata
+
+Cash Period
+
+Fields
+
+- Fund : Petty Cash Fund
+- Period Name : Text
+- Start Date : Date
+- End Date : Date
+- Cash Counted : Money
+- Reconciled By : User
+- Status : Open | Closed
+
+Events
+
+When Close
+
+    Cash Counted plus sum of Vouchers Amount in this Period must equal Fund Fixed Imprest Amount
+
+    Reconciled By must not equal Fund Custodian
+
+    Status Closed
+
+Constraints
+
+- Fund is required.
+- Period Name is required.
+- Start Date is required.
+- End Date is required.
+
+    Cash Counted plus sum of Vouchers Amount in this Period must equal Fund Fixed Imprest Amount.
+
+    Reconciled By must not equal Fund Custodian.
+
+Permissions
+
+Auditor
+
+- Close
+
+Views
+
+- Period Form : Form
+- Period List : List
+- Period Detail : Detail

@@ -1,0 +1,132 @@
+# Petty Cash Voucher — Runtime Metadata
+# Realization of pettycash-voucher.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# References: pettycash-fund.yaml
+
+version: "0.1"
+
+machine:
+  id: mch_pettycash_voucher                    # [SUPPORTED] — as a plain Machine
+  name: Petty Cash Voucher
+  application: app_pettycash
+
+  fields:
+    - id: fld_pcv_fund                          # [NOT YET] — CAP-F13
+      name: Fund
+      type: reference
+      target_machine: mch_pettycash_fund
+      required: true
+
+    - id: fld_pcv_voucher_number                 # [NOT YET] — CAP-F18, auto-numbering;
+      name: Voucher Number                       #   pre-numbered vouchers are a named control
+      type: text                                 #   requirement (imprest-fund practice), not
+      required: true                             #   just a convenience
+      generated: true
+      pattern: "PCV-{00001}"
+
+    - id: fld_pcv_voucher_date                    # [SUPPORTED]
+      name: Voucher Date
+      type: date
+      required: true
+
+    - id: fld_pcv_amount                          # [PARTIAL] — CAP-F08
+      name: Amount
+      type: money
+      required: true
+      options:
+        currency: "IDR"
+
+    - id: fld_pcv_expense_category                 # [SUPPORTED]
+      name: Expense Category
+      type: value_list
+      required: true
+      values: [Supplies, Transport, Meals, Utilities, Miscellaneous]
+
+    - id: fld_pcv_description                      # [SUPPORTED]
+      name: Description
+      type: rich_text
+      required: false
+
+    - id: fld_pcv_recorded_by                       # [PARTIAL] — CAP-F05; stamping it
+      name: Recorded By                             #   dynamically is CAP-A02 [NOT YET]
+      type: user
+      required: false
+
+    - id: fld_pcv_status                            # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Draft, Reconciled]
+
+  events:
+    - id: evt_pcv_record                             # [NOT YET] — gated on
+      name: Record                                   #   cst_pcv_sufficient_balance
+      actions:
+        - set_field: { field: fld_pcv_recorded_by, value: current_user }
+          # [NOT YET] value: "current_user" — environment data (CAP-A02).
+
+  constraints:
+    - id: cst_pcv_fund_required                       # [SUPPORTED]
+      rule: Fund is required.
+      expression: { field: fld_pcv_fund, operator: required }
+
+    - id: cst_pcv_voucher_number_required             # [SUPPORTED]
+      rule: Voucher Number is required.
+      expression: { field: fld_pcv_voucher_number, operator: required }
+
+    - id: cst_pcv_voucher_date_required               # [SUPPORTED]
+      rule: Voucher Date is required.
+      expression: { field: fld_pcv_voucher_date, operator: required }
+
+    - id: cst_pcv_amount_required                     # [SUPPORTED]
+      rule: Amount is required.
+      expression: { field: fld_pcv_amount, operator: required }
+
+    - id: cst_pcv_description_required                # [SUPPORTED]
+      rule: Description is required.
+      expression: { field: fld_pcv_description, operator: required }
+
+    - id: cst_pcv_sufficient_balance                  # [NOT YET] — CAP-C08, cross-record,
+      rule: Fund Current Balance must be greater than or equal to Amount.  # third case
+      expression:                                      # instance (spec 004 example, Case 5
+        field: fld_pcf_current_balance                  # negative-stock, Case 9 period-close,
+        operator: greater_than_or_equal                 # now Case 6's fund-balance guard)
+        compare_field: fld_pcv_amount
+      # [NOT YET] "The balance never negative" invariant, same shape as Case 5's
+      # negative-stock guard: one record checked against a running balance on
+      # its referenced parent.
+
+  permissions:
+    - role: Custodian                                  # [SUPPORTED]
+      events: [ evt_pcv_record ]
+
+  views:
+    - id: vw_pcv_form                                   # [SUPPORTED]
+      name: Voucher Form
+      type: form
+      fields:
+        - fld_pcv_fund
+        - fld_pcv_voucher_date
+        - fld_pcv_amount
+        - fld_pcv_expense_category
+        - fld_pcv_description
+
+    - id: vw_pcv_list                                   # [SUPPORTED]
+      name: Voucher List
+      type: list
+      columns:
+        - fld_pcv_voucher_number
+        - fld_pcv_voucher_date
+        - fld_pcv_amount
+        - fld_pcv_expense_category
+        - fld_pcv_status
+
+    - id: vw_pcv_detail                                 # [SUPPORTED]
+      name: Voucher Detail
+      type: detail

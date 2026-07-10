@@ -1,0 +1,34 @@
+# Payment Invoice
+# Example Business Knowledge expressed in Menata Language
+# Domain: Payments — the receivable a customer's payment must eventually satisfy
+# Case 8 of the Case Portfolio (runtime/case-portfolio.md)
+
+Invoice
+
+Fields
+
+- Invoice Number : Text
+- Customer Name : Text
+- Amount Due : Money
+- Amount Paid : Money
+- Status : Unpaid | Partially Paid | Paid
+- Due Date : Date
+
+Constraints
+
+- Invoice Number is required.
+- Customer Name is required.
+- Amount Due is required.
+
+Permissions
+
+Finance
+
+- View
+
+Views
+
+- Invoice Form : Form
+- Invoice List : List
+- Unpaid Invoices : List
+- Invoice Detail : Detail

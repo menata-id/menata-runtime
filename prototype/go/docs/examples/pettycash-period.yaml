@@ -1,0 +1,136 @@
+# Petty Cash Period — Runtime Metadata
+# Realization of pettycash-period.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# References: pettycash-fund.yaml, pettycash-voucher.yaml
+
+version: "0.1"
+
+machine:
+  id: mch_cash_period                             # [SUPPORTED] — as a plain Machine
+  name: Cash Period
+  application: app_pettycash
+
+  fields:
+    - id: fld_cp_fund                              # [NOT YET] — CAP-F13
+      name: Fund
+      type: reference
+      target_machine: mch_pettycash_fund
+      required: true
+
+    - id: fld_cp_period_name                        # [SUPPORTED]
+      name: Period Name
+      type: text
+      required: true
+
+    - id: fld_cp_start_date                          # [SUPPORTED]
+      name: Start Date
+      type: date
+      required: true
+
+    - id: fld_cp_end_date                            # [SUPPORTED]
+      name: End Date
+      type: date
+      required: true
+
+    - id: fld_cp_cash_counted                        # [PARTIAL] — CAP-F08
+      name: Cash Counted
+      type: money
+      required: false
+      options:
+        currency: "IDR"
+
+    - id: fld_cp_reconciled_by                        # [PARTIAL] — CAP-F05; stamping it
+      name: Reconciled By                             #   dynamically is CAP-A02 [NOT YET]
+      type: user
+      required: false
+
+    - id: fld_cp_status                               # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Open, Closed]
+
+  events:
+    - id: evt_cp_close                                # [NOT YET] — gated on both constraints
+      name: Close                                      #   below
+      actions:
+        - set_field: { field: fld_cp_status, value: Closed }
+          # [SUPPORTED] — static value works today.
+
+  constraints:
+    - id: cst_cp_fund_required                         # [SUPPORTED]
+      rule: Fund is required.
+      expression: { field: fld_cp_fund, operator: required }
+
+    - id: cst_cp_period_name_required                  # [SUPPORTED]
+      rule: Period Name is required.
+      expression: { field: fld_cp_period_name, operator: required }
+
+    - id: cst_cp_start_required                        # [SUPPORTED]
+      rule: Start Date is required.
+      expression: { field: fld_cp_start_date, operator: required }
+
+    - id: cst_cp_end_required                          # [SUPPORTED]
+      rule: End Date is required.
+      expression: { field: fld_cp_end_date, operator: required }
+
+    - id: cst_cp_reconciliation_balances                # [NOT YET] — CAP-C10, aggregate over
+      rule: Cash Counted plus sum of Vouchers Amount in this Period must equal Fund Fixed Imprest Amount.
+      expression:                                        # A variant of Case 9's double-entry
+        left:                                             # invariant: here one side is a
+          sum:                                             # manually-entered scalar (Cash
+            - field: fld_cp_cash_counted                    # Counted) plus an aggregate,
+            - aggregate: sum
+              field: fld_pcv_amount
+              scope: fld_pcv_fund
+              period: fld_cp_period_name
+        operator: equals
+        right: fld_pcf_fixed_imprest_amount
+      # [NOT YET] The imprest reconciliation formula: physical cash on hand plus
+      # every voucher issued in the period must reconstruct the fixed float. Same
+      # CAP-C10 shape as Case 9's debit=credit, not a new capability — a scalar
+      # operand instead of a second aggregate.
+
+    - id: cst_cp_reconciler_independent                 # [NOT YET] — CAP-P03, third case
+      rule: Reconciled By must not equal Fund Custodian.  # instance (Case 9's Posted By !=
+      expression:                                          # Prepared By was the first; this is
+        field: fld_cp_reconciled_by                         # the imprest-fund control practice's
+        operator: not_equals                                # own independent-audit requirement)
+        compare_field: fld_pcf_custodian
+      # [NOT YET] "Unannounced cash counts... performed by an individual independent
+      # of both the custodian and the employee who approves replenishment" —
+      # segregation of duties applied to reconciliation, not just approval.
+
+  permissions:
+    - role: Auditor                                     # [SUPPORTED]
+      events: [ evt_cp_close ]
+
+  views:
+    - id: vw_cp_form                                     # [SUPPORTED]
+      name: Period Form
+      type: form
+      fields:
+        - fld_cp_fund
+        - fld_cp_period_name
+        - fld_cp_start_date
+        - fld_cp_end_date
+        - fld_cp_cash_counted
+
+    - id: vw_cp_list                                     # [SUPPORTED]
+      name: Period List
+      type: list
+      columns:
+        - fld_cp_period_name
+        - fld_cp_start_date
+        - fld_cp_end_date
+        - fld_cp_status
+
+    - id: vw_cp_detail                                   # [SUPPORTED]
+      name: Period Detail
+      type: detail

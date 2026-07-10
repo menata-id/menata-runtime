@@ -7,7 +7,7 @@
 > is a designed experiment — and surprises (patterns the case reveals that
 > were not targeted) are themselves findings.
 >
-> Status: v0.1 — Study 3 deliverable | Created: 2026-07-04
+> Status: v0.2 — Cases 5–9 field-level design complete (7 of 10 cases now documented) | Created: 2026-07-04 | Updated: 2026-07-10
 
 ---
 
@@ -29,9 +29,9 @@
 | 3 | Document Approval | Multi-instance workflow: sequence, synchronization, resource allocation | F13, A07, A08, X03, P02, E05 | ⚠️ documented, gaps registered |
 | 4 | Maintenance Reminder | **Time-driven behavior**: schedules, escalation, environment data | E02, E03, A02, A09, A11 | ⚠️ documented (this study) |
 | 5 | Inventory / Stock Movement | Calculation & multi-record transaction: quantity math, balance updates | F07, F13, F14, F16, F19, A02, A06, C05, C07, C08, X12 | ⚠️ documented, gaps registered |
-| 6 | Petty Cash Ledger | Numeric aggregation & immutability: running balance, append-only, period close | F08, F14, C05, C08, R04 | planned |
-| 7 | Customer Complaint | Unstructured case management (CMMN-style): ad-hoc steps, SLA, escalation, reopen | E02, E05, A09, P04, WCP-10 cycles | planned |
-| 8 | Payment Confirmation | External events: webhook ingestion, idempotency, reconciliation | E04, X07, C08 | planned |
+| 6 | Petty Cash Ledger | Numeric aggregation & immutability: running balance, append-only, period close | F08, F13, F14, A02, C08, C10, P03, E06+R07, R04 | ⚠️ documented, gaps registered |
+| 7 | Customer Complaint | Unstructured case management (CMMN-style): ad-hoc steps, SLA, escalation, reopen | E02, E05, A09, A11, A12(new), A13(new), P04, C09, V09, WCP-10 cycles | ⚠️ documented, gaps registered |
+| 8 | Payment Confirmation | External events: webhook ingestion, idempotency, reconciliation | E04, X07, X13(new), A06, A13(new), X12, C08 | ⚠️ documented, gaps registered |
 | 9 | Accounting (journal, monthly close, trial balance) | Vertical depth: header-detail documents, aggregate line invariants, immutability | F13, F14, F16, F18, A02, C10, C11, P03, R04, R07, E06, V13 | ⚠️ documented, gaps registered |
 | 10 | Organization Composite | Emergent capabilities at composition: shared identity, master data, cross-app navigation, org-wide reporting | F13+I01–I05+X09+V10+P05 composition test | ⚠️ documented (Study 7) — 6 `[COMPOSITION FINDING]` → CAP-O01…O06 |
 
@@ -100,25 +100,84 @@ Files: `prototype/go/docs/examples/inventory-item.{menata,yaml}`,
 
 # Case 6 — Petty Cash Ledger (target declaration)
 
-**Business reality:** Small cash box. Every expense recorded, running balance maintained, month is closed and cannot be edited after closing.
+**Business reality:** A small cash box run as an imprest fund — a fixed float, one accountable
+Custodian, every expense recorded against the running balance, and a periodic reconciliation
+performed by someone *other than* the Custodian before the period closes and freezes.
 
-**Declared targets:** money fields (F08), running balance (F14 aggregate variant), cross-record constraint — expenses cannot exceed balance (C08), **immutability after state** (period close — a stronger form of CAP-E06 state guards applied to editing, not just events), audit trail visibility (R04).
+**External grounding:** the imprest-fund control pattern (fixed float, single custodian,
+independent reconciliation) — real accounting practice, not a platform convention.
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| `Fixed Imprest Amount`, `Amount`, `Cash Counted` as `money` | CAP-F08 | First real case evidence for `money` (previously schema-doc only) |
+| `Fund` reference on Voucher / Period | CAP-F13 | `reference` |
+| `Current Balance` = Imprest Amount − open vouchers | CAP-F14 | Aggregate-rollup sub-pattern (same shape as Case 5's Stock On Hand) |
+| `Recorded By`, stamped at Record | CAP-A02 | WDP-7 Environment Data |
+| `Voucher Amount <= Fund Current Balance` | CAP-C08 | Cross-record constraint — third case instance |
+| `Cash Counted + sum(Vouchers) = Fixed Imprest Amount` | CAP-C10 | Aggregate line constraint — reconciliation-formula variant of Case 9's debit=credit |
+| `Reconciled By != Fund Custodian` | CAP-P03 | Separation of duties — third case instance (independent-audit control, not approval) |
+| Closed period frozen | CAP-E06 + CAP-R07 | State-conditional availability + immutability-after-state |
+| Voucher/reconciliation trail | CAP-R04 | Audit trail |
+
+Files: `prototype/go/docs/examples/pettycash-fund.{menata,yaml}`,
+`pettycash-voucher.{menata,yaml}`, `pettycash-period.{menata,yaml}`
 
 ---
 
 # Case 7 — Customer Complaint (target declaration)
 
-**Business reality:** Complaints arrive, get triaged, may need ad-hoc investigation steps, have response SLAs, can be reopened by the customer.
+**Business reality:** Complaints arrive, get triaged, may need any number of ad-hoc investigation
+steps in no fixed order, have a priority-driven SLA, auto-escalate to a supervisor on breach, and
+can be reopened by the customer after resolution.
 
-**Declared targets:** SLA timers (E02/E03), escalation & delegation (P04), reopen cycles (WCP-10 — already ✅, proving it in a richer flow), system events (E05), and the CMMN-style question: **can Menata express work that has no predefined step sequence?** This case deliberately probes the language boundary, not just the runtime.
+**External grounding:** CMMN (Case Management Model and Notation, OMG standard) — Case File Item,
+discretionary Task, Stage, Milestone, Sentry. The question this case exists to answer: can Menata
+express work with no predefined step sequence?
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| No `activate_next` anywhere — any permitted event fires in any order, gated by Status | — | **The CMMN boundary finding**, not a capability: Menata's flat `When X` + CAP-E06 expresses CMMN's *bounded* flexibility (many predefined paths, no fixed Sequence) but not its *unbounded* flexibility (a case worker inventing a new task type at runtime) — stated explicitly, not a gap |
+| `SLA Due Date` set by Priority at Triage | CAP-A11 | Date arithmetic — priority-keyed offset, a new sub-pattern |
+| `Every Day 08:00` + compound condition → auto-`Escalate` | CAP-E02 + CAP-A09 + CAP-E05 | Time-driven event, compound condition, system-triggered (same-record self-trigger, a new CAP-E05 sub-pattern) |
+| `Priority` raised one level on Escalate | **CAP-A12 (new)** | Ordinal/enum stepping in actions |
+| `Delegate`: `Delegated By` = previous Assigned To | **CAP-P04 (first case evidence)** | WRP Delegation — previously "not yet in language examples" |
+| `Reopen Count + 1`, only reachable from Resolved | CAP-A11 (numeric sibling) + CAP-E06 | WCP-10 (already ✅) proven in a richer flow than Case 1's rework loop |
+| `Resolution Notes` required only at Resolve | CAP-C09 | Constraints evaluated on event trigger |
+| Overdue Complaints (compound filter) | CAP-V09 | Declarative view-level filter |
+
+Files: `prototype/go/docs/examples/complaint.{menata,yaml}` (one Machine — see the CMMN finding
+above for why this case doesn't need a child Machine per step, unlike Case 3 or Case 9)
 
 ---
 
 # Case 8 — Payment Confirmation (target declaration)
 
-**Business reality:** Customer pays via bank/payment gateway; a webhook confirms payment; the matching invoice must update exactly once (idempotent), unmatched payments queue for manual reconciliation.
+**Business reality:** A customer pays via bank transfer or payment gateway; a webhook confirms it;
+the same webhook delivered twice (every provider delivers at-least-once) must not double-apply;
+the matching Invoice updates exactly once; unmatched payments queue for manual reconciliation.
 
-**Declared targets:** external events (E04), REST/webhook surface (X07), idempotency — duplicate webhook must not double-apply (new capability, likely), cross-record matching (C08 variant).
+**External grounding:** webhook idempotency convention (Stripe/Shopify/GitHub) — dedupe by the
+provider's own event ID, atomic check-and-claim (never check-then-act), return success for
+duplicates, "receive fast, process safe" (raw event ingestion separated from domain processing).
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| `Payment Webhook Event.Receive` fired by an inbound call | CAP-E04 | First real case evidence for external events |
+| The webhook receiving surface itself | CAP-X07 (clarified) | Inbound third-party surface — distinct from X07's outbound auto-generated CRUD API; both needed |
+| Duplicate `Provider Event ID` → halt, return success | **CAP-X13 (new)** | Idempotent external-event ingestion |
+| `Receive` → `create_record` into Payment | CAP-A06 | WCP-13/14 MI |
+| `Reconcile` writes `Invoice.Amount Paid` / `Invoice.Status` | **CAP-A13 (new)** | Cross-record field write — distinct from `create_record` and `aggregate_status` |
+| Reconcile's write chain commits as one unit | CAP-X12 | Reinforced — cross-record write atomicity |
+| Payment↔Invoice matching | CAP-C08 | **Deliberately manual, not automatic** — correlation matching is a different sub-pattern than Case 5/6/9's fixed comparisons; kept out of scope so Case 8 stays a clean test of idempotency, not fuzzy matching |
+
+Files: `prototype/go/docs/examples/payment-invoice.{menata,yaml}`,
+`payment-webhook-event.{menata,yaml}`, `payment.{menata,yaml}`
 
 ---
 
