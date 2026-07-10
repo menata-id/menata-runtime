@@ -1,0 +1,40 @@
+# Hospital Medical Record
+# Example Business Knowledge expressed in Menata Language
+# Domain: Hospital — a visit's clinical record; Notes is sensitive, visible only to
+# the treating Clinician, first real case evidence for field-level visibility
+# (CAP-P06, previously spec-example only). Clinical decision support (drug
+# interaction checks, dosage limits) is explicitly out of scope — domain-engine
+# territory, same boundary Study 6 drew for posting derivation.
+# Case 20 of the Case Portfolio (runtime/case-portfolio.md)
+# References: hospital-patient.menata, hospital-appointment.menata
+
+Medical Record
+
+Fields
+
+- Patient : Patient
+- Appointment : Appointment
+- Visit Date : Date
+- Diagnosis : Rich Text
+- Notes : Rich Text
+- Prescriptions : Table of (Drug Name, Dosage, Frequency, Duration)
+- Created By : User
+
+Constraints
+
+- Patient is required.
+- Visit Date is required.
+- Diagnosis is required.
+
+Permissions
+
+Clinician
+
+- Create
+- View
+
+Views
+
+- Record Form : Form
+- Patient History : List
+- Record Detail : Detail

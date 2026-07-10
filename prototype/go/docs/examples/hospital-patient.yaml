@@ -1,0 +1,69 @@
+# Hospital Patient — Runtime Metadata
+# Realization of hospital-patient.menata (Case 20 — first real evidence for CAP-V07
+# calendar view and CAP-P06 field-level visibility; clinical decision rules flagged
+# as domain-engine territory)
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_hospital                      # [SUPPORTED]
+  name: Hospital
+  workspace: ws_default
+
+machine:
+  id: mch_patient                       # [SUPPORTED]
+  name: Patient
+  application: app_hospital
+
+  fields:
+    - id: fld_pat_mrn                   # [NOT YET] — CAP-F18, auto-numbering
+      name: MRN
+      type: text
+      required: true
+      generated: true
+      pattern: "MRN-{000001}"
+    - id: fld_pat_name                   # [SUPPORTED]
+      name: Name
+      type: text
+      required: true
+    - id: fld_pat_dob                     # [SUPPORTED]
+      name: Date Of Birth
+      type: date
+      required: true
+    - id: fld_pat_contact                  # [SUPPORTED]
+      name: Contact Info
+      type: text
+      required: false
+
+  constraints:
+    - id: cst_pat_mrn_required             # [SUPPORTED]
+      rule: MRN is required.
+      expression: { field: fld_pat_mrn, operator: required }
+    - id: cst_pat_name_required             # [SUPPORTED]
+      rule: Name is required.
+      expression: { field: fld_pat_name, operator: required }
+    - id: cst_pat_dob_required               # [SUPPORTED]
+      rule: Date Of Birth is required.
+      expression: { field: fld_pat_dob, operator: required }
+
+  permissions:
+    - role: Clinician                        # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_pat_form                          # [SUPPORTED]
+      name: Patient Form
+      type: form
+      fields: [ fld_pat_name, fld_pat_dob, fld_pat_contact ]
+    - id: vw_pat_directory                      # [SUPPORTED]
+      name: Patient Directory
+      type: list
+      columns: [ fld_pat_mrn, fld_pat_name, fld_pat_dob ]
+    - id: vw_pat_detail                          # [SUPPORTED]
+      name: Patient Detail
+      type: detail

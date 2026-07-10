@@ -1,0 +1,82 @@
+# Hospital Medical Record — Runtime Metadata
+# Realization of hospital-medical-record.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: hospital-patient.yaml, hospital-appointment.yaml
+#
+# THE FINDING: `Notes` needs field-level visibility restricted to the treating
+# Clinician (CAP-P06, previously spec-example only — "Salary visible only to HR" —
+# no case had exercised it). A HIPAA-equivalent access-restriction requirement,
+# same weight class as Case 9's SOX-driven CAP-P03/R04 findings.
+
+version: "0.1"
+
+machine:
+  id: mch_medical_record                # [SUPPORTED] — as a plain Machine
+  name: Medical Record
+  application: app_hospital
+
+  fields:
+    - id: fld_mr_patient                 # [NOT YET] — CAP-F13
+      name: Patient
+      type: reference
+      target_machine: mch_patient
+      required: true
+    - id: fld_mr_appointment              # [NOT YET] — CAP-F13
+      name: Appointment
+      type: reference
+      target_machine: mch_appointment
+      required: false
+    - id: fld_mr_visit_date                # [SUPPORTED]
+      name: Visit Date
+      type: date
+      required: true
+    - id: fld_mr_diagnosis                  # [SUPPORTED]
+      name: Diagnosis
+      type: rich_text
+      required: true
+    - id: fld_mr_notes                       # [NOT YET] — CAP-P06, first real case
+      name: Notes                             #   evidence
+      type: rich_text
+      required: false
+      visibility: { restrict_to: fld_mr_created_by }
+      # [NOT YET] No field-level visibility mechanism exists — today, if a role
+      # can view the record, it sees every field. A HIPAA-equivalent restriction
+      # (only the treating clinician sees full notes) needs field-level, not just
+      # record-level, permission.
+    - id: fld_mr_prescriptions                # [NOT YET] — CAP-F16, same shape as
+      name: Prescriptions                       #   Case 9's Journal Entry Lines
+      type: child_table
+      target_machine: mch_medical_record_prescription
+      required: false
+    - id: fld_mr_created_by                     # [PARTIAL] — CAP-F05; stamping is CAP-A02
+      name: Created By
+      type: user
+      required: false
+
+  constraints:
+    - id: cst_mr_patient_required                # [SUPPORTED]
+      rule: Patient is required.
+      expression: { field: fld_mr_patient, operator: required }
+    - id: cst_mr_visit_date_required              # [SUPPORTED]
+      rule: Visit Date is required.
+      expression: { field: fld_mr_visit_date, operator: required }
+    - id: cst_mr_diagnosis_required                # [SUPPORTED]
+      rule: Diagnosis is required.
+      expression: { field: fld_mr_diagnosis, operator: required }
+
+  permissions:
+    - role: Clinician                               # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_mr_form                                 # [SUPPORTED]
+      name: Record Form
+      type: form
+      fields: [ fld_mr_patient, fld_mr_visit_date, fld_mr_diagnosis, fld_mr_notes, fld_mr_prescriptions ]
+    - id: vw_mr_patient_history                       # [NOT YET] — CAP-V05 filter Patient = this
+      name: Patient History
+      type: list
+      columns: [ fld_mr_visit_date, fld_mr_diagnosis ]
+    - id: vw_mr_detail                                 # [SUPPORTED]
+      name: Record Detail
+      type: detail

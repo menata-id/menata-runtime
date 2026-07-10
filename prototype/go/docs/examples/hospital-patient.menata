@@ -1,0 +1,32 @@
+# Hospital Patient
+# Example Business Knowledge expressed in Menata Language
+# Domain: Hospital — patient master data
+# Case 20 of the Case Portfolio (runtime/case-portfolio.md)
+# References: hospital-appointment.menata, hospital-medical-record.menata
+
+Patient
+
+Fields
+
+- MRN : Text
+- Name : Text
+- Date Of Birth : Date
+- Contact Info : Text
+
+Constraints
+
+- MRN is required.
+- Name is required.
+- Date Of Birth is required.
+
+Permissions
+
+Clinician
+
+- View
+
+Views
+
+- Patient Form : Form
+- Patient Directory : List
+- Patient Detail : Detail

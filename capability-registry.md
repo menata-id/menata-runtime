@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.23 — + Case 19 (CAP-V14 manual/free ordering, new) | Updated: 2026-07-10
+> Status: v0.24 — + Case 20 (CAP-V07/CAP-P06 first real case evidence) | Updated: 2026-07-10
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -106,7 +106,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-P03 | Separation of duties (Requester ≠ Approver) | ❌ | spec 004 + mapping, first case evidence from Case 9 (SOX: Prepared By ≠ Posted By) | WRP-5 | 11 | — |
 | CAP-P04 | Delegation | ❌ | Study 1 mapping, first case evidence from Case 7 (`Delegate`: current assignee hands off to a peer, keeping an accountability trail via `Delegated By`) | WRP detour | 15 | Distinct from Case 7's own `Escalate` (CAP-A04 dynamic recipient + CAP-A12 ordinal stepping) — delegation is a deliberate peer handoff retaining accountability, escalation is an automatic handoff to a fixed higher-authority role on SLA breach. Previously had no case evidence at all ("not yet in language examples") |
 | CAP-P05 | CRUD-level permissions (read/create/edit per role — not just events) | ❌ | Study 2 survey | universal (6/6 platforms) | 6 | today every role sees every machine and record |
-| CAP-P06 | Field-level visibility ("Salary visible only to HR") | ❌ | Study 2 survey + spec 004 example | Salesforce field perms, Frappe permlevel | 11 | — |
+| CAP-P06 | Field-level visibility ("Salary visible only to HR") | ❌ | Study 2 survey + spec 004 example, first real case evidence from Case 20 (Medical Record's `Notes`, HIPAA-equivalent weight) | Salesforce field perms, Frappe permlevel | 11 | — |
 | CAP-P07 | Public / unauthenticated access (a role requiring no login at all) | ❌ | Case 13 [UNTARGETED FINDING] — Blog `Visitor` reading Published Posts, submitting Comments | Every public-facing CMS/blog platform (WordPress, Ghost, ...) | 7 | Structurally different from "a role with very few permissions" — every permission row in the registry today implicitly assumes CAP-X02 authentication already succeeded. First case where a role is the *absence* of a session, not a restricted one |
 
 ## Views
@@ -119,7 +119,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-V04 | `default_sort` honored in list | ⚠️ | Study 1 code check | — | 9 | loaded into model; store hardcodes `created_at DESC` |
 | CAP-V05 | Filtered list (my records / pending my approval) | ❌ | Case 3 | — | 8 | — |
 | CAP-V06 | Child records sub-list on parent detail | ❌ | Case 3 (P1) | — | 3 | depends on CAP-F13 |
-| CAP-V07 | `dashboard` / `calendar` / `timeline` views | ❌ | schema doc | — | 15 | — |
+| CAP-V07 | `dashboard` / `calendar` / `timeline` views | ❌ | schema doc, first real case evidence from Case 20 (Doctor Calendar — "what does Dr. X's Tuesday look like" cannot be served by a flat filtered list) | — | 15 | — |
 | CAP-V08 | List search & filter | ❌ | Study 2 survey | universal (6/6 platforms) | 8 | — |
 | CAP-V09 | Declarative view-level filter (Due Today, Overdue Tasks) | ❌ | Case 4 [UNTARGETED FINDING] | — | 8 | view `filter` block in metadata |
 | CAP-V10 | Composed dashboard view (sections sourcing multiple machines) | ❌ | Study 5 Portal GA | 9 shared DigestSections | 12 | Case 13's one-page site is the same composition shape applied to a **public** landing page rather than an internal dashboard — reinforces the pattern but does not close the registry's separate "not yet studied" Page/Theme gaps (`capability-registry.md` §Tracked but Not Yet Studied); a dedicated study is still needed for those |

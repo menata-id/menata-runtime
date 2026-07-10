@@ -591,6 +591,30 @@ pm-card.menata / .yaml     Card (second CAP-V14 instance, plus cross-List move)
 
 ---
 
+## Case 20 — Hospital System
+
+**Domain:** Hospital — patient scheduling and clinical records, HIPAA-equivalent access weight
+**Application:** Hospital
+**Roles:** Clinician
+**Status:** ⚠️ Documented boundary test — first real evidence for CAP-V07 and CAP-P06, see `runtime/case-portfolio.md`
+
+```
+hospital-patient.menata / .yaml          Patient
+hospital-appointment.menata / .yaml      Appointment (first CAP-V07 calendar evidence)
+hospital-medical-record.menata / .yaml   Medical Record (first CAP-P06 evidence)
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| Calendar view (CAP-V07) | **first real case evidence** — previously schema-doc only, no case had exercised it |
+| Field-level visibility (CAP-P06) | **first real case evidence** — previously spec-example only |
+| Prescriptions child table | reuses CAP-F16 |
+| Clinical decision support | explicitly out of scope — domain-engine boundary |
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

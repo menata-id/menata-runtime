@@ -245,7 +245,7 @@ their capability cluster already has case evidence.
 | 17 | Helpdesk | Low — re-proves Case 7, domain-portability only | composes Case 7, no new CAP | ⚠️ documented |
 | 18 | HR Operations | Low — Employee master only; payroll flagged domain-engine | F13 tree (2nd), O02 (3rd) | ⚠️ documented |
 | 19 | Project Management (Trello-like) | Medium — manual ordering | V14(new), F13, F16 | ⚠️ documented |
-| 20 | Hospital System | Medium — scheduling + compliance weight | V07 (calendar, not yet studied), R04, R07 | planned |
+| 20 | Hospital System | Medium — scheduling + compliance weight | V07 (1st evidence), P06 (1st evidence), F16 | ⚠️ documented |
 | 21 | E-learning | Medium — sequential unlock + certificates | E06 (reused), new (doc generation) | planned |
 
 ## Case 11 — Social App / Instagram-like (target declaration)
@@ -385,6 +385,26 @@ are freely reordered by drag-and-drop, and Cards move between Lists.
 
 Files: `prototype/go/docs/examples/pm-board.{menata,yaml}`, `pm-list.{menata,yaml}`,
 `pm-card.{menata,yaml}` (three Machines)
+
+## Case 20 — Hospital System (target declaration)
+
+**Business reality:** Patients are scheduled for Appointments; each visit produces a Medical
+Record with sensitive clinical notes visible only to the treating clinician. Clinical decision
+support (drug interactions, dosage limits) is deliberately out of scope.
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| Doctor Calendar | **CAP-V07 (first real case evidence)** | A flat filtered list cannot serve "what does Dr. X's Tuesday look like" |
+| `Notes` visible only to the treating Clinician | **CAP-P06 (first real case evidence)** | HIPAA-equivalent weight, same class as Case 9's SOX findings |
+| `Prescriptions` child table | CAP-F16 | Same shape as Case 9's Journal Entry Lines |
+
+**Deliberately out of scope:** clinical decision rules (drug interaction checks, dosage limits) —
+same domain-engine boundary Study 6 drew for posting derivation, Case 18 drew for payroll.
+
+Files: `prototype/go/docs/examples/hospital-patient.{menata,yaml}`,
+`hospital-appointment.{menata,yaml}`, `hospital-medical-record.{menata,yaml}` (three Machines)
 
 ---
 

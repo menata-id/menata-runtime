@@ -1,0 +1,69 @@
+# Hospital Appointment — Runtime Metadata
+# Realization of hospital-appointment.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: hospital-patient.yaml
+#
+# THE FINDING: `Doctor Calendar` is the first case to actually need CAP-V07 (today:
+# ❌, schema-doc only, no case evidence at all). A flat list of Appointments doesn't
+# serve "what does Dr. X's Tuesday look like" — the view itself needs to be a
+# calendar/timeline, not a table.
+
+version: "0.1"
+
+machine:
+  id: mch_appointment                    # [SUPPORTED] — as a plain Machine
+  name: Appointment
+  application: app_hospital
+
+  fields:
+    - id: fld_apt_patient                 # [NOT YET] — CAP-F13
+      name: Patient
+      type: reference
+      target_machine: mch_patient
+      required: true
+    - id: fld_apt_doctor                   # [PARTIAL] — CAP-F05
+      name: Doctor
+      type: user
+      required: true
+    - id: fld_apt_scheduled_at              # [SUPPORTED]
+      name: Scheduled At
+      type: date_time
+      required: true
+    - id: fld_apt_status                     # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Scheduled, Completed, Cancelled, No Show]
+    - id: fld_apt_reason                      # [SUPPORTED]
+      name: Reason
+      type: text
+      required: false
+
+  constraints:
+    - id: cst_apt_patient_required             # [SUPPORTED]
+      rule: Patient is required.
+      expression: { field: fld_apt_patient, operator: required }
+    - id: cst_apt_doctor_required               # [SUPPORTED]
+      rule: Doctor is required.
+      expression: { field: fld_apt_doctor, operator: required }
+    - id: cst_apt_scheduled_at_required          # [SUPPORTED]
+      rule: Scheduled At is required.
+      expression: { field: fld_apt_scheduled_at, operator: required }
+
+  permissions:
+    - role: Clinician                             # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_apt_form                               # [SUPPORTED]
+      name: Appointment Form
+      type: form
+      fields: [ fld_apt_patient, fld_apt_doctor, fld_apt_scheduled_at, fld_apt_reason ]
+    - id: vw_apt_calendar                            # [NOT YET] — CAP-V07, first real case
+      name: Doctor Calendar                           #   evidence (previously ❌ with no case
+      type: calendar                                   #   at all behind it)
+      date_field: fld_apt_scheduled_at
+      filter: { field: fld_apt_doctor, operator: equals, value: current_user }
+    - id: vw_apt_detail                               # [SUPPORTED]
+      name: Appointment Detail
+      type: detail

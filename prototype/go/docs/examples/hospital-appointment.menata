@@ -1,0 +1,35 @@
+# Hospital Appointment
+# Example Business Knowledge expressed in Menata Language
+# Domain: Hospital — a scheduled visit, the first case needing a real Calendar view
+# (CAP-V07, previously registered with no case evidence at all)
+# Case 20 of the Case Portfolio (runtime/case-portfolio.md)
+# References: hospital-patient.menata
+
+Appointment
+
+Fields
+
+- Patient : Patient
+- Doctor : User
+- Scheduled At : Date Time
+- Status : Scheduled | Completed | Cancelled | No Show
+- Reason : Text
+
+Constraints
+
+- Patient is required.
+- Doctor is required.
+- Scheduled At is required.
+
+Permissions
+
+Clinician
+
+- Schedule
+- Cancel
+
+Views
+
+- Appointment Form : Form
+- Doctor Calendar : Calendar
+- Appointment Detail : Detail
