@@ -400,7 +400,7 @@ Not part of the numbered reading sequence — each elaborates or grounds one Tie
 
 | Document | Audience |
 |----------|----------|
-| [../guides/writing-menata.md](../guides/writing-menata.md) | Domain expert — how to write `.menata` |
+| [menata-id/menata](https://github.com/menata-id/menata/tree/main/guides) — separate repo (business process language layer, no machine/application concerns) | Domain expert — how to write `.menata` |
 | [guides/writing-runtime-metadata.md](guides/writing-runtime-metadata.md) | Developer — how to translate `.menata` into Runtime Metadata |
 
 ## Tier 3 — Capability Discovery & Governance (evolving)

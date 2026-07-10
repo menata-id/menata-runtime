@@ -3,7 +3,9 @@
 Panduan ini menjelaskan cara menerjemahkan file `.menata` menjadi Runtime Metadata — dari YAML sampai ke SQL yang siap dijalankan.
 
 **Untuk siapa:** Developer yang mengimplementasikan machine baru ke Menata Runtime.  
-**Prasyarat:** Sudah ada file `.menata` yang ditulis domain expert (lihat `guides/writing-menata.md`).
+**Prasyarat:** Sudah ada file `.menata` yang ditulis domain expert (lihat panduan di
+[`menata-id/menata`](https://github.com/menata-id/menata/tree/main/guides) — repo terpisah untuk
+layer bahasa proses bisnis, tidak ada kaitan dengan mesin/aplikasi).
 
 Referensi schema lengkap: `runtime/runtime-metadata-schema.md`  
 Cara memilih tipe field yang tepat (primitif vs `value_list` vs `reference`): `runtime/benchmarks/005-field-modeling-decision-framework.md`
@@ -515,7 +517,8 @@ Gunakan `ON CONFLICT (id) DO NOTHING` agar seed aman dijalankan ulang.
 
 ## Referensi
 
-- `guides/writing-menata.md` — cara menulis `.menata` (langkah sebelum ini)
+- [`menata-id/menata` guides](https://github.com/menata-id/menata/tree/main/guides) — cara menulis
+  `.menata` (langkah sebelum ini; repo terpisah, khusus layer bahasa bisnis)
 - `runtime/runtime-metadata-schema.md` — schema lengkap
 - `runtime/benchmarks/005-field-modeling-decision-framework.md` — cara memilih tipe field yang tepat (primitif vs `value_list` vs `reference`), termasuk kenapa `money`/`user`/`file` adalah reference sugar
 - `prototype/go/docs/examples/` — contoh lengkap Design Request dan Leave Request

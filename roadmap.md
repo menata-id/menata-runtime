@@ -467,7 +467,7 @@ Before starting the actual implementation of Prio 1 (CAP-F13 reference fields), 
 - [x] Retrofit calibration against every field in Cases 1–10 — reproduces almost every prior ad hoc choice correctly; a second, adversarial pass corrected two initial miscategorizations, and a third pass corrected an overcorrection (see below)
 - [x] A tiered resolution model for composite-with-conversion fields (money's currency, quantity's unit of measure): escalate from flat fields → child table (CAP-F16) → dedicated history-tracking Machine, only as cardinality/history actually demand it — never assume the most complex tier by default
 - [x] Explicit Grammar-boundary clarification: unit/currency conversion belongs to Computed Field (CAP-F14), never inside a Constraint — a Constraint validates already-normalized values only
-- [x] `guides/writing-menata.md` §"Tips memilih tipe" rewritten — plain-language version of the same tree for domain experts, pointing to the full framework
+- [x] §"Tips memilih tipe" rewritten — plain-language version of the same tree for domain experts, pointing to the full framework. Lives in [`menata-id/menata` guides](https://github.com/menata-id/menata/tree/main/guides) (separate repo, business process language layer), not in `menata-runtime`
 - [x] `capability-registry.md` refined — CAP-F13 gains an explicit **three**-target-flavor scope note (workspace Machine, built-in identity, built-in File/Document), CAP-F05/F06/F17 gain long-term resolution notes, CAP-F14/C10 gain scope clarifications, CAP-O02 gains two independent confirming cases (`Equipment`, `Currency`)
 
 **Headline findings:**

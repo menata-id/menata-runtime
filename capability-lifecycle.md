@@ -51,7 +51,7 @@ A capability is a **column through every layer**, not a feature in one. Each lay
 
 | Layer | Deliverable | Example (CAP-F13 reference field) |
 |-------|------------|-----------------------------------|
-| 1. Language | Grammar/examples updated (`specification/`, `guides/writing-menata.md`) | `- Department : Department` already specified |
+| 1. Language | Grammar/examples updated (`specification/`, [`menata-id/menata` guides](https://github.com/menata-id/menata/tree/main/guides) — separate repo) | `- Department : Department` already specified |
 | 2. Metadata schema | Schema doc + migration (`runtime-metadata-schema.md`, `migrations/`) | `target_machine` in field options |
 | 3. Loader | Parse + validate (dangling refs = load-time error, not runtime surprise) | resolve target machine at load |
 | 4. Application Model | Model structs + interpreter queries | `Field.TargetMachine` |

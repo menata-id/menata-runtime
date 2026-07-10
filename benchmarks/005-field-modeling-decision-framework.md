@@ -575,7 +575,8 @@ Refines existing entries, no new capability IDs required:
 
 # Guide Impact
 
-`guides/writing-menata.md` §"Tips memilih tipe" (4 informal bullets) is superseded for the
+The [`menata-id/menata` guides](https://github.com/menata-id/menata/tree/main/guides)' §"Tips
+memilih tipe" (4 informal bullets, separate repo — business process language layer) is superseded for the
 reference-vs-value_list-vs-primitive decision by this framework's decision tree, translated to
 plain language for domain experts (no DDD/Codd/MDM terminology — just the four supporting tests).
 The guide keeps its own copy, phrased for its audience; this document is the rigorous source it is
