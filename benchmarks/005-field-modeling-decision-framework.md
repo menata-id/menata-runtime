@@ -9,7 +9,9 @@
 > "some of these fields look like they should be reference — is there a
 > world-class framework for deciding this?" There wasn't one; this is it.
 >
-> Status: v0.7 — Quantity/CAP-F19 updated from prediction to confirmed (Case 5 closed the loop); money YAML snippet corrected to match the `options:` convention; known tree gap noted for CAP-F20 (many-to-many) | Created: 2026-07-05 | Updated: 2026-07-10
+> Status: v0.8 — Retrofit calibration extended to Cases 11–21 (field type vocabulary holds, zero
+> new types); decision tree's cardinality gap closed with a many-to-many branch (CAP-F20 + CAP-C12) |
+> Created: 2026-07-05 | Updated: 2026-07-10
 
 ---
 
@@ -53,7 +55,13 @@ independent of this record?
 └─ YES ─► Is the referenced thing a workspace-authored Machine
           (has its own Fields / Events / Constraints / Views)?
           │
-          ├─ YES ──► reference (target_machine: ...)
+          ├─ YES ─► Is the relationship many-to-many (both sides need to be
+          │         independently queryable; neither side owns the row)?
+          │         │
+          │         ├─ YES ──► join Machine — a `reference` field on each side
+          │         │          plus a uniqueness constraint on the pair
+          │         │          (CAP-F20 + CAP-C12 — still no new field type)
+          │         └─ NO ───► reference (target_machine: ...)
           └─ NO ───► Is it platform identity (a person / user)?
                       │
                       ├─ YES ──► user (sugar over reference-to-identity — CAP-F05)
@@ -148,6 +156,26 @@ fourth-pass correction above). One field type (`file`) was initially miscategori
 This mirrors the calibration discipline used for the capability admission test in Study 9
 (`capability-lifecycle.md` §6): a good framework should survive repeated adversarial passes, and
 this one found something on each pass — which is a feature, not a failure, of doing the passes.
+
+## Re-calibration — Cases 11–21 (Study 17, 2026-07-10)
+
+The original calibration above only ran against Cases 1–10. Cases 11–21 (`case-portfolio.md`,
+Extended Portfolio) are a harder test precisely because they were screened for novelty — every field
+in them was a candidate to break the tree. It held: every new finding in that batch resolved to an
+**existing** field type, not a new one.
+
+| Finding | Case(s) | Tree/framework answer | New field type? |
+|---------|---------|------------------------|-------------------|
+| `Follow` / `Like` / `Membership` / `Enrollment` join Machines | 11, 12, 21 | Both sides pass the identity/lifecycle test and are workspace Machines → the tree's new many-to-many branch (above) → two `reference` fields + a uniqueness constraint | No — CAP-F20 is a relationship *pattern* (composition of existing `reference`), CAP-C12 is a Constraint-grammar addition, neither touches the Field type vocabulary |
+| `Certificate.Generated File` rendered from a template | 21 | Passes the identity/lifecycle test exactly as an uploaded `file` does (storage key, versioning) — the only difference is *how* it gets populated (rendered at runtime vs. uploaded by a user), which is an Action/generation concern, not a type concern | No — CAP-F21 targets the existing `file` type; the gap is a new generation mechanism, not a new reference target or primitive |
+| `Quantity` (count + Unit of Measure) | 5 (confirmed), reinforced by inventory-shaped fields in later cases | Tiered composition of `value_list` + `number`, escalating to `child_table` (Tier 2) — see Third-Pass Refinement above | No — CAP-F19, already covered |
+
+**Conclusion: the Field Types table in "Final Recap" below is confirmed closed as of Case 21.**
+Nothing since the original six-pass calibration required extending the type vocabulary itself — every
+subsequent finding (CAP-F19, F20, F21, C12) was resolved by composing `text` / `number` / `value_list`
+/ `reference` / `file`, never by inventing a thirteenth primitive or reference-sugar type. The
+decision tree itself did need one extension (the many-to-many branch, above) — that was a tree
+*structure* gap, not a type gap, and is now closed.
 
 ---
 
@@ -602,11 +630,13 @@ Re-run the retrofit calibration whenever a new case is written, or when CAP-O01/
 at that point, `user` fields and master-data-candidate fields should be re-classified and, where
 possible, actually migrated to `reference` in the example metadata.
 
-**Known tree gap, not yet closed (2026-07-10):** the Decision Tree's `reference` branch resolves
-"does this field point at exactly one other Machine?" and stops there — it has no branch for a
-relationship where two independent sides both need to be queryable and neither owns the row. Case
-11 (`Follow`, `Like`) forced this into the open and it's now registered as **CAP-F20**
-(many-to-many relationship), but that finding sits outside this tree rather than extending it. A
-future pass should fold in a cardinality sub-question under the `reference` branch. Not done now —
-this note exists so it isn't silently dropped, per the roadmap's own "silence is not a decision"
-rule.
+**Tree gap closed (2026-07-10).** The Decision Tree's `reference` branch used to resolve "does this
+field point at exactly one other Machine?" and stop there — it had no branch for a relationship
+where two independent sides both need to be queryable and neither owns the row. Case 11 (`Follow`,
+`Like`) forced this into the open, registered as **CAP-F20** (many-to-many relationship). By Case 21
+the same shape had recurred four times (Follow, Like, Membership, Enrollment) with an identical
+resolution each time — a join Machine, two `reference` fields, one uniqueness constraint (CAP-C12) —
+so the pattern was stable enough to fold into the tree rather than leave as a standing exception. The
+Decision Tree above now has an explicit cardinality sub-question under the `reference` branch. No
+new field type resulted — the branch routes to a *composition* of `reference` plus a Constraint, the
+same primitives the tree already names.
