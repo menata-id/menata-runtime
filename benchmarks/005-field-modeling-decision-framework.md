@@ -9,7 +9,7 @@
 > "some of these fields look like they should be reference — is there a
 > world-class framework for deciding this?" There wasn't one; this is it.
 >
-> Status: v0.6 — 6 adversarial passes; consistently scoped to the metadata-author/runtime perspective, never the resulting application's end-user | Created: 2026-07-05
+> Status: v0.7 — Quantity/CAP-F19 updated from prediction to confirmed (Case 5 closed the loop); money YAML snippet corrected to match the `options:` convention; known tree gap noted for CAP-F20 (many-to-many) | Created: 2026-07-05 | Updated: 2026-07-10
 
 ---
 
@@ -238,13 +238,14 @@ catalog. It resolves to a `value_list`-shaped inline unit selector, not `referen
 same Axis 2 test as any other closed-and-fixed enumeration. Composite structure alone does not imply
 `reference` — only composite structure *plus* a growing/lifecycle-bearing component does.
 
-**Predicted, not yet evidenced — flagged for Case 5.** `number` in its ordinal/count use (e.g.
-`Sequence` in Approval Step) is genuinely primitive — no unit, no identity. But a **Quantity** field
-(count + Unit of Measure — kg, pcs, box, liter, with conversion factors between them) would be a
-third instance of the same general pattern as `money`, expected when Case 5 (Inventory / Stock
-Movement) is written. Not corrected now — Case 5 doesn't exist yet, so there is no case evidence,
-only the benchmark-side prediction. Recorded here so the case-portfolio process (declare targets
-first) can check this prediction against what Case 5 actually surfaces.
+**Confirmed by Case 5 / CAP-F19 (2026-07-10).** `number` in its ordinal/count use (e.g. `Sequence`
+in Approval Step) is genuinely primitive — no unit, no identity. But a **Quantity** field (count +
+Unit of Measure — kg, pcs, box, liter, with conversion factors between them) is a third instance of
+the same general pattern as `money`. This was originally recorded here as a prediction pending Case
+5 (Inventory / Stock Movement); Case 5 has since been written (`inventory-item.menata` — Rice for
+Tier 1, Cement for Tier 2) and the finding is registered as `capability-registry.md`'s **CAP-F19**,
+citing this study plus Case 5 as dual evidence. The tiering below is the confirmed answer, not a
+prediction awaiting one.
 
 ## Third-Pass Refinement — Quantity Is Not "Same as Money", It's Tiered
 
@@ -350,7 +351,8 @@ discipline extends to `money`:
 - id: fld_amount
   name: Amount
   type: money
-  currency: IDR              # required key of `type: money` itself — omitting it is malformed metadata
+  options:
+    currency: "IDR"          # required key of `type: money`'s own options — omitting it is malformed metadata
 ```
 
 Metadata declaring `type: money` without a `currency:` (or `currency_field:`, for the multi-currency
@@ -362,7 +364,7 @@ loader, not a matter of authoring discipline or memory.
 **Enforced by CAP-X05 (metadata validation before load) — no new capability required.** CAP-X05
 already exists to catch dangling references and malformed metadata (Terraform's plan-before-apply is
 its yardstick, Study 1). Its scope now explicitly includes: every composite/reference-sugar type
-(`money`, and a future `quantity` if registered) must have its required companion present in the
+(`money`, and `quantity`, now registered as CAP-F19) must have its required companion present in the
 metadata; a missing companion is a load-time rejection — the same discipline CAP-X05 already applies
 to a dangling `reference` target under CAP-F13.
 
@@ -476,7 +478,7 @@ entirely. Mixing the third group into a "field types" table would misrepresent w
 | `money` | **Reference sugar** (amount is primitive; currency is the sugar component) | Currency passes all four supporting tests (identity, lifecycle via exchange rates, reuse, cardinality); independently named as an Object in `specification/001-object.md` | CAP-F17 (❌), currency is a CAP-O02 master-data candidate. `type: money`'s `currency:`/`currency_field:` key should be schema-required, rejected at load if missing (CAP-X05) |
 | `file` | **Reference sugar** | Own storage identity + lifecycle (versioning, replacement); matches Frappe/Salesforce/Drupal platform convention (Study 2) | CAP-F06 (⚠️ partial — Failure Mode 2), long-term sugar over CAP-F13 + a runtime-managed File/Document entity. Image handling (sixth-pass): a processing *option* on `file`, not a new type — `options` schema in `runtime-metadata-schema.md`; the dual-path (client fast-path + server-authoritative) enforcement contract is a runtime concern, documented in `capability-registry.md` (CAP-F06) and `nfr-standards.md` §2.1, not repeated in the metadata schema doc |
 | `reference` | General mechanism | Target has independent identity and is a workspace-authored (or master-data-designated) Machine | CAP-F13 (❌, Prio 1) |
-| `Quantity` (count + Unit of Measure, anticipated for Case 5) — **predicted, not yet a confirmed type** | **Default is simple — declaring the field stays one line, same as any other type.** Only the *conversion schema*, if actually needed, is tiered — a metadata-authoring decision made once, never the same thing as the conversion *values*, which are business data entered later through the resulting application (out of scope here). | Tier 1 (the common case): two flat fields on the referencing Machine's metadata, no reference at all — as easy to declare as any primitive. Tier 2 (multiple unit pairs for one item): a child table (CAP-F16). Tier 3 (factor needs history): a dedicated Machine. Whichever tier, CAP-X05 should reject metadata that declares `money`/`quantity` without its required companion. | Predicted only — no case evidence yet (Case 5 unwritten); default to Tier 1, escalate only when Case 5 actually shows a real need |
+| `Quantity` (count + Unit of Measure) — **confirmed by Case 5 (2026-07-10), registered as CAP-F19** | **Default is simple — declaring the field stays one line, same as any other type.** Only the *conversion schema*, if actually needed, is tiered — a metadata-authoring decision made once, never the same thing as the conversion *values*, which are business data entered later through the resulting application (out of scope here). | Tier 1 (the common case): two flat fields on the referencing Machine's metadata, no reference at all — as easy to declare as any primitive. Tier 2 (multiple unit pairs for one item): a child table (CAP-F16). Tier 3 (factor needs history): a dedicated Machine. Whichever tier, CAP-X05 should reject metadata that declares `money`/`quantity` without its required companion. | Case 5 (`inventory-item.menata`) exercised Tier 1 (Rice, flat KG↔SAK pair) and Tier 2 (Cement, BOX/DOZEN/PCS child table) directly; Tier 3 deliberately not exercised — no case has evidenced factor history yet |
 
 ## Worked Examples — Applying These Types to Real Fields
 
@@ -539,17 +541,17 @@ Refines existing entries, no new capability IDs required:
   from `text` to `reference`, *when used within one application*, requires nothing beyond CAP-F13
   itself plus authoring an ordinary workspace Machine. CAP-O02 is an additional, separate capability
   for the cross-application case, not a prerequisite for the basic fix.
-- **Predicted, not registered:** a future **Quantity** field (Case 5) would be a related instance of
-  the same general pattern (count + Unit of Measure) — but *not* a straight copy of the
-  `money`/Currency resolution. Third-pass refinement above shows it resolves in **tiers**: a fixed
-  conversion pair as two flat fields on Item (no reference needed), escalating to a child table
-  (CAP-F16) only with multiple unit pairs, escalating further to a dedicated Machine only if
-  conversion history must be preserved. Not added as a capability now — no case evidence yet, per
-  the admission test's dual-evidence rule (`capability-lifecycle.md` §2, criterion A1); when Case 5
-  is written, it should declare which tier it actually needs rather than assuming the most complex one.
-  Fourth-pass note: *declaring* the field stays one line regardless of tier — only the underlying
-  conversion data (when Tier 2/3 is genuinely needed) is authored separately, once, by whoever
-  manages that master data.
+- **Registered (2026-07-10): Quantity is CAP-F19.** A related instance of the same general pattern
+  (count + Unit of Measure) as `money` — but *not* a straight copy of the `money`/Currency
+  resolution. Third-pass refinement above shows it resolves in **tiers**: a fixed conversion pair as
+  two flat fields on Item (no reference needed), escalating to a child table (CAP-F16) only with
+  multiple unit pairs, escalating further to a dedicated Machine only if conversion history must be
+  preserved. This was originally left unregistered pending dual evidence (`capability-lifecycle.md`
+  §2, criterion A1); Case 5 (`inventory-item.menata`, Rice for Tier 1, Cement for Tier 2) has since
+  supplied the case-side evidence this study's prediction was waiting on, and the finding is now
+  registered in `capability-registry.md`. Fourth-pass note (still accurate): *declaring* the field
+  stays one line regardless of tier — only the underlying conversion data (when Tier 2/3 is
+  genuinely needed) is authored separately, once, by whoever manages that master data.
 - **CAP-F14** (computed/formula field) — scope clarified: this is the correct home for unit/currency
   conversion calculations (deriving a Normalized Quantity or a base-currency amount), not the
   Constraint grammar. Constraints (CAP-C05/C07/C10) must only validate already-normalized values —
@@ -598,3 +600,12 @@ answers:
 Re-run the retrofit calibration whenever a new case is written, or when CAP-O01/CAP-O02 land —
 at that point, `user` fields and master-data-candidate fields should be re-classified and, where
 possible, actually migrated to `reference` in the example metadata.
+
+**Known tree gap, not yet closed (2026-07-10):** the Decision Tree's `reference` branch resolves
+"does this field point at exactly one other Machine?" and stops there — it has no branch for a
+relationship where two independent sides both need to be queryable and neither owns the row. Case
+11 (`Follow`, `Like`) forced this into the open and it's now registered as **CAP-F20**
+(many-to-many relationship), but that finding sits outside this tree rather than extending it. A
+future pass should fold in a cardinality sub-question under the `reference` branch. Not done now —
+this note exists so it isn't silently dropped, per the roadmap's own "silence is not a decision"
+rule.

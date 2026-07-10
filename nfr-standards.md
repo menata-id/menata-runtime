@@ -7,7 +7,7 @@
 > as Definition-of-Done gates when each capability is implemented
 > (`capability-lifecycle.md` §3b).
 >
-> Status: v0.2 — study only, no implementation | Created: 2026-07-04 | §2.1 refined 2026-07-05 (Study 15 sixth-pass: image/compression dual-path enforcement)
+> Status: v0.3 — study only, no implementation | Created: 2026-07-04 | §2.1 refined 2026-07-05 (Study 15 sixth-pass: image/compression dual-path enforcement) | §2.5 refined 2026-07-10 (CAP-P07 public access breaks the identity-scoping premise — Case 13)
 
 **External standards used as yardsticks:**
 
@@ -89,7 +89,7 @@ Rule: a synchronous request path may not contain a P4 operation — slow work is
 
 ### 2.5 Permissions (CAP-P*)
 
-- **Security** — ASVS V4 wholesale. **Deny by default** (today: allow by default — inversion required). Checks server-side at the guard chokepoint; IDOR defense = every record fetch scoped by workspace + permission, never by ID alone. Separation of duties (P03) evaluated against *identity*, not role string. Role strings namespaced (CAP-O01) to prevent cross-application collision escalation.
+- **Security** — ASVS V4 wholesale. **Deny by default** (today: allow by default — inversion required). Checks server-side at the guard chokepoint; IDOR defense = every record fetch scoped by workspace + permission, never by ID alone. Separation of duties (P03) evaluated against *identity*, not role string. Role strings namespaced (CAP-O01) to prevent cross-application collision escalation. **CAP-P07 (public/unauthenticated access, Case 13) is a stated exception to this profile's own premise** — "deny by default, scope by identity" assumes a session to scope against; a public role has none. Its guard chokepoint still applies (public routes are still explicitly allow-listed, never accidentally exposed), but the IDOR/scoping defense above needs a second layer that isn't identity-based: rate limiting and bot/spam defense on every publicly-reachable write path (e.g. Blog's anonymous Comment submission), since there is no account to throttle or ban.
 - **Performance** — P1 overhead ≈ 0: permission maps precomputed per interpreter version; record-level checks piggyback the record fetch (no second query).
 - **Architecture** — exactly one guard chokepoint; no permission logic in handlers/templates. Fitness function: grep for role comparisons outside the guard = violation.
 
