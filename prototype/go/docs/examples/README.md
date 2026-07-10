@@ -519,6 +519,21 @@ ecommerce-order.menata / .yaml      Order (Case 9's header+line shape, reused)
 
 ---
 
+## Case 16 — Point of Sale
+
+**Domain:** Retail — a single in-person transaction, line items + immediate payment + stock deduction
+**Application:** Point of Sale
+**Roles:** Cashier
+**Status:** ⚠️ Documented — pure composition of Cases 5/8/15, no new capability, see `runtime/case-portfolio.md`
+
+```
+pos-sale.menata / .yaml    Sale (one Machine, deliberately)
+```
+
+No new findings — written to confirm the composition holds, not to discover anything.
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

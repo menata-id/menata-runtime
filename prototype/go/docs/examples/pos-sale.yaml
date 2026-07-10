@@ -1,0 +1,103 @@
+# Point of Sale — Sale — Runtime Metadata
+# Realization of pos-sale.menata (Case 16 — pure composition, no new capability)
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+#
+# Composes: Case 5 (stock deduction — Deduct Stock reuses the Confirm→Ledger shape),
+# Case 8 (payment confirmation, collapsed into the same event since POS has no
+# webhook delay), Case 15 (Lines is the same header+line-item shape as Order).
+# No new capability — every gap below already has a registry row from an earlier case.
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_pos                          # [SUPPORTED]
+  name: Point of Sale
+  workspace: ws_default
+
+machine:
+  id: mch_sale                         # [SUPPORTED] — as a plain Machine
+  name: Sale
+  application: app_pos
+
+  fields:
+    - id: fld_sale_cashier              # [PARTIAL] — CAP-F05
+      name: Cashier
+      type: user
+      required: true
+    - id: fld_sale_lines                 # [NOT YET] — CAP-F16, same shape as Case 15's
+      name: Lines                         #   Order Lines / Case 9's Journal Entry Lines
+      type: child_table
+      target_machine: mch_sale_line
+      required: true
+    - id: fld_sale_total_amount           # [NOT YET] — CAP-F14, aggregate rollup
+      name: Total Amount
+      type: money
+      computed: true
+      formula: "sum(sale_line.line_total where sale = this)"
+      options: { currency: "IDR" }
+    - id: fld_sale_amount_tendered         # [PARTIAL] — CAP-F08
+      name: Amount Tendered
+      type: money
+      required: true
+      options: { currency: "IDR" }
+    - id: fld_sale_change_due               # [NOT YET] — CAP-F14, simple subtraction
+      name: Change Due
+      type: money
+      computed: true
+      formula: "amount_tendered - total_amount"
+      options: { currency: "IDR" }
+    - id: fld_sale_payment_method             # [SUPPORTED]
+      name: Payment Method
+      type: value_list
+      required: true
+      values: [Cash, Card, QRIS]
+    - id: fld_sale_sold_at                     # [SUPPORTED] — as a field; stamping is not
+      name: Sold At
+      type: date_time
+      required: false
+
+  events:
+    - id: evt_sale_complete                      # [NOT YET] — composes CAP-A13 (cross-record
+      name: Complete                              #   write to Item.Stock On Hand, Case 5's shape)
+      actions:
+        - deduct_stock_for_lines: { lines_field: fld_sale_lines }
+          # [NOT YET] Not a real action type — shorthand here for "run Case 5's
+          # Confirm logic once per line." No new capability: this is CAP-A13 +
+          # CAP-A15-adjacent (one action affecting N related records) already
+          # covered conceptually by Case 5 (single deduction) and Case 14
+          # (batch generation) — POS just needs both composed together.
+
+  constraints:
+    - id: cst_sale_cashier_required               # [SUPPORTED]
+      rule: Cashier is required.
+      expression: { field: fld_sale_cashier, operator: required }
+    - id: cst_sale_lines_required                  # [SUPPORTED]
+      rule: Lines is required.
+      expression: { field: fld_sale_lines, operator: required }
+    - id: cst_sale_payment_method_required          # [SUPPORTED]
+      rule: Payment Method is required.
+      expression: { field: fld_sale_payment_method, operator: required }
+    - id: cst_sale_sufficient_tender                 # [NOT YET] — CAP-C05, same as every
+      rule: Amount Tendered must be greater than or equal to Total Amount.  # prior comparison gap
+      expression: { field: fld_sale_amount_tendered, operator: greater_than_or_equal, compare_field: fld_sale_total_amount }
+
+  permissions:
+    - role: Cashier                                  # [SUPPORTED]
+      events: [ evt_sale_complete ]
+
+  views:
+    - id: vw_sale_form                                # [SUPPORTED]
+      name: Sale Form
+      type: form
+      fields: [ fld_sale_lines, fld_sale_payment_method, fld_sale_amount_tendered ]
+    - id: vw_sale_daily                                # [NOT YET] — CAP-V09 filter Sold At = today
+      name: Daily Sales
+      type: list
+      columns: [ fld_sale_cashier, fld_sale_total_amount, fld_sale_sold_at ]
+    - id: vw_sale_detail                                # [SUPPORTED]
+      name: Sale Detail
+      type: detail

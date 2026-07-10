@@ -241,7 +241,7 @@ their capability cluster already has case evidence.
 | 13 | Blog / One-Page Site | **High** — public/unauthenticated access | P07(new), V10, F03 scope note | ⚠️ documented |
 | 14 | Lending Services | **High** — schedule generation | A15(new), F13, A02, A06, P03, E02 | ⚠️ documented |
 | 15 | E-commerce | Medium — cart as mutable pre-commit doc | R08(new), composes Case 5/8/9 | ⚠️ documented |
-| 16 | Point of Sale | Low — composition of Case 5+8+15 | composes only | planned |
+| 16 | Point of Sale | Low — composition of Case 5+8+15 | composes only, no new CAP | ⚠️ documented |
 | 17 | Helpdesk | Low — re-proves Case 7 | composes Case 7 | planned |
 | 18 | HR Operations | Low — re-proves Cases 1/2/9 | composes 1/2/9; payroll flagged domain-engine | planned |
 | 19 | Project Management (Trello-like) | Medium — manual ordering | new (manual order), F16 | planned |
@@ -334,6 +334,17 @@ Cart into a real Order. Payment reuses Case 8's Payment machine — not rebuilt.
 
 Files: `prototype/go/docs/examples/ecommerce-product.{menata,yaml}`,
 `ecommerce-cart.{menata,yaml}`, `ecommerce-order.{menata,yaml}` (three Machines)
+
+## Case 16 — Point of Sale (target declaration)
+
+**Business reality:** A cashier rings up line items and takes payment in one motion — no cart
+lingering, no webhook delay.
+
+**Declared targets:** pure composition of Case 5 (stock deduction), Case 8 (payment, collapsed
+into one event since there's no async webhook), Case 15 (line-item shape). No new capability
+expected or found — written to confirm the composition actually holds, not to discover anything.
+
+Files: `prototype/go/docs/examples/pos-sale.{menata,yaml}` (one Machine)
 
 ---
 

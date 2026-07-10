@@ -1,0 +1,50 @@
+# Point of Sale — Sale
+# Example Business Knowledge expressed in Menata Language
+# Domain: Retail — a single in-person transaction: line items, immediate payment, stock deducted
+# Case 16 of the Case Portfolio (runtime/case-portfolio.md)
+#
+# Deliberately light-touch: Point of Sale is a real-time composition of capabilities
+# already proven — Case 5's stock deduction (Confirm→Ledger), Case 8's payment
+# confirmation, Case 15's line-item order shape. The one operationally distinct trait
+# is that Sale and Payment happen in the SAME moment (no separate webhook delay,
+# no cart lingering) — a timing detail, not a new capability.
+
+Sale
+
+Fields
+
+- Cashier : User
+- Lines : Table of (Product, Quantity, Unit Price, Line Total)
+- Total Amount : Money
+- Amount Tendered : Money
+- Change Due : Money
+- Payment Method : Cash | Card | QRIS
+- Sold At : Date Time
+
+Events
+
+When Complete
+
+    Deduct Stock for each Line
+
+    Change Due Amount Tendered minus Total Amount
+
+Constraints
+
+- Cashier is required.
+- Lines is required.
+- Payment Method is required.
+
+    Amount Tendered must be greater than or equal to Total Amount.
+
+Permissions
+
+Cashier
+
+- Complete
+
+Views
+
+- Sale Form : Form
+- Daily Sales : List
+- Sale Detail : Detail
