@@ -242,7 +242,7 @@ their capability cluster already has case evidence.
 | 14 | Lending Services | **High** — schedule generation | A15(new), F13, A02, A06, P03, E02 | ⚠️ documented |
 | 15 | E-commerce | Medium — cart as mutable pre-commit doc | R08(new), composes Case 5/8/9 | ⚠️ documented |
 | 16 | Point of Sale | Low — composition of Case 5+8+15 | composes only, no new CAP | ⚠️ documented |
-| 17 | Helpdesk | Low — re-proves Case 7 | composes Case 7 | planned |
+| 17 | Helpdesk | Low — re-proves Case 7, domain-portability only | composes Case 7, no new CAP | ⚠️ documented |
 | 18 | HR Operations | Low — re-proves Cases 1/2/9 | composes 1/2/9; payroll flagged domain-engine | planned |
 | 19 | Project Management (Trello-like) | Medium — manual ordering | new (manual order), F16 | planned |
 | 20 | Hospital System | Medium — scheduling + compliance weight | V07 (calendar, not yet studied), R04, R07 | planned |
@@ -345,6 +345,17 @@ into one event since there's no async webhook), Case 15 (line-item shape). No ne
 expected or found — written to confirm the composition actually holds, not to discover anything.
 
 Files: `prototype/go/docs/examples/pos-sale.{menata,yaml}` (one Machine)
+
+## Case 17 — Helpdesk (target declaration)
+
+**Business reality:** Internal IT support tickets — same discretionary-task, SLA-timed,
+reopenable shape as Case 7's Complaint, aimed at employees instead of customers.
+
+**Declared targets:** domain-portability proof only (same relationship Case 2 had to Case 1) —
+CAP-E02/A11 (SLA), CAP-E06 (Reopen guard), CAP-C09 (Resolution Notes at event time), WCP-10. No
+new capability expected or found.
+
+Files: `prototype/go/docs/examples/helpdesk-ticket.{menata,yaml}` (one Machine)
 
 ---
 

@@ -534,6 +534,19 @@ No new findings — written to confirm the composition holds, not to discover an
 
 ---
 
+## Case 17 — Helpdesk
+
+**Domain:** Internal IT support — same shape as Case 7's Complaint, internal audience
+**Application:** Helpdesk
+**Roles:** Agent, Requester
+**Status:** ⚠️ Documented — domain-portability proof only (Case 2's relationship to Case 1), no new capability, see `runtime/case-portfolio.md`
+
+```
+helpdesk-ticket.menata / .yaml    Ticket (one Machine, deliberately)
+```
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

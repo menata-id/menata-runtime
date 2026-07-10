@@ -1,0 +1,124 @@
+# Helpdesk Ticket — Runtime Metadata
+# Realization of helpdesk-ticket.menata (Case 17 — pure domain-portability proof,
+# same relationship Case 2 had to Case 1)
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+#
+# No new capability. Every gap below is Case 7's Complaint pattern, same CAP ids:
+# CAP-E02/E03 (SLA), CAP-A11 (priority-keyed offset), CAP-E06 (state guard on Reopen),
+# CAP-C09 (Resolution Notes conditional constraint at event time), WCP-10 (reopen cycle).
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_helpdesk                     # [SUPPORTED]
+  name: Helpdesk
+  workspace: ws_default
+
+machine:
+  id: mch_ticket                       # [SUPPORTED]
+  name: Ticket
+  application: app_helpdesk
+
+  fields:
+    - id: fld_tkt_requester             # [PARTIAL] — CAP-F05
+      name: Requester
+      type: user
+      required: true
+    - id: fld_tkt_category               # [SUPPORTED]
+      name: Category
+      type: value_list
+      required: true
+      values: [Hardware, Software, Access, Network, Other]
+    - id: fld_tkt_description             # [SUPPORTED]
+      name: Description
+      type: rich_text
+      required: true
+    - id: fld_tkt_priority                # [SUPPORTED]
+      name: Priority
+      type: value_list
+      required: true
+      values: [Low, Medium, High]
+    - id: fld_tkt_status                   # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [New, Triaged, In Progress, Waiting on Requester, Resolved, Closed, Reopened]
+    - id: fld_tkt_assigned_to                # [PARTIAL] — CAP-F05
+      name: Assigned To
+      type: user
+      required: false
+    - id: fld_tkt_sla_due_date                # [NOT YET] — CAP-A11, same priority-keyed
+      name: SLA Due Date                       #   offset sub-pattern as Case 7
+      type: date
+      required: false
+    - id: fld_tkt_resolution_notes              # [SUPPORTED]
+      name: Resolution Notes
+      type: rich_text
+      required: false
+
+  events:
+    - id: evt_tkt_triage                         # [PARTIAL] — same as Case 7's Triage
+      name: Triage
+      actions:
+        - set_field: { field: fld_tkt_sla_due_date, value: "received_date + sla_offset(priority)" }
+        - set_field: { field: fld_tkt_status, value: Triaged }
+    - id: evt_tkt_start_work                      # [SUPPORTED]
+      name: Start Work
+      actions: [ { set_field: { field: fld_tkt_status, value: In Progress } } ]
+    - id: evt_tkt_request_info                    # [SUPPORTED]
+      name: Request Info
+      actions: [ { set_field: { field: fld_tkt_status, value: Waiting on Requester } } ]
+    - id: evt_tkt_requester_responds                # [SUPPORTED]
+      name: Requester Responds
+      actions: [ { set_field: { field: fld_tkt_status, value: In Progress } } ]
+    - id: evt_tkt_resolve                            # [PARTIAL] — conditional Resolution
+      name: Resolve                                   #   Notes requirement is CAP-C09, same gap
+      actions: [ { set_field: { field: fld_tkt_status, value: Resolved } } ]
+    - id: evt_tkt_close                               # [SUPPORTED]
+      name: Close
+      actions: [ { set_field: { field: fld_tkt_status, value: Closed } } ]
+    - id: evt_tkt_reopen                               # [PARTIAL] — should be gated by
+      name: Reopen                                      #   CAP-E06 (only from Resolved),
+      actions: [ { set_field: { field: fld_tkt_status, value: Reopened } } ]  # not enforced yet
+
+  constraints:
+    - id: cst_tkt_requester_required                    # [SUPPORTED]
+      rule: Requester is required.
+      expression: { field: fld_tkt_requester, operator: required }
+    - id: cst_tkt_description_required                   # [SUPPORTED]
+      rule: Description is required.
+      expression: { field: fld_tkt_description, operator: required }
+    - id: cst_tkt_category_required                       # [SUPPORTED]
+      rule: Category is required.
+      expression: { field: fld_tkt_category, operator: required }
+    - id: cst_tkt_resolution_notes_if_resolved              # [PARTIAL] — CAP-C09
+      rule: Resolution Notes is required.
+      expression: { field: fld_tkt_resolution_notes, operator: required }
+      condition: { field: fld_tkt_status, operator: equals, value: Resolved }
+
+  permissions:
+    - role: Agent                                            # [SUPPORTED]
+      events: [ evt_tkt_triage, evt_tkt_start_work, evt_tkt_request_info, evt_tkt_resolve ]
+    - role: Requester                                         # [SUPPORTED]
+      events: [ evt_tkt_requester_responds, evt_tkt_reopen ]
+
+  views:
+    - id: vw_tkt_form                                          # [SUPPORTED]
+      name: Ticket Form
+      type: form
+      fields: [ fld_tkt_category, fld_tkt_description, fld_tkt_priority ]
+    - id: vw_tkt_my_tickets                                     # [PARTIAL] — CAP-V05
+      name: My Tickets
+      type: list
+      columns: [ fld_tkt_category, fld_tkt_priority, fld_tkt_status ]
+    - id: vw_tkt_open                                            # [SUPPORTED] — plain list;
+      name: Open Tickets                                          #   CAP-V09 for real filter
+      type: list
+      columns: [ fld_tkt_requester, fld_tkt_assigned_to, fld_tkt_status, fld_tkt_sla_due_date ]
+    - id: vw_tkt_detail                                           # [SUPPORTED]
+      name: Ticket Detail
+      type: detail

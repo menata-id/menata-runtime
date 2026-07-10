@@ -1,0 +1,88 @@
+# Helpdesk Ticket
+# Example Business Knowledge expressed in Menata Language
+# Domain: IT/Internal Support — same CMMN-shaped discretionary-task pattern as Case 7's
+# Complaint, internal audience instead of external customers
+# Case 17 of the Case Portfolio (runtime/case-portfolio.md)
+#
+# Deliberately light-touch: this is Case 7's Complaint pattern in a different skin
+# (internal requester instead of external customer, "Category" instead of "Product
+# Quality/Service/Billing"). Written to confirm portability across domains (the same
+# proof Case 2 gave Case 1), not because it surfaces anything new.
+
+Ticket
+
+Fields
+
+- Requester : User
+- Category : Hardware | Software | Access | Network | Other
+- Description : Rich Text
+- Priority : Low | Medium | High
+- Status : New | Triaged | In Progress | Waiting on Requester | Resolved | Closed | Reopened
+- Assigned To : User
+- SLA Due Date : Date
+- Resolution Notes : Rich Text
+
+Events
+
+When Triage
+
+    SLA Due Date set by Priority
+
+    Status Triaged
+
+When Start Work
+
+    Status In Progress
+
+When Request Info
+
+    Status Waiting on Requester
+
+When Requester Responds
+
+    Status In Progress
+
+When Resolve
+
+    Status Resolved
+
+When Close
+
+    Status Closed
+
+When Reopen
+
+    if Status = Resolved
+
+        Status Reopened
+
+Constraints
+
+- Requester is required.
+- Description is required.
+- Category is required.
+
+    Resolution Notes is required.
+
+        if Status = Resolved
+
+Permissions
+
+Agent
+
+- Triage
+- Start Work
+- Request Info
+- Resolve
+
+Requester
+
+- Requester Responds
+- Reopen
+
+Views
+
+- Ticket Form : Form
+- My Tickets : List
+- Open Tickets : List
+- Ticket Detail : Detail
