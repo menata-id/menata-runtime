@@ -1,0 +1,40 @@
+# Accounting Chart of Account
+# Example Business Knowledge expressed in Menata Language
+# Domain: Accounting — the standard 5-type chart of accounts, hierarchical
+# Case 9 of the Case Portfolio (runtime/case-portfolio.md)
+# External benchmark: runtime/benchmarks/003-accounting-vertical-survey.md
+# (Study 6 + World-Class Standards Addendum: GAAP chart-of-accounts convention)
+
+Chart of Account
+
+Fields
+
+- Account Code : Text
+- Account Name : Text
+- Account Type : Asset | Liability | Equity | Revenue | Expense
+- Normal Balance : Debit | Credit
+- Parent Account : Chart of Account
+- Is Group : Boolean
+- Status : Active | Inactive
+
+Constraints
+
+- Account Code is required.
+- Account Name is required.
+- Account Type is required.
+
+Permissions
+
+Accountant
+
+- View
+
+Supervisor
+
+- View
+
+Views
+
+- Account Form : Form
+- Account List : List
+- Account Detail : Detail

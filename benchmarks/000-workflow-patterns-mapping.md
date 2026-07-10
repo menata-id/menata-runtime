@@ -6,7 +6,7 @@
 > (van der Aalst & ter Hofstede, workflowpatterns.com) —
 > the canonical benchmark used to evaluate BPEL, BPMN, YAWL, jBPM, and others.
 >
-> Status: v0.2 — + Case 5 case-evidence notes (CAP-A02, CAP-C07, CAP-C08, CAP-C09, WDP-9/10); retroactively credited Case 4 where it was missed | Created: 2026-07-04 | Updated: 2026-07-10
+> Status: v0.3 — + Case 9 case-evidence notes (CAP-A02, CAP-C07, CAP-C08, CAP-C09, CAP-P03 first evidence, WDP-9/10); retroactively credited Case 4/Case 5 where missed | Created: 2026-07-04 | Updated: 2026-07-10
 
 ---
 
@@ -60,12 +60,12 @@ Capability IDs (`CAP-…`) reference `../capability-registry.md`.
 | # | Pattern | L | M | R | Notes | CAP |
 |---|---------|---|---|---|-------|-----|
 | WDP-4 | Case Data | ✅ | ✅ | ✅ | `records.data` JSONB — all fields visible across the record lifecycle. | — |
-| WDP-7 | Environment Data | ✅ | ❌ | ❌ | `now`, `today`, `current_user` in set_field values. Exercised by Case 4 (`Last Completed`) and Case 5 (`Movement Date` stamped at Confirm) — neither was recorded here at the time; caught retroactively. | CAP-A02 |
-| WDP-9/10 | Data Interaction between cases | ✅ | ❌ | ❌ | Step updates Document — cross-record data flow. Also the shape of Case 5's `Confirm` → Stock Ledger Entry append + Item balance read. | CAP-F13, CAP-A08 |
-| WDP-38 | Data-based Routing (pre) | ✅ | ⚠️ | ⚠️ | Constraint `condition` works — but constraints run only on Create, never on event trigger. Case 4 and Case 5 both need their conditional constraints evaluated at event time (Complete / Confirm), not Create. | CAP-C09 |
+| WDP-7 | Environment Data | ✅ | ❌ | ❌ | `now`, `today`, `current_user` in set_field values. Exercised by Case 4 (`Last Completed`), Case 5 (`Movement Date` stamped at Confirm), and Case 9 (`Posting Date`, `Posted By`) — none was recorded here at the time; caught retroactively. | CAP-A02 |
+| WDP-9/10 | Data Interaction between cases | ✅ | ❌ | ❌ | Step updates Document — cross-record data flow. Also the shape of Case 5's `Confirm` → Stock Ledger Entry append + Item balance read, and Case 9's Journal Entry ↔ Journal Entry Line ↔ Fiscal Period reads. | CAP-F13, CAP-A08 |
+| WDP-38 | Data-based Routing (pre) | ✅ | ⚠️ | ⚠️ | Constraint `condition` works — but constraints run only on Create, never on event trigger. Case 4, Case 5, and Case 9 all need their conditional constraints evaluated at event time (Complete / Confirm / Post), not Create. | CAP-C09 |
 | WDP-39 | Event conditions (post) | ✅ | ❌ | ❌ | `if` inside events (spec 003) has no metadata representation. | CAP-A09 |
-| — | Cross-field comparison | ✅ | ❌ | ❌ | "End Date must be after Start Date" — operators compare field↔literal only. Case 5: `Movement Date >= Requested Date`. | CAP-C07 |
-| — | Cross-record constraint | ✅ | ❌ | ❌ | "One leave request per employee per day" (spec 004 example) — no case had exercised this until Case 5's negative-stock guard (`Item.Stock On Hand >= Normalized Quantity`), its first real case evidence. | CAP-C08 |
+| — | Cross-field comparison | ✅ | ❌ | ❌ | "End Date must be after Start Date" — operators compare field↔literal only. Case 5: `Movement Date >= Requested Date`. Case 9: `Posted By != Prepared By` (also WRP-5, below). | CAP-C07 |
+| — | Cross-record constraint | ✅ | ❌ | ❌ | "One leave request per employee per day" (spec 004 example) — no case had exercised this until Case 5's negative-stock guard (`Item.Stock On Hand >= Normalized Quantity`), its first real case evidence. Case 9's `Fiscal Period.Close` guard (every Journal Entry in the period must be Posted) is the same capability in the reverse direction — one-side-checks-all-many-side-rows, not one-record-against-an-aggregate. | CAP-C08 |
 
 ---
 
@@ -77,7 +77,7 @@ Capability IDs (`CAP-…`) reference `../capability-registry.md`.
 | WRP-1 | Direct Allocation | ✅ | ❌ | ❌ | "Only the assigned Approver may act on their Step" — record-level ownership. | CAP-P02 |
 | WRP-3 | Deferred Allocation | ✅ | ❌ | ❌ | Approver chosen at submit time (Case 3) — depends on reference fields. | CAP-F13 |
 | WRP-4 | Authorization | ✅ | ✅ | ⚠️ | Role permissions exist; real authentication is a prototype cookie. | CAP-X02 |
-| WRP-5 | Separation of Duties | ✅ | ❌ | ❌ | "Requester must not be the Approver" (spec 004 example). | CAP-P03 |
+| WRP-5 | Separation of Duties | ✅ | ❌ | ❌ | "Requester must not be the Approver" (spec 004 example) — no case had exercised this until Case 9's `Posted By != Prepared By` (SOX requirement), its first real case evidence. | CAP-P03 |
 | WRP-11 | Automatic Execution | ✅ | ❌ | ❌ | System-triggered events without a user request. | CAP-E05 |
 | — | Delegation | ⚠️ | ❌ | ❌ | Not yet in language examples. Defer. | CAP-P04 |
 | — | Escalation | ✅ | ❌ | ❌ | "Every Day / if Due Date < Today / Notify" (spec 003 example) — needs time-driven events. | CAP-E02 |

@@ -1,0 +1,176 @@
+# Accounting Journal Entry — Runtime Metadata
+# Realization of accounting-journal-entry.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# References: accounting-chart-of-account.yaml, accounting-journal-entry-line.yaml,
+# accounting-fiscal-period.yaml
+
+version: "0.1"
+
+machine:
+  id: mch_journal_entry                       # [SUPPORTED] — as a plain Machine
+  name: Journal Entry
+  application: app_accounting
+
+  fields:
+    - id: fld_je_entry_number                  # [NOT YET] — CAP-F18, auto-numbering
+      name: Entry Number
+      type: text
+      required: true
+      generated: true
+      pattern: "JE-{YYYY}-{00001}"
+      # [NOT YET] No document-sequence mechanism exists — must be hand-entered today.
+
+    - id: fld_je_entry_date                     # [SUPPORTED]
+      name: Entry Date
+      type: date
+      required: true
+
+    - id: fld_je_fiscal_period                   # [NOT YET] — CAP-F13
+      name: Fiscal Period
+      type: reference
+      target_machine: mch_fiscal_period
+      required: true
+
+    - id: fld_je_memo                            # [SUPPORTED]
+      name: Memo
+      type: rich_text
+      required: false
+
+    - id: fld_je_status                          # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Draft, Posted]
+
+    - id: fld_je_prepared_by                      # [PARTIAL] — CAP-F05, free text; stamping
+      name: Prepared By                           #   it dynamically at Create is CAP-A02 [NOT YET]
+      type: user
+      required: true
+
+    - id: fld_je_posted_by                        # [PARTIAL] — same, stamped at Post
+      name: Posted By
+      type: user
+      required: false
+
+    - id: fld_je_posting_date                     # [SUPPORTED] — as a field; stamping it is not
+      name: Posting Date
+      type: date
+      required: false
+
+    - id: fld_je_lines                            # [NOT YET] — child table (CAP-F16)
+      name: Lines
+      type: child_table
+      target_machine: mch_journal_entry_line
+      required: true
+      # [NOT YET] Same Language- and Runtime-layer gap as Case 5's Unit Conversions.
+      # Unlike Case 5's child table, these rows must be independently queryable
+      # across every Journal Entry for the Trial Balance report (CAP-V13) — see
+      # accounting-journal-entry-line.yaml and the CAP-F16 registry note.
+
+  events:
+    - id: evt_je_post                             # [NOT YET] — every check below composes
+      name: Post                                  #   CAP-C10 + CAP-C11 + CAP-P03, all unimplemented
+      actions:
+        - set_field: { field: fld_je_posting_date, value: today }
+          # [NOT YET] value: "today" — environment data (CAP-A02).
+        - set_field: { field: fld_je_posted_by, value: current_user }
+          # [NOT YET] value: "current_user" — environment data (CAP-A02).
+        - set_field: { field: fld_je_status, value: Posted }
+          # [SUPPORTED] — static value works today.
+      # [NOT YET] Per CAP-C09 (constraints evaluated on event trigger), the three
+      # cst_je_* constraints below must all pass before these actions run. Today
+      # constraints only evaluate on Create, so none of them block Post yet — the
+      # same gap Case 4 first surfaced.
+
+  constraints:
+    - id: cst_je_entry_number_required             # [SUPPORTED]
+      rule: Entry Number is required.
+      expression: { field: fld_je_entry_number, operator: required }
+
+    - id: cst_je_entry_date_required               # [SUPPORTED]
+      rule: Entry Date is required.
+      expression: { field: fld_je_entry_date, operator: required }
+
+    - id: cst_je_fiscal_period_required            # [SUPPORTED]
+      rule: Fiscal Period is required.
+      expression: { field: fld_je_fiscal_period, operator: required }
+
+    - id: cst_je_lines_required                    # [SUPPORTED]
+      rule: Lines is required.
+      expression: { field: fld_je_lines, operator: required }
+
+    - id: cst_je_debit_equals_credit                # [NOT YET] — CAP-C10, aggregate over
+      rule: Sum of Lines Debit Amount must equal sum of Lines Credit Amount.  # child-table rows
+      expression:
+        aggregate: sum
+        field: fld_jel_debit_amount
+        target: fld_je_lines
+        operator: equals
+        compare_aggregate:
+          aggregate: sum
+          field: fld_jel_credit_amount
+          target: fld_je_lines
+      # [NOT YET] The double-entry invariant. No aggregate-over-line-items
+      # constraint mechanism exists yet — depends on CAP-F16 existing first.
+
+    - id: cst_je_period_not_closed                  # [NOT YET] — CAP-C11
+      rule: Fiscal Period must not be Closed.
+      expression:
+        field: fld_period_status                   # on the referenced Fiscal Period record
+        operator: not_equals
+        value: Closed
+      # [NOT YET] Cross-record + reference-data-driven temporal constraint.
+
+    - id: cst_je_separation_of_duties               # [NOT YET] — CAP-P03, first case evidence
+      rule: Posted By must not equal Prepared By.
+      expression:
+        field: fld_je_posted_by
+        operator: not_equals
+        compare_field: fld_je_prepared_by
+      # [NOT YET] SOX segregation of duties. Registered since Study 1 mapping
+      # (spec 004 example) but had NO case evidence until this one — the World-
+      # Class Standards Addendum caught that Study 6's original 7 declared
+      # targets missed this entirely.
+
+  permissions:
+    - role: Accountant                              # [SUPPORTED]
+      events: [ evt_je_post ]
+    - role: Supervisor                              # [SUPPORTED]
+      events: [ evt_je_post ]
+
+  views:
+    - id: vw_je_form                                # [SUPPORTED]
+      name: Entry Form
+      type: form
+      fields:
+        - fld_je_entry_date
+        - fld_je_fiscal_period
+        - fld_je_memo
+        - fld_je_lines
+
+    - id: vw_je_draft                               # [SUPPORTED] — as a plain list; filtering
+      name: Draft Entries                           #   by Status = Draft needs CAP-V09
+      type: list
+      columns:
+        - fld_je_entry_number
+        - fld_je_entry_date
+        - fld_je_prepared_by
+        - fld_je_status
+
+    - id: vw_je_posted                              # [SUPPORTED] — same
+      name: Posted Entries
+      type: list
+      columns:
+        - fld_je_entry_number
+        - fld_je_posting_date
+        - fld_je_posted_by
+
+    - id: vw_je_detail                              # [SUPPORTED]
+      name: Entry Detail
+      type: detail

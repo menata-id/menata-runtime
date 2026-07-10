@@ -32,7 +32,7 @@
 | 6 | Petty Cash Ledger | Numeric aggregation & immutability: running balance, append-only, period close | F08, F14, C05, C08, R04 | planned |
 | 7 | Customer Complaint | Unstructured case management (CMMN-style): ad-hoc steps, SLA, escalation, reopen | E02, E05, A09, P04, WCP-10 cycles | planned |
 | 8 | Payment Confirmation | External events: webhook ingestion, idempotency, reconciliation | E04, X07, C08 | planned |
-| 9 | Accounting (journal, monthly close, trial balance) | Vertical depth: header-detail documents, aggregate line invariants, immutability | F16, C10, E06+R07, C11, F18, V13, A02 | targets declared (Study 6) |
+| 9 | Accounting (journal, monthly close, trial balance) | Vertical depth: header-detail documents, aggregate line invariants, immutability | F13, F14, F16, F18, A02, C10, C11, P03, R04, R07, E06, V13 | ⚠️ documented, gaps registered |
 | 10 | Organization Composite | Emergent capabilities at composition: shared identity, master data, cross-app navigation, org-wide reporting | F13+I01–I05+X09+V10+P05 composition test | ⚠️ documented (Study 7) — 6 `[COMPOSITION FINDING]` → CAP-O01…O06 |
 
 Sequencing follows the registry's implementation order: Case 4 (time) precedes Case 5–6 (calculation) because escalation and scheduling appear in Cases 6–7 too; external events (Case 8) come last because they depend on API surface (X07).
@@ -119,6 +119,51 @@ Files: `prototype/go/docs/examples/inventory-item.{menata,yaml}`,
 **Business reality:** Customer pays via bank/payment gateway; a webhook confirms payment; the matching invoice must update exactly once (idempotent), unmatched payments queue for manual reconciliation.
 
 **Declared targets:** external events (E04), REST/webhook surface (X07), idempotency — duplicate webhook must not double-apply (new capability, likely), cross-record matching (C08 variant).
+
+---
+
+# Case 9 — Accounting (target declaration)
+
+**Business reality:** Small-org bookkeeping — a chart of accounts, manually authored journal
+entries (header + debit/credit lines), a monthly close that locks the period, and a trial balance
+report. Whoever *prepares* an entry must not be the same person who *posts* it (segregation of
+duties), and every state change must be traceable (audit trail) — bookkeeping is a controls
+problem as much as a data-entry problem.
+
+**External benchmark:** `benchmarks/003-accounting-vertical-survey.md` — Study 6's original
+Odoo/ERPNext platform survey, plus a **World-Class Standards Addendum** (2026-07-10) benchmarking
+GAAP chart-of-accounts convention and SOX internal-control requirements directly, not just what two
+platforms happen to implement. The addendum caught a real gap in Study 6's own original declaration
+(below).
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| `Journal Entry` → `Journal Entry Line` / `Chart of Account` / `Fiscal Period` links | CAP-F13 | `reference`, including self-reference for COA hierarchy |
+| `Normal Balance` derived from `Account Type` (Asset/Expense→Debit, Liability/Equity/Revenue→Credit) | CAP-F14 | Computed field — static categorical lookup (GAAP-standard, deterministic) |
+| `Lines` child table on Journal Entry (Account, Debit, Credit, Memo) | CAP-F16 | Line items — the actual line-level facts a Trial Balance reports over |
+| `Entry Number` auto-numbered (`JE-2026-00001`) | CAP-F18 | Auto-numbering |
+| `Posting Date`, `Prepared By`, `Posted By` stamped at their respective events | CAP-A02 | WDP-7 Environment Data |
+| `sum(Lines.Debit) = sum(Lines.Credit)` before Post | CAP-C10 | Aggregate line constraint — the double-entry invariant |
+| No posting into a Closed Fiscal Period | CAP-C11 | Temporal period constraint |
+| **`Posted By` must not equal `Prepared By`** | **CAP-P03 (first case evidence)** | WRP-5 Separation of Duties — SOX requirement, missed by Study 6's original declared-targets list |
+| **Every Draft→Posted transition traceable** | **CAP-R04 (reinforced)** | SOX audit trail — already registered, but this case is the first where it is a compliance requirement, not optional |
+| Posted entries frozen | CAP-E06 + CAP-R07 | State-conditional availability + immutability-after-state |
+| Trial Balance (group by Account, sum Debit/Credit) | CAP-V13 | Aggregate report view |
+
+**Deliberately out of scope (unchanged from Study 6, restated with reasons in the benchmark
+addendum):** invoice posting derivation, reconciliation, multi-currency (CAP-F17). Also
+out-of-scope: enforcing the account-number-prefix-matches-type convention — GAAP itself does not
+require it, so Menata should not invent a constraint the standard doesn't have.
+
+**Correction to Study 6:** the original seven targets covered *structural* accounting capabilities
+but missed the *control* capabilities (CAP-P03, CAP-R04) that make bookkeeping trustworthy under
+SOX — found by benchmarking the standard directly, not just the two platforms. Both are added above.
+
+Files: `prototype/go/docs/examples/accounting-chart-of-account.{menata,yaml}`,
+`accounting-journal-entry.{menata,yaml}`, `accounting-journal-entry-line.{menata,yaml}`,
+`accounting-fiscal-period.{menata,yaml}` (four Machines, one file pair each)
 
 ---
 

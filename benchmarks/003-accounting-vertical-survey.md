@@ -5,7 +5,7 @@
 > Deep vertical benchmark: accounting, tax, financial reporting, visualization —
 > against Odoo Accounting and ERPNext (Frappe) accounting modules.
 >
-> Status: v0.1 | Created: 2026-07-04
+> Status: v0.2 — + World-Class Standards Addendum (GAAP chart-of-accounts convention, SOX internal controls) | Created: 2026-07-04 | Updated: 2026-07-10
 
 **Why accounting:** it is the hardest widely-standardized business vertical — centuries-old invariants (double-entry), legal immutability requirements, hierarchical reference data, and reporting that every organization needs. If Menata can express meaningful accounting as metadata, most verticals are easier.
 
@@ -79,7 +79,7 @@
 
 ---
 
-# Case 9 — Accounting (target declaration)
+# Case 9 — Accounting (target declaration, v1 — Study 6)
 
 **Business reality:** Small-org bookkeeping — chart of accounts, manual journal entries, monthly close, trial balance.
 
@@ -87,12 +87,62 @@
 
 **Deliberately out of scope:** invoice posting derivation, reconciliation, multi-currency (F17) — kept for a later case so Case 9 stays a clean test of the *structural* accounting capabilities.
 
-Registered in `../case-portfolio.md`.
+Full declaration and field-level design: `../case-portfolio.md`. Grounded in the World-Class Standards Addendum below.
+
+---
+
+# World-Class Standards Addendum (2026-07-10)
+
+Study 6 benchmarked two *platforms* (Odoo, ERPNext). Before Case 9's fields are actually
+designed, this addendum benchmarks the *standards* those platforms themselves are built to
+comply with — GAAP chart-of-accounts convention and SOX internal-control requirements — so the
+case's field set is checked against accounting practice, not just software precedent.
+
+## Standard Chart of Accounts
+
+| Concept | Standard | Menata-relevant pattern |
+|---------|----------|--------------------------|
+| Five account types | Asset, Liability, Equity, Revenue, Expense — the fixed top-level classification every COA uses | `value_list` — closed, small, universal (same shape as Study 15's closed-domain axis) |
+| Numbering convention | First digit = category (1=Asset, 2=Liability, 3=Equity, 4=Revenue, 5=Expense); **not GAAP-mandated**, a widely-adopted convention only | Free-text `Account Code` — deliberately *not* constrained to match the type. Enforcing the prefix would be inventing a rule GAAP itself doesn't require |
+| Normal balance | Deterministic from account type: Asset/Expense → Debit; Liability/Equity/Revenue → Credit | A **static category lookup**, never entered independently — new CAP-F14 sub-pattern (see below), not a second `value_list` field a metadata author could accidentally desync from Account Type |
+| Hierarchy | Header/group accounts roll up leaf accounts (e.g. "Current Assets" groups "Cash", "Accounts Receivable") | CAP-F13 self-reference + rollup — already an option note on CAP-F13 from Study 6; Case 9 gives it its first case evidence |
+| Leaf vs. group posting | Only leaf ("postable") accounts may receive journal lines; group accounts exist for rollup only | A record-level flag (`Is Group`), enforced as a constraint on Journal Entry Line's Account reference — composable from CAP-F13 + CAP-C05, not a new capability |
+
+## SOX Internal Controls (journal entry lifecycle)
+
+| Concept | Standard | Menata-relevant pattern |
+|---------|----------|--------------------------|
+| Segregation of duties | The person who **prepares** a journal entry must not be the same person who **posts** it — "no unchecked ability to prepare, approve, and post high-impact entries" | **CAP-P03** (Separation of Duties) — already registered since Study 1 mapping (spec 004 example), but had **no case evidence** until Case 9. This is the single biggest miss in Study 6's original declared-targets list |
+| Audit trail | Every state change (prepare → post) must be recorded in tamper-proof form, with who/when, sufficient to reconstruct events | **CAP-R04** (event audit log) — registered since Case 1, ⚠️ partial (logged to DB, no UI). Not in Study 6's original declared list either; Case 9 is the case that actually needs it to matter (an accounting audit trail is not optional, unlike a facility maintenance log) |
+| Approval workflow before posting | Preventive control: Draft must pass through an authorization step before becoming an immutable Posted record | Already covered by CAP-E06 + CAP-R07 (Study 6's own targets) — SOX just confirms this isn't optional polish, it's a compliance requirement |
+| Access restriction | Only authorized roles may post; unposting/reversal requires elevated rights | CAP-P05 (CRUD-level permissions) — already registered (Study 2), reinforced here |
+
+**Correction to Study 6's original declaration:** the seven originally declared targets
+(F16, C10, E06+R07, C11, F18, V13, A02) covered the *structural* accounting capabilities well but
+missed the **control** capabilities that make a bookkeeping system trustworthy, not just
+functional. **CAP-P03 and CAP-R04 are added as declared targets in the v2 case design below** —
+found by checking against the standard, exactly the failure mode the roadmap's dual-track method
+exists to catch (a platform survey alone would not have surfaced this; SOX is a compliance
+standard, not a platform feature).
+
+## Deliberately still out of scope (unchanged from Study 6, reason restated)
+
+| Concept | Reason |
+|---------|--------|
+| Multi-currency (CAP-F17) | Same architectural slot as Case 5's Rice/Cement UoM tiering — real, but doubles the case's dominant cluster. ISO 4217 currency codes are the standard to follow when this is picked up in a later case |
+| Invoice posting derivation | Domain-engine territory (Study 6's own boundary finding) — a pluggable executor beneath declarative metadata, not a metadata concept |
+| Reconciliation | Case 8 territory (external events + cross-record matching) |
+| XBRL / statutory filing formats | A reporting *export* standard, not a structural or control concept — revisit only once CAP-V13 (aggregate report view) is implemented and a filing use case actually arises |
 
 ---
 
 # Registry Impact
 
-7 new capabilities (registry v0.4): CAP-F16, CAP-F17, CAP-F18, CAP-C10, CAP-C11, CAP-R07, CAP-V13. CAP-F13 gains a tree/hierarchy option note; CAP-F14 gains a derived-lines design requirement.
+7 new capabilities from Study 6 (registry v0.4): CAP-F16, CAP-F17, CAP-F18, CAP-C10, CAP-C11, CAP-R07, CAP-V13. CAP-F13 gains a tree/hierarchy option note; CAP-F14 gains a derived-lines design requirement.
+
+From this addendum: no new capability IDs — **CAP-P03 and CAP-R04 gain their first case evidence**
+(previously spec-example/Case-1-incidental only), and **CAP-F14 gains a third sub-pattern** (static
+categorical lookup — Account Type → Normal Balance — alongside Study 15's unit/currency-conversion
+sub-pattern and Case 5's aggregate-rollup sub-pattern). See `../capability-registry.md`.
 
 **Priority note:** CAP-F16 (line items) joins the reference field (CAP-F13) at the top of the structural queue — together they are what separates "form apps" from "document apps". Every ERP document type needs both.

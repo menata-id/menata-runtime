@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.14 — + Case 5 declaration (CAP-F19 Quantity tiered UoM, CAP-X12 cross-record write atomicity) | Updated: 2026-07-10
+> Status: v0.15 — + Case 9 field-level design (CAP-P03/CAP-R04 first case evidence, CAP-F14 third sub-pattern, CAP-F16 reporting-independence note) | Updated: 2026-07-10
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -39,9 +39,9 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-F09 | `boolean` field | ⚠️ | schema doc | — | 10 | same fallback |
 | CAP-F10 | `time` / `date_time` / `duration` fields | ⚠️ | schema doc | — | 10 | same fallback |
 | CAP-F13 | `reference` field (link to another machine) | ❌ | Case 3 (P1) | WCP-2/13/14, WRP-3 | **1** | includes tree/hierarchy option (self-reference + rollup — COA, Study 6). Scope note (Study 15): must support two target flavors from day one — (a) workspace-authored Machine, (b) reserved built-in identity target for CAP-F05/CAP-O01 — designing only for (a) forces a breaking change later. Fourth-pass: this alone (plus an ordinary Machine) fully fixes a single-application mis-modeled field (e.g. `Equipment`) — CAP-O02 is a separate, additional capability only for the cross-application case |
-| CAP-F14 | Computed / formula field | ❌ | Study 2 survey | Salesforce formula, Frappe | 13 | design req: derived line generation (tax templates, Study 6). Study 15 (third-pass): this is the correct home for unit/currency conversion (amount × factor → normalized value) — NOT the Constraint grammar |
+| CAP-F14 | Computed / formula field | ❌ | Study 2 survey | Salesforce formula, Frappe | 13 | design req: derived line generation (tax templates, Study 6). Study 15 (third-pass): this is the correct home for unit/currency conversion (amount × factor → normalized value) — NOT the Constraint grammar. **Three confirmed sub-patterns:** (a) unit/currency conversion (Study 15), (b) cross-record aggregate rollup (Case 5's Stock On Hand), (c) static categorical lookup (Case 9's Normal Balance derived from Account Type — GAAP standard, deterministic table, never independently entered) |
 | CAP-F15 | Field default values (beyond status first-value) | ⚠️ | Study 2 survey | universal (6/6 platforms) | 8 | status default works; other fields have none |
-| CAP-F16 | Line items / child table inside a record (header-detail document) | ❌ | Study 6 accounting, reconfirmed by Case 5 | Odoo One2many, Frappe Table — universal to document apps | **3** | joins CAP-F13 atop the structural queue. **Language-layer note (Case 5):** no Menata Language grammar exists yet for a child-table field either — `inventory-stock-movement.menata` had to write it provisionally as one Fields line (`Table of (...)`); this was previously scoped as Runtime/Metadata-only |
+| CAP-F16 | Line items / child table inside a record (header-detail document) | ❌ | Study 6 accounting, reconfirmed by Case 5 and Case 9 | Odoo One2many, Frappe Table — universal to document apps | **3** | joins CAP-F13 atop the structural queue. **Language-layer note (Case 5):** no Menata Language grammar exists yet for a child-table field either — `inventory-stock-movement.menata` had to write it provisionally as one Fields line (`Table of (...)`); this was previously scoped as Runtime/Metadata-only. **Reporting-independence note (Case 9):** unlike Case 5's Item Unit Conversion (a pure per-parent lookup table, never queried standalone), Journal Entry Line rows must be independently queryable *across* parent documents for CAP-V13 (Trial Balance groups lines by Account across every Journal Entry) — the child-table target Machine needs its own queryable identity even though it is only ever authored atomically with its parent |
 | CAP-F17 | Multi-currency money (transaction currency + rate + base mirror) | ❌ | Study 6 accounting + Study 15 (independent derivation) | Odoo/ERPNext; spec 001-object.md names Currency as an Object example | 14 | Study 15 reclassified `money` from primitive to reference sugar — Currency fails identity/lifecycle/reuse/cardinality tests, is a CAP-O02 master-data candidate |
 | CAP-F18 | Auto-numbering / document sequences | ❌ | Study 6 accounting | ir.sequence, Naming Series — universal | 7 | Study 2 missed it |
 | CAP-F19 | Quantity / unit-of-measure conversion pattern — **not a new field type**; composed from `number` (CAP-F07) + `value_list` (CAP-F03) for the unit label, escalating only when cardinality demands it: Tier 1 flat factor pair · Tier 2 child table (CAP-F16) · Tier 3 history-tracked Machine (CAP-F13) | ❌ | Study 15 (prediction) + Case 5 (case evidence) | SAP/Odoo UoM categories; APICS UoM conversion | 14 | Study 15's Quantity prediction, now cleared to registered status by dual evidence. Unlike CAP-F17 (`money`, genuine reference sugar), Quantity resolves through composition, never a dedicated `type: quantity` — Tier 1/2 both exercised by Case 5 (Rice, Cement), Tier 3 deliberately not exercised — no case has evidenced factor history yet |
@@ -86,7 +86,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-C04 | Conditional constraint (`condition` block) | ✅ | Case 1 | WDP-38 | | conformance T06/T07 |
 | CAP-C05 | Comparison operators (`greater_than`, `less_than`, date `before`) | ❌ | schema doc + Case 4 | — | 10 | only `after: today` exists |
 | CAP-C07 | Cross-field comparison (End Date after Start Date) | ❌ | Study 1 mapping | — | 10 | — |
-| CAP-C08 | Cross-record constraint (one request per employee per day) | ❌ | spec 004 + mapping | — | 14 | — |
+| CAP-C08 | Cross-record constraint (one request per employee per day) | ❌ | spec 004 + mapping, first case evidence from Case 5 (negative-stock guard), second instance in Case 9 | — | 14 | Case 9's `Fiscal Period.Close` guard is the reverse direction of the pattern — the constraint lives on the "one" side of a one-to-many, checking that every matching "many"-side record (each Journal Entry in the period) satisfies a condition, rather than checking one record against an aggregate on the other side (Case 5's shape). Both directions fall under the same capability, not two |
 | CAP-C09 | **Constraints evaluated on event trigger** (today: Create only) | ❌ | **Study 1 mapping** | WDP-38 | **2** | — |
 | CAP-C10 | Aggregate constraint over line items (sum(debit) = sum(credit)) | ❌ | Study 6 accounting | double-entry invariant | 7 | depends on CAP-F16. Study 15 (third-pass): must operate on already-normalized values (post-conversion via CAP-F14) — the constraint itself never performs currency/unit conversion |
 | CAP-C11 | Temporal period constraint (no posting into closed period) | ❌ | Study 6 accounting | lock dates, Period Closing Voucher | 10 | — |
@@ -97,7 +97,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 |----|-----------|--------|---------------|-------------|------|-------|
 | CAP-P01 | Role-based event permission | ✅ | Case 1 | WRP-2 | | conformance T11/T12 |
 | CAP-P02 | Record-level ownership (only assigned user may act) | ❌ | Case 3 (P5) | WRP-1 Direct Allocation | 6 | — |
-| CAP-P03 | Separation of duties (Requester ≠ Approver) | ❌ | spec 004 + mapping | WRP-5 | 11 | — |
+| CAP-P03 | Separation of duties (Requester ≠ Approver) | ❌ | spec 004 + mapping, first case evidence from Case 9 (SOX: Prepared By ≠ Posted By) | WRP-5 | 11 | — |
 | CAP-P04 | Delegation | ❌ | Study 1 mapping | WRP detour | 15 | — |
 | CAP-P05 | CRUD-level permissions (read/create/edit per role — not just events) | ❌ | Study 2 survey | universal (6/6 platforms) | 6 | today every role sees every machine and record |
 | CAP-P06 | Field-level visibility ("Salary visible only to HR") | ❌ | Study 2 survey + spec 004 example | Salesforce field perms, Frappe permlevel | 11 | — |
@@ -118,7 +118,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-V10 | Composed dashboard view (sections sourcing multiple machines) | ❌ | Study 5 Portal GA | 9 shared DigestSections | 12 | — |
 | CAP-V11 | Channel-independent view rendering (web + email from one section) | ❌ | Study 5 Portal GA | ADH email digest reuse | 14 | **evidence-thin** (Study 9 retrofit: single source, possibly composable) — HOLD at Proposed until second independent source |
 | CAP-V12 | Multi-step form (wizard) view | ❌ | Study 5 Portal GA | HIRADC wizard | 11 | — |
-| CAP-V13 | Aggregate report view (group-by, hierarchy rollup, period compare, running balance) | ❌ | Study 6 accounting | Trial Balance, P&L, GL | 9 | the report class every vertical needs |
+| CAP-V13 | Aggregate report view (group-by, hierarchy rollup, period compare, running balance) | ❌ | Study 6 accounting, field-level design in Case 9 | Trial Balance, P&L, GL | 9 | the report class every vertical needs. Case 9's Trial Balance requires CAP-F16 child-table rows (Journal Entry Line) to be independently queryable across parent documents — see CAP-F16's reporting-independence note |
 
 ## Record Lifecycle
 
@@ -127,7 +127,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-R01 | Create record (with default status) | ✅ | Case 1 | — | | conformance T08 |
 | CAP-R02 | **Edit / update record via form** | ❌ | **Study 1 code check** | — | **5** | no update form exists — CRUD's U is missing |
 | CAP-R03 | Delete / archive record | ❌ | Study 1 code check | — | 12 | — |
-| CAP-R04 | Event audit log (record_events, snapshot before mutation) | ⚠️ | Case 1 | — | 9 | logged to DB; no UI to view history |
+| CAP-R04 | Event audit log (record_events, snapshot before mutation) | ⚠️ | Case 1, reinforced by Case 9 (SOX: audit trail is a compliance requirement, not optional polish) | — | 9 | logged to DB; no UI to view history |
 | CAP-R05 | Pagination on list views | ❌ | Study 1 code check | — | 11 | — |
 | CAP-R06 | Data import/export (CSV) | ❌ | Study 2 survey | 5/6 platforms | 12 | — |
 | CAP-R07 | Record immutability after state (posted/submitted frozen; amend-via-new-version) | ❌ | Study 6 accounting + Case 6 declaration | docstatus model | 6 | stronger than CAP-E06 — guards edits, not just events |

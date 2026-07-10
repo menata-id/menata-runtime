@@ -1,0 +1,80 @@
+# Accounting Journal Entry Line — Runtime Metadata
+# Realization of accounting-journal-entry-line.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# References: accounting-chart-of-account.yaml, accounting-journal-entry.yaml
+# Target of fld_je_lines (accounting-journal-entry.yaml's child_table field) — but unlike
+# Case 5's Item Unit Conversion, this Machine has its own file: its rows must be
+# independently queryable across every Journal Entry for the Trial Balance below
+# (CAP-V13), not just readable as a nested table under one parent.
+
+version: "0.1"
+
+machine:
+  id: mch_journal_entry_line                    # [NOT YET] — exists only as a target of
+  name: Journal Entry Line                      #   CAP-F16; no child-table machine kind today.
+  application: app_accounting
+
+  fields:
+    - id: fld_jel_journal_entry                  # [NOT YET] — CAP-F13
+      name: Journal Entry
+      type: reference
+      target_machine: mch_journal_entry
+      required: true
+
+    - id: fld_jel_account                         # [NOT YET] — CAP-F13
+      name: Account
+      type: reference
+      target_machine: mch_chart_of_account
+      required: true
+      # [NOT YET] Should reject a reference to a Chart of Account record where
+      # Is Group = true — only leaf ("postable") accounts may receive lines.
+      # Composable from CAP-F13 + CAP-C05 once both exist; not a new capability.
+
+    - id: fld_jel_debit_amount                    # [PARTIAL] — CAP-F07
+      name: Debit Amount
+      type: number
+      required: false
+
+    - id: fld_jel_credit_amount                   # [PARTIAL] — CAP-F07
+      name: Credit Amount
+      type: number
+      required: false
+
+    - id: fld_jel_line_memo                        # [SUPPORTED]
+      name: Line Memo
+      type: rich_text
+      required: false
+
+  permissions:
+    - role: Accountant                             # [SUPPORTED]
+      events: []
+    - role: Supervisor                             # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_jel_ledger                            # [SUPPORTED] — as a flat list
+      name: Ledger List
+      type: list
+      columns:
+        - fld_jel_journal_entry
+        - fld_jel_account
+        - fld_jel_debit_amount
+        - fld_jel_credit_amount
+
+    - id: vw_jel_trial_balance                     # [NOT YET] — CAP-V13, aggregate report view
+      name: Trial Balance                          #   (group by Account, sum Debit/Credit across
+      type: aggregate_report                       #   every Journal Entry) — no report view type
+      group_by: fld_jel_account                    #   exists in the schema today; this is the
+      aggregates:                                   #   report class every accounting vertical needs.
+        - { field: fld_jel_debit_amount, op: sum }
+        - { field: fld_jel_credit_amount, op: sum }
+
+    - id: vw_jel_detail                            # [SUPPORTED]
+      name: Line Detail
+      type: detail

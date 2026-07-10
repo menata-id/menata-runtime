@@ -1,0 +1,97 @@
+# Accounting Fiscal Period — Runtime Metadata
+# Realization of accounting-fiscal-period.menata
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# References: accounting-journal-entry.yaml
+
+version: "0.1"
+
+machine:
+  id: mch_fiscal_period                          # [SUPPORTED] — as a plain Machine
+  name: Fiscal Period
+  application: app_accounting
+
+  fields:
+    - id: fld_period_name                         # [SUPPORTED]
+      name: Period Name
+      type: text
+      required: true
+
+    - id: fld_period_start_date                    # [SUPPORTED]
+      name: Start Date
+      type: date
+      required: true
+
+    - id: fld_period_end_date                      # [SUPPORTED]
+      name: End Date
+      type: date
+      required: true
+
+    - id: fld_period_status                        # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Open, Closed]
+
+  events:
+    - id: evt_period_close                         # [NOT YET] — gated on cst_period_all_posted
+      name: Close
+      actions:
+        - set_field: { field: fld_period_status, value: Closed }
+          # [SUPPORTED] — static value works today.
+
+  constraints:
+    - id: cst_period_name_required                 # [SUPPORTED]
+      rule: Period Name is required.
+      expression: { field: fld_period_name, operator: required }
+
+    - id: cst_period_start_required                 # [SUPPORTED]
+      rule: Start Date is required.
+      expression: { field: fld_period_start_date, operator: required }
+
+    - id: cst_period_end_required                   # [SUPPORTED]
+      rule: End Date is required.
+      expression: { field: fld_period_end_date, operator: required }
+
+    - id: cst_period_all_posted                     # [NOT YET] — CAP-C08, cross-record,
+      rule: Every Journal Entry in this Fiscal Period must be Posted before Close.  # third
+      expression:                                    # instance after spec 004's example and
+        machine: mch_journal_entry                    # Case 5's negative-stock guard.
+        field: fld_je_status
+        operator: not_equals
+        value: Draft
+        scope: fld_je_fiscal_period
+      # [NOT YET] Requires reading every Journal Entry that references this Fiscal
+      # Period (reverse of the usual cross-record direction: here the constraint
+      # lives on the "one" side of a one-to-many, checking all matching "many" rows).
+
+  permissions:
+    - role: Supervisor                              # [SUPPORTED]
+      events: [ evt_period_close ]
+
+  views:
+    - id: vw_period_form                            # [SUPPORTED]
+      name: Period Form
+      type: form
+      fields:
+        - fld_period_name
+        - fld_period_start_date
+        - fld_period_end_date
+
+    - id: vw_period_list                            # [SUPPORTED]
+      name: Period List
+      type: list
+      columns:
+        - fld_period_name
+        - fld_period_start_date
+        - fld_period_end_date
+        - fld_period_status
+
+    - id: vw_period_detail                          # [SUPPORTED]
+      name: Period Detail
+      type: detail

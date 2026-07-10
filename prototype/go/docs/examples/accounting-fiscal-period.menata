@@ -1,0 +1,42 @@
+# Accounting Fiscal Period
+# Example Business Knowledge expressed in Menata Language
+# Domain: Accounting — the monthly close: a period locks once every entry in it is posted
+# Case 9 of the Case Portfolio (runtime/case-portfolio.md)
+# References: accounting-journal-entry.menata
+
+Fiscal Period
+
+Fields
+
+- Period Name : Text
+- Start Date : Date
+- End Date : Date
+- Status : Open | Closed
+
+Events
+
+When Close
+
+    Every Journal Entry in this Fiscal Period must be Posted
+
+    Status Closed
+
+Constraints
+
+- Period Name is required.
+- Start Date is required.
+- End Date is required.
+
+    Every Journal Entry in this Fiscal Period must be Posted before Close.
+
+Permissions
+
+Supervisor
+
+- Close
+
+Views
+
+- Period Form : Form
+- Period List : List
+- Period Detail : Detail

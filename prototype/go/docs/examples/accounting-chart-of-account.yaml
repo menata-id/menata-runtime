@@ -1,0 +1,134 @@
+# Accounting Chart of Account — Runtime Metadata
+# Realization of accounting-chart-of-account.menata (Case 9 — vertical depth: header-detail
+# documents, aggregate line invariants, immutability)
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# Case 9 declared targets: CAP-F13, CAP-F14, CAP-F16, CAP-F18, CAP-A02, CAP-C10,
+# CAP-C11, CAP-P03 (first case evidence), CAP-R04 (reinforced), CAP-R07, CAP-E06, CAP-V13.
+# See runtime/case-portfolio.md.
+# External benchmark: runtime/benchmarks/003-accounting-vertical-survey.md
+# (Study 6 + World-Class Standards Addendum)
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_accounting                        # [SUPPORTED]
+  name: Accounting
+  workspace: ws_default
+
+machine:
+  id: mch_chart_of_account                  # [SUPPORTED]
+  name: Chart of Account
+  application: app_accounting
+
+  fields:
+    - id: fld_coa_account_code               # [SUPPORTED]
+      name: Account Code
+      type: text
+      required: true
+      # Deliberately NOT constrained to match Account Type by a numbering prefix
+      # (e.g. "1xxx = Asset") — GAAP itself does not mandate a numbering scheme,
+      # only widely-adopted convention. Enforcing it would invent a rule the
+      # standard doesn't have (World-Class Standards Addendum).
+
+    - id: fld_coa_account_name                # [SUPPORTED]
+      name: Account Name
+      type: text
+      required: true
+
+    - id: fld_coa_account_type                 # [SUPPORTED]
+      name: Account Type
+      type: value_list
+      required: true
+      values: [Asset, Liability, Equity, Revenue, Expense]
+      # The fixed GAAP five-type classification — closed, small, universal.
+
+    - id: fld_coa_normal_balance                # [NOT YET] — computed field (CAP-F14),
+      name: Normal Balance                      #   static categorical lookup sub-pattern
+      type: value_list
+      computed: true
+      values: [Debit, Credit]
+      formula: "account_type in ('Asset','Expense') ? 'Debit' : 'Credit'"
+      # [NOT YET] Deterministic from Account Type per GAAP — must never be an
+      # independently-entered field a metadata author (or end user) could desync
+      # from Account Type. This is CAP-F14's third confirmed sub-pattern: a static
+      # categorical lookup, distinct from unit/currency conversion (Study 15) and
+      # cross-record aggregate rollup (Case 5's Stock On Hand).
+
+    - id: fld_coa_parent_account                 # [NOT YET] — reference field (CAP-F13),
+      name: Parent Account                       #   self-reference / tree option
+      type: reference
+      target_machine: mch_chart_of_account
+      required: false
+      # [NOT YET] Header/group accounts (e.g. "Current Assets") roll up leaf
+      # accounts (e.g. "Cash", "Accounts Receivable") — the tree/hierarchy option
+      # on CAP-F13 already noted since Study 6; this case gives it its first
+      # case evidence.
+
+    - id: fld_coa_is_group                      # [PARTIAL] — CAP-F09, falls back to text
+      name: Is Group                            #   input, no real checkbox yet.
+      type: boolean
+      required: false
+      # Group accounts exist for rollup only; only leaf ("postable") accounts
+      # may receive Journal Entry Lines — enforced as a constraint on Journal
+      # Entry Line's Account reference (composable from CAP-F13 + CAP-C05, not
+      # a new capability).
+
+    - id: fld_coa_status                         # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Active, Inactive]
+
+  constraints:
+    - id: cst_coa_code_required                  # [SUPPORTED]
+      rule: Account Code is required.
+      expression: { field: fld_coa_account_code, operator: required }
+
+    - id: cst_coa_name_required                  # [SUPPORTED]
+      rule: Account Name is required.
+      expression: { field: fld_coa_account_name, operator: required }
+
+    - id: cst_coa_type_required                  # [SUPPORTED]
+      rule: Account Type is required.
+      expression: { field: fld_coa_account_type, operator: required }
+
+  permissions:
+    - role: Accountant                            # [SUPPORTED]
+      events: []
+    - role: Supervisor                            # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_coa_form                             # [SUPPORTED]
+      name: Account Form
+      type: form
+      fields:
+        - fld_coa_account_code
+        - fld_coa_account_name
+        - fld_coa_account_type
+        - fld_coa_parent_account
+        - fld_coa_is_group
+
+    - id: vw_coa_list                             # [SUPPORTED] — as a flat list; rendering
+      name: Account List                          #   the parent/child rows as a visual tree
+      type: list                                  #   is a presentation detail on top of
+      columns:                                    #   CAP-F13's tree option, not tracked
+        - fld_coa_account_code                    #   as a separate capability.
+        - fld_coa_account_name
+        - fld_coa_account_type
+        - fld_coa_normal_balance
+        - fld_coa_status
+
+    - id: vw_coa_detail                           # [SUPPORTED]
+      name: Account Detail
+      type: detail

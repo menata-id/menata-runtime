@@ -254,6 +254,62 @@ Item.Stock On Hand recomputes as the rollup of its Stock Ledger Entries
 
 ---
 
+## Case 9 — Accounting
+
+**Domain:** Small-org bookkeeping — chart of accounts, journal entries, monthly close, trial balance
+**Application:** Accounting
+**Roles:** Accountant, Supervisor
+**Seed:** — (pending reference field + child table + computed field support)
+**Status:** ⚠️ Documented boundary test — field-level design checked against GAAP chart-of-accounts convention and SOX internal controls, not just the Odoo/ERPNext platform survey (`runtime/benchmarks/003-accounting-vertical-survey.md` — Study 6 + World-Class Standards Addendum), see `runtime/case-portfolio.md`
+
+```
+accounting-chart-of-account.menata      Menata Language source — Chart of Account (master, hierarchy)
+accounting-chart-of-account.yaml        Runtime Metadata + inline gap annotations
+accounting-journal-entry.menata         Menata Language source — Journal Entry (header)
+accounting-journal-entry.yaml           Runtime Metadata + inline gap annotations
+accounting-journal-entry-line.menata    Menata Language source — Journal Entry Line (report source)
+accounting-journal-entry-line.yaml      Runtime Metadata + inline gap annotations
+accounting-fiscal-period.menata         Menata Language source — Fiscal Period (monthly close)
+accounting-fiscal-period.yaml           Runtime Metadata + inline gap annotations
+```
+
+**Workflow:**
+```
+Chart of Account: 5 GAAP types (Asset/Liability/Equity/Revenue/Expense), Normal Balance
+                   derived from Type, hierarchical via Parent Account
+    ↓
+Journal Entry drafted: Entry Date, Fiscal Period, Prepared By (stamped at Create), Lines
+    ↓
+Post: Posting Date + Posted By stamped Today/current_user
+    → sum(Lines.Debit) must equal sum(Lines.Credit)          (double-entry invariant)
+    → Fiscal Period must not be Closed                       (period lock)
+    → Posted By must not equal Prepared By                   (SOX segregation of duties)
+    → Status: Posted (frozen thereafter)
+    ↓
+Fiscal Period.Close: every Journal Entry in the period must already be Posted
+    ↓
+Trial Balance: Journal Entry Line grouped by Account, Debit/Credit summed across every entry
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| Reference fields (CAP-F13) | confirmed gap — Journal Entry↔Line↔Account↔Period links, plus Account's self-reference hierarchy (first case evidence for the tree option) |
+| Computed field, static lookup sub-pattern (CAP-F14) | confirmed gap — Normal Balance derived from Account Type; **third confirmed CAP-F14 sub-pattern**, alongside Study 15's conversion and Case 5's aggregate rollup |
+| Child table (CAP-F16) | confirmed gap — Journal Entry Lines; also surfaces a **reporting-independence note**: unlike Case 5's Item Unit Conversion, these rows must stay queryable across every parent document for the Trial Balance |
+| Auto-numbering (CAP-F18) | confirmed gap — Entry Number |
+| Environment data `today`/`current_user` (CAP-A02) | confirmed gap — same as Case 4 and Case 5 |
+| Aggregate line constraint (CAP-C10) | confirmed gap — the double-entry invariant |
+| Temporal period constraint (CAP-C11) | confirmed gap — closed-period lock |
+| Separation of duties (CAP-P03) | **first real case evidence** — registered since Study 1 (spec 004 example) but no case had exercised it until now; the World-Class Standards Addendum caught that Study 6's original 7 targets missed this SOX-driven capability entirely |
+| Event audit log (CAP-R04) | reinforced — accounting is the first case where an audit trail is a compliance requirement, not optional |
+| State guard + immutability (CAP-E06 + CAP-R07) | confirmed gap — Posted entries frozen |
+| Aggregate report view (CAP-V13) | confirmed gap — Trial Balance |
+| Cross-record constraint (CAP-C08) | confirmed gap — **second case instance**, and in the *reverse direction* from Case 5's (one Fiscal Period checks all its many Journal Entries, vs. Case 5's one Movement checking an aggregate on one Item) |
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

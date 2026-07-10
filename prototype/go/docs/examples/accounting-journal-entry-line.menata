@@ -1,0 +1,36 @@
+# Accounting Journal Entry Line
+# Example Business Knowledge expressed in Menata Language
+# Domain: Accounting — the individual debit/credit facts a Trial Balance reports over
+# Case 9 of the Case Portfolio (runtime/case-portfolio.md)
+# References: accounting-chart-of-account.menata, accounting-journal-entry.menata
+#
+# Unlike Case 5's Item Unit Conversion (a pure per-parent lookup table), a Journal
+# Entry Line is always authored together with its parent Journal Entry (header +
+# lines commit and post as one unit — CAP-F16), but must remain independently
+# queryable across every Journal Entry for the Trial Balance report below (CAP-V13).
+
+Journal Entry Line
+
+Fields
+
+- Journal Entry : Journal Entry
+- Account : Chart of Account
+- Debit Amount : Number
+- Credit Amount : Number
+- Line Memo : Rich Text
+
+Permissions
+
+Accountant
+
+- View
+
+Supervisor
+
+- View
+
+Views
+
+- Ledger List : List
+- Trial Balance : Report
+- Line Detail : Detail

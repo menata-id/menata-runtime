@@ -1,0 +1,69 @@
+# Accounting Journal Entry
+# Example Business Knowledge expressed in Menata Language
+# Domain: Accounting — a header-detail document, debit=credit, prepared and posted by different people
+# Case 9 of the Case Portfolio (runtime/case-portfolio.md)
+# References: accounting-chart-of-account.menata, accounting-journal-entry-line.menata, accounting-fiscal-period.menata
+#
+# Note: "Lines" below is a table-of-rows field — same Language-layer gap as Case 5's
+# Unit Conversions (no child-table grammar exists yet). Written provisionally as one
+# Fields line, pending a formal grammar addition.
+
+Journal Entry
+
+Fields
+
+- Entry Number : Text
+- Entry Date : Date
+- Fiscal Period : Fiscal Period
+- Memo : Rich Text
+- Status : Draft | Posted
+- Prepared By : User
+- Posted By : User
+- Posting Date : Date
+- Lines : Table of (Account, Debit Amount, Credit Amount, Line Memo)
+
+Events
+
+When Post
+
+    Posting Date Today
+
+    Posted By Current User
+
+    Sum of Lines Debit Amount must equal sum of Lines Credit Amount
+
+    Fiscal Period must not be Closed
+
+    Posted By must not equal Prepared By
+
+    Status Posted
+
+Constraints
+
+- Entry Number is required.
+- Entry Date is required.
+- Fiscal Period is required.
+- Lines is required.
+
+    Sum of Lines Debit Amount must equal sum of Lines Credit Amount.
+
+    Fiscal Period must not be Closed.
+
+    Posted By must not equal Prepared By.
+
+Permissions
+
+Accountant
+
+- Post
+
+Supervisor
+
+- Post
+
+Views
+
+- Entry Form : Form
+- Draft Entries : List
+- Posted Entries : List
+- Entry Detail : Detail
