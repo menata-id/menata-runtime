@@ -1,0 +1,35 @@
+# Lending Repayment
+# Example Business Knowledge expressed in Menata Language
+# Domain: Lending — a borrower's payment against one scheduled installment
+# Case 14 of the Case Portfolio (runtime/case-portfolio.md)
+# References: lending-repayment-schedule-entry.menata
+
+Repayment
+
+Fields
+
+- Schedule Entry : Repayment Schedule Entry
+- Amount Paid : Money
+- Paid At : Date
+
+Events
+
+When Record
+
+    Schedule Entry Status Paid
+
+Constraints
+
+- Schedule Entry is required.
+- Amount Paid is required.
+
+Permissions
+
+Loan Officer
+
+- Record
+
+Views
+
+- Repayment List : List
+- Repayment Detail : Detail

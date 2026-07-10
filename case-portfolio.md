@@ -239,7 +239,7 @@ their capability cluster already has case evidence.
 | 11 | Social App (Instagram-like) | **High** — many-to-many relationships, feed | F20(new), C12(new), F14, V05 | ⚠️ documented |
 | 12 | Community Site | Medium — builds on 11 + gamification | F20, C12, A14(new) | ⚠️ documented |
 | 13 | Blog / One-Page Site | **High** — public/unauthenticated access | P07(new), V10, F03 scope note | ⚠️ documented |
-| 14 | Lending Services | **High** — schedule generation | new (schedule gen), F13, A07/A08, C08 | planned |
+| 14 | Lending Services | **High** — schedule generation | A15(new), F13, A02, A06, P03, E02 | ⚠️ documented |
 | 15 | E-commerce | Medium — cart as mutable pre-commit doc | new (draft doc), composes Case 5/8/9 | planned |
 | 16 | Point of Sale | Low — composition of Case 5+8+15 | composes only | planned |
 | 17 | Helpdesk | Low — re-proves Case 7 | composes Case 7 | planned |
@@ -299,6 +299,25 @@ comments; only an authenticated Author writes and moderates.
 | `Tags` wants multi-select | CAP-F03 (scope note) | `value_list` is single-select only; worked around with comma-separated text |
 
 Files: `prototype/go/docs/examples/blog-post.{menata,yaml}`, `blog-comment.{menata,yaml}`
+
+## Case 14 — Lending Services (target declaration)
+
+**Business reality:** A borrower applies for a loan; a Loan Officer other than the borrower
+approves it; on disbursement, a full monthly repayment schedule is generated at once; repayments
+are recorded against installments; overdue installments are flagged automatically.
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| `Disburse` generates Term Months' worth of schedule entries from one formula | **CAP-A15 (new)** | Batch/series record generation — distinct from `create_record` (one record) and date arithmetic (one value) |
+| `Approved By != Borrower` | CAP-P03 | Fourth case instance |
+| `Repayment.Record` writes `Schedule Entry.Status` | CAP-A13 | Reused from Case 8 |
+| Overdue installment check | CAP-E02 + CAP-A09 | Same shape as Case 4's Overdue Tasks |
+
+Files: `prototype/go/docs/examples/lending-loan-application.{menata,yaml}`,
+`lending-loan.{menata,yaml}`, `lending-repayment-schedule-entry.{menata,yaml}`,
+`lending-repayment.{menata,yaml}` (four Machines)
 
 ---
 

@@ -470,6 +470,32 @@ blog-comment.menata / .yaml    Comment (from an unauthenticated Visitor)
 
 ---
 
+## Case 14 — Lending Services
+
+**Domain:** Lending — loan approval, disbursement with a generated repayment schedule, repayment tracking, overdue detection
+**Application:** Lending
+**Roles:** Loan Officer
+**Seed:** — (pending reference field + batch-generation support)
+**Status:** ⚠️ Documented boundary test — see `runtime/case-portfolio.md`
+
+```
+lending-loan-application.menata / .yaml         Loan Application
+lending-loan.menata / .yaml                     Loan (generates its own schedule on Disburse)
+lending-repayment-schedule-entry.menata / .yaml Repayment Schedule Entry (the generated series)
+lending-repayment.menata / .yaml                Repayment
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| Batch schedule generation | **[UNTARGETED FINDING]** → registered as CAP-A15 — one action creating N related records from a formula, no existing action shape covers it |
+| Separation of duties (CAP-P03) | reinforced — fourth case instance |
+| Cross-record write (CAP-A13) | reinforced |
+| Time-driven overdue check (CAP-E02) | reinforced — same shape as Case 4 |
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

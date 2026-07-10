@@ -1,0 +1,36 @@
+# Lending Repayment Schedule Entry
+# Example Business Knowledge expressed in Menata Language
+# Domain: Lending — one installment of a generated repayment schedule; overdue
+# detection reuses Case 4's time-driven pattern
+# Case 14 of the Case Portfolio (runtime/case-portfolio.md)
+# References: lending-loan.menata, lending-repayment.menata
+
+Repayment Schedule Entry
+
+Fields
+
+- Loan : Loan
+- Installment Number : Number
+- Due Date : Date
+- Principal Due : Money
+- Interest Due : Money
+- Status : Upcoming | Paid | Overdue
+
+Every Day 08:00
+
+    if Due Date is before Today
+
+    if Status = Upcoming
+
+        Status Overdue
+
+Permissions
+
+Loan Officer
+
+- View
+
+Views
+
+- Loan Schedule : List
+- Overdue Installments : List

@@ -1,0 +1,93 @@
+# Lending Loan — Runtime Metadata
+# Realization of lending-loan.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: lending-loan-application.yaml, lending-repayment-schedule-entry.yaml
+#
+# THE NEW PATTERN: evt_loan_disburse's generate_schedule action creates an entire
+# SERIES of Repayment Schedule Entry records (Term Months of them) from one formula
+# in a single action step — distinct from CAP-A06 (creates exactly one record) and
+# CAP-A11/A02 (compute one value). No capability names this yet.
+
+version: "0.1"
+
+machine:
+  id: mch_loan                          # [SUPPORTED] — as a plain Machine
+  name: Loan
+  application: app_lending
+
+  fields:
+    - id: fld_loan_application            # [NOT YET] — CAP-F13
+      name: Application
+      type: reference
+      target_machine: mch_loan_application
+      required: true
+    - id: fld_loan_principal              # [PARTIAL] — CAP-F08
+      name: Principal
+      type: money
+      required: true
+      options: { currency: "IDR" }
+    - id: fld_loan_interest_rate          # [PARTIAL] — CAP-F07
+      name: Interest Rate
+      type: number
+      required: true
+    - id: fld_loan_term_months            # [PARTIAL] — CAP-F07
+      name: Term Months
+      type: number
+      required: true
+    - id: fld_loan_disbursed_at           # [SUPPORTED] — as a field; stamping is not
+      name: Disbursed At
+      type: date
+      required: false
+    - id: fld_loan_status                 # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Active, Closed, Defaulted]
+
+  events:
+    - id: evt_loan_disburse                # [NOT YET] — CAP-A02 + the new batch-generation
+      name: Disburse                        #   finding, no CAP registered yet
+      actions:
+        - set_field: { field: fld_loan_disbursed_at, value: today }
+        - generate_schedule:
+            target_machine: mch_repayment_schedule_entry
+            count: "{{ this.term_months }}"
+            formula:
+              due_date: "disbursed_at + installment_index months"
+              principal_due: "principal / term_months"
+              interest_due: "(principal * interest_rate / 100) / term_months"
+          # [NOT YET] `generate_schedule` is not a real action type. Composes:
+          # CAP-A11 (date arithmetic, per-installment offset), CAP-F14 (the
+          # principal/interest split formula), and a batch-count loop that has
+          # no home in the current Action grammar at all — every existing
+          # action (set_field, create_record, notify) operates on exactly one
+          # record or field per invocation.
+        - set_field: { field: fld_loan_status, value: Active }
+
+  constraints:
+    - id: cst_loan_application_required     # [SUPPORTED]
+      rule: Application is required.
+      expression: { field: fld_loan_application, operator: required }
+    - id: cst_loan_principal_required        # [SUPPORTED]
+      rule: Principal is required.
+      expression: { field: fld_loan_principal, operator: required }
+    - id: cst_loan_term_required             # [SUPPORTED]
+      rule: Term Months is required.
+      expression: { field: fld_loan_term_months, operator: required }
+
+  permissions:
+    - role: Loan Officer                      # [SUPPORTED]
+      events: [ evt_loan_disburse ]
+
+  views:
+    - id: vw_loan_form                         # [SUPPORTED]
+      name: Loan Form
+      type: form
+      fields: [ fld_loan_application, fld_loan_principal, fld_loan_term_months ]
+    - id: vw_loan_active                       # [NOT YET] — CAP-V09 filter Status = Active
+      name: Active Loans
+      type: list
+      columns: [ fld_loan_principal, fld_loan_disbursed_at, fld_loan_status ]
+    - id: vw_loan_detail                        # [SUPPORTED]
+      name: Loan Detail
+      type: detail

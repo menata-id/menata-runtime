@@ -1,0 +1,52 @@
+# Lending Loan
+# Example Business Knowledge expressed in Menata Language
+# Domain: Lending — an approved, disbursed loan whose repayment schedule is generated
+# as a whole series at once, not one record at a time
+# Case 14 of the Case Portfolio (runtime/case-portfolio.md)
+# References: lending-loan-application.menata, lending-repayment-schedule-entry.menata
+#
+# THE NEW FINDING THIS CASE EXISTS TO SURFACE: Disburse below must create an entire
+# series of future-dated Repayment Schedule Entries (one per month of Term Months,
+# each with its own Due Date and principal/interest split) computed from a single
+# formula. Every prior action either creates ONE record (CAP-A06) or computes ONE
+# value (CAP-A02/A11/A14) — nothing names generating N related records from a formula
+# in a single action.
+
+Loan
+
+Fields
+
+- Application : Loan Application
+- Principal : Money
+- Interest Rate : Number
+- Term Months : Number
+- Disbursed At : Date
+- Status : Active | Closed | Defaulted
+
+Events
+
+When Disburse
+
+    Disbursed At Today
+
+    Generate Repayment Schedule
+
+    Status Active
+
+Constraints
+
+- Application is required.
+- Principal is required.
+- Term Months is required.
+
+Permissions
+
+Loan Officer
+
+- Disburse
+
+Views
+
+- Loan Form : Form
+- Active Loans : List
+- Loan Detail : Detail

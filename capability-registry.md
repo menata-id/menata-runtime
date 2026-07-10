@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.19 — + Case 13 (CAP-P07 public/unauthenticated access, new; CAP-V10 reinforced, CAP-F03 scope note) | Updated: 2026-07-10
+> Status: v0.20 — + Case 14 (CAP-A15 batch/series record generation, new; CAP-P03 fourth instance) | Updated: 2026-07-10
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -79,6 +79,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-A12 | Ordinal/enum stepping in actions (move a `value_list` field to its next value in a declared sequence, e.g. `Low → Medium → High`) | ❌ | Case 7 [UNTARGETED FINDING] — `Escalate`'s Priority raise | — | 11 | Distinct from CAP-A11 (arithmetic on numbers/dates): stepping through a closed, ordered `value_list` has no "+1" — needs the sequence itself declared somewhere (on the field, most likely) |
 | CAP-A13 | Cross-record field write (`set_field` on a different Machine's record, not just the record whose event fired) | ❌ | Case 8 [UNTARGETED FINDING] — `Payment.Reconcile` writing `Invoice.Amount Paid` / `Invoice.Status` | — | 8 | Distinct from CAP-A06 (`create_record`, makes a new record) and CAP-A08 (`aggregate_status`, a specific status-only rollup) — this is an arbitrary field write on an *existing*, different record. Guarded by CAP-X12 (cross-record write atomicity) once both exist |
 | CAP-A14 | Aggregate-conditioned action (an event's action gated on a computed sum/count across many records, not one field on one record) | ❌ | Case 12 [UNTARGETED FINDING] — `Point Ledger Entry.Award`'s badge trigger (`sum(points) >= 100`) | achievement/badge engines (game platforms), threshold alerting | 9 | Every prior conditional action (CAP-A09) tests one field on one record (e.g. Case 4's `if Status = Overdue`). This tests a computed aggregate across many related records — closest relative is CAP-C10 (aggregate constraint), but that *blocks a write*; this *triggers a downstream action*. Composes CAP-F14 (aggregate) + CAP-A09 (condition) + CAP-A06 (create_record), but the combination has no name yet |
+| CAP-A15 | Batch/series record generation (one action creates N related records at once from a formula, e.g. an amortization schedule) | ❌ | Case 14 [UNTARGETED FINDING] — `Loan.Disburse` generating Term Months' worth of Repayment Schedule Entries | amortization schedule generation (every lending platform); recurring-invoice generators | 8 | Distinct from CAP-A06 (`create_record`, exactly one record) and CAP-A11 (date arithmetic, one value). Composes CAP-A11 (per-installment date offset) + CAP-F14 (the principal/interest split formula) + a batch-count loop that has no home in the current Action grammar — every existing action operates on exactly one record or field per invocation |
 
 ## Constraints
 

@@ -1,0 +1,54 @@
+# Lending Repayment — Runtime Metadata
+# Realization of lending-repayment.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: lending-repayment-schedule-entry.yaml
+
+version: "0.1"
+
+machine:
+  id: mch_repayment                       # [SUPPORTED] — as a plain Machine
+  name: Repayment
+  application: app_lending
+
+  fields:
+    - id: fld_rep_schedule_entry            # [NOT YET] — CAP-F13
+      name: Schedule Entry
+      type: reference
+      target_machine: mch_repayment_schedule_entry
+      required: true
+    - id: fld_rep_amount_paid                # [PARTIAL] — CAP-F08
+      name: Amount Paid
+      type: money
+      required: true
+      options: { currency: "IDR" }
+    - id: fld_rep_paid_at                     # [SUPPORTED]
+      name: Paid At
+      type: date
+      required: false
+
+  events:
+    - id: evt_rep_record                       # [NOT YET] — CAP-A13, reused from Case 8
+      name: Record
+      actions:
+        - set_field: { machine: mch_repayment_schedule_entry, record: "{{ this.schedule_entry }}", field: fld_rse_status, value: Paid }
+
+  constraints:
+    - id: cst_rep_schedule_entry_required        # [SUPPORTED]
+      rule: Schedule Entry is required.
+      expression: { field: fld_rep_schedule_entry, operator: required }
+    - id: cst_rep_amount_required                 # [SUPPORTED]
+      rule: Amount Paid is required.
+      expression: { field: fld_rep_amount_paid, operator: required }
+
+  permissions:
+    - role: Loan Officer                           # [SUPPORTED]
+      events: [ evt_rep_record ]
+
+  views:
+    - id: vw_rep_list                               # [SUPPORTED]
+      name: Repayment List
+      type: list
+      columns: [ fld_rep_schedule_entry, fld_rep_amount_paid, fld_rep_paid_at ]
+    - id: vw_rep_detail                              # [SUPPORTED]
+      name: Repayment Detail
+      type: detail

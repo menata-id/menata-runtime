@@ -1,0 +1,96 @@
+# Lending Loan Application — Runtime Metadata
+# Realization of lending-loan-application.menata (Case 14 — schedule generation)
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+#
+# Case 14 declared targets: new (batch schedule generation), CAP-F13, CAP-A06,
+# CAP-A02, CAP-P03 (fourth instance), CAP-E02 (reused).
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_lending                       # [SUPPORTED]
+  name: Lending
+  workspace: ws_default
+
+machine:
+  id: mch_loan_application               # [SUPPORTED]
+  name: Loan Application
+  application: app_lending
+
+  fields:
+    - id: fld_la_borrower                # [PARTIAL] — CAP-F05
+      name: Borrower
+      type: user
+      required: true
+    - id: fld_la_requested_amount        # [PARTIAL] — CAP-F08
+      name: Requested Amount
+      type: money
+      required: true
+      options: { currency: "IDR" }
+    - id: fld_la_term_months             # [PARTIAL] — CAP-F07
+      name: Term Months
+      type: number
+      required: true
+    - id: fld_la_interest_rate           # [PARTIAL] — CAP-F07
+      name: Interest Rate
+      type: number
+      required: true
+    - id: fld_la_status                  # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Submitted, Approved, Rejected]
+    - id: fld_la_approved_by             # [PARTIAL] — CAP-F05; stamping is CAP-A02
+      name: Approved By
+      type: user
+      required: false
+
+  events:
+    - id: evt_la_approve                  # [NOT YET] — every action composes CAP-A02,
+      name: Approve                        #   CAP-P03, CAP-A06
+      actions:
+        - set_field: { field: fld_la_approved_by, value: current_user }
+        - create_record: { machine: mch_loan, fields: { application: "{{ this.id }}", principal: "{{ this.requested_amount }}", interest_rate: "{{ this.interest_rate }}", term_months: "{{ this.term_months }}" } }
+        - set_field: { field: fld_la_status, value: Approved }
+    - id: evt_la_reject                    # [SUPPORTED] — static set_field works
+      name: Reject
+      actions:
+        - set_field: { field: fld_la_status, value: Rejected }
+
+  constraints:
+    - id: cst_la_borrower_required        # [SUPPORTED]
+      rule: Borrower is required.
+      expression: { field: fld_la_borrower, operator: required }
+    - id: cst_la_amount_required          # [SUPPORTED]
+      rule: Requested Amount is required.
+      expression: { field: fld_la_requested_amount, operator: required }
+    - id: cst_la_term_required            # [SUPPORTED]
+      rule: Term Months is required.
+      expression: { field: fld_la_term_months, operator: required }
+    - id: cst_la_rate_required            # [SUPPORTED]
+      rule: Interest Rate is required.
+      expression: { field: fld_la_interest_rate, operator: required }
+    - id: cst_la_approver_independent     # [NOT YET] — CAP-P03, fourth case instance
+      rule: Approved By must not equal Borrower.
+      expression: { field: fld_la_approved_by, operator: not_equals, compare_field: fld_la_borrower }
+
+  permissions:
+    - role: Loan Officer                   # [SUPPORTED]
+      events: [ evt_la_approve, evt_la_reject ]
+
+  views:
+    - id: vw_la_form                        # [SUPPORTED]
+      name: Application Form
+      type: form
+      fields: [ fld_la_borrower, fld_la_requested_amount, fld_la_term_months, fld_la_interest_rate ]
+    - id: vw_la_pending                     # [NOT YET] — CAP-V09 filter Status = Submitted
+      name: Pending Applications
+      type: list
+      columns: [ fld_la_borrower, fld_la_requested_amount, fld_la_status ]
+    - id: vw_la_detail                      # [SUPPORTED]
+      name: Application Detail
+      type: detail

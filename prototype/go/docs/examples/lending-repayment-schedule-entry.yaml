@@ -1,0 +1,65 @@
+# Lending Repayment Schedule Entry — Runtime Metadata
+# Realization of lending-repayment-schedule-entry.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: lending-loan.yaml, lending-repayment.yaml
+
+version: "0.1"
+
+machine:
+  id: mch_repayment_schedule_entry       # [NOT YET] — target of the new batch-generation
+  name: Repayment Schedule Entry          #   action; exists only as its output shape
+  application: app_lending
+
+  fields:
+    - id: fld_rse_loan                    # [NOT YET] — CAP-F13
+      name: Loan
+      type: reference
+      target_machine: mch_loan
+      required: true
+    - id: fld_rse_installment_number       # [PARTIAL] — CAP-F07
+      name: Installment Number
+      type: number
+      required: true
+    - id: fld_rse_due_date                 # [SUPPORTED]
+      name: Due Date
+      type: date
+      required: true
+    - id: fld_rse_principal_due             # [PARTIAL] — CAP-F08
+      name: Principal Due
+      type: money
+      required: true
+      options: { currency: "IDR" }
+    - id: fld_rse_interest_due              # [PARTIAL] — CAP-F08
+      name: Interest Due
+      type: money
+      required: true
+      options: { currency: "IDR" }
+    - id: fld_rse_status                    # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Upcoming, Paid, Overdue]
+
+  events:
+    - id: evt_rse_overdue_check              # [NOT YET] — CAP-E02 + CAP-A09, same shape
+      name: Overdue Check                     #   as Case 4's Overdue Tasks check
+      trigger: { type: schedule, cron: "0 8 * * *" }
+      conditions:
+        - { field: fld_rse_due_date, operator: before, value: today }
+        - { field: fld_rse_status, operator: equals, value: Upcoming }
+      actions:
+        - set_field: { field: fld_rse_status, value: Overdue }
+
+  permissions:
+    - role: Loan Officer                       # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_rse_loan_schedule                   # [NOT YET] — CAP-V05 filter Loan = this
+      name: Loan Schedule
+      type: list
+      columns: [ fld_rse_installment_number, fld_rse_due_date, fld_rse_status ]
+    - id: vw_rse_overdue                          # [NOT YET] — CAP-V09 filter Status = Overdue
+      name: Overdue Installments
+      type: list
+      columns: [ fld_rse_loan, fld_rse_due_date, fld_rse_principal_due ]

@@ -1,0 +1,52 @@
+# Lending Loan Application
+# Example Business Knowledge expressed in Menata Language
+# Domain: Lending — a loan request approved by someone other than the Borrower (WRP-5, reused)
+# Case 14 of the Case Portfolio (runtime/case-portfolio.md)
+# References: lending-loan.menata
+
+Loan Application
+
+Fields
+
+- Borrower : User
+- Requested Amount : Money
+- Term Months : Number
+- Interest Rate : Number
+- Status : Submitted | Approved | Rejected
+- Approved By : User
+
+Events
+
+When Approve
+
+    Approved By Current User
+
+    Approved By must not equal Borrower
+
+    Create Loan
+
+    Status Approved
+
+When Reject
+
+    Status Rejected
+
+Constraints
+
+- Borrower is required.
+- Requested Amount is required.
+- Term Months is required.
+- Interest Rate is required.
+
+Permissions
+
+Loan Officer
+
+- Approve
+- Reject
+
+Views
+
+- Application Form : Form
+- Pending Applications : List
+- Application Detail : Detail
