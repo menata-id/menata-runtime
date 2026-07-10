@@ -238,7 +238,7 @@ their capability cluster already has case evidence.
 |---|------|------------------------|----------------------|--------|
 | 11 | Social App (Instagram-like) | **High** — many-to-many relationships, feed | F20(new), C12(new), F14, V05 | ⚠️ documented |
 | 12 | Community Site | Medium — builds on 11 + gamification | F20, C12, A14(new) | ⚠️ documented |
-| 13 | Blog / One-Page Site | **High** — public/unauthenticated access | new (public read), Page, Theme | planned |
+| 13 | Blog / One-Page Site | **High** — public/unauthenticated access | P07(new), V10, F03 scope note | ⚠️ documented |
 | 14 | Lending Services | **High** — schedule generation | new (schedule gen), F13, A07/A08, C08 | planned |
 | 15 | E-commerce | Medium — cart as mutable pre-commit doc | new (draft doc), composes Case 5/8/9 | planned |
 | 16 | Point of Sale | Low — composition of Case 5+8+15 | composes only | planned |
@@ -284,6 +284,21 @@ the same CAP-F20 shape already proven three times; composable without new design
 Files: `prototype/go/docs/examples/community-group.{menata,yaml}`,
 `community-membership.{menata,yaml}`, `community-event.{menata,yaml}`,
 `community-points.{menata,yaml}`, `community-badge-award.{menata,yaml}` (five Machines)
+
+## Case 13 — Blog / One-Page Site (target declaration)
+
+**Business reality:** A public blog. Anyone, logged in or not, reads Published posts and leaves
+comments; only an authenticated Author writes and moderates.
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| `Visitor` role reads Published Posts / submits Comments with no login | **CAP-P07 (new)** | Public/unauthenticated access — every prior case assumed CAP-X02 authentication already succeeded |
+| One-page landing composing multiple content sections | CAP-V10 | Reinforced — same composition shape as Portal GA's dashboards, applied publicly. Does **not** close the registry's separate Page/Theme "not yet studied" gaps |
+| `Tags` wants multi-select | CAP-F03 (scope note) | `value_list` is single-select only; worked around with comma-separated text |
+
+Files: `prototype/go/docs/examples/blog-post.{menata,yaml}`, `blog-comment.{menata,yaml}`
 
 ---
 

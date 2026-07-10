@@ -1,0 +1,45 @@
+# Blog Post
+# Example Business Knowledge expressed in Menata Language
+# Domain: Blog — a published post, readable by anyone, written by an authenticated Author
+# Case 13 of the Case Portfolio (runtime/case-portfolio.md)
+# References: blog-comment.menata
+#
+# THE NEW FINDING THIS CASE EXISTS TO SURFACE: every case since Case 1 has assumed
+# every viewer is an authenticated workspace member with a role. A public blog's
+# Published Posts must be readable with NO login at all — "Visitor" below is not a
+# workspace role, it is the absence of one.
+
+Post
+
+Fields
+
+- Title : Text
+- Slug : Text
+- Body : Rich Text
+- Author : User
+- Status : Draft | Published
+- Published At : Date
+- Tags : Text
+
+Constraints
+
+- Title is required.
+- Slug is required.
+- Body is required.
+
+Permissions
+
+Author
+
+- Write
+- Publish
+
+Visitor
+
+- Read Published
+
+Views
+
+- Post Form : Form
+- Published Posts : List
+- Post Detail : Detail

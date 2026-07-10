@@ -447,6 +447,29 @@ community-badge-award.menata / .yaml    Badge Award (auto-triggered on threshold
 
 ---
 
+## Case 13 — Blog / One-Page Site
+
+**Domain:** Public blog — Posts and Comments readable by anyone, written/moderated by an authenticated Author
+**Application:** Blog
+**Roles:** Author, Visitor
+**Seed:** — (pending reference field + public-access support)
+**Status:** ⚠️ Documented boundary test — first case where a role requires NO login, see `runtime/case-portfolio.md`
+
+```
+blog-post.menata / .yaml       Post
+blog-comment.menata / .yaml    Comment (from an unauthenticated Visitor)
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| Public/unauthenticated access | **[UNTARGETED FINDING]** → registered as CAP-P07 — structurally different from "a role with few permissions"; every case since Case 1 assumed a logged-in role |
+| One-page composed landing | reinforces CAP-V10, doesn't close the separate Page/Theme registry gaps |
+| Multi-select tags | confirmed scope gap on CAP-F03 (single-select only) |
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

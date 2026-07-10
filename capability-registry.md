@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.18 — + Case 12 (CAP-A14 aggregate-conditioned action, new; CAP-F20/CAP-C12 reinforced) | Updated: 2026-07-10
+> Status: v0.19 — + Case 13 (CAP-P07 public/unauthenticated access, new; CAP-V10 reinforced, CAP-F03 scope note) | Updated: 2026-07-10
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -30,7 +30,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 |----|-----------|--------|---------------|-------------|------|-------|
 | CAP-F01 | `text` field | ✅ | Case 1 | — | | conformance T06–T08 |
 | CAP-F02 | `rich_text` field (textarea) | ✅ | Case 1 | — | | conformance T02/T08 |
-| CAP-F03 | `value_list` field (select + badge) | ✅ | Case 1 | — | | conformance T06–T08 |
+| CAP-F03 | `value_list` field (select + badge) | ✅ | Case 1 | — | | conformance T06–T08. **Scope note (Case 13):** single-select only — a multi-value variant (e.g. Blog Post Tags) has no representation; worked around today with a comma-separated `text` field, not a real capability |
 | CAP-F04 | `date` field | ✅ | Case 1 | — | | conformance T05/T08 |
 | CAP-F05 | `user` field | ⚠️ | Case 1 | — | 8 | renders as free text; no user picker, no identity link. Long-term: sugar over CAP-F13 + CAP-O01 (Study 15), not a permanently separate type — kept distinct only until CAP-O01 exists |
 | CAP-F06 | `file` field | ⚠️ | Case 1, reinforced by Study 5 (Portal GA `NativeCompressedUpload*`) and a direct follow-up question | Frappe Attach→File DocType, Salesforce File/ContentDocument, Drupal file entity | 9 | input renders; upload is not stored. Long-term (Study 15): sugar over CAP-F13 + a runtime-managed File/Document entity — files have their own identity/lifecycle (storage key, versioning), same shape of gap as CAP-F05 waiting on CAP-O01. **Scope refined (sixth-pass):** not a new capability, but `type: file` gains `options` for image handling — `accept`, `compress`, `max_dimension`, `format` — with a dual-path contract: client-side compression is the fast path (saves upload bandwidth), but the server-side `Store` step never trusts it happened and re-applies the same pipeline whenever an incoming file doesn't already satisfy the declared policy. Matches Portal GA's proven pattern (client WebP compression via Web Worker + server-side fallback for unsupported browsers) and the same "client is advisory, server enforces" principle already applied to Constraints (CAP-C09). |
@@ -106,6 +106,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-P04 | Delegation | ❌ | Study 1 mapping, first case evidence from Case 7 (`Delegate`: current assignee hands off to a peer, keeping an accountability trail via `Delegated By`) | WRP detour | 15 | Distinct from Case 7's own `Escalate` (CAP-A04 dynamic recipient + CAP-A12 ordinal stepping) — delegation is a deliberate peer handoff retaining accountability, escalation is an automatic handoff to a fixed higher-authority role on SLA breach. Previously had no case evidence at all ("not yet in language examples") |
 | CAP-P05 | CRUD-level permissions (read/create/edit per role — not just events) | ❌ | Study 2 survey | universal (6/6 platforms) | 6 | today every role sees every machine and record |
 | CAP-P06 | Field-level visibility ("Salary visible only to HR") | ❌ | Study 2 survey + spec 004 example | Salesforce field perms, Frappe permlevel | 11 | — |
+| CAP-P07 | Public / unauthenticated access (a role requiring no login at all) | ❌ | Case 13 [UNTARGETED FINDING] — Blog `Visitor` reading Published Posts, submitting Comments | Every public-facing CMS/blog platform (WordPress, Ghost, ...) | 7 | Structurally different from "a role with very few permissions" — every permission row in the registry today implicitly assumes CAP-X02 authentication already succeeded. First case where a role is the *absence* of a session, not a restricted one |
 
 ## Views
 
@@ -120,7 +121,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-V07 | `dashboard` / `calendar` / `timeline` views | ❌ | schema doc | — | 15 | — |
 | CAP-V08 | List search & filter | ❌ | Study 2 survey | universal (6/6 platforms) | 8 | — |
 | CAP-V09 | Declarative view-level filter (Due Today, Overdue Tasks) | ❌ | Case 4 [UNTARGETED FINDING] | — | 8 | view `filter` block in metadata |
-| CAP-V10 | Composed dashboard view (sections sourcing multiple machines) | ❌ | Study 5 Portal GA | 9 shared DigestSections | 12 | — |
+| CAP-V10 | Composed dashboard view (sections sourcing multiple machines) | ❌ | Study 5 Portal GA | 9 shared DigestSections | 12 | Case 13's one-page site is the same composition shape applied to a **public** landing page rather than an internal dashboard — reinforces the pattern but does not close the registry's separate "not yet studied" Page/Theme gaps (`capability-registry.md` §Tracked but Not Yet Studied); a dedicated study is still needed for those |
 | CAP-V11 | Channel-independent view rendering (web + email from one section) | ❌ | Study 5 Portal GA | ADH email digest reuse | 14 | **evidence-thin** (Study 9 retrofit: single source, possibly composable) — HOLD at Proposed until second independent source |
 | CAP-V12 | Multi-step form (wizard) view | ❌ | Study 5 Portal GA | HIRADC wizard | 11 | — |
 | CAP-V13 | Aggregate report view (group-by, hierarchy rollup, period compare, running balance) | ❌ | Study 6 accounting, field-level design in Case 9 | Trial Balance, P&L, GL | 9 | the report class every vertical needs. Case 9's Trial Balance requires CAP-F16 child-table rows (Journal Entry Line) to be independently queryable across parent documents — see CAP-F16's reporting-independence note |

@@ -1,0 +1,40 @@
+# Blog Comment
+# Example Business Knowledge expressed in Menata Language
+# Domain: Blog — a visitor comment, moderated before it appears publicly
+# Case 13 of the Case Portfolio (runtime/case-portfolio.md)
+# References: blog-post.menata
+#
+# A second instance of the public-access finding: the commenter is a Visitor, not a
+# User — no CAP-F05 identity exists for them at all, only a freely entered name/email.
+
+Comment
+
+Fields
+
+- Post : Post
+- Visitor Name : Text
+- Visitor Email : Text
+- Body : Rich Text
+- Posted At : Date
+- Status : Pending | Approved
+
+Constraints
+
+- Post is required.
+- Visitor Name is required.
+- Body is required.
+
+Permissions
+
+Visitor
+
+- Submit
+
+Author
+
+- Approve
+
+Views
+
+- Post Comments : List
+- Pending Comments : List

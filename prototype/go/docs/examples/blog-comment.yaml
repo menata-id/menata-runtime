@@ -1,0 +1,67 @@
+# Blog Comment — Runtime Metadata
+# Realization of blog-comment.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: blog-post.yaml
+
+version: "0.1"
+
+machine:
+  id: mch_comment                       # [SUPPORTED] — as a plain Machine
+  name: Comment
+  application: app_blog
+
+  fields:
+    - id: fld_bc_post                   # [NOT YET] — CAP-F13
+      name: Post
+      type: reference
+      target_machine: mch_post
+      required: true
+    - id: fld_bc_visitor_name           # [SUPPORTED] — plain text; no CAP-F05 identity
+      name: Visitor Name                #   exists for an unauthenticated commenter, by
+      type: text                        #   design (CAP-P07's absence-of-role case)
+      required: true
+    - id: fld_bc_visitor_email          # [SUPPORTED]
+      name: Visitor Email
+      type: text
+      required: false
+    - id: fld_bc_body                   # [SUPPORTED]
+      name: Body
+      type: rich_text
+      required: true
+    - id: fld_bc_posted_at              # [SUPPORTED] — as a field; stamping is not
+      name: Posted At
+      type: date
+      required: false
+    - id: fld_bc_status                 # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Pending, Approved]
+
+  constraints:
+    - id: cst_bc_post_required          # [SUPPORTED]
+      rule: Post is required.
+      expression: { field: fld_bc_post, operator: required }
+    - id: cst_bc_name_required          # [SUPPORTED]
+      rule: Visitor Name is required.
+      expression: { field: fld_bc_visitor_name, operator: required }
+    - id: cst_bc_body_required          # [SUPPORTED]
+      rule: Body is required.
+      expression: { field: fld_bc_body, operator: required }
+
+  permissions:
+    - role: Visitor                     # [NOT YET] — CAP-P07, second instance: submitting
+      events: []                        #   a comment must be possible with no login either
+    - role: Author                      # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_bc_post_comments            # [NOT YET] — CAP-V05 filter + CAP-P07 public read
+      name: Post Comments
+      type: list
+      columns: [ fld_bc_visitor_name, fld_bc_body, fld_bc_posted_at ]
+      filter: { field: fld_bc_status, operator: equals, value: Approved }
+    - id: vw_bc_pending                  # [SUPPORTED] — internal, Author-only, no CAP-P07
+      name: Pending Comments             #   needed here
+      type: list
+      columns: [ fld_bc_visitor_name, fld_bc_body, fld_bc_posted_at ]

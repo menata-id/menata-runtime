@@ -1,0 +1,90 @@
+# Blog Post — Runtime Metadata
+# Realization of blog-post.menata (Case 13 — public/unauthenticated access, first
+# evidence for the registry's long-"not yet studied" Page composition question)
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+#
+# Case 13 declared targets: new (public/unauthenticated read access), CAP-V10
+# (reinforced — a one-page landing composes sections the same way a dashboard does),
+# CAP-F03 scope note (value_list has no multi-select — Tags wants one).
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_blog                         # [SUPPORTED]
+  name: Blog
+  workspace: ws_default
+
+machine:
+  id: mch_post                         # [SUPPORTED]
+  name: Post
+  application: app_blog
+
+  fields:
+    - id: fld_bp_title                 # [SUPPORTED]
+      name: Title
+      type: text
+      required: true
+    - id: fld_bp_slug                  # [SUPPORTED]
+      name: Slug
+      type: text
+      required: true
+    - id: fld_bp_body                  # [SUPPORTED]
+      name: Body
+      type: rich_text
+      required: true
+    - id: fld_bp_author                # [PARTIAL] — CAP-F05
+      name: Author
+      type: user
+      required: false
+    - id: fld_bp_status                # [SUPPORTED]
+      name: Status
+      type: value_list
+      required: false
+      values: [Draft, Published]
+    - id: fld_bp_published_at          # [SUPPORTED] — as a field; stamping is not
+      name: Published At
+      type: date
+      required: false
+    - id: fld_bp_tags                  # [PARTIAL] — CAP-F03 works for single-select;
+      name: Tags                       #   a comma-separated Text field is a workaround,
+      type: text                       #   not real multi-select. No capability names a
+      required: false                  #   multi-value value_list today — scope note on
+      # CAP-F03, not a new ID, until a second case needs true multi-select.
+
+  constraints:
+    - id: cst_bp_title_required        # [SUPPORTED]
+      rule: Title is required.
+      expression: { field: fld_bp_title, operator: required }
+    - id: cst_bp_slug_required         # [SUPPORTED]
+      rule: Slug is required.
+      expression: { field: fld_bp_slug, operator: required }
+    - id: cst_bp_body_required         # [SUPPORTED]
+      rule: Body is required.
+      expression: { field: fld_bp_body, operator: required }
+
+  permissions:
+    - role: Author                     # [SUPPORTED]
+      events: []
+    - role: Visitor                    # [NOT YET] — CAP-P07 (new): "Visitor" is not an
+      events: []                       #   authenticated workspace role at all; every
+      # permission row today implicitly assumes CAP-X02 authentication already
+      # succeeded. A public read surface needs a role that requires NO login —
+      # structurally different from "a role with very few permissions."
+
+  views:
+    - id: vw_bp_form                   # [SUPPORTED]
+      name: Post Form
+      type: form
+      fields: [ fld_bp_title, fld_bp_slug, fld_bp_body, fld_bp_tags ]
+    - id: vw_bp_published               # [NOT YET] — needs both CAP-V09 (filter Status =
+      name: Published Posts             #   Published) AND CAP-P07 (public, no login) —
+      type: list                        #   the two gaps compose, neither alone is enough
+      columns: [ fld_bp_title, fld_bp_published_at, fld_bp_tags ]
+      filter: { field: fld_bp_status, operator: equals, value: Published }
+    - id: vw_bp_detail                  # [NOT YET] — same composition: CAP-P07 (public)
+      name: Post Detail                 #   gates the whole view, not just a filter
+      type: detail
