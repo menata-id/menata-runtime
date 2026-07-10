@@ -1,0 +1,28 @@
+# E-commerce Product
+# Example Business Knowledge expressed in Menata Language
+# Domain: E-commerce — composes Case 5's Item shape; not re-derived here
+# Case 15 of the Case Portfolio (runtime/case-portfolio.md)
+
+Product
+
+Fields
+
+- Name : Text
+- Price : Money
+- Available Stock : Number
+
+Constraints
+
+- Name is required.
+- Price is required.
+
+Permissions
+
+Customer
+
+- View
+
+Views
+
+- Product Catalog : List
+- Product Detail : Detail

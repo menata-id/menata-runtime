@@ -496,6 +496,29 @@ lending-repayment.menata / .yaml                Repayment
 
 ---
 
+## Case 15 — E-commerce
+
+**Domain:** E-commerce — product catalog, cart, checkout into a real order
+**Application:** E-commerce
+**Roles:** Customer, Fulfillment
+**Seed:** — (pending reference field + child table support)
+**Status:** ⚠️ Documented boundary test — heavily composes Cases 5/8/9, see `runtime/case-portfolio.md`
+
+```
+ecommerce-product.menata / .yaml    Product
+ecommerce-cart.menata / .yaml       Cart (mutable pre-commit document — new pattern)
+ecommerce-order.menata / .yaml      Order (Case 9's header+line shape, reused)
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| Cart as editable scratch state | **[UNTARGETED FINDING]** → registered as CAP-R08 — no invariants enforced until Checkout, unlike Case 9's Draft Journal Entry which is validated immediately |
+| Order header+lines | reuses Case 9's CAP-F16 shape, including its reporting-independence note |
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

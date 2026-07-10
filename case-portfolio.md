@@ -240,7 +240,7 @@ their capability cluster already has case evidence.
 | 12 | Community Site | Medium — builds on 11 + gamification | F20, C12, A14(new) | ⚠️ documented |
 | 13 | Blog / One-Page Site | **High** — public/unauthenticated access | P07(new), V10, F03 scope note | ⚠️ documented |
 | 14 | Lending Services | **High** — schedule generation | A15(new), F13, A02, A06, P03, E02 | ⚠️ documented |
-| 15 | E-commerce | Medium — cart as mutable pre-commit doc | new (draft doc), composes Case 5/8/9 | planned |
+| 15 | E-commerce | Medium — cart as mutable pre-commit doc | R08(new), composes Case 5/8/9 | ⚠️ documented |
 | 16 | Point of Sale | Low — composition of Case 5+8+15 | composes only | planned |
 | 17 | Helpdesk | Low — re-proves Case 7 | composes Case 7 | planned |
 | 18 | HR Operations | Low — re-proves Cases 1/2/9 | composes 1/2/9; payroll flagged domain-engine | planned |
@@ -318,6 +318,22 @@ are recorded against installments; overdue installments are flagged automaticall
 Files: `prototype/go/docs/examples/lending-loan-application.{menata,yaml}`,
 `lending-loan.{menata,yaml}`, `lending-repayment-schedule-entry.{menata,yaml}`,
 `lending-repayment.{menata,yaml}` (four Machines)
+
+## Case 15 — E-commerce (target declaration)
+
+**Business reality:** Customers browse Products, add them to a Cart, and Checkout converts the
+Cart into a real Order. Payment reuses Case 8's Payment machine — not rebuilt.
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| `Cart` freely edited, no invariants until Checkout | **CAP-R08 (new)** | Editable scratch state — the opposite end of CAP-R07's spectrum (unconstrained *before* a state, not frozen *after* one) |
+| `Order` header + `Order Line` items | CAP-F16 | Same shape as Case 9's Journal Entry, including its reporting-independence note |
+| Product ~ Item, Payment ~ Case 8's Payment | — | Deliberate composition, not re-derived |
+
+Files: `prototype/go/docs/examples/ecommerce-product.{menata,yaml}`,
+`ecommerce-cart.{menata,yaml}`, `ecommerce-order.{menata,yaml}` (three Machines)
 
 ---
 

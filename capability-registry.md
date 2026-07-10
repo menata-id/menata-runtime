@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.20 — + Case 14 (CAP-A15 batch/series record generation, new; CAP-P03 fourth instance) | Updated: 2026-07-10
+> Status: v0.21 — + Case 15 (CAP-R08 editable scratch state, new; composes Cases 5/8/9 heavily) | Updated: 2026-07-10
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -138,6 +138,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-R05 | Pagination on list views | ❌ | Study 1 code check | — | 11 | — |
 | CAP-R06 | Data import/export (CSV) | ❌ | Study 2 survey | 5/6 platforms | 12 | — |
 | CAP-R07 | Record immutability after state (posted/submitted frozen; amend-via-new-version) | ❌ | Study 6 accounting + Case 6 declaration | docstatus model | 6 | stronger than CAP-E06 — guards edits, not just events |
+| CAP-R08 | Editable scratch state (a record with none of its eventual invariants enforced until an explicit commit point converts it into a real, constrained record) | ❌ | Case 15 [UNTARGETED FINDING] — `Cart` freely edited, `Checkout` is the actual commit point into `Order` | shopping cart pattern (every e-commerce platform); form builder "draft" autosave | 10 | Distinct from an ordinary Draft status (Case 9's Journal Entry is validated even in Draft) — this is the opposite end of CAP-R07's spectrum: not "frozen after a state," but "unconstrained before a state." Two ends of the same lifecycle axis, worth keeping in the same area for that reason |
 
 ## Cross-Cutting
 

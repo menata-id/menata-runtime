@@ -1,0 +1,58 @@
+# E-commerce Product — Runtime Metadata
+# Realization of ecommerce-product.menata (Case 15 — cart as mutable pre-commit document)
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+#
+# Case 15 declared targets: new (mutable pre-commit document), composes Case 5
+# (Product ~ Item), Case 8 (Payment reused, not rebuilt), Case 9 (Order ~ Journal Entry shape).
+
+version: "0.1"
+
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_ecommerce                    # [SUPPORTED]
+  name: E-commerce
+  workspace: ws_default
+
+machine:
+  id: mch_product                      # [SUPPORTED]
+  name: Product
+  application: app_ecommerce
+
+  fields:
+    - id: fld_prd_name                 # [SUPPORTED]
+      name: Name
+      type: text
+      required: true
+    - id: fld_prd_price                # [PARTIAL] — CAP-F08
+      name: Price
+      type: money
+      required: true
+      options: { currency: "IDR" }
+    - id: fld_prd_stock                # [PARTIAL] — CAP-F07; the real "stock on hand"
+      name: Available Stock            #   mechanics are Case 5's, not rebuilt here
+      type: number
+      required: false
+
+  constraints:
+    - id: cst_prd_name_required        # [SUPPORTED]
+      rule: Name is required.
+      expression: { field: fld_prd_name, operator: required }
+    - id: cst_prd_price_required       # [SUPPORTED]
+      rule: Price is required.
+      expression: { field: fld_prd_price, operator: required }
+
+  permissions:
+    - role: Customer                   # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_prd_catalog                # [SUPPORTED]
+      name: Product Catalog
+      type: list
+      columns: [ fld_prd_name, fld_prd_price, fld_prd_stock ]
+    - id: vw_prd_detail                 # [SUPPORTED]
+      name: Product Detail
+      type: detail

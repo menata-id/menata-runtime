@@ -1,0 +1,41 @@
+# E-commerce Cart
+# Example Business Knowledge expressed in Menata Language
+# Domain: E-commerce — a mutable pre-commit document, freely edited with none of an
+# Order's invariants enforced, until Checkout converts it into a real Order
+# Case 15 of the Case Portfolio (runtime/case-portfolio.md)
+# References: ecommerce-product.menata, ecommerce-order.menata
+#
+# THE NEW FINDING THIS CASE EXISTS TO SURFACE: every "document" case so far (Case 9's
+# Journal Entry, Case 14's Loan Application) treats even its Draft state as a real,
+# constrained record. A Cart is scratch state — items freely added, removed, and
+# re-quantified with no stock check, no minimum, no required fields at all — until
+# Checkout, which is the actual commit point. No capability distinguishes "editable
+# scratch state" from "Draft" (a real but not-yet-finalized record).
+
+Cart
+
+Fields
+
+- Customer : User
+- Items : Table of (Product, Quantity)
+- Status : Open | Checked Out
+
+Events
+
+When Checkout
+
+    Create Order
+
+    Status Checked Out
+
+Permissions
+
+Customer
+
+- Add Item
+- Remove Item
+- Checkout
+
+Views
+
+- My Cart : Detail

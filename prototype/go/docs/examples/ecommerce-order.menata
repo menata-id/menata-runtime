@@ -1,0 +1,38 @@
+# E-commerce Order
+# Example Business Knowledge expressed in Menata Language
+# Domain: E-commerce — a real, constrained header-detail document, same shape as
+# Case 9's Journal Entry. Payment is Case 8's Payment machine, referenced, not rebuilt.
+# Case 15 of the Case Portfolio (runtime/case-portfolio.md)
+# References: ecommerce-cart.menata, ecommerce-product.menata
+
+Order
+
+Fields
+
+- Order Number : Text
+- Customer : User
+- Lines : Table of (Product, Quantity, Unit Price, Line Total)
+- Total Amount : Money
+- Status : Pending | Paid | Fulfilled
+- Placed At : Date
+
+Constraints
+
+- Order Number is required.
+- Customer is required.
+- Lines is required.
+
+Permissions
+
+Customer
+
+- View
+
+Fulfillment
+
+- Fulfill
+
+Views
+
+- Order List : List
+- Order Detail : Detail
