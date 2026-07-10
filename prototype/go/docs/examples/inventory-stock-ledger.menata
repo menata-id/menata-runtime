@@ -1,0 +1,25 @@
+# Inventory Stock Ledger Entry
+# Example Business Knowledge expressed in Menata Language
+# Domain: Warehouse — an append-only, normalized record of every confirmed movement
+# Case 5 of the Case Portfolio (runtime/case-portfolio.md)
+# References: inventory-item.menata, inventory-stock-movement.menata
+
+Stock Ledger Entry
+
+Fields
+
+- Item : Item
+- Source Movement : Stock Movement
+- Signed Quantity : Number
+- Recorded At : Date
+
+Permissions
+
+Warehouse Staff
+
+- View
+
+Views
+
+- Ledger List : List
+- Ledger Detail : Detail

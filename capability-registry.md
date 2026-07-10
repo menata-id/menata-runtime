@@ -5,7 +5,7 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.13 — + Study 15 sixth-pass (CAP-F06 image/compression scope, dual-path enforcement) | Updated: 2026-07-05
+> Status: v0.14 — + Case 5 declaration (CAP-F19 Quantity tiered UoM, CAP-X12 cross-record write atomicity) | Updated: 2026-07-10
 > Lifecycle governance (admission test, definition-of-done, extension architecture): `capability-lifecycle.md`
 > Field type selection procedure: `benchmarks/005-field-modeling-decision-framework.md`
 
@@ -41,9 +41,10 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-F13 | `reference` field (link to another machine) | ❌ | Case 3 (P1) | WCP-2/13/14, WRP-3 | **1** | includes tree/hierarchy option (self-reference + rollup — COA, Study 6). Scope note (Study 15): must support two target flavors from day one — (a) workspace-authored Machine, (b) reserved built-in identity target for CAP-F05/CAP-O01 — designing only for (a) forces a breaking change later. Fourth-pass: this alone (plus an ordinary Machine) fully fixes a single-application mis-modeled field (e.g. `Equipment`) — CAP-O02 is a separate, additional capability only for the cross-application case |
 | CAP-F14 | Computed / formula field | ❌ | Study 2 survey | Salesforce formula, Frappe | 13 | design req: derived line generation (tax templates, Study 6). Study 15 (third-pass): this is the correct home for unit/currency conversion (amount × factor → normalized value) — NOT the Constraint grammar |
 | CAP-F15 | Field default values (beyond status first-value) | ⚠️ | Study 2 survey | universal (6/6 platforms) | 8 | status default works; other fields have none |
-| CAP-F16 | Line items / child table inside a record (header-detail document) | ❌ | Study 6 accounting | Odoo One2many, Frappe Table — universal to document apps | **3** | joins CAP-F13 atop the structural queue |
+| CAP-F16 | Line items / child table inside a record (header-detail document) | ❌ | Study 6 accounting, reconfirmed by Case 5 | Odoo One2many, Frappe Table — universal to document apps | **3** | joins CAP-F13 atop the structural queue. **Language-layer note (Case 5):** no Menata Language grammar exists yet for a child-table field either — `inventory-stock-movement.menata` had to write it provisionally as one Fields line (`Table of (...)`); this was previously scoped as Runtime/Metadata-only |
 | CAP-F17 | Multi-currency money (transaction currency + rate + base mirror) | ❌ | Study 6 accounting + Study 15 (independent derivation) | Odoo/ERPNext; spec 001-object.md names Currency as an Object example | 14 | Study 15 reclassified `money` from primitive to reference sugar — Currency fails identity/lifecycle/reuse/cardinality tests, is a CAP-O02 master-data candidate |
 | CAP-F18 | Auto-numbering / document sequences | ❌ | Study 6 accounting | ir.sequence, Naming Series — universal | 7 | Study 2 missed it |
+| CAP-F19 | Quantity / unit-of-measure conversion pattern — **not a new field type**; composed from `number` (CAP-F07) + `value_list` (CAP-F03) for the unit label, escalating only when cardinality demands it: Tier 1 flat factor pair · Tier 2 child table (CAP-F16) · Tier 3 history-tracked Machine (CAP-F13) | ❌ | Study 15 (prediction) + Case 5 (case evidence) | SAP/Odoo UoM categories; APICS UoM conversion | 14 | Study 15's Quantity prediction, now cleared to registered status by dual evidence. Unlike CAP-F17 (`money`, genuine reference sugar), Quantity resolves through composition, never a dedicated `type: quantity` — Tier 1/2 both exercised by Case 5 (Rice, Cement), Tier 3 deliberately not exercised — no case has evidenced factor history yet |
 
 ## Event Sources
 
@@ -146,6 +147,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-X09 | Organizational unit scoping (org dimension on records, permissions, selectors, per-unit timezone) | ❌ | Study 5 Portal GA | BranchPeriodSelector + timezone rules | 6 | records today have no org context at all |
 | CAP-X10 | Metadata-driven index management (hot fields from view filters/sorts → expression indexes, reconciled) | ❌ | Study 8 [SCALE FINDING] | K8s reconciliation applied to indexes | 10 | ADR-003 |
 | CAP-X11 | Lazy per-workspace metadata loading + cache (singleflight, LRU, LISTEN/NOTIFY eviction) | ❌ | Study 8 [SCALE FINDING] | ADR-002 Option C unified with scale cache | 7 | ADR-003; retires boot-time LoadAll |
+| CAP-X12 | Cross-record write atomicity (an event's actions across two-or-more Machines — e.g. append a ledger entry and recompute a rollup — commit as one unit or not at all) | ❌ | Case 5 declaration (original, untargeted) + `benchmarks/006-inventory-warehouse-benchmark.md` (receiving reconciliation, picking allocation) | database transaction / unit-of-work pattern | 8 | first cluster identified without a CAP id — registered once Case 5 gave it worked examples. Guards CAP-A06 (`create_record`) chains and CAP-F14 aggregate rollups from partial-write drift |
 
 ## Cross-Machine Integration
 

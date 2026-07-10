@@ -205,6 +205,55 @@ Complete → stamp Last Completed = today → advance Next Due Date by Frequency
 
 ---
 
+## Case 5 — Inventory / Stock Movement
+
+**Domain:** Warehouse — items stocked in multiple units of measure, movements ledgered, balance never negative
+**Application:** Warehouse
+**Roles:** Warehouse Staff
+**Seed:** — (pending reference field + computed field support)
+**Status:** ⚠️ Documented boundary test — proves Study 15's Quantity tiering framework (`runtime/benchmarks/005-field-modeling-decision-framework.md`); external benchmark done first (`runtime/benchmarks/006-inventory-warehouse-benchmark.md`), see `runtime/case-portfolio.md`
+
+```
+inventory-item.menata               Menata Language source — Item (master, UoM tiering)
+inventory-item.yaml                 Runtime Metadata + inline gap annotations
+inventory-stock-movement.menata     Menata Language source — Stock Movement (request)
+inventory-stock-movement.yaml       Runtime Metadata + inline gap annotations
+inventory-stock-ledger.menata       Menata Language source — Stock Ledger Entry (append-only)
+inventory-stock-ledger.yaml         Runtime Metadata + inline gap annotations
+```
+
+**Workflow:**
+```
+Item carries Base Unit + (Tier 1: a fixed conversion pair, e.g. Rice KG<->SAK,
+                          Tier 2: a Unit Conversions child table, e.g. Cement BOX/DOZEN/PCS)
+    ↓
+Stock Movement requested: Item, Movement Type (In/Out/Adjustment), Quantity, Unit
+    ↓
+Confirm: Movement Date stamped Today
+       → if Out, check Item.Stock On Hand >= Normalized Quantity (else rejected)
+       → append Stock Ledger Entry (signed, normalized quantity)
+       → Status: Confirmed
+    ↓
+Item.Stock On Hand recomputes as the rollup of its Stock Ledger Entries
+```
+
+**Declared targets vs findings:**
+
+| Target | Result |
+|--------|--------|
+| Reference fields (CAP-F13) | confirmed gap — Item↔Movement↔Ledger links |
+| Computed / aggregate field (CAP-F14) | confirmed gap — Normalized Quantity + Stock On Hand rollup |
+| Child table (CAP-F16) | confirmed gap — Unit Conversions (Tier 2 proof) |
+| Quantity/UoM tiered conversion | **[UNTARGETED FINDING, promoted]** → registered as CAP-F19 (Study 15 prediction, now case-evidenced) |
+| Environment data `today` (CAP-A02) | confirmed gap — same as Case 4 |
+| `create_record` (CAP-A06) | confirmed gap — Confirm → Stock Ledger Entry |
+| Comparison operator `greater_than` (CAP-C05) | confirmed gap |
+| Cross-field comparison (CAP-C07) | confirmed gap — Movement Date vs Requested Date |
+| Cross-record constraint (CAP-C08) | confirmed gap — the negative-stock invariant |
+| Multi-record write atomicity | **[UNTARGETED FINDING, promoted]** → registered as CAP-X12 (named but unregistered since the original Case 5 declaration; now case-evidenced) |
+
+---
+
 ## What the cases prove together
 
 | Capability | Case 1 | Case 2 | Case 3 |

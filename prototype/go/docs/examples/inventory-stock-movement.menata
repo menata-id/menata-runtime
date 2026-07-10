@@ -1,0 +1,57 @@
+# Inventory Stock Movement
+# Example Business Knowledge expressed in Menata Language
+# Domain: Warehouse — a movement request that ledgers stock in or out, balance never negative
+# Case 5 of the Case Portfolio (runtime/case-portfolio.md)
+# References: inventory-item.menata, inventory-stock-ledger.menata
+
+Stock Movement
+
+Fields
+
+- Item : Item
+- Movement Type : In | Out | Adjustment
+- Quantity : Number
+- Unit : PCS | KG | BOX | SAK | DOZEN
+- Normalized Quantity : Number
+- Requested Date : Date
+- Movement Date : Date
+- Notes : Rich Text
+- Status : Requested | Confirmed
+
+Events
+
+When Confirm
+
+    Movement Date Today
+
+    if Movement Type = Out
+
+        Item Stock On Hand must be greater than or equal to Normalized Quantity
+
+    Create Stock Ledger Entry
+
+    Status Confirmed
+
+Constraints
+
+- Item is required.
+- Quantity is required.
+- Quantity must be greater than 0.
+
+    Movement Date must be on or after Requested Date.
+
+    if Movement Type = Out
+
+        Item Stock On Hand must be greater than or equal to Normalized Quantity
+
+Permissions
+
+Warehouse Staff
+
+- Confirm
+
+Views
+
+- Movement Form : Form
+- Pending Movements : List
+- Movement Detail : Detail
