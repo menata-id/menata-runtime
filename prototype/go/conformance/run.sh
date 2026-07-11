@@ -260,6 +260,35 @@ post_status "$BASE_URL/mch_approval_step/$PS1_ID/events/evt_as_reject" "" "menat
 body_contains "$AD_PAR_URL" "Rejected" "menata_role=Submitter"
 check T26 "CAP-A08" "Document cascades to Rejected as soon as any Step rejects, not waiting for the rest" $?
 
+# --- CAP-R02 (edit / update record via form) ---
+# Reuses $REC_ID (Leave Request, Approved by T12) and $MGR_ID/$REPORT_URL
+# (Employee, CAP-F13 references established by T14/T15).
+
+# T27 — edit form pre-fills the record's current values
+body_contains "$BASE_URL/mch_leave_request/$REC_ID/edit" 'value="ConformanceBot"'
+check T27 "CAP-R02" "edit form pre-fills existing field values" $?
+
+# T28 — valid update persists the change and leaves fields the form doesn't
+# expose (Status, still Approved from T12) untouched
+LR_UPDATE_DATA="fld_lr_employee=ConformanceBot&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=T28+updated+reason"
+CODE=$(post_status "$BASE_URL/mch_leave_request/$REC_ID" "$LR_UPDATE_DATA" "menata_role=Employee")
+[ "$CODE" = "303" ] && body_contains "$DETAIL_URL" "T28 updated reason" "menata_role=Employee" \
+  && body_contains "$DETAIL_URL" "Approved" "menata_role=Employee"
+check T28 "CAP-R02" "valid update persists changed field, preserves Status outside the form (got $CODE)" $?
+
+# T29 — update re-validates Constraints, same as Create (required violation)
+LR_BAD_DATA="fld_lr_employee=ConformanceBot&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason="
+post_body_contains "$BASE_URL/mch_leave_request/$REC_ID" "$LR_BAD_DATA" "Reason is required." "menata_role=Employee"
+check T29 "CAP-R02,CAP-C09" "update rejected on required-field violation, same as Create" $?
+
+# T30 — update re-validates CAP-F13 referential integrity (dangling reference,
+# and a hand-typed non-UUID value — the latter caught a real 500 during
+# development, see internal/store/record_store.go's Exists comment)
+REPORT_ID="${REPORT_URL##*/}"
+EMP_BAD_DATA="fld_emp_id=CB-EMP&fld_emp_name=ConformanceBot+Report&fld_emp_hire_date=2024-01-01&fld_emp_manager=not-a-real-id"
+post_body_contains "$BASE_URL/mch_employee/$REPORT_ID" "$EMP_BAD_DATA" "does not reference an existing"
+check T30 "CAP-R02,CAP-F13" "update rejected on a malformed (non-UUID) reference value, not a 500" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

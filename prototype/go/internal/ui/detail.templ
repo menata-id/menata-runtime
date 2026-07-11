@@ -11,7 +11,11 @@ templ Detail(role string, machine *model.Machine, record *store.Record, fields [
 					href={ templ.SafeURL("/" + machine.ID) }
 					class="text-sm text-slate-400 hover:text-slate-600 transition-colors"
 				>← Back</a>
-				<h1 class="text-xl font-semibold text-slate-900">{ machine.Name }</h1>
+				<h1 class="flex-1 text-xl font-semibold text-slate-900">{ machine.Name }</h1>
+				<a
+					href={ templ.SafeURL("/" + machine.ID + "/" + record.ID + "/edit") }
+					class="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+				>Edit</a>
 			</div>
 			<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
 				<dl class="divide-y divide-slate-100">

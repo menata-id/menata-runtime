@@ -17,7 +17,9 @@ import (
 //   /{machineID}                             default list view
 //   /{machineID}/new                         new record form
 //   /{machineID}/{recordID}                  record detail
+//   /{machineID}/{recordID}/edit             edit record form
 //   POST /{machineID}                        create record
+//   POST /{machineID}/{recordID}              update record
 //   POST /{machineID}/{recordID}/events/{eventID}  trigger event
 func Mount(r chi.Router, h *handler.Handler) {
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
@@ -32,5 +34,7 @@ func Mount(r chi.Router, h *handler.Handler) {
 	r.Get("/{machineID}/new", h.NewForm)
 	r.Post("/{machineID}", h.Create)
 	r.Get("/{machineID}/{recordID}", h.Detail)
+	r.Get("/{machineID}/{recordID}/edit", h.EditForm)
+	r.Post("/{machineID}/{recordID}", h.Update)
 	r.Post("/{machineID}/{recordID}/events/{eventID}", h.TriggerEvent)
 }

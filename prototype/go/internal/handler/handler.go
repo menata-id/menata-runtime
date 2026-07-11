@@ -152,7 +152,7 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if err := ui.Form(h.role(r), machine, h.buildFormFields(r.Context(), machine, nil), nil).Render(r.Context(), w); err != nil {
+	if err := ui.Form(h.role(r), machine, "", h.buildFormFields(r.Context(), machine, nil), nil).Render(r.Context(), w); err != nil {
 		slog.Error("render form", "error", err)
 	}
 }
@@ -201,7 +201,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	violations = append(violations, refViolations...)
 
 	if len(violations) > 0 {
-		if err := ui.Form(h.role(r), machine, h.buildFormFields(r.Context(), machine, data), violations).Render(r.Context(), w); err != nil {
+		if err := ui.Form(h.role(r), machine, "", h.buildFormFields(r.Context(), machine, data), violations).Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
 		return
@@ -213,6 +213,89 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/"+machineID+"/"+rec.ID, http.StatusSeeOther)
+}
+
+// EditForm — form for editing an existing record (CAP-R02). Reuses the same
+// FormView/field set Create uses — Menata Language has no separate "edit
+// form" view declared in metadata — pre-filled with the record's current
+// data.
+func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	recordID := chi.URLParam(r, "recordID")
+	machine, ok := h.interp.GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	rec, err := h.records.Get(r.Context(), recordID)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := ui.Form(h.role(r), machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil).Render(r.Context(), w); err != nil {
+		slog.Error("render edit form", "error", err)
+	}
+}
+
+// Update — handle edit form submission (CAP-R02). Only the fields the
+// FormView exposes are overwritten; everything else on the record (Status,
+// and any other field driven by events rather than the form) is carried
+// over unchanged, the same "only touch what the form declares" rule Create
+// applies to its value_list defaults.
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	recordID := chi.URLParam(r, "recordID")
+	machine, ok := h.interp.GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	rec, err := h.records.Get(r.Context(), recordID)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	formFieldIDs := map[string]bool{}
+	if fv := h.interp.FormView(machine.ID); fv != nil {
+		for _, id := range fv.Config.Fields {
+			formFieldIDs[id] = true
+		}
+	}
+	data := make(map[string]any, len(rec.Data))
+	for k, v := range rec.Data {
+		data[k] = v
+	}
+	for _, f := range machine.Fields {
+		if formFieldIDs[f.ID] {
+			data[f.ID] = r.FormValue(f.ID)
+		}
+	}
+
+	violations := h.engine.Violations(machine, data)
+	refViolations, err := h.referenceViolations(r.Context(), machine, data)
+	if err != nil {
+		http.Error(w, "failed to validate references", http.StatusInternalServerError)
+		return
+	}
+	violations = append(violations, refViolations...)
+
+	if len(violations) > 0 {
+		if err := ui.Form(h.role(r), machine, recordID, h.buildFormFields(r.Context(), machine, data), violations).Render(r.Context(), w); err != nil {
+			slog.Error("render form (violations)", "error", err)
+		}
+		return
+	}
+
+	if err := h.records.Update(r.Context(), recordID, data); err != nil {
+		http.Error(w, "failed to update record", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/"+machineID+"/"+recordID, http.StatusSeeOther)
 }
 
 // Detail — detail view of a single record.

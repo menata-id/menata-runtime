@@ -134,7 +134,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
 | CAP-R01 | Create record (with default status) | ✅ | Case 1 | — | | conformance T08 |
-| CAP-R02 | **Edit / update record via form** | ❌ | **Study 1 code check** | — | **5** | no update form exists — CRUD's U is missing |
+| CAP-R02 | Edit / update record via form | ✅ | Study 1 code check | — | 5 | conformance T27–T30. Reuses the same `FormView`/field set Create uses (no separate "edit form" view in metadata); only fields the form exposes are overwritten, everything else (Status, event-driven fields) is carried over unchanged. Runs the same `engine.Violations` + `referenceViolations` checks Create does, so Constraints and CAP-F13 referential integrity apply equally to edits. No CRUD-level permission gating yet — same as Create — since CAP-P05 (Prio 6) hasn't landed. Found and fixed a real latent bug along the way: a hand-typed/non-UUID reference value crashed `Exists()` with a 500 (Postgres 22P02) instead of a validation message, on Create too, not just the new Update path — see `internal/store/record_store.go`'s `Exists` |
 | CAP-R03 | Delete / archive record | ❌ | Study 1 code check | — | 12 | — |
 | CAP-R04 | Event audit log (record_events, snapshot before mutation) | ⚠️ | Case 1, reinforced by Case 9 (SOX: audit trail is a compliance requirement, not optional polish) | — | 9 | logged to DB; no UI to view history |
 | CAP-R05 | Pagination on list views | ❌ | Study 1 code check | — | 11 | — |
@@ -193,7 +193,7 @@ All discovered by Case 10 `[COMPOSITION FINDING]` — capabilities that belong t
 | ~~2~~ | ~~CAP-E06, CAP-C09~~ ✅ | ~~Correctness: state guards + constraints on events~~ done 2026-07-11, conformance T17–T19 |
 | ~~3~~ | ~~CAP-A02, CAP-V06~~ ✅ | ~~Dynamic values + child sub-list (completes Case 3 basics)~~ done 2026-07-11, conformance T20–T21 |
 | ~~4~~ | ~~CAP-A07, CAP-A08, CAP-X03~~ ✅ | ~~Workflow actions + machine config~~ done 2026-07-11, conformance T22–T26 — Case 3's P1–P4 now Supported (P5 CAP-P02, P6 CAP-E05 remain, both Prio 6) |
-| 5 | CAP-R02, CAP-A03/A04, CAP-A10 | Record editing + real notify (with delivery channels) — **next up** |
+| 5 | ~~CAP-R02~~ ✅, CAP-A03/A04, CAP-A10 | Record editing + real notify (with delivery channels) — ~~CAP-R02 done 2026-07-11, conformance T27–T30~~; CAP-A03/A04/A10 (real notify) **next up** |
 | 6 | CAP-P02, CAP-P05, CAP-E05 | Record/CRUD-level permission + system events |
 | 7 | CAP-E02, CAP-A09, CAP-X05 | Time-driven events + conditional actions + metadata validation |
 | 8+ | remainder | See per-table Prio column |

@@ -389,6 +389,23 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > distinct from `complaint.yaml`'s Status-changes-into-it case that CAP-C09 does catch).
 > No new capability work — closes the gap between what Item 1–4's own status updates
 > above claimed and what the example corpus actually showed a reader.
+>
+> **Status update (2026-07-11, same day):** Item 5's first half, **CAP-R02 (edit/update
+> record via form), is now ✅ Supported** — CRUD's missing U. Reuses the same `FormView`
+> Create already used (Menata Language/Runtime Metadata has no separate "edit form" view
+> concept), pre-filled with the record's current data; only the fields the form exposes
+> are overwritten on submit, everything else (Status, event-stamped fields like Approved
+> Date) is carried over unchanged. Runs through the exact same `engine.Violations` +
+> `referenceViolations` checks Create does, so a Constraint or a CAP-F13 dangling
+> reference is rejected on an edit exactly as it would be on a create. Proven on Leave
+> Request (field edit + Status preserved, required-field rejection) and Employee
+> (CAP-F13 reference re-validation), conformance T27–T30. Manual testing surfaced a real
+> pre-existing bug shared with Create, not introduced by this change: a hand-typed,
+> non-UUID reference value crashed `RecordStore.Exists` with an unhandled Postgres 22P02
+> error (500) instead of resolving to "doesn't exist" — fixed by catching that error code
+> and folding it into the same false/nil result a dangling-but-well-formed UUID already
+> got. CAP-A03/A04 (real notify with dynamic recipient) and CAP-A10 (delivery channels)
+> — the rest of Item 5 — remain next up.
 
 ---
 

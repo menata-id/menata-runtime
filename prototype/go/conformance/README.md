@@ -56,6 +56,10 @@ export `DATABASE_URL` (same value as the server's `.env`) — it's skipped other
 | T24 | CAP-A08 | parent Document auto-transitions to Approved once every Step is Approved |
 | T25 | CAP-A07 | Parallel mode has no sequential gating (contrast with T22) |
 | T26 | CAP-A08 | any-rejected cascades the parent to Rejected immediately, not waiting for the rest |
+| T27 | CAP-R02 | edit form pre-fills the record's current field values |
+| T28 | CAP-R02 | valid update persists a changed field; fields outside the form (e.g. Status) are left untouched |
+| T29 | CAP-R02, CAP-C09 | update re-validates Constraints (required-field violation), same as Create |
+| T30 | CAP-R02, CAP-F13 | update re-validates referential integrity, including a malformed (non-UUID) reference value |
 
 ---
 

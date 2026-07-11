@@ -2,15 +2,20 @@ package ui
 
 import "menata.id/runtime/internal/model"
 
-templ Form(role string, machine *model.Machine, fields []FormField, errors []string) {
-	@Page("New " + machine.Name, role) {
+// Form renders both the Create and Edit form (CAP-R02) — the same View
+// (`FormView`) and field set serve both, since Menata Language has no
+// separate "edit form" view declared in metadata. recordID == "" selects
+// Create mode (POST /{machine}); a non-empty recordID selects Edit mode
+// (POST /{machine}/{recordID}), matching the router's two POST routes.
+templ Form(role string, machine *model.Machine, recordID string, fields []FormField, errors []string) {
+	@Page(formTitle(machine, recordID), role) {
 		<div class="mx-auto max-w-xl">
 			<div class="mb-5 flex items-center gap-3">
 				<a
-					href={ templ.SafeURL("/" + machine.ID) }
+					href={ templ.SafeURL(formBackHref(machine, recordID)) }
 					class="text-sm text-slate-400 hover:text-slate-600 transition-colors"
 				>← Back</a>
-				<h1 class="text-xl font-semibold text-slate-900">New { machine.Name }</h1>
+				<h1 class="text-xl font-semibold text-slate-900">{ formTitle(machine, recordID) }</h1>
 			</div>
 			if len(errors) > 0 {
 				<div class="mb-5 rounded-md border border-red-200 bg-red-50 px-4 py-3">
@@ -23,7 +28,7 @@ templ Form(role string, machine *model.Machine, fields []FormField, errors []str
 				</div>
 			}
 			<div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-				<form method="POST" action={ templ.SafeURL("/" + machine.ID) } class="space-y-5">
+				<form method="POST" action={ templ.SafeURL(formAction(machine, recordID)) } class="space-y-5">
 					for _, ff := range fields {
 						@FieldInput(ff.Field, ff.Value, ff.Options)
 					}
@@ -32,10 +37,10 @@ templ Form(role string, machine *model.Machine, fields []FormField, errors []str
 							type="submit"
 							class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
 						>
-							Create
+							{ formSubmitLabel(recordID) }
 						</button>
 						<a
-							href={ templ.SafeURL("/" + machine.ID) }
+							href={ templ.SafeURL(formBackHref(machine, recordID)) }
 							class="text-sm text-slate-500 hover:text-slate-700 transition-colors"
 						>Cancel</a>
 					</div>
@@ -43,4 +48,32 @@ templ Form(role string, machine *model.Machine, fields []FormField, errors []str
 			</div>
 		</div>
 	}
+}
+
+func formTitle(machine *model.Machine, recordID string) string {
+	if recordID == "" {
+		return "New " + machine.Name
+	}
+	return "Edit " + machine.Name
+}
+
+func formAction(machine *model.Machine, recordID string) string {
+	if recordID == "" {
+		return "/" + machine.ID
+	}
+	return "/" + machine.ID + "/" + recordID
+}
+
+func formBackHref(machine *model.Machine, recordID string) string {
+	if recordID == "" {
+		return "/" + machine.ID
+	}
+	return "/" + machine.ID + "/" + recordID
+}
+
+func formSubmitLabel(recordID string) string {
+	if recordID == "" {
+		return "Create"
+	}
+	return "Save"
 }

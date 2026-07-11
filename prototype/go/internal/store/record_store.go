@@ -3,9 +3,11 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -83,13 +85,22 @@ func (s *RecordStore) Create(ctx context.Context, machineID string, data map[str
 // Exists reports whether a record with the given id exists on the given
 // machine. Used to enforce referential integrity for `reference` fields
 // (CAP-F13) — a value that doesn't resolve to a real record is rejected the
-// same way a required-field violation is, not silently accepted.
+// same way a required-field violation is, not silently accepted. A recordID
+// that isn't even well-formed UUID syntax (a hand-typed or tampered form
+// value, not one from the picker) is itself just "doesn't exist" from the
+// caller's point of view — Postgres's 22P02 (invalid_text_representation) on
+// the UUID column comparison is caught and folded into that same false/nil
+// result rather than surfacing as a 500.
 func (s *RecordStore) Exists(ctx context.Context, machineID, recordID string) (bool, error) {
 	var exists bool
 	err := s.db.QueryRow(ctx,
 		`SELECT EXISTS(SELECT 1 FROM records WHERE id = $1 AND machine_id = $2)`,
 		recordID, machineID).Scan(&exists)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "22P02" {
+			return false, nil
+		}
 		return false, fmt.Errorf("check record exists: %w", err)
 	}
 	return exists, nil
