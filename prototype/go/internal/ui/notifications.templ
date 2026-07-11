@@ -1,0 +1,42 @@
+package ui
+
+// Notifications renders the current session's in-app notification inbox
+// (CAP-A10) -- every `notify` action (CAP-A03/A04) whose resolved recipient
+// matches this session's role cookie.
+templ Notifications(role string, items []NotificationItem, unreadCount int) {
+	@Page("Notifications", role, unreadCount) {
+		<div class="mx-auto max-w-xl">
+			<h1 class="mb-5 text-xl font-semibold text-slate-900">Notifications</h1>
+			if len(items) == 0 {
+				<div class="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400 shadow-sm">
+					No notifications yet.
+				</div>
+			} else {
+				<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+					<ul class="divide-y divide-slate-100">
+						for _, item := range items {
+							<li class={ "flex items-center gap-3 px-5 py-3.5", templ.KV("bg-blue-50/50", item.Unread) }>
+								<div class="flex-1">
+									if item.Link != "" {
+										<a href={ templ.SafeURL(item.Link) } class="text-sm text-slate-900 hover:text-blue-600 hover:underline">{ item.Message }</a>
+									} else {
+										<span class="text-sm text-slate-900">{ item.Message }</span>
+									}
+									<div class="mt-0.5 text-xs text-slate-400">{ item.When }</div>
+								</div>
+								if item.Unread {
+									<form method="POST" action={ templ.SafeURL("/notifications/" + item.ID + "/read") }>
+										<button
+											type="submit"
+											class="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+										>Mark read</button>
+									</form>
+								}
+							</li>
+						}
+					</ul>
+				</div>
+			}
+		</div>
+	}
+}

@@ -49,7 +49,8 @@ func main() {
 	}
 
 	records := store.NewRecordStore(pool)
-	h := handler.New(interp, records)
+	notifications := store.NewNotificationStore(pool)
+	h := handler.New(interp, records, notifications)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)

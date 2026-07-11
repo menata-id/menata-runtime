@@ -60,6 +60,11 @@ export `DATABASE_URL` (same value as the server's `.env`) — it's skipped other
 | T28 | CAP-R02 | valid update persists a changed field; fields outside the form (e.g. Status) are left untouched |
 | T29 | CAP-R02, CAP-C09 | update re-validates Constraints (required-field violation), same as Create |
 | T30 | CAP-R02, CAP-F13 | update re-validates referential integrity, including a malformed (non-UUID) reference value |
+| T31 | CAP-A03, CAP-A10 | static-role `notify` delivers a real in-app Notification row, not just a log line |
+| T32 | CAP-A10 | unread notification count badge renders on the nav bar, on an unrelated page |
+| T33 | CAP-A10 | marking a notification read persists (button disappears, not just a redirect) |
+| T34 | CAP-A04 | dynamic `recipient_field` resolves to the record's own specific submitter, not a role |
+| T35 | CAP-A04 | the generic role does not also receive the dynamically-targeted notification (negative case) |
 
 ---
 

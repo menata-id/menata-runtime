@@ -90,9 +90,15 @@ machine:
       actions:
         - set_field: { field: fld_ad_status, value: In Review }
         - notify: { role: Approver }
-        # [NOT YET] notify all configured approvers for this specific document.
-        # Current notify only targets a static role string.
-        # Requires: dynamic recipient resolution from Approval Steps.
+        # [PARTIAL] CAP-A03 (static role) is [SUPPORTED] as of 2026-07-11 --
+        # this reaches every session logged in as Approver, delivered as a
+        # real in-app Notification row (CAP-A10), not just logged. Still
+        # [NOT YET]: notifying only the *specific* approvers configured for
+        # THIS document (one Notification per Approval Step's own Approver
+        # field) -- that's a one-to-many fan-out across child records, a
+        # different shape from CAP-A04's single-field resolution (see
+        # evt_ad_approve/evt_ad_reject below, which resolve a single field on
+        # this same record and so are in scope for CAP-A04 as implemented).
 
     - id: evt_ad_approve                  # [SUPPORTED] — CAP-A08, triggered by system, not
       name: Approve                       #   a user button (see approval-step.yaml's
@@ -102,10 +108,14 @@ machine:
         value: In Review
       actions:
         - set_field: { field: fld_ad_status, value: Approved }
-        - notify: { role: Submitter }
+        - notify: { recipient_field: fld_ad_submitted_by, role: Submitter }
       # [SUPPORTED] Implemented 2026-07-11: fired automatically once every
       # Approval Step for this document reaches Decision = Approved, via
       # aggregate_status's parent_event_if_all_approved (approval-step.yaml).
+      # [SUPPORTED] CAP-A04, implemented 2026-07-11: recipient_field resolves
+      # to THIS document's own Submitted By value (e.g. "Alice"), not every
+      # user holding the Submitter role -- role is the fallback if that field
+      # is ever empty. CAP-A10 delivers it as a real in-app Notification row.
 
     - id: evt_ad_reject                   # [SUPPORTED] — CAP-A08, triggered by system
       name: Reject
@@ -115,10 +125,10 @@ machine:
         value: In Review
       actions:
         - set_field: { field: fld_ad_status, value: Rejected }
-        - notify: { role: Submitter }
+        - notify: { recipient_field: fld_ad_submitted_by, role: Submitter }
       # [SUPPORTED] Same as Approve — auto-triggered the moment any sibling Step
       # is Rejected (doesn't wait for the rest to decide), via aggregate_status's
-      # parent_event_if_any_rejected.
+      # parent_event_if_any_rejected. Same CAP-A04 dynamic recipient as Approve.
 
     - id: evt_ad_withdraw                 # [SUPPORTED] — CAP-E06 guard
       name: Withdraw

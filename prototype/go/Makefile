@@ -26,6 +26,7 @@ migrate-up:
 	psql "$(DB_URL)" -f migrations/002_data_schema.sql
 	psql "$(DB_URL)" -f migrations/003_event_conditions.sql
 	psql "$(DB_URL)" -f migrations/004_machine_config.sql
+	psql "$(DB_URL)" -f migrations/005_notifications.sql
 
 # Every seeds/NNN_*.sql file, in order. Fields/constraints/permissions/views
 # use ON CONFLICT DO NOTHING and are safe to re-run; event_actions has no

@@ -68,9 +68,12 @@ INSERT INTO event_actions (event_id, type, position, params) VALUES
     ('evt_ad_submit',   'set_field', 0, '{"field":"fld_ad_status","value":"In Review"}'),
     ('evt_ad_submit',   'notify',    1, '{"role":"Approver"}'),
     ('evt_ad_approve',  'set_field', 0, '{"field":"fld_ad_status","value":"Approved"}'),
-    ('evt_ad_approve',  'notify',    1, '{"role":"Submitter"}'),
+    -- CAP-A04: recipient_field resolves to THIS Document's own Submitted By
+    -- value (e.g. "Alice"), not every user holding the Submitter role --
+    -- role is the fallback if that field is ever empty.
+    ('evt_ad_approve',  'notify',    1, '{"recipient_field":"fld_ad_submitted_by","role":"Submitter"}'),
     ('evt_ad_reject',   'set_field', 0, '{"field":"fld_ad_status","value":"Rejected"}'),
-    ('evt_ad_reject',   'notify',    1, '{"role":"Submitter"}'),
+    ('evt_ad_reject',   'notify',    1, '{"recipient_field":"fld_ad_submitted_by","role":"Submitter"}'),
     ('evt_ad_withdraw', 'set_field', 0, '{"field":"fld_ad_status","value":"Withdrawn"}');
 
 -- Event Actions — Approval Step

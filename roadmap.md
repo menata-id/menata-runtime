@@ -406,6 +406,31 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > and folding it into the same false/nil result a dangling-but-well-formed UUID already
 > got. CAP-A03/A04 (real notify with dynamic recipient) and CAP-A10 (delivery channels)
 > — the rest of Item 5 — remain next up.
+>
+> **Status update (2026-07-11, same day):** The rest of Item 5, **CAP-A03 (notify to
+> role), CAP-A04 (notify to dynamic recipient), and CAP-A10 (notification delivery
+> channels), are now ✅ Supported** — Item 5 fully closed, conformance T31–T35. `notify`
+> actions used to be a single slog line nobody could ever see; a new `notifications`
+> table (`migrations/005_notifications.sql`) plus a `/notifications` inbox (mark-read)
+> and a nav-bar unread badge give every notify a real destination and a real UI. CAP-A04
+> adds `recipient_field` to the action's params — it resolves to *this record's own*
+> field value (e.g. Approval Document's Submitted By, "Alice" specifically, not every
+> user holding the Submitter role) at notify time, with `role` as the fallback; proven on
+> `approval-document.yaml`'s own already-declared Approve/Reject notifies, upgraded from
+> static role to dynamic recipient (`seeds/004_approval.sql`). CAP-A10 is **in-app only**
+> — email is deliberately not implemented, since no mail infrastructure exists in this
+> prototype's environment and faking delivery would misrepresent the capability as done
+> when only one of its two named channels is real, the same honesty CAP-F06's file-
+> compression scope note already established. Manual testing caught two more real bugs
+> before they reached conformance: a `NULLIF($4, '')` parameter bound against a `uuid`
+> column without a cast (Postgres 42804, would have crashed every single notify), and an
+> initial test setup that logged in as the *specific* identity string ("Alice") to trigger
+> a Submit gated on the *role* "Submitter" — a reminder that this prototype's role cookie
+> is simultaneously "the permission role" and "the person," and a metadata author's
+> `recipient_field` target has to resolve a value distinct from whatever role guards the
+> event, or the two concepts collapse into each other by accident. Item 5 (CAP-R02 +
+> CAP-A03/A04 + CAP-A10) is now fully done. Prio 6 (CAP-P02, CAP-P05, CAP-E05 — record/
+> CRUD-level permission + system-triggered events) is next up.
 
 ---
 

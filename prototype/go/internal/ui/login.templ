@@ -1,7 +1,7 @@
 package ui
 
-templ LoginPage(currentRole string) {
-	@Page("Switch role", currentRole) {
+templ LoginPage(currentRole string, unreadCount int) {
+	@Page("Switch role", currentRole, unreadCount) {
 		<div class="mx-auto max-w-sm">
 			<div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
 				<h1 class="text-lg font-semibold text-slate-900">Switch role</h1>

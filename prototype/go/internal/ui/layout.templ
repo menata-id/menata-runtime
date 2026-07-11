@@ -1,6 +1,11 @@
 package ui
 
-templ Page(title, role string) {
+import "strconv"
+
+// unreadCount is CAP-A10's in-app badge -- how many of the current session's
+// (role-cookie's) notifications are still unread. Every page passes it
+// through so the nav bar can show it without a separate request.
+templ Page(title, role string, unreadCount int) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -11,7 +16,7 @@ templ Page(title, role string) {
 			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 		</head>
 		<body class="bg-slate-50 min-h-screen text-slate-900 antialiased">
-			@navBar(role)
+			@navBar(role, unreadCount)
 			<div class="mx-auto max-w-5xl px-4 py-6">
 				{ children... }
 			</div>
@@ -19,13 +24,23 @@ templ Page(title, role string) {
 	</html>
 }
 
-templ navBar(role string) {
+templ navBar(role string, unreadCount int) {
 	<header class="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
 		<div class="mx-auto max-w-5xl px-4 flex items-center gap-4 h-12">
 			<a href="/" class="font-semibold text-sm text-slate-900 hover:text-blue-600 transition-colors">
 				Menata Runtime
 			</a>
 			<div class="flex-1"></div>
+			<a href="/notifications" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
+				if unreadCount > 0 {
+					Notifications
+					<span class="ml-1 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
+						{ strconv.Itoa(unreadCount) }
+					</span>
+				} else {
+					Notifications
+				}
+			</a>
 			<span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
 				{ role }
 			</span>

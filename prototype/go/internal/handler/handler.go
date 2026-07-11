@@ -21,20 +21,22 @@ import (
 )
 
 type Handler struct {
-	interp  *interpreter.Interpreter
-	records *store.RecordStore
-	engine  *constraint.Engine
-	guard   *permission.Guard
-	exec    *executor.Executor
+	interp        *interpreter.Interpreter
+	records       *store.RecordStore
+	notifications *store.NotificationStore
+	engine        *constraint.Engine
+	guard         *permission.Guard
+	exec          *executor.Executor
 }
 
-func New(interp *interpreter.Interpreter, records *store.RecordStore) *Handler {
+func New(interp *interpreter.Interpreter, records *store.RecordStore, notifications *store.NotificationStore) *Handler {
 	return &Handler{
-		interp:  interp,
-		records: records,
-		engine:  &constraint.Engine{},
-		guard:   &permission.Guard{},
-		exec:    executor.New(records),
+		interp:        interp,
+		records:       records,
+		notifications: notifications,
+		engine:        &constraint.Engine{},
+		guard:         &permission.Guard{},
+		exec:          executor.New(records, notifications),
 	}
 }
 
@@ -57,14 +59,14 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 			Description: fmt.Sprintf("%d fields · %d events", len(m.Fields), len(m.Events)),
 		}
 	}
-	if err := ui.Home(h.role(r), cards).Render(r.Context(), w); err != nil {
+	if err := ui.Home(h.role(r), cards, h.unreadCount(r.Context(), h.role(r))).Render(r.Context(), w); err != nil {
 		slog.Error("render home", "error", err)
 	}
 }
 
 // LoginForm — role selection page.
 func (h *Handler) LoginForm(w http.ResponseWriter, r *http.Request) {
-	if err := ui.LoginPage(h.role(r)).Render(r.Context(), w); err != nil {
+	if err := ui.LoginPage(h.role(r), h.unreadCount(r.Context(), h.role(r))).Render(r.Context(), w); err != nil {
 		slog.Error("render login", "error", err)
 	}
 }
@@ -139,7 +141,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	role := h.role(r)
-	if err := ui.List(role, machine, cols, rows, h.interp.PermittedEvents(machineID, role)).Render(r.Context(), w); err != nil {
+	if err := ui.List(role, machine, cols, rows, h.interp.PermittedEvents(machineID, role), h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 		slog.Error("render list", "error", err)
 	}
 }
@@ -152,7 +154,8 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if err := ui.Form(h.role(r), machine, "", h.buildFormFields(r.Context(), machine, nil), nil).Render(r.Context(), w); err != nil {
+	role := h.role(r)
+	if err := ui.Form(role, machine, "", h.buildFormFields(r.Context(), machine, nil), nil, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 		slog.Error("render form", "error", err)
 	}
 }
@@ -201,7 +204,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	violations = append(violations, refViolations...)
 
 	if len(violations) > 0 {
-		if err := ui.Form(h.role(r), machine, "", h.buildFormFields(r.Context(), machine, data), violations).Render(r.Context(), w); err != nil {
+		role := h.role(r)
+		if err := ui.Form(role, machine, "", h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
 		return
@@ -232,7 +236,8 @@ func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if err := ui.Form(h.role(r), machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil).Render(r.Context(), w); err != nil {
+	role := h.role(r)
+	if err := ui.Form(role, machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 		slog.Error("render edit form", "error", err)
 	}
 }
@@ -285,7 +290,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	violations = append(violations, refViolations...)
 
 	if len(violations) > 0 {
-		if err := ui.Form(h.role(r), machine, recordID, h.buildFormFields(r.Context(), machine, data), violations).Render(r.Context(), w); err != nil {
+		role := h.role(r)
+		if err := ui.Form(role, machine, recordID, h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
 		return
@@ -334,7 +340,7 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 
 	role := h.role(r)
 	childLists := h.childLists(r.Context(), machine, recordID)
-	if err := ui.Detail(role, machine, rec, fields, h.interp.PermittedEvents(machineID, role), childLists).Render(r.Context(), w); err != nil {
+	if err := ui.Detail(role, machine, rec, fields, h.interp.PermittedEvents(machineID, role), childLists, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 		slog.Error("render detail", "error", err)
 	}
 }
@@ -415,7 +421,7 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 		return &ruleViolation{strings.Join(violations, " ")}
 	}
 
-	if err := h.exec.Persist(ctx, event, rec, newData); err != nil {
+	if err := h.exec.Persist(ctx, event, rec, newData, machine.Name); err != nil {
 		return err
 	}
 
@@ -881,4 +887,59 @@ func findMachineContainingField(interp *interpreter.Interpreter, fieldID string)
 		}
 	}
 	return nil
+}
+
+// --- CAP-A10 in-app notification inbox ---------------------------------------
+
+func (h *Handler) unreadCount(ctx context.Context, role string) int {
+	n, err := h.notifications.UnreadCount(ctx, role)
+	if err != nil {
+		slog.Error("count unread notifications", "error", err)
+		return 0
+	}
+	return n
+}
+
+// Notifications — the current session's in-app notification inbox: every
+// `notify` action (CAP-A03/A04) whose resolved recipient matches this
+// session's role cookie, the same identity-is-role caveat CAP-A02 already
+// carries.
+func (h *Handler) Notifications(w http.ResponseWriter, r *http.Request) {
+	role := h.role(r)
+	notifs, err := h.notifications.ListForRecipient(r.Context(), role)
+	if err != nil {
+		http.Error(w, "failed to load notifications", http.StatusInternalServerError)
+		return
+	}
+	items := make([]ui.NotificationItem, len(notifs))
+	for i, n := range notifs {
+		link := ""
+		if n.MachineID != "" && n.RecordID != "" {
+			link = "/" + n.MachineID + "/" + n.RecordID
+		}
+		items[i] = ui.NotificationItem{
+			ID:      n.ID,
+			Message: n.Message,
+			Link:    link,
+			Unread:  n.ReadAt == nil,
+			When:    n.CreatedAt.Format("2006-01-02 15:04"),
+		}
+	}
+	if err := ui.Notifications(role, items, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
+		slog.Error("render notifications", "error", err)
+	}
+}
+
+// MarkNotificationRead — POST target for a single notification's "Mark read"
+// button. Scoped to the current session's role in the store layer (a role
+// can only mark its own notifications read), the same access-control shape
+// as every other role-gated action in this prototype.
+func (h *Handler) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	role := h.role(r)
+	if err := h.notifications.MarkRead(r.Context(), id, role); err != nil {
+		http.Error(w, "failed to mark notification read", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/notifications", http.StatusSeeOther)
 }

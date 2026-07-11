@@ -69,6 +69,15 @@ post_redirect() { # <url> <data> [cookie] -> echoes redirect url
     fi
 }
 
+get_body() { # <url> [cookie] -> echoes response body
+    local url="$1" cookie="${2:-}"
+    if [ -n "$cookie" ]; then
+        curl -s -H "Cookie: $cookie" "$url"
+    else
+        curl -s "$url"
+    fi
+}
+
 echo "Menata Runtime Conformance Suite"
 echo "Target: $BASE_URL"
 echo "--------------------------------------------------------------------"
@@ -288,6 +297,43 @@ REPORT_ID="${REPORT_URL##*/}"
 EMP_BAD_DATA="fld_emp_id=CB-EMP&fld_emp_name=ConformanceBot+Report&fld_emp_hire_date=2024-01-01&fld_emp_manager=not-a-real-id"
 post_body_contains "$BASE_URL/mch_employee/$REPORT_ID" "$EMP_BAD_DATA" "does not reference an existing"
 check T30 "CAP-R02,CAP-F13" "update rejected on a malformed (non-UUID) reference value, not a 500" $?
+
+# --- CAP-A03 (notify to role), CAP-A04 (notify to dynamic recipient),
+# CAP-A10 (in-app notification delivery channel) ---
+
+# T31 — CAP-A03 + CAP-A10: a static `notify: {role: ...}` action delivers a
+# real in-app Notification, not just a log line. Reuses $REC_ID's Approve
+# (T12), which fired `notify: {role: Employee}`.
+body_contains "$BASE_URL/notifications" "Leave Request: Approve" "menata_role=Employee"
+check T31 "CAP-A03,CAP-A10" "static-role notify delivers a real in-app notification" $?
+
+# T32 — CAP-A10: the unread count badge appears on an unrelated page (Home),
+# not just the notifications page itself.
+body_contains "$BASE_URL/" 'class="ml-1 inline-flex items-center rounded-full bg-red-100' "menata_role=Employee"
+check T32 "CAP-A10" "unread notification count badge renders on the nav bar" $?
+
+# T33 — CAP-A10: mark-read actually persists (button disappears for that
+# notification, not just a redirect).
+NOTIF_PATH=$(get_body "$BASE_URL/notifications" "menata_role=Employee" | grep -oE '/notifications/[a-f0-9-]+/read' | head -1)
+CODE="000"
+if [ -n "$NOTIF_PATH" ]; then
+    CODE=$(post_status "$BASE_URL$NOTIF_PATH" "" "menata_role=Employee")
+fi
+[ "$CODE" = "303" ] && ! body_contains "$BASE_URL$NOTIF_PATH" "Mark read" "menata_role=Employee"
+check T33 "CAP-A10" "marking a notification read persists (got $CODE, path $NOTIF_PATH)" $?
+
+# T34 — CAP-A04: `notify: {recipient_field: fld_ad_submitted_by, role: Submitter}`
+# resolves to the record's OWN Submitted By value ("Alice", from T22's
+# AD_SEQ_DATA), not the generic Submitter role. Reuses $AD_SEQ_ID, all-
+# approved by T24 (fires evt_ad_approve, which carries this action).
+body_contains "$BASE_URL/notifications" "Approval Document: Approve" "menata_role=Alice"
+check T34 "CAP-A04" "dynamic recipient_field notifies the record's specific submitter, not a role" $?
+
+# T35 — CAP-A04 negative case: the generic Submitter role must NOT also
+# receive it — proves recipient_field actually overrode role, rather than
+# both firing.
+! body_contains "$BASE_URL/notifications" "Approval Document: Approve" "menata_role=Submitter"
+check T35 "CAP-A04" "generic Submitter role does not also receive the dynamically-targeted notification" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

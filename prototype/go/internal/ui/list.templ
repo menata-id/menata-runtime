@@ -3,8 +3,8 @@ package ui
 import "fmt"
 import "menata.id/runtime/internal/model"
 
-templ List(role string, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event) {
-	@Page(machine.Name, role) {
+templ List(role string, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int) {
+	@Page(machine.Name, role, unreadCount) {
 		<div class="mb-4 flex items-center gap-3">
 			<h1 class="flex-1 text-xl font-semibold text-slate-900">{ machine.Name }</h1>
 			<a

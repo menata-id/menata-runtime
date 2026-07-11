@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -10,11 +11,12 @@ import (
 )
 
 type Executor struct {
-	records *store.RecordStore
+	records       *store.RecordStore
+	notifications *store.NotificationStore
 }
 
-func New(records *store.RecordStore) *Executor {
-	return &Executor{records: records}
+func New(records *store.RecordStore, notifications *store.NotificationStore) *Executor {
+	return &Executor{records: records, notifications: notifications}
 }
 
 // Simulate computes a record's data after applying event's set_field actions,
@@ -62,16 +64,16 @@ func resolveValue(value, actorRole string) string {
 
 // Persist saves newData (already validated by the caller — CAP-C09) as the
 // record's new state, runs this event's non-data actions (notify, ...), and
-// logs the event with the pre-event data as its snapshot.
-func (e *Executor) Persist(ctx context.Context, event *model.Event, record *store.Record, newData map[string]any) error {
+// logs the event with the pre-event data as its snapshot. machineName is
+// only used for a notification's message text — Executor still doesn't touch
+// the Interpreter, this is just a display string the caller already has.
+func (e *Executor) Persist(ctx context.Context, event *model.Event, record *store.Record, newData map[string]any, machineName string) error {
 	snapshot := record.Data
 
 	for _, action := range event.Actions {
 		switch action.Type {
 		case model.ActionNotify:
-			role, _ := action.Params["role"].(string)
-			slog.Info("notify (prototype: logged only)",
-				"event", event.ID, "role", role, "record", record.ID)
+			e.doNotify(ctx, action, event, record, newData, machineName)
 
 		case model.ActionCreateRecord:
 			slog.Info("create_record action (prototype: not yet implemented)",
@@ -83,4 +85,38 @@ func (e *Executor) Persist(ctx context.Context, event *model.Event, record *stor
 		return err
 	}
 	return e.records.LogEvent(ctx, record.ID, event.ID, snapshot)
+}
+
+// doNotify implements CAP-A03 (static `role` recipient) and CAP-A04 (dynamic
+// `recipient_field` recipient — the record's own field value, e.g. its
+// Submitted By, rather than a whole role). recipient_field wins when its
+// resolved value is non-empty; role is the fallback (and the only option
+// most existing metadata declares). CAP-A10 in-app delivery: the resolved
+// recipient is written as a real Notification row a matching role-cookie
+// session can list and mark read, not just logged.
+func (e *Executor) doNotify(ctx context.Context, action *model.EventAction, event *model.Event, record *store.Record, newData map[string]any, machineName string) {
+	role, _ := action.Params["role"].(string)
+	recipientFieldID, _ := action.Params["recipient_field"].(string)
+
+	recipient := role
+	if recipientFieldID != "" {
+		if v, ok := newData[recipientFieldID]; ok {
+			if s := fmt.Sprintf("%v", v); s != "" {
+				recipient = s
+			}
+		}
+	}
+	if recipient == "" {
+		return
+	}
+
+	slog.Info("notify", "event", event.ID, "recipient", recipient, "record", record.ID)
+
+	if e.notifications == nil {
+		return
+	}
+	message := fmt.Sprintf("%s: %s", machineName, event.Name)
+	if err := e.notifications.Create(ctx, recipient, message, record.MachineID, record.ID); err != nil {
+		slog.Error("create notification", "event", event.ID, "recipient", recipient, "error", err)
+	}
 }

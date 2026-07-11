@@ -69,3 +69,15 @@ type ChildListItem struct {
 	Label string
 	Link  string
 }
+
+// NotificationItem is one row on the Notifications page (CAP-A10). Link is
+// empty when the triggering record can't be resolved (shouldn't normally
+// happen, but a Notification row outlives the record it points to being
+// deleted, if that ever becomes possible).
+type NotificationItem struct {
+	ID      string
+	Message string
+	Link    string
+	Unread  bool
+	When    string
+}

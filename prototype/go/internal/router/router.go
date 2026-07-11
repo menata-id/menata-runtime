@@ -14,6 +14,7 @@ import (
 // URL scheme:
 //   /                                        home — list of machines
 //   /login                                   role selection (prototype auth)
+//   /notifications                           in-app notification inbox (CAP-A10)
 //   /{machineID}                             default list view
 //   /{machineID}/new                         new record form
 //   /{machineID}/{recordID}                  record detail
@@ -21,6 +22,7 @@ import (
 //   POST /{machineID}                        create record
 //   POST /{machineID}/{recordID}              update record
 //   POST /{machineID}/{recordID}/events/{eventID}  trigger event
+//   POST /notifications/{id}/read             mark one notification read
 func Mount(r chi.Router, h *handler.Handler) {
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("ok"))
@@ -29,6 +31,9 @@ func Mount(r chi.Router, h *handler.Handler) {
 
 	r.Get("/login", h.LoginForm)
 	r.Post("/login", h.Login)
+
+	r.Get("/notifications", h.Notifications)
+	r.Post("/notifications/{id}/read", h.MarkNotificationRead)
 
 	r.Get("/{machineID}", h.List)
 	r.Get("/{machineID}/new", h.NewForm)
