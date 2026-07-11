@@ -20,8 +20,8 @@
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/menata-id/menata.git
-cd menata/runtime/prototype
+git clone https://github.com/menata-id/menata-runtime.git
+cd menata-runtime/prototype/go
 ```
 
 ### 2. Install Go dependencies
@@ -44,10 +44,11 @@ npm install
 
 ### 5. Set up PostgreSQL
 
-Create a database:
+Create a database matching `.env.example`'s name (`menata_runtime`) — or edit `.env` in the next step
+to match whatever name/credentials you actually created:
 
 ```sql
-CREATE DATABASE menata_prototype;
+CREATE DATABASE menata_runtime;
 ```
 
 ### 6. Configure environment
@@ -58,10 +59,10 @@ Copy the example environment file:
 cp .env.example .env
 ```
 
-Edit `.env`:
+`.env.example` already has working defaults:
 
 ```env
-DATABASE_URL=postgres://postgres:password@localhost:5432/menata_prototype?sslmode=disable
+DATABASE_URL=postgres://postgres:password@localhost:5432/menata_runtime?sslmode=disable
 PORT=3100
 ```
 
@@ -113,31 +114,39 @@ The application will be available at `http://localhost:3100`.
 ## Project Structure
 
 ```
-runtime/prototype/
+prototype/go/
 ├── cmd/
 │   └── server/
 │       └── main.go          ← entry point
 ├── internal/
-│   ├── interpreter/         ← Runtime Metadata → Application Model
-│   ├── router/              ← HTTP routing from metadata
-│   ├── renderer/            ← Templ-based HTML rendering
-│   ├── executor/            ← Event execution
-│   ├── constraint/          ← Constraint enforcement
-│   ├── permission/          ← Permission enforcement
-│   ├── metadata/            ← Runtime Metadata loading + validation
-│   └── model/               ← Application Model (in-memory)
+│   ├── config/               ← env/config loading
+│   ├── db/                   ← pgx pool setup
+│   ├── interpreter/          ← indexed lookups over the Application Model
+│   ├── router/                ← HTTP routing (chi), routes derived from metadata
+│   ├── handler/               ← HTTP handlers + cross-record orchestration
+│   │                            (reference lookups, workflow actions, guards)
+│   ├── executor/               ← single-record event simulation + persistence
+│   ├── constraint/             ← constraint/guard expression evaluation
+│   ├── permission/             ← role → event authorization
+│   ├── metadata/                ← Runtime Metadata loading + load-time validation
+│   ├── model/                   ← Application Model (in-memory)
+│   └── ui/                      ← Templ templates (.templ + generated _templ.go)
 ├── web/
-│   ├── templates/           ← Templ templates
 │   └── static/
-│       └── css/             ← Tailwind output
-├── migrations/              ← Database migrations
-├── seeds/                   ← Example Runtime Metadata seeds
-├── docs/                    ← Documentation
+│       └── css/              ← Tailwind output (not built in every environment --
+│                                see Troubleshooting)
+├── migrations/               ← Database migrations, applied in numeric order
+├── seeds/                    ← Example Runtime Metadata, one file per Case
+├── conformance/               ← the real test suite (run.sh) -- see conformance/README.md
+├── docs/                     ← ADRs (decisions/), Menata Language examples (examples/)
 ├── .env.example
 ├── Makefile
 ├── go.mod
 └── go.sum
 ```
+
+See `CLAUDE.md` for architectural patterns, conventions, and gotchas established while
+implementing capabilities against this structure — read it before adding a new capability.
 
 ---
 
@@ -147,12 +156,13 @@ runtime/prototype/
 |---------|-------------|
 | `make build` | Build the server binary |
 | `make run` | Run the server |
-| `make dev` | Run with live reload |
-| `make migrate-up` | Apply database migrations |
-| `make migrate-down` | Rollback last migration |
-| `make seed` | Load example Runtime Metadata |
+| `make dev` | Run with `go run` (no live reload — restart manually after a code change) |
+| `make migrate-up` | Apply every migration, in order |
+| `make seed` | Load every example seed, in order (fresh database only — see the Makefile's own comment on `event_actions` re-run safety) |
+| `make conformance` | Run the real test suite against a running server |
 | `make generate` | Run templ generate |
-| `make build:css` | Build Tailwind CSS |
+| `make build-css` | Build Tailwind CSS |
+| `make test` | `go test ./...` — reports "no test files" today; use `make conformance` |
 
 ---
 
@@ -177,10 +187,24 @@ Invalid Runtime Metadata is rejected.
 
 The server will report the specific validation failure.
 
-**CSS changes not reflected**
+**CSS changes not reflected — or `web/static/css/output.css` doesn't exist at all**
 
-Run `npm run build:css` to rebuild Tailwind output.
+Run `npm install && npm run build:css`. Neither step runs automatically; a fresh checkout with
+`node_modules` never installed will serve pages with a 404'd stylesheet (unstyled but otherwise
+functional HTML) until this is done once.
 
 **Templ changes not reflected**
 
-Run `templ generate` to regenerate Go template files.
+Run `make generate` (or `templ generate` directly) to regenerate the `_templ.go` files, then rebuild.
+Pin the CLI version to what `go.mod` already declares (`go run github.com/a-h/templ/cmd/templ@vX.Y.Z
+generate`) to avoid a version-mismatch warning against `@latest`.
+
+**Can't restart the server — "address already in use," but nothing is running**
+
+`go run` compiles to a temp binary whose path is not stable (`/tmp/go-build*/.../exe/server` one run,
+`~/.cache/go-build/.../server` the next) — `pkill -f` on a path pattern misses a server started under
+a different path. Find and kill by the port instead:
+
+```bash
+kill -9 $(ss -ltnp 2>/dev/null | grep :4000 | grep -oP 'pid=\K[0-9]+')
+```
