@@ -376,6 +376,19 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > are now Supported; P5 (CAP-P02, record-level ownership) and P6 (CAP-E05, internal
 > event triggering) remain, both Prio 6. Item 5 (CAP-R02 record editing + CAP-A03/A04
 > + CAP-A10 real notify) is next up.
+>
+> **Status update (2026-07-11, same day):** Documentation debt from Items 1–4 closed —
+> `runtime-metadata-schema.md` and `guides/writing-runtime-metadata.md` gained sections
+> for `machines.config` (CAP-X03), `events.condition` (CAP-E06), dynamic `set_field`
+> values (CAP-A02), and the `activate_next`/`aggregate_status` workflow actions
+> (CAP-A07/A08), and all 39 example `.yaml` files in `prototype/go/docs/examples/`
+> were swept to flip stale `[NOT YET]` annotations to `[SUPPORTED]`/`[PARTIAL]` for the
+> mechanisms those items actually implemented — while leaving annotations alone where
+> the *mechanism* now exists but the *specific business rule* still doesn't fire (e.g.
+> `maintenance-reminder.yaml`'s Status-changes-away-from-the-checked-value timing case,
+> distinct from `complaint.yaml`'s Status-changes-into-it case that CAP-C09 does catch).
+> No new capability work — closes the gap between what Item 1–4's own status updates
+> above claimed and what the example corpus actually showed a reader.
 
 ---
 
