@@ -128,6 +128,30 @@ CODE=$(post_status "$BASE_URL/mch_leave_request/$REC_ID/events/evt_lr_approve" "
 [ "$CODE" = "303" ] && body_contains "$DETAIL_URL" "Approved" "menata_role=Manager"
 check T12 "CAP-P01,CAP-E01" "Manager triggers Approve; status becomes Approved" $?
 
+# --- CAP-F13 (reference fields) — requires seeds/003_hr_employee.sql ---
+
+# T13 — CAP-F13 form renders a picker (<select>), not a bare text input
+body_contains "$BASE_URL/mch_employee/new" 'select id="fld_emp_manager"'
+check T13 "CAP-F13" "reference field renders as a picker" $?
+
+# T14 — CAP-F13 create with an empty (optional) reference succeeds
+MGR_DATA="fld_emp_id=CB-MGR&fld_emp_name=ConformanceBot+Manager&fld_emp_hire_date=2020-01-01"
+MGR_URL=$(post_redirect "$BASE_URL/mch_employee" "$MGR_DATA")
+[ -n "$MGR_URL" ]
+check T14 "CAP-F13" "create with empty reference succeeds (Manager is optional)" $?
+MGR_ID="${MGR_URL##*/}"
+
+# T15 — CAP-F13 create with a valid reference succeeds; detail links to the target
+REPORT_DATA="fld_emp_id=CB-EMP&fld_emp_name=ConformanceBot+Report&fld_emp_hire_date=2024-01-01&fld_emp_manager=$MGR_ID"
+REPORT_URL=$(post_redirect "$BASE_URL/mch_employee" "$REPORT_DATA")
+[ -n "$REPORT_URL" ] && body_contains "$REPORT_URL" "href=\"/mch_employee/$MGR_ID\""
+check T15 "CAP-F13" "create with valid reference succeeds; detail links to target record" $?
+
+# T16 — CAP-F13 dangling reference rejected (security NFR gate: negative case)
+BAD_DATA="fld_emp_id=CB-GHOST&fld_emp_name=ConformanceBot+Ghost&fld_emp_hire_date=2024-01-01&fld_emp_manager=00000000-0000-0000-0000-000000000000"
+post_body_contains "$BASE_URL/mch_employee" "$BAD_DATA" "does not reference an existing"
+check T16 "CAP-F13" "dangling reference value rejected, not silently accepted" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

@@ -40,7 +40,47 @@ func (l *Loader) LoadAll(ctx context.Context) ([]*model.Workspace, error) {
 		}
 		ws.Applications = apps
 	}
+	if err := validateReferences(workspaces); err != nil {
+		return nil, err
+	}
 	return workspaces, nil
+}
+
+// validateReferences enforces CAP-F13's load-time contract: every `reference`
+// field's target_machine must resolve to a Machine that actually exists.
+// Unlike a runtime surprise (a broken picker, a 500 on first use), a dangling
+// reference is reported explicitly at load time — "Unknown = explicit"
+// (capability-lifecycle.md §4 rule 3).
+func validateReferences(workspaces []*model.Workspace) error {
+	known := make(map[string]bool)
+	for _, ws := range workspaces {
+		for _, app := range ws.Applications {
+			for _, m := range app.Machines {
+				known[m.ID] = true
+			}
+		}
+	}
+	for _, ws := range workspaces {
+		for _, app := range ws.Applications {
+			for _, m := range app.Machines {
+				for _, f := range m.Fields {
+					if f.Type != model.FieldTypeReference {
+						continue
+					}
+					target := f.Options.TargetMachine
+					if target == "" {
+						return fmt.Errorf("field %s (%s) on machine %s: type reference requires target_machine",
+							f.ID, f.Name, m.ID)
+					}
+					if !known[target] {
+						return fmt.Errorf("field %s (%s) on machine %s: dangling reference — target_machine %q does not exist",
+							f.ID, f.Name, m.ID, target)
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (l *Loader) loadWorkspaces(ctx context.Context) ([]*model.Workspace, error) {

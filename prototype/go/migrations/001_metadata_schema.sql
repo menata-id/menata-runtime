@@ -27,7 +27,9 @@ CREATE TABLE IF NOT EXISTS machines (
 
 -- options JSONB stores type-specific config:
 --   value_list -> {"values": ["Draft","Submitted",...]}
---   reference  -> {"machine_id": "mch_some_machine"}
+--   reference  -> {"target_machine": "mch_some_machine"}  -- CAP-F13, dangling refs
+--                                                          -- rejected at load time,
+--                                                          -- see internal/metadata/loader.go
 CREATE TABLE IF NOT EXISTS fields (
     id         TEXT PRIMARY KEY,
     machine_id TEXT NOT NULL REFERENCES machines(id) ON DELETE CASCADE,

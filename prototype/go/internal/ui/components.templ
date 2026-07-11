@@ -23,7 +23,8 @@ templ StatusBadge(status string) {
 }
 
 // FieldInput renders the correct input element for a field type.
-templ FieldInput(f *model.Field, value string) {
+// refOptions is only used for FieldTypeReference — the picker's choices.
+templ FieldInput(f *model.Field, value string, refOptions []ReferenceOption) {
 	<div class="space-y-1.5">
 		<label for={ f.ID } class="block text-sm font-medium text-slate-700">
 			{ f.Name }
@@ -32,6 +33,17 @@ templ FieldInput(f *model.Field, value string) {
 			}
 		</label>
 		switch f.Type {
+		case model.FieldTypeReference:
+			<select
+				id={ f.ID }
+				name={ f.ID }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			>
+				<option value="">— select —</option>
+				for _, opt := range refOptions {
+					<option value={ opt.ID } selected?={ opt.ID == value }>{ opt.Label }</option>
+				}
+			</select>
 		case model.FieldTypeRichText:
 			<textarea
 				id={ f.ID }

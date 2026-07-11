@@ -80,6 +80,21 @@ func (s *RecordStore) Create(ctx context.Context, machineID string, data map[str
 	return r, nil
 }
 
+// Exists reports whether a record with the given id exists on the given
+// machine. Used to enforce referential integrity for `reference` fields
+// (CAP-F13) — a value that doesn't resolve to a real record is rejected the
+// same way a required-field violation is, not silently accepted.
+func (s *RecordStore) Exists(ctx context.Context, machineID, recordID string) (bool, error) {
+	var exists bool
+	err := s.db.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM records WHERE id = $1 AND machine_id = $2)`,
+		recordID, machineID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check record exists: %w", err)
+	}
+	return exists, nil
+}
+
 func (s *RecordStore) Update(ctx context.Context, id string, data map[string]any) error {
 	dataJSON, err := json.Marshal(data)
 	if err != nil {

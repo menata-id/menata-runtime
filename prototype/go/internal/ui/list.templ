@@ -38,6 +38,8 @@ templ List(role string, machine *model.Machine, columns []ColumnDef, rows []List
 									<td class="px-4 py-3 text-slate-700">
 										if cell.IsStatusBadge && cell.Value != "" {
 											@StatusBadge(cell.Value)
+										} else if cell.Link != "" {
+											<a href={ templ.SafeURL(cell.Link) } class="text-blue-600 hover:text-blue-800 hover:underline">{ cell.Value }</a>
 										} else if cell.Value != "" {
 											{ cell.Value }
 										} else {

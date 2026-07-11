@@ -20,7 +20,7 @@ BASE_URL=https://aksi.menata.id ./conformance/run.sh
 
 Exit code 0 = all pass. Non-zero = at least one capability regressed.
 
-**Prerequisites:** server running, Cases 1 & 2 seeded (`seeds/001`, `seeds/002`).
+**Prerequisites:** server running, seeds `001`, `002`, `003` applied (Cases 1, 2, 18).
 
 ---
 
@@ -41,6 +41,10 @@ Exit code 0 = all pass. Non-zero = at least one capability regressed.
 | T10 | CAP-E01, CAP-A01 | permitted role triggers event; set_field applies |
 | T11 | CAP-P01 | unpermitted role gets 403 |
 | T12 | CAP-P01, CAP-E01 | cross-role transition (Manager approves) |
+| T13 | CAP-F13 | reference field renders as a picker, not a bare text input |
+| T14 | CAP-F13 | create with an empty (optional) reference succeeds |
+| T15 | CAP-F13 | create with a valid reference succeeds; detail links to the target record |
+| T16 | CAP-F13 | dangling reference value rejected (negative case — security NFR gate) |
 
 ---
 

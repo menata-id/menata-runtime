@@ -20,6 +20,7 @@ type ColumnDef struct {
 type ListCell struct {
 	Value         string
 	IsStatusBadge bool
+	Link          string // non-empty for a `reference` field: link to the referenced record
 }
 
 // ListRow is one row in the list view.
@@ -28,14 +29,26 @@ type ListRow struct {
 	Cells []ListCell
 }
 
+// ReferenceOption is one selectable target record for a `reference` field's
+// picker (CAP-F13) — ID is the record id stored as the field's value, Label
+// is a human-readable stand-in for it.
+type ReferenceOption struct {
+	ID    string
+	Label string
+}
+
 // FormField pairs a Field definition with its current value for form rendering.
+// Options is only populated for `reference` fields (the picker's choices).
 type FormField struct {
-	Field *model.Field
-	Value string
+	Field   *model.Field
+	Value   string
+	Options []ReferenceOption
 }
 
 // DetailField is a resolved name-value pair for the detail view.
+// Link is non-empty for a `reference` field: the referenced record's URL.
 type DetailField struct {
 	Name  string
 	Value string
+	Link  string
 }

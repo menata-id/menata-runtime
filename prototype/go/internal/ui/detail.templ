@@ -21,6 +21,8 @@ templ Detail(role string, machine *model.Machine, record *store.Record, fields [
 							<dd class="flex-1 text-sm text-slate-900">
 								if f.Value == "" {
 									<span class="text-slate-300">—</span>
+								} else if f.Link != "" {
+									<a href={ templ.SafeURL(f.Link) } class="text-blue-600 hover:text-blue-800 hover:underline">{ f.Value }</a>
 								} else {
 									@StatusBadge(f.Value)
 								}

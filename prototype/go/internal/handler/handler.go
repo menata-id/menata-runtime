@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -117,9 +118,19 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 			if v, ok := rec.Data[id]; ok {
 				val = fmt.Sprintf("%v", v)
 			}
+			link := ""
+			if cols[j].Type == model.FieldTypeReference && val != "" {
+				refID := val
+				target := fieldByID[id].Options.TargetMachine
+				if label, err := h.referenceLabel(r.Context(), target, refID); err == nil && label != "" {
+					val = label
+					link = "/" + target + "/" + refID
+				}
+			}
 			cells[j] = ui.ListCell{
 				Value:         val,
 				IsStatusBadge: cols[j].Type == model.FieldTypeValueList,
+				Link:          link,
 			}
 		}
 		rows = append(rows, ui.ListRow{ID: rec.ID, Cells: cells})
@@ -139,7 +150,7 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if err := ui.Form(h.role(r), machine, buildFormFields(machine, h.interp, nil), nil).Render(r.Context(), w); err != nil {
+	if err := ui.Form(h.role(r), machine, h.buildFormFields(r.Context(), machine, nil), nil).Render(r.Context(), w); err != nil {
 		slog.Error("render form", "error", err)
 	}
 }
@@ -169,8 +180,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if violations := h.engine.Violations(machine, data); len(violations) > 0 {
-		if err := ui.Form(h.role(r), machine, buildFormFields(machine, h.interp, data), violations).Render(r.Context(), w); err != nil {
+	violations := h.engine.Violations(machine, data)
+	refViolations, err := h.referenceViolations(r.Context(), machine, data)
+	if err != nil {
+		http.Error(w, "failed to validate references", http.StatusInternalServerError)
+		return
+	}
+	violations = append(violations, refViolations...)
+
+	if len(violations) > 0 {
+		if err := ui.Form(h.role(r), machine, h.buildFormFields(r.Context(), machine, data), violations).Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
 		return
@@ -206,7 +225,16 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		if v, ok := rec.Data[f.ID]; ok {
 			val = fmt.Sprintf("%v", v)
 		}
-		fields = append(fields, ui.DetailField{Name: f.Name, Value: val})
+		link := ""
+		if f.Type == model.FieldTypeReference && val != "" {
+			refID := val
+			target := f.Options.TargetMachine
+			if label, err := h.referenceLabel(r.Context(), target, refID); err == nil && label != "" {
+				val = label
+				link = "/" + target + "/" + refID
+			}
+		}
+		fields = append(fields, ui.DetailField{Name: f.Name, Value: val, Link: link})
 	}
 
 	role := h.role(r)
@@ -258,8 +286,8 @@ func fieldIndex(m *model.Machine) map[string]*model.Field {
 	return out
 }
 
-func buildFormFields(machine *model.Machine, interp *interpreter.Interpreter, vals map[string]any) []ui.FormField {
-	view := interp.FormView(machine.ID)
+func (h *Handler) buildFormFields(ctx context.Context, machine *model.Machine, vals map[string]any) []ui.FormField {
+	view := h.interp.FormView(machine.ID)
 	fieldByID := fieldIndex(machine)
 
 	var fieldIDs []string
@@ -279,7 +307,106 @@ func buildFormFields(machine *model.Machine, interp *interpreter.Interpreter, va
 				val = fmt.Sprintf("%v", v)
 			}
 		}
-		fields = append(fields, ui.FormField{Field: f, Value: val})
+		var opts []ui.ReferenceOption
+		if f.Type == model.FieldTypeReference {
+			opts = h.referenceOptions(ctx, f.Options.TargetMachine)
+		}
+		fields = append(fields, ui.FormField{Field: f, Value: val, Options: opts})
 	}
 	return fields
+}
+
+// referenceOptions lists a target Machine's records as picker choices.
+func (h *Handler) referenceOptions(ctx context.Context, targetMachineID string) []ui.ReferenceOption {
+	records, err := h.records.List(ctx, targetMachineID)
+	if err != nil {
+		slog.Error("list reference options", "target_machine", targetMachineID, "error", err)
+		return nil
+	}
+	targetMachine, _ := h.interp.GetMachine(targetMachineID)
+	opts := make([]ui.ReferenceOption, 0, len(records))
+	for _, rec := range records {
+		opts = append(opts, ui.ReferenceOption{ID: rec.ID, Label: displayLabel(targetMachine, rec.Data)})
+	}
+	return opts
+}
+
+// referenceLabel resolves one record's display label, for rendering an
+// already-set reference value (detail/list views).
+func (h *Handler) referenceLabel(ctx context.Context, targetMachineID, recordID string) (string, error) {
+	rec, err := h.records.Get(ctx, recordID)
+	if err != nil {
+		return "", err
+	}
+	targetMachine, _ := h.interp.GetMachine(targetMachineID)
+	return displayLabel(targetMachine, rec.Data), nil
+}
+
+// displayLabel picks a human-readable stand-in for a record: the target
+// Machine's `text` field named "Name" if one exists, else its first `text`
+// field, falling back to the record id. Menata Language doesn't (yet) let a
+// business author declare "this is the field people should see when
+// referencing a record" — this heuristic is a prototype stand-in for that
+// missing capability, not a final design.
+func displayLabel(machine *model.Machine, data map[string]any) string {
+	if machine != nil {
+		var firstText *model.Field
+		for _, f := range machine.Fields {
+			if f.Type != model.FieldTypeText {
+				continue
+			}
+			if firstText == nil {
+				firstText = f
+			}
+			if strings.EqualFold(f.Name, "name") {
+				firstText = f
+				break
+			}
+		}
+		if firstText != nil {
+			if v, ok := data[firstText.ID]; ok {
+				if s := fmt.Sprintf("%v", v); s != "" {
+					return s
+				}
+			}
+		}
+	}
+	if id, ok := data["id"]; ok {
+		return fmt.Sprintf("%v", id)
+	}
+	return ""
+}
+
+// referenceViolations enforces CAP-F13 referential integrity: a `reference`
+// field's value must resolve to a real record on the target Machine. This is
+// intrinsic to the field type, the same way `required` is intrinsic to a
+// Field's Required flag — not a declared Constraint row.
+func (h *Handler) referenceViolations(ctx context.Context, machine *model.Machine, data map[string]any) ([]string, error) {
+	var out []string
+	for _, f := range machine.Fields {
+		if f.Type != model.FieldTypeReference {
+			continue
+		}
+		v, ok := data[f.ID]
+		if !ok {
+			continue
+		}
+		recordID, _ := v.(string)
+		if recordID == "" {
+			continue
+		}
+		exists, err := h.records.Exists(ctx, f.Options.TargetMachine, recordID)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			target, _ := h.interp.GetMachine(f.Options.TargetMachine)
+			targetName := f.Options.TargetMachine
+			if target != nil {
+				targetName = target.Name
+			}
+			out = append(out, fmt.Sprintf("%s does not reference an existing %s record.", f.Name, targetName))
+		}
+	}
+	return out, nil
 }

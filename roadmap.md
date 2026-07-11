@@ -331,6 +331,15 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > not started. "Then Case 5–9 implementations exercise them" above still describes real
 > future work, just no longer blocked on the cases being written first.
 
+> **Status update (2026-07-11):** Item 1, **CAP-F13 reference fields, is now ✅ Supported**
+> — full 9-layer implementation (loader validation, referential integrity, picker/link UI,
+> conformance T13–T16), proven on Case 18's Employee↔Manager self-reference
+> (`seeds/003_hr_employee.sql`). Only target flavor (a), workspace-authored Machine —
+> flavor (b) (reserved built-in identity target, needed before `user`/`money`/`file` can
+> become real reference sugar) is deliberately deferred, not done here. See
+> `capability-registry.md` CAP-F13 row for the full implementation note. Item 2
+> (CAP-E06 + CAP-C09) is next up.
+
 ---
 
 # Phase 3 — NFR Standards (study-only)

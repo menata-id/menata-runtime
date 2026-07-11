@@ -62,10 +62,10 @@ const (
 
 // FieldOptions holds type-specific configuration.
 // value_list: Values lists the allowed options.
-// reference:  MachineID points to the referenced Machine.
+// reference:  TargetMachine names the Machine this field points to.
 type FieldOptions struct {
-	Values    []string `json:"values,omitempty"`
-	MachineID string   `json:"machine_id,omitempty"`
+	Values        []string `json:"values,omitempty"`
+	TargetMachine string   `json:"target_machine,omitempty"`
 }
 
 // Event is a business occurrence that triggers actions on a Machine.
