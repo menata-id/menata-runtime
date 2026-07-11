@@ -17,13 +17,14 @@ machine:
   application: app_social
 
   fields:
-    - id: fld_like_user                          # [NOT YET] — CAP-F13, built-in identity target
-      name: User
-      type: reference
-      target_machine: "$identity"
-      required: true
+    - id: fld_like_user                          # [NOT YET] — CAP-F13's target flavor (a),
+      name: User                                 #   workspace-authored Machine, is [SUPPORTED]
+      type: reference                            #   (2026-07-11); this field needs flavor (b), a
+      target_machine: "$identity"                #   reserved built-in identity target, which is
+      required: true                             #   deliberately not implemented yet — see
+      # capability-registry.md (CAP-F13) "Deferred, not done here."
 
-    - id: fld_like_post                           # [NOT YET] — CAP-F13
+    - id: fld_like_post                           # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Post
       type: reference
       target_machine: mch_post

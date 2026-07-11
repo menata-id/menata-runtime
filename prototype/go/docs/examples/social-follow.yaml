@@ -23,13 +23,14 @@ machine:
   application: app_social
 
   fields:
-    - id: fld_follow_follower                    # [NOT YET] — CAP-F13, target: built-in
-      name: Follower                             #   identity (same flavor as CAP-F05/CAP-O01)
-      type: reference
-      target_machine: "$identity"
-      required: true
+    - id: fld_follow_follower                    # [NOT YET] — CAP-F13's target flavor (a),
+      name: Follower                             #   workspace-authored Machine, is [SUPPORTED]
+      type: reference                            #   (2026-07-11); both fields here need flavor
+      target_machine: "$identity"                #   (b), a reserved built-in identity target,
+      required: true                             #   deliberately not implemented yet — see
+      # capability-registry.md (CAP-F13) "Deferred, not done here."
 
-    - id: fld_follow_followee                     # [NOT YET] — CAP-F13, same target flavor
+    - id: fld_follow_followee                     # [NOT YET] — same as fld_follow_follower above
       name: Followee
       type: reference
       target_machine: "$identity"

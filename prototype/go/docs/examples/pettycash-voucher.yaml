@@ -17,7 +17,7 @@ machine:
   application: app_pettycash
 
   fields:
-    - id: fld_pcv_fund                          # [NOT YET] — CAP-F13
+    - id: fld_pcv_fund                          # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Fund
       type: reference
       target_machine: mch_pettycash_fund
@@ -54,8 +54,8 @@ machine:
       required: false
 
     - id: fld_pcv_recorded_by                       # [PARTIAL] — CAP-F05; stamping it
-      name: Recorded By                             #   dynamically is CAP-A02 [NOT YET]
-      type: user
+      name: Recorded By                             #   dynamically is CAP-A02, [SUPPORTED] as
+      type: user                                    #   of 2026-07-11 (see evt_pcv_record)
       required: false
 
     - id: fld_pcv_status                            # [SUPPORTED]
@@ -65,11 +65,11 @@ machine:
       values: [Draft, Reconciled]
 
   events:
-    - id: evt_pcv_record                             # [NOT YET] — gated on
-      name: Record                                   #   cst_pcv_sufficient_balance
-      actions:
-        - set_field: { field: fld_pcv_recorded_by, value: current_user }
-          # [NOT YET] value: "current_user" — environment data (CAP-A02).
+    - id: evt_pcv_record                             # [PARTIAL] — the current_user stamp works;
+      name: Record                                   #   cst_pcv_sufficient_balance still can't
+      actions:                                        #   evaluate (see its own note) even though
+        - set_field: { field: fld_pcv_recorded_by, value: current_user }  # CAP-C09's mechanism is live
+          # [SUPPORTED] — CAP-A02, implemented 2026-07-11.
 
   constraints:
     - id: cst_pcv_fund_required                       # [SUPPORTED]

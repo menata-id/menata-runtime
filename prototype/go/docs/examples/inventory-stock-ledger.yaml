@@ -20,13 +20,13 @@ machine:
   application: app_warehouse
 
   fields:
-    - id: fld_sle_item                           # [NOT YET] — CAP-F13
+    - id: fld_sle_item                           # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Item
       type: reference
       target_machine: mch_item
       required: true
 
-    - id: fld_sle_source_movement                 # [NOT YET] — CAP-F13
+    - id: fld_sle_source_movement                 # [SUPPORTED] — CAP-F13
       name: Source Movement
       type: reference
       target_machine: mch_stock_movement

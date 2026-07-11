@@ -25,13 +25,13 @@ machine:
   application: app_accounting                   #   is a storage-strategy detail, not a blocker here.
 
   fields:
-    - id: fld_jel_journal_entry                  # [NOT YET] — CAP-F13, the field this Machine's
-      name: Journal Entry                        #   scoping to one Journal Entry depends on
+    - id: fld_jel_journal_entry                  # [SUPPORTED] — CAP-F13, implemented 2026-07-11,
+      name: Journal Entry                        #   the field this Machine's scoping depends on
       type: reference
       target_machine: mch_journal_entry
       required: true
 
-    - id: fld_jel_account                         # [NOT YET] — CAP-F13
+    - id: fld_jel_account                         # [SUPPORTED] — CAP-F13
       name: Account
       type: reference
       target_machine: mch_chart_of_account

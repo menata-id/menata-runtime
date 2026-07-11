@@ -101,6 +101,23 @@ INSERT INTO machines (id, application_id, name) VALUES
     ('mch_leave_request', 'app_hr', 'Leave Request');
 ```
 
+#### Machine `config` — opsional, jarang dibutuhkan
+
+Kosong (`NULL`) untuk hampir semua Machine. Isi hanya kalau ada mekanisme runtime yang butuh tahu
+sesuatu tentang Machine ini sendiri — bukan Field, bukan Constraint, murni "cara Machine ini
+berperilaku" (CAP-X03). Sejauh ini satu-satunya pemakai: workflow sequential/aggregate (CAP-A07/A08,
+lihat §Events dan Actions di bawah):
+
+```sql
+UPDATE machines SET config = '{
+  "approval_mode_field": "fld_ad_approval_mode",
+  "steps_machine": "mch_approval_step",
+  "steps_parent_field": "fld_as_document"
+}' WHERE id = 'mch_approval_document';
+```
+
+Kalau Machine Anda tidak butuh ini, jangan diisi — bukan bagian wajib.
+
 ---
 
 ### Fields
@@ -255,27 +272,44 @@ When Approve
 events:
   - id: evt_lr_submit
     name: Submit
+    condition: { field: fld_lr_status, operator: equals, value: Draft }
     actions:
       - set_field: { field: fld_lr_status, value: Submitted }
 
   - id: evt_lr_approve
     name: Approve
+    condition: { field: fld_lr_status, operator: equals, value: Submitted }
     actions:
       - set_field: { field: fld_lr_status, value: Approved }
+      - set_field: { field: fld_lr_approved_date, value: today }
+      - set_field: { field: fld_lr_approved_by, value: current_user }
       - notify: { role: Employee }
 ```
 
 **SQL**
 ```sql
-INSERT INTO events (id, machine_id, name, position) VALUES
-    ('evt_lr_submit',  'mch_leave_request', 'Submit',  0),
-    ('evt_lr_approve', 'mch_leave_request', 'Approve', 1);
+INSERT INTO events (id, machine_id, name, position, condition) VALUES
+    ('evt_lr_submit',  'mch_leave_request', 'Submit',  0,
+        '{"field":"fld_lr_status","operator":"equals","value":"Draft"}'),
+    ('evt_lr_approve', 'mch_leave_request', 'Approve', 1,
+        '{"field":"fld_lr_status","operator":"equals","value":"Submitted"}');
 
 INSERT INTO event_actions (event_id, type, position, params) VALUES
     ('evt_lr_submit',  'set_field', 0, '{"field":"fld_lr_status","value":"Submitted"}'),
     ('evt_lr_approve', 'set_field', 0, '{"field":"fld_lr_status","value":"Approved"}'),
-    ('evt_lr_approve', 'notify',    1, '{"role":"Employee"}');
+    ('evt_lr_approve', 'set_field', 1, '{"field":"fld_lr_approved_date","value":"today"}'),
+    ('evt_lr_approve', 'set_field', 2, '{"field":"fld_lr_approved_by","value":"current_user"}'),
+    ('evt_lr_approve', 'notify',    3, '{"role":"Employee"}');
 ```
+
+#### Event `condition` — guard (CAP-E06)
+
+Sama bentuknya dengan `condition` di Constraint. Event hanya boleh dipicu kalau data record **saat
+ini** (sebelum aksi event ini berjalan) memenuhi syarat ini — kalau tidak, runtime menolak trigger-nya
+(400), tidak diam-diam diabaikan. Ini merealisasikan `if` yang sudah ada di grammar Event bahasa
+Menata (`003-event.md` §Conditions di repo `menata`) — bukan konsep baru untuk penulis `.menata`,
+runtime-nya saja yang baru bisa mengeksekusinya sejak CAP-E06. `condition = NULL` berarti Event boleh
+dipicu dari state mana pun.
 
 #### Tipe Action — pemetaan
 
@@ -284,12 +318,65 @@ INSERT INTO event_actions (event_id, type, position, params) VALUES
 | `Status <Nilai>` | `set_field` | `{"field":"fld_*_status","value":"<Nilai>"}` |
 | `Notify <Role>` | `notify` | `{"role":"<Role>"}` |
 | `Record <Nama>` | `record` | `{"name":"<Nama>"}` |
+| — (lihat §Machine `config`) | `activate_next` | `{"mode_field":"fld_*_approval_mode"}` — CAP-A07 |
+| — (lihat §Machine `config`) | `aggregate_status` | `{"parent_field":"fld_*_document","parent_event_if_all_approved":"evt_*","parent_event_if_any_rejected":"evt_*"}` — CAP-A08 |
 
 `position` di `event_actions` menentukan urutan eksekusi dalam satu Event. Dimulai dari 0.
+
+#### `set_field` dengan nilai dinamis (CAP-A02)
+
+`value: today`, `value: now`, dan `value: current_user` di-resolve saat Event benar-benar dipicu,
+bukan disimpan sebagai teks literal "today"/"now"/"current_user". `current_user` di-resolve ke role
+yang sedang login (satu-satunya konsep identitas yang ada di prototipe ini hari ini) — jujur, bukan
+orang sungguhan, sampai CAP-O01 (identity & role registry) ada.
+
+#### `activate_next` + `aggregate_status` — workflow sequential/aggregate (CAP-A07, CAP-A08)
+
+Dua action ini bekerja berpasangan untuk pola "Document dengan beberapa Approval Step", persis
+seperti `approval-document.yaml` + `approval-step.yaml`:
+
+```yaml
+# di evt_as_approve (Approval Step)
+actions:
+  - set_field: { field: fld_as_decision, value: Approved }
+  - activate_next: { mode_field: fld_ad_approval_mode }
+  - aggregate_status:
+      parent_field: fld_as_document
+      parent_event_if_all_approved: evt_ad_approve
+      parent_event_if_any_rejected: evt_ad_reject
+```
+
+- **`activate_next`** — kalau Machine parent-nya (dicari lewat `mode_field`) mode-nya `Sequential`,
+  action ini mengirim notifikasi ke approver step berikutnya yang masih Pending. Kalau `Parallel`,
+  tidak melakukan apa-apa.
+- **Penegakan urutan sequential-nya sendiri bukan di action ini** — cukup deklarasikan
+  `aggregate_status` pada Event yang sama, dan runtime otomatis menolak (400) kalau ada sibling step
+  dengan urutan lebih awal yang masih Pending, sebelum Event ini sempat berjalan. Ini keputusan
+  desain yang disengaja: WCP-1 Sequence (pola yang direalisasikan capability ini) memang didefinisikan
+  lewat penegakan — kalau cuma notifikasi tanpa penegakan, mode Sequential dan Parallel akan
+  berperilaku identik.
+- **`aggregate_status`** — setelah Event ini commit, runtime mengecek semua sibling record dengan
+  `parent_field` yang sama: kalau ada satu saja yang Rejected, `parent_event_if_any_rejected`
+  langsung dipicu di parent (tidak menunggu sibling lain memutuskan). Kalau **semua** sudah Approved,
+  baru `parent_event_if_all_approved` dipicu. Event di parent ini dipicu lewat jalur yang **persis
+  sama** dengan Event yang dipicu manual lewat HTTP — `condition` (CAP-E06) dan Constraints
+  (CAP-C09) parent tetap berlaku, jadi transisi yang dipicu sistem tidak bisa melewati pemeriksaan
+  yang harus dilewati transisi yang dipicu manusia.
+- Field parent/sequence/decision **tidak** disebut eksplisit di parameter action — runtime
+  menemukannya lewat heuristik (field bertipe `reference` yang menunjuk ke parent; field yang
+  namanya persis "Sequence"/"Decision"/"Approver"). Ini keterbatasan prototipe yang disengaja dan
+  didokumentasikan, bukan sihir tersembunyi — bahasa Menata belum punya cara bagi penulis `.menata`
+  untuk menamai field-field ini secara eksplisit. Detail lengkap: `capability-registry.md` (CAP-A07).
 
 ---
 
 ### Constraints
+
+> Sejak CAP-C09, setiap Constraint yang dideklarasikan di sini dicek bukan cuma saat Create, tapi
+> juga setiap kali Event dipicu — dievaluasi terhadap data record *setelah* aksi Event tersebut
+> akan berjalan, sebelum benar-benar disimpan. Record yang valid saat dibuat bisa jadi tidak valid
+> lagi saat sebuah Event terjadi (misal constraint berbasis tanggal, karena waktu berjalan) — tidak
+> perlu ditulis dua kali, cukup satu Constraint yang sama otomatis berlaku di kedua momen.
 
 **.menata**
 ```
@@ -521,6 +608,9 @@ Gunakan `ON CONFLICT (id) DO NOTHING` agar seed aman dijalankan ulang.
 - [ ] Field `reference` pakai key `target_machine` (bukan `machine`), menunjuk ke machine yang benar-benar ada
 - [ ] Field `money` punya `currency` atau `currency_field` di `options` — jangan biarkan kosong
 - [ ] Sudah cek `005-field-modeling-decision-framework.md` kalau ragu antara `value_list` vs `reference` vs primitif
+- [ ] Event yang cuma boleh dipicu dari state tertentu punya `condition` (CAP-E06) — jangan andalkan disiplin pengguna
+- [ ] Kalau pakai `aggregate_status`, machine child-nya punya field `Sequence`/`Decision`/`Approver` (nama persis, case-insensitive) kalau memang butuh gating sequential (CAP-A07)
+- [ ] Kalau pakai workflow sequential/aggregate, parent machine-nya punya `config` (`approval_mode_field`, `steps_machine`, `steps_parent_field`) — lihat §Machine `config`
 
 ---
 

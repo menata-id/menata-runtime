@@ -23,12 +23,11 @@ machine:
   name: Approval Document
   application: app_approval
 
-  # [NOT YET] Machine-level config for approval behavior.
-  # Requires new machine config layer in Runtime Metadata schema.
-  # config:
-  #   approval_mode_field: fld_ad_approval_mode   # field that holds Sequential|Parallel
-  #   steps_machine: mch_approval_step            # related machine for steps
-  #   steps_parent_field: fld_as_document         # reference field on steps side
+  # [SUPPORTED] — CAP-X03, implemented 2026-07-11 (migrations/004_machine_config.sql)
+  config:
+    approval_mode_field: fld_ad_approval_mode   # field that holds Sequential|Parallel
+    steps_machine: mch_approval_step            # related machine for steps
+    steps_parent_field: fld_as_document         # reference field on steps side
 
   fields:
     - id: fld_ad_title                    # [SUPPORTED]
@@ -82,8 +81,12 @@ machine:
         - Withdrawn
 
   events:
-    - id: evt_ad_submit                   # [SUPPORTED] — set_field + notify
+    - id: evt_ad_submit                   # [SUPPORTED] — set_field + notify + CAP-E06 guard
       name: Submit
+      condition:
+        field: fld_ad_status
+        operator: equals
+        value: Draft
       actions:
         - set_field: { field: fld_ad_status, value: In Review }
         - notify: { role: Approver }
@@ -91,24 +94,38 @@ machine:
         # Current notify only targets a static role string.
         # Requires: dynamic recipient resolution from Approval Steps.
 
-    - id: evt_ad_approve                  # [NOT YET] — triggered by system, not a user button
-      name: Approve
+    - id: evt_ad_approve                  # [SUPPORTED] — CAP-A08, triggered by system, not
+      name: Approve                       #   a user button (see approval-step.yaml's
+      condition:                          #   aggregate_status action)
+        field: fld_ad_status
+        operator: equals
+        value: In Review
       actions:
         - set_field: { field: fld_ad_status, value: Approved }
         - notify: { role: Submitter }
-      # [NOT YET] This event should be triggered automatically when all
-      # Approval Steps for this document reach Decision = Approved.
-      # Requires: aggregate_status action type in runtime executor.
+      # [SUPPORTED] Implemented 2026-07-11: fired automatically once every
+      # Approval Step for this document reaches Decision = Approved, via
+      # aggregate_status's parent_event_if_all_approved (approval-step.yaml).
 
-    - id: evt_ad_reject                   # [NOT YET] — triggered by system
+    - id: evt_ad_reject                   # [SUPPORTED] — CAP-A08, triggered by system
       name: Reject
+      condition:
+        field: fld_ad_status
+        operator: equals
+        value: In Review
       actions:
         - set_field: { field: fld_ad_status, value: Rejected }
         - notify: { role: Submitter }
-      # [NOT YET] Same as Approve — auto-triggered when any Step is Rejected.
+      # [SUPPORTED] Same as Approve — auto-triggered the moment any sibling Step
+      # is Rejected (doesn't wait for the rest to decide), via aggregate_status's
+      # parent_event_if_any_rejected.
 
-    - id: evt_ad_withdraw                 # [SUPPORTED]
+    - id: evt_ad_withdraw                 # [SUPPORTED] — CAP-E06 guard
       name: Withdraw
+      condition:
+        field: fld_ad_status
+        operator: equals
+        value: Draft
       actions:
         - set_field: { field: fld_ad_status, value: Withdrawn }
 
@@ -135,10 +152,11 @@ machine:
     - role: Submitter                     # [SUPPORTED]
       events: [ evt_ad_submit, evt_ad_withdraw ]
 
-    - role: System                        # [NOT YET] — System-triggered events
-      events: [ evt_ad_approve, evt_ad_reject ]
-      # [NOT YET] "System" is not a real user role in the current prototype.
-      # Requires: internal event triggering mechanism (not user-facing).
+    - role: System                        # [SUPPORTED] — documentation only; nothing routes
+      events: [ evt_ad_approve, evt_ad_reject ]  #   an HTTP request through this row. Implemented
+      # 2026-07-11: aggregate_status (CAP-A08) calls the internal triggerEvent path directly,
+      # recording actor role "System" for evt_ad_approve/evt_ad_reject the same way a permission
+      # check would have. See capability-registry.md (CAP-A08).
 
   views:
     - id: vw_ad_form                      # [SUPPORTED]
@@ -183,6 +201,6 @@ machine:
         - fld_ad_approval_mode
         - fld_ad_status
 
-    - id: vw_ad_detail                    # [PARTIAL] — fields render, but Approval Steps
-      name: Approval Status               #   sub-list (cross-machine) does not.
+    - id: vw_ad_detail                    # [SUPPORTED] — fields render; Approval Steps
+      name: Approval Status               #   sub-list is CAP-V06, generic on every detail page
       type: detail

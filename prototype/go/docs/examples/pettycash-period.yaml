@@ -17,7 +17,7 @@ machine:
   application: app_pettycash
 
   fields:
-    - id: fld_cp_fund                              # [NOT YET] — CAP-F13
+    - id: fld_cp_fund                              # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Fund
       type: reference
       target_machine: mch_pettycash_fund
@@ -46,9 +46,9 @@ machine:
         currency: "IDR"
 
     - id: fld_cp_reconciled_by                        # [PARTIAL] — CAP-F05; stamping it
-      name: Reconciled By                             #   dynamically is CAP-A02 [NOT YET]
-      type: user
-      required: false
+      name: Reconciled By                             #   dynamically via CAP-A02 (now [SUPPORTED])
+      type: user                                      #   would need an event action declaring it,
+      required: false                                 #   which evt_cp_close below doesn't do
 
     - id: fld_cp_status                               # [SUPPORTED]
       name: Status

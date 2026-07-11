@@ -61,7 +61,10 @@ machine:
           # below is skipped; the webhook call still returns success (a
           # duplicate is not a failure from the sender's perspective).
         - set_field: { field: fld_pwe_received_at, value: now }
-          # [NOT YET] value: "now" — environment data (CAP-A02).
+          # [SUPPORTED] — CAP-A02, implemented 2026-07-11: resolves to the real
+          # current timestamp. Still unreachable in practice — this action only
+          # runs if the idempotency_check and CAP-E04/X07 gaps above it are ever
+          # resolved first.
         - create_record: { machine: mch_payment, fields: { webhook_event: "{{ this.id }}" } }
           # [NOT YET] CAP-A06.
         - set_field: { field: fld_pwe_processing_status, value: Processed }

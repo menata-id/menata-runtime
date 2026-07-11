@@ -11,7 +11,7 @@ machine:
   application: app_lending
 
   fields:
-    - id: fld_rse_loan                    # [NOT YET] — CAP-F13
+    - id: fld_rse_loan                    # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Loan
       type: reference
       target_machine: mch_loan

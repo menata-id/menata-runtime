@@ -16,7 +16,7 @@ machine:
   application: app_lending
 
   fields:
-    - id: fld_loan_application            # [NOT YET] — CAP-F13
+    - id: fld_loan_application            # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Application
       type: reference
       target_machine: mch_loan_application
@@ -45,10 +45,11 @@ machine:
       values: [Active, Closed, Defaulted]
 
   events:
-    - id: evt_loan_disburse                # [NOT YET] — CAP-A02 + the new batch-generation
-      name: Disburse                        #   finding, no CAP registered yet
-      actions:
+    - id: evt_loan_disburse                # [PARTIAL] — the "today" stamp is [SUPPORTED]
+      name: Disburse                        #   (CAP-A02); generate_schedule's batch-generation
+      actions:                             #   finding is still unregistered/unimplemented
         - set_field: { field: fld_loan_disbursed_at, value: today }
+          # [SUPPORTED] — CAP-A02, implemented 2026-07-11.
         - generate_schedule:
             target_machine: mch_repayment_schedule_entry
             count: "{{ this.term_months }}"

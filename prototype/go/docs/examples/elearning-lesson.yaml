@@ -15,8 +15,8 @@ machine:
   application: app_elearning            #   storage-strategy detail, not a blocker here.
 
   fields:
-    - id: fld_lsn_course                  # [NOT YET] — CAP-F13, the field this Machine's
-      name: Course                        #   scoping to one Course depends on
+    - id: fld_lsn_course                  # [SUPPORTED] — CAP-F13, implemented 2026-07-11
+      name: Course
       type: reference
       target_machine: mch_course
       required: true

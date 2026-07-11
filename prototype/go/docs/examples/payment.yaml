@@ -17,13 +17,13 @@ machine:
   application: app_payments
 
   fields:
-    - id: fld_pay_webhook_event                 # [NOT YET] — CAP-F13
+    - id: fld_pay_webhook_event                 # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Webhook Event
       type: reference
       target_machine: mch_payment_webhook_event
       required: true
 
-    - id: fld_pay_invoice                        # [NOT YET] — CAP-F13; nullable — a Payment
+    - id: fld_pay_invoice                        # [SUPPORTED] — CAP-F13; nullable — a Payment
       name: Invoice                              #   may exist with no Invoice match at all
       type: reference
       target_machine: mch_invoice

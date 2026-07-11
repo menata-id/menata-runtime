@@ -40,7 +40,7 @@ machine:
       type: date
       required: true
 
-    - id: fld_je_fiscal_period                   # [NOT YET] — CAP-F13
+    - id: fld_je_fiscal_period                   # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Fiscal Period
       type: reference
       target_machine: mch_fiscal_period
@@ -57,10 +57,12 @@ machine:
       required: false
       values: [Draft, Posted]
 
-    - id: fld_je_prepared_by                      # [PARTIAL] — CAP-F05, free text; stamping
-      name: Prepared By                           #   it dynamically at Create is CAP-A02 [NOT YET]
-      type: user
-      required: true
+    - id: fld_je_prepared_by                      # [PARTIAL] — CAP-F05, free text. CAP-A02
+      name: Prepared By                           #   (dynamic set_field values) is [SUPPORTED]
+      type: user                                  #   for Event actions, but Create doesn't run
+      required: true                              #   through that path — auto-stamping this at
+      # Create time (rather than the submitter typing/picking it) is still [NOT YET]; see
+      # evt_je_post below for where current_user auto-stamping does work today.
 
     - id: fld_je_posted_by                        # [PARTIAL] — same, stamped at Post
       name: Posted By
@@ -73,19 +75,26 @@ machine:
       required: false
 
   events:
-    - id: evt_je_post                             # [NOT YET] — every check below composes
-      name: Post                                  #   CAP-C10 + CAP-C11 + CAP-P03, all unimplemented
-      actions:
+    - id: evt_je_post                             # [PARTIAL] — the actions below are all
+      name: Post                                  #   [SUPPORTED]; the three cst_je_* constraint
+      actions:                                     #   ROWS below still can't be evaluated (see
+                                                     #   their own notes) — a different gap than
+                                                     #   whether the event-trigger mechanism works
         - set_field: { field: fld_je_posting_date, value: today }
-          # [NOT YET] value: "today" — environment data (CAP-A02).
+          # [SUPPORTED] — CAP-A02, implemented 2026-07-11: resolves to the real
+          # current date, not the literal string "today".
         - set_field: { field: fld_je_posted_by, value: current_user }
-          # [NOT YET] value: "current_user" — environment data (CAP-A02).
+          # [SUPPORTED] — CAP-A02, same. Resolves to the acting role (this
+          # prototype's only identity concept today, see fld_je_prepared_by's note).
         - set_field: { field: fld_je_status, value: Posted }
           # [SUPPORTED] — static value works today.
-      # [NOT YET] Per CAP-C09 (constraints evaluated on event trigger), the three
-      # cst_je_* constraints below must all pass before these actions run. Today
-      # constraints only evaluate on Create, so none of them block Post yet — the
-      # same gap Case 4 first surfaced.
+      # CAP-C09 (constraints evaluated on event trigger, not just Create) is
+      # [SUPPORTED] as of 2026-07-11 — the *mechanism* now re-checks every
+      # declared Constraint before an event's write commits. That doesn't make
+      # the three cst_je_* rows below evaluable, though: they use expression
+      # shapes (`exists`, `aggregate`, a field on a *different* record) the
+      # constraint engine's flat field/operator/value evaluator doesn't parse
+      # at all — a separate gap (CAP-C10/C11 territory), not CAP-C09's.
 
   constraints:
     - id: cst_je_entry_number_required             # [SUPPORTED]

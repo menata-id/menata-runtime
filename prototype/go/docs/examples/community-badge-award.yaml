@@ -11,11 +11,12 @@ machine:
   application: app_community
 
   fields:
-    - id: fld_ba_member                 # [NOT YET] — CAP-F13
-      name: Member
-      type: reference
-      target_machine: "$identity"
-      required: true
+    - id: fld_ba_member                 # [NOT YET] — CAP-F13's target flavor (a),
+      name: Member                      #   workspace-authored Machine, is [SUPPORTED]
+      type: reference                   #   (2026-07-11); this field needs flavor (b), a
+      target_machine: "$identity"       #   reserved built-in identity target, which is
+      required: true                   #   deliberately not implemented yet — see
+      # capability-registry.md (CAP-F13) "Deferred, not done here."
     - id: fld_ba_badge                  # [SUPPORTED]
       name: Badge
       type: value_list

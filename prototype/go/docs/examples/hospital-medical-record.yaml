@@ -21,12 +21,12 @@ machine:
   application: app_hospital
 
   fields:
-    - id: fld_mr_patient                 # [NOT YET] — CAP-F13
+    - id: fld_mr_patient                 # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Patient
       type: reference
       target_machine: mch_patient
       required: true
-    - id: fld_mr_appointment              # [NOT YET] — CAP-F13
+    - id: fld_mr_appointment              # [SUPPORTED] — CAP-F13
       name: Appointment
       type: reference
       target_machine: mch_appointment

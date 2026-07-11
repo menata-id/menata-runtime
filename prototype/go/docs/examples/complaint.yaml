@@ -12,9 +12,10 @@
 # CAP-E05 (system-triggered, second instance after Case 3). See runtime/case-portfolio.md.
 #
 # THE LANGUAGE-BOUNDARY FINDING THIS CASE EXISTS TO ANSWER:
-# Menata's flat "When X" event model, once CAP-E06 (state guards) lands, can express
-# CMMN's *bounded* flexibility — many possible predefined paths, gated by Status, no
-# fixed Sequence (WCP-1) required. It canNOT express CMMN's *unbounded* flexibility —
+# Menata's flat "When X" event model, now that CAP-E06 (state guards, [SUPPORTED] as
+# of 2026-07-11) has landed, can express CMMN's *bounded* flexibility — many possible
+# predefined paths, gated by Status, no fixed Sequence (WCP-1) required. It canNOT
+# express CMMN's *unbounded* flexibility —
 # a case worker inventing a genuinely new task type at runtime that was never named in
 # metadata. Every event a Complaint can receive (Triage, Delegate, Resolve, ...) must
 # still be declared in advance; only the ORDER is left open. This is a deliberate,
@@ -180,15 +181,20 @@ machine:
       actions:
         - set_field: { field: fld_cmp_status, value: Closed }
 
-    - id: evt_cmp_reopen                             # [PARTIAL] — set_field works; the
-      name: Reopen                                   #   increment and the state guard do not
+    - id: evt_cmp_reopen                             # [PARTIAL] — the state guard is
+      name: Reopen                                   #   [SUPPORTED] (CAP-E06, added below); the
+      condition:                                      #   count increment is still not
+        field: fld_cmp_status                          #   expressible (see the action's own note)
+        operator: equals
+        value: Resolved
       actions:
         - set_field: { field: fld_cmp_reopen_count, value: "reopen_count + 1" }
           # [NOT YET] increment-by-1 is a narrower case of CAP-A11's arithmetic
           # family (numeric, not date) — no operator for it exists today either.
         - set_field: { field: fld_cmp_status, value: Reopened }
-      # [NOT YET] Should only be reachable from Status = Resolved (CAP-E06 state
-      # guard) — today any role with permission could fire Reopen from any state.
+      # Only reachable from Status = Resolved as of 2026-07-11 (CAP-E06) — this
+      # `condition` was previously undeclared in this file even though the guard
+      # mechanism was the gap, not the declaration; added now that it exists.
 
   constraints:
     - id: cst_cmp_complainant_required             # [SUPPORTED]
@@ -207,15 +213,15 @@ machine:
       rule: Priority is required.
       expression: { field: fld_cmp_priority, operator: required }
 
-    - id: cst_cmp_resolution_notes_if_resolved      # [PARTIAL] — conditional constraint
-      rule: Resolution Notes is required.            #   works on Create, but this rule matters
-      expression:                                    #   at Resolve time — constraints never run
-        field: fld_cmp_resolution_notes               #   on events (CAP-C09, same gap as Case 4
-        operator: required                            #   and every case since)
-      condition:
-        field: fld_cmp_status
-        operator: equals
-        value: Resolved
+    - id: cst_cmp_resolution_notes_if_resolved      # [SUPPORTED] — CAP-C09, implemented
+      rule: Resolution Notes is required.            #   2026-07-11: evt_cmp_resolve sets Status
+      expression:                                    #   to Resolved as one of its own actions, so
+        field: fld_cmp_resolution_notes               #   this constraint's post-action check now
+        operator: required                            #   correctly catches it (unlike maintenance-
+      condition:                                      #   reminder.yaml's cst_mt_notes_if_overdue,
+        field: fld_cmp_status                         #   where the triggering status changes AWAY
+        operator: equals                              #   from the checked value within the same
+        value: Resolved                               #   event — here it changes INTO it)
 
   permissions:
     - role: Agent                                    # [SUPPORTED]

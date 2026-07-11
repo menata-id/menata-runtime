@@ -11,7 +11,7 @@ machine:
   application: app_community
 
   fields:
-    - id: fld_evt_group                # [NOT YET] — CAP-F13
+    - id: fld_evt_group                # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Group
       type: reference
       target_machine: mch_group

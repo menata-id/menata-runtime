@@ -44,17 +44,19 @@ machine:
       type: value_list
       required: false
       values: [Submitted, Approved, Rejected]
-    - id: fld_la_approved_by             # [PARTIAL] — CAP-F05; stamping is CAP-A02
-      name: Approved By
+    - id: fld_la_approved_by             # [PARTIAL] — CAP-F05; stamping is CAP-A02, [SUPPORTED]
+      name: Approved By                   #   as of 2026-07-11 (see evt_la_approve below)
       type: user
       required: false
 
   events:
-    - id: evt_la_approve                  # [NOT YET] — every action composes CAP-A02,
-      name: Approve                        #   CAP-P03, CAP-A06
-      actions:
+    - id: evt_la_approve                  # [PARTIAL] — the current_user stamp is [SUPPORTED]
+      name: Approve                        #   (CAP-A02); create_record cross-machine (CAP-A06)
+      actions:                             #   is still [NOT YET]
         - set_field: { field: fld_la_approved_by, value: current_user }
+          # [SUPPORTED] — CAP-A02, implemented 2026-07-11.
         - create_record: { machine: mch_loan, fields: { application: "{{ this.id }}", principal: "{{ this.requested_amount }}", interest_rate: "{{ this.interest_rate }}", term_months: "{{ this.term_months }}" } }
+          # [NOT YET] — CAP-A06, cross-machine create_record still unimplemented.
         - set_field: { field: fld_la_status, value: Approved }
     - id: evt_la_reject                    # [SUPPORTED] — static set_field works
       name: Reject

@@ -18,7 +18,7 @@ machine:
   application: app_social
 
   fields:
-    - id: fld_comment_post                        # [NOT YET] — CAP-F13
+    - id: fld_comment_post                        # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Post
       type: reference
       target_machine: mch_post

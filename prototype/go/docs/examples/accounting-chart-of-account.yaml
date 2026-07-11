@@ -64,15 +64,15 @@ machine:
       # categorical lookup, distinct from unit/currency conversion (Study 15) and
       # cross-record aggregate rollup (Case 5's Stock On Hand).
 
-    - id: fld_coa_parent_account                 # [NOT YET] — reference field (CAP-F13),
-      name: Parent Account                       #   self-reference / tree option
+    - id: fld_coa_parent_account                 # [SUPPORTED] — CAP-F13, implemented
+      name: Parent Account                       #   2026-07-11, self-reference/tree option
       type: reference
       target_machine: mch_chart_of_account
       required: false
-      # [NOT YET] Header/group accounts (e.g. "Current Assets") roll up leaf
-      # accounts (e.g. "Cash", "Accounts Receivable") — the tree/hierarchy option
-      # on CAP-F13 already noted since Study 6; this case gives it its first
-      # case evidence.
+      # Header/group accounts (e.g. "Current Assets") roll up leaf accounts
+      # (e.g. "Cash", "Accounts Receivable") — the tree/hierarchy option on
+      # CAP-F13 already noted since Study 6, first case evidence here, also
+      # proven directly via Case 18's Employee↔Manager self-reference.
 
     - id: fld_coa_is_group                      # [PARTIAL] — CAP-F09, falls back to text
       name: Is Group                            #   input, no real checkbox yet.

@@ -44,9 +44,9 @@ machine:
       name: Position
       type: text
       required: false
-    - id: fld_emp_manager                  # [NOT YET] — CAP-F13, self-reference/tree,
-      name: Manager                         #   second case instance after Case 9's COA
-      type: reference
+    - id: fld_emp_manager                  # [SUPPORTED] — CAP-F13, implemented 2026-07-11,
+      name: Manager                         #   self-reference/tree option, proven directly
+      type: reference                       #   on this exact field (seeds/003_hr_employee.sql)
       target_machine: mch_employee
       required: false
     - id: fld_emp_hire_date                 # [SUPPORTED]
@@ -83,6 +83,9 @@ machine:
       name: Employee Directory
       type: list
       columns: [ fld_emp_id, fld_emp_name, fld_emp_department, fld_emp_status ]
-    - id: vw_emp_org_chart                           # [NOT YET] — CAP-F13's tree-rendering
-      name: Org Chart                                 #   presentation detail, same as Case 9's
-      type: detail                                     #   Chart of Account list (flat rows today)
+    - id: vw_emp_org_chart                           # [NOT YET] — CAP-F13's reference field
+      name: Org Chart                                 #   itself is [SUPPORTED] (2026-07-11); a
+      type: detail                                     #   dedicated tree/org-chart *rendering* is
+      # a separate, still-missing presentation capability — today this Manager relationship is
+      # only visible field-by-field (CAP-V06's generic sub-list shows direct reports one level
+      # deep, not a multi-level tree), same as Case 9's Chart of Account list (flat rows today).

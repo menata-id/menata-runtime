@@ -17,7 +17,7 @@ machine:
   application: app_warehouse
 
   fields:
-    - id: fld_sm_item                       # [NOT YET] — reference field (CAP-F13, Prio 1)
+    - id: fld_sm_item                       # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Item
       type: reference
       target_machine: mch_item
@@ -76,7 +76,8 @@ machine:
       name: Confirm                          #   the whole chain committing atomically (CAP-X12)
       actions:
         - set_field: { field: fld_sm_movement_date, value: today }
-          # [NOT YET] value: "today" — environment data (CAP-A02), same gap as Case 4.
+          # [SUPPORTED] — CAP-A02, implemented 2026-07-11: resolves to the real
+          # current date, not the literal string "today".
         - create_record:                      # [NOT YET] CAP-A06
             machine: mch_stock_ledger_entry
             fields:
@@ -111,8 +112,11 @@ machine:
         field: fld_sm_movement_date
         operator: greater_than_or_equal
         compare_field: fld_sm_requested_date
-      # [NOT YET] Evaluated at Confirm time (when Movement Date is actually stamped),
-      # not at Create — also depends on CAP-C09 (constraints on event trigger).
+      # [NOT YET] Meant to be evaluated at Confirm time (when Movement Date is
+      # actually stamped), not at Create — CAP-C09 (constraints on event trigger)
+      # is [SUPPORTED] as of 2026-07-11, so the mechanism for that now exists;
+      # this constraint still can't evaluate because `greater_than_or_equal` +
+      # `compare_field` isn't a shape the constraint engine parses yet.
 
     - id: cst_sm_no_negative_stock                # [NOT YET] — CAP-C08, cross-record
       rule: Item Stock On Hand must be greater than or equal to Normalized Quantity.

@@ -81,7 +81,8 @@ machine:
       name: Complete
       actions:
         - set_field: { field: fld_mt_last_completed, value: today }
-          # [NOT YET] value: "today" — environment data (CAP-A02).
+          # [SUPPORTED] — CAP-A02, implemented 2026-07-11: resolves to the real
+          # current date, not the literal string "today".
         - set_field: { field: fld_mt_next_due, value: "next_due + frequency" }
           # [NOT YET] Date arithmetic: advance Next Due Date by the record's own
           # Frequency value (Daily → +1 day, Weekly → +7 days, Monthly → +1 month).
@@ -143,15 +144,19 @@ machine:
         field: fld_mt_next_due
         operator: required
 
-    - id: cst_mt_notes_if_overdue         # [PARTIAL] — conditional constraint works on Create,
-      rule: Completion Notes is required. #   but this rule matters at Complete time —
-      expression:                         #   constraints never run on events (CAP-C09).
-        field: fld_mt_notes
-        operator: required
-      condition:
-        field: fld_mt_status
-        operator: equals
-        value: Overdue
+    - id: cst_mt_notes_if_overdue         # [PARTIAL] — CAP-C09 (constraints re-checked at
+      rule: Completion Notes is required. #   event trigger) is [SUPPORTED] as of 2026-07-11,
+      expression:                         #   and this expression shape (required + equals
+        field: fld_mt_notes                #   condition) is one the engine can evaluate — but
+        operator: required                 #   evt_mt_complete's own actions set Status to
+      condition:                           #   Scheduled as part of completing, so by the time
+        field: fld_mt_status                #   the post-action check runs, Status is no longer
+        operator: equals                    #   Overdue. Catching "was this Overdue before being
+        value: Overdue                      #   completed" needs a pre-action check, which CAP-C09
+      # doesn't provide — it validates the event's result, not its starting state (CAP-E06's
+      # event `condition` does read starting state, but only as a same-record guard, not a
+      # per-constraint one). Left [PARTIAL], not [SUPPORTED]: the mechanism works, this rule's
+      # business intent still doesn't fire as written.
 
   permissions:
     - role: Technician                    # [SUPPORTED]

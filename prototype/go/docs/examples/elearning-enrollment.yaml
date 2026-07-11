@@ -12,12 +12,13 @@ machine:
   application: app_elearning
 
   fields:
-    - id: fld_enr_student                # [NOT YET] — CAP-F13, built-in identity target
-      name: Student
-      type: reference
-      target_machine: "$identity"
-      required: true
-    - id: fld_enr_course                  # [NOT YET] — CAP-F13
+    - id: fld_enr_student                # [NOT YET] — CAP-F13's target flavor (a),
+      name: Student                      #   workspace-authored Machine, is [SUPPORTED]
+      type: reference                    #   (2026-07-11); this field needs flavor (b), a
+      target_machine: "$identity"        #   reserved built-in identity target, which is
+      required: true                    #   deliberately not implemented yet — see
+      # capability-registry.md (CAP-F13) "Deferred, not done here."
+    - id: fld_enr_course                  # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Course
       type: reference
       target_machine: mch_course

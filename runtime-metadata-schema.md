@@ -98,16 +98,19 @@ machine:
   events:
     - id: evt_submit
       name: Submit
+      condition: { field: fld_status, operator: equals, value: Draft }
       actions:
         - set_field: { field: fld_status, value: Submitted }
 
     - id: evt_approve
       name: Approve
+      condition: { field: fld_status, operator: equals, value: Submitted }
       actions:
         - set_field: { field: fld_status, value: Approved }
 
     - id: evt_reject
       name: Reject
+      condition: { field: fld_status, operator: equals, value: Submitted }
       actions:
         - set_field: { field: fld_status, value: Rejected }
 
@@ -136,6 +139,30 @@ machine:
       name: Request Detail
       type: detail
 ```
+
+---
+
+## Machine Config
+
+A Machine may declare `config` — settings about the Machine itself, not a Field of its records and
+not any of the five Grammar sections. Absent/`null` for every Machine that doesn't need one; there
+is no fixed schema across Machines, only per-key conventions as capabilities need them (CAP-X03).
+
+```yaml
+machine:
+  id: mch_approval_document
+  name: Approval Document
+  application: app_approval
+  config:
+    approval_mode_field: fld_ad_approval_mode   # which field holds Sequential|Parallel
+    steps_machine: mch_approval_step             # the child Machine holding this workflow's steps
+    steps_parent_field: fld_as_document           # which field on the child references back
+```
+
+This is the only `config` shape defined so far — it exists to let CAP-A07 (`activate_next`) and
+CAP-A08 (`aggregate_status`) resolve a workflow's shape without hardcoding Machine/Field ids in the
+runtime. A future capability needing its own machine-level setting adds a new key here, not a new
+migration column.
 
 ---
 
@@ -215,25 +242,113 @@ worked examples: `runtime/benchmarks/005-field-modeling-decision-framework.md`.
 
 ---
 
+## Event Conditions
+
+An Event may declare `condition` — a guard, same shape as a Constraint's `condition`
+(field/operator/value). The event may only be triggered when the record's **current** data (before
+the event's own actions run) satisfies it; otherwise the runtime rejects the trigger outright
+(CAP-E06). This realizes the `if` guard Menata Language's Event grammar already allows
+(`specification/003-event.md` §Conditions in the `menata` repo) — nothing new for a `.menata` author
+to learn, the runtime simply didn't evaluate it on `When`-triggered events until CAP-E06 landed.
+
+```yaml
+- id: evt_approve
+  name: Approve
+  condition: { field: fld_status, operator: equals, value: Submitted }
+  actions:
+    - set_field: { field: fld_status, value: Approved }
+```
+
+Without a declared `condition`, an event may be triggered from any state — declare one whenever the
+business rule "this only makes sense from state X" is real, the same judgment call already made for
+every Constraint.
+
+A second, narrower guard exists purpose-built for sequential workflows (CAP-A07) — see
+`aggregate_status`/`activate_next` below; it is cross-record (checks sibling records) and can't be
+expressed as a flat `condition`, so it isn't a metadata key at all, just built-in behavior triggered
+by declaring `aggregate_status` on an event.
+
+---
+
 ## Event Actions
 
 Actions describe what the runtime should do when an event occurs.
 
 | Action | Description | Example |
 |--------|-------------|---------|
-| `set_field` | Set a field to a value | Set Status = Submitted |
+| `set_field` | Set a field to a value — literal, or a dynamic token (`today`, `now`, `current_user`, CAP-A02) | Set Status = Submitted; Set Approved Date = today |
 | `notify` | Send a notification to a role | Notify Manager |
 | `create_record` | Create a record in another machine | Create Audit Log |
+| `activate_next` | CAP-A07 — in a Sequential-mode workflow, notify the next still-undecided sibling once this one is decided | Approving Step 1 notifies Step 2's approver |
+| `aggregate_status` | CAP-A08 — roll a decided record's siblings up to their shared parent: cascade the parent to a "some rejected" event immediately, or to an "all approved" event only once every sibling has decided the same way | All Steps Approved → Document Approved |
 
 Actions are realized by the runtime.
 
 Business Knowledge should not describe how actions are implemented.
 
+### `set_field` dynamic values (CAP-A02)
+
+`value: today` / `value: now` / `value: current_user` resolve at the moment the event fires, instead
+of being stored as that literal string. `current_user` resolves to the acting role (the identity
+this runtime's login currently tracks) — see the `user`/reference-sugar note above; once CAP-O01
+(identity & role registry) exists, this resolves to a real person instead.
+
+```yaml
+actions:
+  - set_field: { field: fld_status, value: Approved }
+  - set_field: { field: fld_approved_date, value: today }
+  - set_field: { field: fld_approved_by, value: current_user }
+```
+
+### `activate_next` (CAP-A07)
+
+```yaml
+- activate_next: { mode_field: fld_ad_approval_mode }
+```
+
+`mode_field` is a Field id on the **parent** Machine (resolved via the child's `reference` field to
+it, and the parent's own `config`) holding the Sequential/Parallel choice. In Parallel mode this
+action is a no-op. In Sequential mode, **enforcement is a hard block**, not just this notification —
+see the note below. Parent/sequence/decision fields are not named in this action's own params; the
+runtime resolves them by `reference`-field-type and by-name heuristics (a Field literally named
+`Sequence`, `Decision`, `Approver`) — a prototype-honest stand-in for a Language-level way to name
+these, not a final design. See `capability-registry.md` (CAP-A07) for the full rationale.
+
+**The actual sequential gate** is not a metadata key — declaring `aggregate_status` (below) on an
+event is what makes the runtime cross-record-check siblings before allowing that event to fire at
+all, rejecting an out-of-sequence Approve/Reject with an explicit error. This was a deliberate
+design choice: WCP-1 Sequence (the Workflow Pattern this capability realizes) is *defined* by
+enforcement — a notify-only "activation" would leave Sequential and Parallel mode behaviorally
+identical.
+
+### `aggregate_status` (CAP-A08)
+
+```yaml
+- aggregate_status:
+    parent_field: fld_as_document
+    parent_event_if_all_approved: evt_ad_approve
+    parent_event_if_any_rejected: evt_ad_reject
+```
+
+`parent_field` names the Field (on this Machine) referencing the parent record. After this event
+commits, the runtime checks every sibling record sharing that same parent: if *any* has reached a
+"Rejected"-shaped decision, `parent_event_if_any_rejected` fires on the parent **immediately** — it
+does not wait for the remaining siblings to decide (the discriminator/cancellation half of WCP-9).
+`parent_event_if_all_approved` only fires once *every* sibling has reached an "Approved"-shaped
+decision. The parent event is fired through the exact same trigger path an HTTP-originated event
+uses — its own `condition` (CAP-E06) and Constraints (CAP-C09) still apply, so a system-triggered
+rollup can never skip a check a user-triggered transition would have to pass. The acting role
+recorded for this internally-fired event is `System`.
+
 ---
 
 ## Constraints
 
-Constraints describe business rules that must always be satisfied.
+Constraints describe business rules that must always be satisfied. Every declared Constraint is
+checked both at Create and, since CAP-C09, whenever any Event fires — the same rule, re-evaluated
+against the record's data *after* that event's actions would apply, before the write commits. A
+record valid at Create can become invalid by the time an event reaches it (e.g. a date-based
+constraint, once real time has passed); this closes that gap instead of only checking once.
 
 ```yaml
 constraints:

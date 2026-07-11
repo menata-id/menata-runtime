@@ -16,7 +16,7 @@ machine:
   application: app_elearning
 
   fields:
-    - id: fld_cert_enrollment              # [NOT YET] — CAP-F13
+    - id: fld_cert_enrollment              # [SUPPORTED] — CAP-F13, implemented 2026-07-11
       name: Enrollment
       type: reference
       target_machine: mch_enrollment
