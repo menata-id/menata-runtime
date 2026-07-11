@@ -269,7 +269,24 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if err := h.exec.Apply(r.Context(), event, rec); err != nil {
+
+	// CAP-E06 — state guard: the event may only fire when the record's
+	// CURRENT data satisfies its condition (e.g. Reject only from Submitted).
+	if event.Condition != nil && !constraint.Eval(*event.Condition, rec.Data) {
+		http.Error(w, fmt.Sprintf("%s is not allowed in the record's current state", event.Name), http.StatusBadRequest)
+		return
+	}
+
+	// CAP-C09 — constraints evaluated on event trigger, not just Create:
+	// simulate the event's effect first, validate the result, only persist
+	// if it still satisfies every declared Constraint.
+	newData := h.exec.Simulate(event, rec)
+	if violations := h.engine.Violations(machine, newData); len(violations) > 0 {
+		http.Error(w, strings.Join(violations, " "), http.StatusBadRequest)
+		return
+	}
+
+	if err := h.exec.Persist(r.Context(), event, rec, newData); err != nil {
 		http.Error(w, "event failed", http.StatusInternalServerError)
 		return
 	}

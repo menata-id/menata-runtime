@@ -24,11 +24,14 @@ INSERT INTO fields (id, machine_id, name, type, position, required, options) VAL
 ON CONFLICT (id) DO NOTHING;
 
 -- Events
-INSERT INTO events (id, machine_id, name, position) VALUES
-    ('evt_lr_submit',  'mch_leave_request', 'Submit',  0),
-    ('evt_lr_approve', 'mch_leave_request', 'Approve', 1),
-    ('evt_lr_reject',  'mch_leave_request', 'Reject',  2),
-    ('evt_lr_cancel',  'mch_leave_request', 'Cancel',  3)
+-- condition (CAP-E06): the event may only fire from the given current Status --
+-- e.g. Approve/Reject/Cancel all require Submitted, so an already-Approved
+-- record can no longer be Rejected (the exact gap Study 1 named).
+INSERT INTO events (id, machine_id, name, position, condition) VALUES
+    ('evt_lr_submit',  'mch_leave_request', 'Submit',  0, '{"field":"fld_lr_status","operator":"equals","value":"Draft"}'),
+    ('evt_lr_approve', 'mch_leave_request', 'Approve', 1, '{"field":"fld_lr_status","operator":"equals","value":"Submitted"}'),
+    ('evt_lr_reject',  'mch_leave_request', 'Reject',  2, '{"field":"fld_lr_status","operator":"equals","value":"Submitted"}'),
+    ('evt_lr_cancel',  'mch_leave_request', 'Cancel',  3, '{"field":"fld_lr_status","operator":"equals","value":"Submitted"}')
 ON CONFLICT (id) DO NOTHING;
 
 -- Event Actions

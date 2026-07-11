@@ -200,7 +200,7 @@ func (l *Loader) loadFields(ctx context.Context, machineID string) ([]*model.Fie
 
 func (l *Loader) loadEvents(ctx context.Context, machineID string) ([]*model.Event, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, machine_id, name, position FROM events WHERE machine_id = $1 ORDER BY position`,
+		`SELECT id, machine_id, name, position, condition::text FROM events WHERE machine_id = $1 ORDER BY position`,
 		machineID)
 	if err != nil {
 		return nil, err
@@ -210,8 +210,15 @@ func (l *Loader) loadEvents(ctx context.Context, machineID string) ([]*model.Eve
 	var events []*model.Event
 	for rows.Next() {
 		e := &model.Event{}
-		if err := rows.Scan(&e.ID, &e.MachineID, &e.Name, &e.Position); err != nil {
+		var condJSON *string
+		if err := rows.Scan(&e.ID, &e.MachineID, &e.Name, &e.Position, &condJSON); err != nil {
 			return nil, err
+		}
+		if condJSON != nil {
+			e.Condition = &model.ConstraintExpression{}
+			if err := json.Unmarshal([]byte(*condJSON), e.Condition); err != nil {
+				return nil, fmt.Errorf("parse condition for event %s: %w", e.ID, err)
+			}
 		}
 		events = append(events, e)
 	}

@@ -69,12 +69,15 @@ type FieldOptions struct {
 }
 
 // Event is a business occurrence that triggers actions on a Machine.
+// Condition is a guard (CAP-E06): the event may only be triggered when the
+// record's current data satisfies it. nil = always allowed.
 type Event struct {
 	ID        string
 	MachineID string
 	Name      string
 	Position  int
 	Actions   []*EventAction
+	Condition *ConstraintExpression
 }
 
 // EventAction is a single step executed when an Event fires.

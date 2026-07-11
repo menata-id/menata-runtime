@@ -14,17 +14,20 @@ type Engine struct{}
 func (e *Engine) Violations(machine *model.Machine, data map[string]any) []string {
 	var out []string
 	for _, c := range machine.Constraints {
-		if c.Condition != nil && !eval(*c.Condition, data) {
+		if c.Condition != nil && !Eval(*c.Condition, data) {
 			continue
 		}
-		if !eval(c.Expression, data) {
+		if !Eval(c.Expression, data) {
 			out = append(out, c.Rule)
 		}
 	}
 	return out
 }
 
-func eval(expr model.ConstraintExpression, data map[string]any) bool {
+// Eval evaluates a single expression against record data. Shared by
+// Constraint evaluation and Event guard evaluation (CAP-E06) — both are the
+// same "does this data satisfy this expression" question.
+func Eval(expr model.ConstraintExpression, data map[string]any) bool {
 	raw := data[expr.Field]
 	str := fmt.Sprintf("%v", raw)
 	if raw == nil {

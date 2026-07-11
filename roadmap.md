@@ -337,8 +337,16 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > (`seeds/003_hr_employee.sql`). Only target flavor (a), workspace-authored Machine —
 > flavor (b) (reserved built-in identity target, needed before `user`/`money`/`file` can
 > become real reference sugar) is deliberately deferred, not done here. See
-> `capability-registry.md` CAP-F13 row for the full implementation note. Item 2
-> (CAP-E06 + CAP-C09) is next up.
+> `capability-registry.md` CAP-F13 row for the full implementation note.
+>
+> **Status update (2026-07-11, same day):** Item 2, **CAP-E06 + CAP-C09, is now ✅
+> Supported** too — `events.condition` (migrations/003) realizes the `if` guard Menata
+> Language's Event grammar already allowed but the runtime never evaluated;
+> `Executor.Simulate`/`Persist` split lets constraints be checked against an event's
+> result before committing it, not just at Create. Both proven on the existing Leave
+> Request seed (conformance T17–T19) — T18 reproduces and confirms the fix for Study
+> 1's exact headline finding ("an Approved record can still be Rejected"). Item 3
+> (CAP-A02 dynamic values + CAP-V06 child sub-list) is next up.
 
 ---
 

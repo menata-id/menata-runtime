@@ -9,11 +9,16 @@
 #   ./conformance/run.sh                     # against http://localhost:4000
 #   BASE_URL=https://aksi.menata.id ./conformance/run.sh
 #
-# Requires: Cases 1 & 2 seeded (seeds/001, seeds/002), server running.
+# Requires: seeds 001-003 applied, server running.
 # Note: creates test records in the target database (prototype-acceptable).
+# T19 is a deliberate, documented exception to "HTTP black-box": it uses psql
+# to backdate a date field, simulating time passing without waiting years —
+# a test fixture setup, not an inspection of runtime behavior. Set
+# DATABASE_URL (same value as the server's .env) to enable it; skipped if unset.
 
 set -u
 BASE_URL="${BASE_URL:-http://localhost:4000}"
+DATABASE_URL="${DATABASE_URL:-}"
 PASS=0
 FAIL=0
 
@@ -37,8 +42,13 @@ body_contains() { # <url> <needle> [cookie]
     fi
 }
 
-post_body_contains() { # <url> <data> <needle>
-    curl -s -X POST "$1" -d "$2" | grep -q "$3"
+post_body_contains() { # <url> <data> <needle> [cookie]
+    local url="$1" data="$2" needle="$3" cookie="${4:-}"
+    if [ -n "$cookie" ]; then
+        curl -s -X POST -H "Cookie: $cookie" "$url" -d "$data" | grep -q "$needle"
+    else
+        curl -s -X POST "$url" -d "$data" | grep -q "$needle"
+    fi
 }
 
 post_status() { # <url> <data> [cookie] -> echoes http code
@@ -151,6 +161,41 @@ check T15 "CAP-F13" "create with valid reference succeeds; detail links to targe
 BAD_DATA="fld_emp_id=CB-GHOST&fld_emp_name=ConformanceBot+Ghost&fld_emp_hire_date=2024-01-01&fld_emp_manager=00000000-0000-0000-0000-000000000000"
 post_body_contains "$BASE_URL/mch_employee" "$BAD_DATA" "does not reference an existing"
 check T16 "CAP-F13" "dangling reference value rejected, not silently accepted" $?
+
+# --- CAP-E06 (state-conditional event availability) ---
+
+# T17 — Approve rejected while a record is still Draft (never Submitted)
+DRAFT_DATA="fld_lr_employee=ConformanceBot&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=T17"
+DRAFT_URL=$(post_redirect "$BASE_URL/mch_leave_request" "$DRAFT_DATA")
+DRAFT_ID="${DRAFT_URL##*/}"
+CODE=$(post_status "$BASE_URL/mch_leave_request/$DRAFT_ID/events/evt_lr_approve" "" "menata_role=Manager")
+[ "$CODE" = "400" ]
+check T17 "CAP-E06" "Approve rejected while record is still Draft (got $CODE)" $?
+
+# T18 — the headline fix: an already-Approved record can no longer be Rejected
+# (reuses $REC_ID from T08-T12, which is Approved by this point in the run)
+CODE=$(post_status "$BASE_URL/mch_leave_request/$REC_ID/events/evt_lr_reject" "" "menata_role=Manager")
+[ "$CODE" = "400" ]
+check T18 "CAP-E06" "Reject rejected on an already-Approved record (got $CODE) -- the exact Study 1 gap" $?
+
+# --- CAP-C09 (constraints evaluated on event trigger, not just Create) ---
+
+# T19 — a record valid at Create can become invalid by the time an event fires;
+# the already-declared "Start Date must be after today" constraint must block
+# Approve too, not just Create. See header note re: psql use here.
+if [ -n "$DATABASE_URL" ]; then
+    C09_DATA="fld_lr_employee=ConformanceBot&fld_lr_leave_type=Sick+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=T19"
+    C09_URL=$(post_redirect "$BASE_URL/mch_leave_request" "$C09_DATA")
+    C09_ID="${C09_URL##*/}"
+    post_status "$BASE_URL/mch_leave_request/$C09_ID/events/evt_lr_submit" "" "menata_role=Employee" >/dev/null
+    psql "$DATABASE_URL" -q -c \
+        "UPDATE records SET data = jsonb_set(data, '{fld_lr_start_date}', '\"2020-01-01\"') WHERE id = '$C09_ID'" \
+        >/dev/null 2>&1
+    post_body_contains "$BASE_URL/mch_leave_request/$C09_ID/events/evt_lr_approve" "" "Start Date must be after today" "menata_role=Manager"
+    check T19 "CAP-C09" "Approve blocked by a Constraint the event trigger re-checks, not just Create" $?
+else
+    printf 'SKIP  T19  %-22s %s\n' "CAP-C09" "DATABASE_URL not set -- backdating fixture unavailable"
+fi
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

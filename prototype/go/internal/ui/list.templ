@@ -1,5 +1,6 @@
 package ui
 
+import "fmt"
 import "menata.id/runtime/internal/model"
 
 templ List(role string, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event) {
@@ -15,22 +16,26 @@ templ List(role string, machine *model.Machine, columns []ColumnDef, rows []List
 			</a>
 		</div>
 		<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-			if len(rows) == 0 {
-				<div class="py-16 text-center text-sm text-slate-400">
-					No records yet. Create the first one.
-				</div>
-			} else {
-				<table class="w-full text-sm">
-					<thead class="border-b border-slate-200 bg-slate-50">
+			<table class="w-full text-sm">
+				<thead class="border-b border-slate-200 bg-slate-50">
+					<tr>
+						for _, col := range columns {
+							<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+								{ col.Name }
+							</th>
+						}
+						<th class="w-px px-4 py-3"></th>
+					</tr>
+				</thead>
+				if len(rows) == 0 {
+					<tbody>
 						<tr>
-							for _, col := range columns {
-								<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-									{ col.Name }
-								</th>
-							}
-							<th class="w-px px-4 py-3"></th>
+							<td colspan={ fmt.Sprintf("%d", len(columns)+1) } class="py-16 text-center text-sm text-slate-400">
+								No records yet. Create the first one.
+							</td>
 						</tr>
-					</thead>
+					</tbody>
+				} else {
 					<tbody class="divide-y divide-slate-100">
 						for _, row := range rows {
 							<tr class="transition-colors hover:bg-slate-50">
@@ -56,8 +61,8 @@ templ List(role string, machine *model.Machine, columns []ColumnDef, rows []List
 							</tr>
 						}
 					</tbody>
-				</table>
-			}
+				}
+			</table>
 		</div>
 	}
 }

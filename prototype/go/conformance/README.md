@@ -20,7 +20,8 @@ BASE_URL=https://aksi.menata.id ./conformance/run.sh
 
 Exit code 0 = all pass. Non-zero = at least one capability regressed.
 
-**Prerequisites:** server running, seeds `001`, `002`, `003` applied (Cases 1, 2, 18).
+**Prerequisites:** server running, seeds `001`, `002`, `003` applied (Cases 1, 2, 18). For T19, also
+export `DATABASE_URL` (same value as the server's `.env`) — it's skipped otherwise.
 
 ---
 
@@ -45,12 +46,15 @@ Exit code 0 = all pass. Non-zero = at least one capability regressed.
 | T14 | CAP-F13 | create with an empty (optional) reference succeeds |
 | T15 | CAP-F13 | create with a valid reference succeeds; detail links to the target record |
 | T16 | CAP-F13 | dangling reference value rejected (negative case — security NFR gate) |
+| T17 | CAP-E06 | Approve rejected while record is still Draft |
+| T18 | CAP-E06 | Reject rejected on an already-Approved record — the exact Study 1 gap |
+| T19 | CAP-C09 | a Constraint satisfied at Create is re-checked at event trigger, not skipped |
 
 ---
 
 ## Design Notes
 
-- **HTTP black-box** — tests exercise the runtime exactly as a user would; no DB inspection. Capabilities that are DB-only (e.g. CAP-R04 audit log) stay on manual evidence until a UI exposes them.
+- **HTTP black-box** — tests exercise the runtime exactly as a user would; no DB inspection. Capabilities that are DB-only (e.g. CAP-R04 audit log) stay on manual evidence until a UI exposes them. **T19 is a deliberate, documented exception**: it uses `psql` to backdate a date field as test-fixture setup (simulating time passing without waiting years), not to inspect runtime behavior — the assertion itself is still a plain HTTP response check.
 - **Data pollution accepted** — each run creates a few `ConformanceBot` records. Acceptable for the prototype; a future version should use a disposable workspace.
 - **Adding a test:** new ✅ capability → add a `T##` here and in `run.sh`, then set the registry's Proof column to `conformance T##`.
-- **State-guard caveat** — T12 approves a record that was Submitted. Once CAP-E06 (state-conditional events) lands, add tests asserting *rejection* of out-of-state transitions.
+- **State-guard caveat resolved (2026-07-11)** — CAP-E06 landed; T17/T18 assert rejection of out-of-state transitions, including the exact "Approved record still Rejectable" gap Study 1 found.
