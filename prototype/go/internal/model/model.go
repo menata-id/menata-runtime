@@ -21,6 +21,9 @@ type Application struct {
 }
 
 // Machine is the primary realization unit — it realizes one business capability.
+// Config holds machine-level settings (CAP-X03) — values that configure how
+// the Machine itself behaves, not a Field of its records. nil = no config,
+// the default. See migrations/004_machine_config.sql.
 type Machine struct {
 	ID            string
 	ApplicationID string
@@ -30,6 +33,7 @@ type Machine struct {
 	Constraints   []*Constraint
 	Permissions   []*Permission
 	Views         []*View
+	Config        map[string]string
 }
 
 // Field is a typed piece of business information on a Machine.
@@ -93,9 +97,11 @@ type EventAction struct {
 type ActionType string
 
 const (
-	ActionSetField    ActionType = "set_field"
-	ActionNotify      ActionType = "notify"
-	ActionCreateRecord ActionType = "create_record"
+	ActionSetField        ActionType = "set_field"
+	ActionNotify          ActionType = "notify"
+	ActionCreateRecord    ActionType = "create_record"
+	ActionActivateNext    ActionType = "activate_next"    // CAP-A07
+	ActionAggregateStatus ActionType = "aggregate_status" // CAP-A08
 )
 
 // Constraint is a business rule enforced before an event is accepted.

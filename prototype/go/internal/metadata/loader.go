@@ -123,7 +123,7 @@ func (l *Loader) loadApplications(ctx context.Context, workspaceID string) ([]*m
 
 func (l *Loader) loadMachines(ctx context.Context, applicationID string) ([]*model.Machine, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, application_id, name FROM machines WHERE application_id = $1 ORDER BY name`,
+		`SELECT id, application_id, name, config::text FROM machines WHERE application_id = $1 ORDER BY name`,
 		applicationID)
 	if err != nil {
 		return nil, err
@@ -133,8 +133,15 @@ func (l *Loader) loadMachines(ctx context.Context, applicationID string) ([]*mod
 	var machines []*model.Machine
 	for rows.Next() {
 		m := &model.Machine{}
-		if err := rows.Scan(&m.ID, &m.ApplicationID, &m.Name); err != nil {
+		var configJSON *string
+		if err := rows.Scan(&m.ID, &m.ApplicationID, &m.Name, &configJSON); err != nil {
 			return nil, err
+		}
+		if configJSON != nil {
+			m.Config = make(map[string]string)
+			if err := json.Unmarshal([]byte(*configJSON), &m.Config); err != nil {
+				return nil, fmt.Errorf("parse config for machine %s: %w", m.ID, err)
+			}
 		}
 		machines = append(machines, m)
 	}

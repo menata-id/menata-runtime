@@ -20,7 +20,7 @@ BASE_URL=https://aksi.menata.id ./conformance/run.sh
 
 Exit code 0 = all pass. Non-zero = at least one capability regressed.
 
-**Prerequisites:** server running, seeds `001`, `002`, `003` applied (Cases 1, 2, 18). For T19, also
+**Prerequisites:** server running, seeds `001`–`004` applied (Cases 1, 2, 18, 3). For T19, also
 export `DATABASE_URL` (same value as the server's `.env`) — it's skipped otherwise.
 
 ---
@@ -51,6 +51,11 @@ export `DATABASE_URL` (same value as the server's `.env`) — it's skipped other
 | T19 | CAP-C09 | a Constraint satisfied at Create is re-checked at event trigger, not skipped |
 | T20 | CAP-A02 | `set_field` dynamic values (`today`, `current_user`) resolve to real values, not literal tokens |
 | T21 | CAP-V06 | a record's detail page lists other records that reference it back (reverse lookup) |
+| T22 | CAP-A07 | Sequential mode hard-blocks an out-of-order Approve/Reject (WCP-1 Sequence) |
+| T23 | CAP-A07 | in-sequence Approve succeeds |
+| T24 | CAP-A08 | parent Document auto-transitions to Approved once every Step is Approved |
+| T25 | CAP-A07 | Parallel mode has no sequential gating (contrast with T22) |
+| T26 | CAP-A08 | any-rejected cascades the parent to Rejected immediately, not waiting for the rest |
 
 ---
 

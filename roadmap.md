@@ -353,8 +353,29 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > prototype has no per-user session); `internal/handler.childLists` generically lists,
 > on any record's detail page, every other record whose `reference` field points back
 > to it. Both proven on Leave Request's Approve stamping + Case 18's Employee↔Manager
-> self-reference (conformance T20–T21). Item 4 (CAP-A07/A08 workflow actions +
-> CAP-X03 machine config, closing Case 3) is next up.
+> self-reference (conformance T20–T21).
+>
+> **Status update (2026-07-11, same day):** Item 4, **CAP-A07 + CAP-A08 + CAP-X03, is
+> now ✅ Supported** — Case 3 (Document Approval), the case that originally motivated
+> most of this priority list, is field-for-field realized for the first time
+> (`seeds/004_approval.sql`). `machines.config` (CAP-X03, migrations/004) gives
+> Approval Document a place to name its mode field and steps relationship, exactly
+> the block `approval-document.yaml` had sketched and commented out since Case 3 was
+> first written. CAP-A07 is a genuine hard block, not just a notification — a
+> deliberate choice, since WCP-1 Sequence is *defined* by enforcement; a Sequential
+> and a Parallel document would otherwise behave identically. CAP-A08's any-rejected
+> rollup cascades immediately, doesn't wait for remaining siblings — proven with a
+> document where one step is already Approved when a sibling Reject fires and still
+> cascades the parent to Rejected. Both workflow actions run through the exact same
+> `triggerEvent` path an HTTP request uses, so a system-triggered rollup can never
+> skip a guard or constraint a user-triggered one would have to pass. Conformance
+> T22–T26. Also fixed along the way: `Create`'s "default to first value" rule was
+> hardcoded to fields literally named "Status" — generalized to any `value_list`
+> field the create form doesn't expose, which is what let Approval Step's `Decision`
+> field start at "Pending" the same way Status already did elsewhere. Case 3's P1–P4
+> are now Supported; P5 (CAP-P02, record-level ownership) and P6 (CAP-E05, internal
+> event triggering) remain, both Prio 6. Item 5 (CAP-R02 record editing + CAP-A03/A04
+> + CAP-A10 real notify) is next up.
 
 ---
 

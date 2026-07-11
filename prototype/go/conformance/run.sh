@@ -209,6 +209,57 @@ check T20 "CAP-A02" "Approve stamps real today's date and the acting role, not l
 body_contains "$MGR_URL" "ConformanceBot Report"
 check T21 "CAP-V06" "manager's detail page lists its direct report via reverse reference" $?
 
+# --- CAP-A07 (activate_next / sequential step guard), CAP-A08 (aggregate_status
+# rollup), CAP-X03 (machine config) — requires seeds/004_approval.sql ---
+
+# Sequential-mode document with two steps (Bob seq 1, Carol seq 2)
+AD_SEQ_DATA="fld_ad_title=T22+Policy&fld_ad_document_type=Policy&fld_ad_file=policy.pdf&fld_ad_submitted_by=Alice&fld_ad_approval_mode=Sequential"
+AD_SEQ_URL=$(post_redirect "$BASE_URL/mch_approval_document" "$AD_SEQ_DATA")
+AD_SEQ_ID="${AD_SEQ_URL##*/}"
+post_status "$BASE_URL/mch_approval_document/$AD_SEQ_ID/events/evt_ad_submit" "" "menata_role=Submitter" >/dev/null
+AS1_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_SEQ_ID&fld_as_approver=Bob&fld_as_sequence=1")
+AS1_ID="${AS1_URL##*/}"
+AS2_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_SEQ_ID&fld_as_approver=Carol&fld_as_sequence=2")
+AS2_ID="${AS2_URL##*/}"
+
+# T22 — CAP-A07 hard block: approving Step 2 before Step 1 is rejected
+CODE=$(post_status "$BASE_URL/mch_approval_step/$AS2_ID/events/evt_as_approve" "" "menata_role=Approver")
+[ "$CODE" = "400" ]
+check T22 "CAP-A07" "out-of-sequence Approve rejected in Sequential mode (got $CODE)" $?
+
+# T23 — CAP-A07 in-order approval succeeds
+CODE=$(post_status "$BASE_URL/mch_approval_step/$AS1_ID/events/evt_as_approve" "" "menata_role=Approver")
+[ "$CODE" = "303" ]
+check T23 "CAP-A07" "in-sequence Approve succeeds (got $CODE)" $?
+
+# T24 — CAP-A08 all-approved rollup: Document stays In Review until every
+# step is Approved, then transitions automatically (no direct Approve call
+# on the Document itself -- only System may trigger it).
+body_contains "$AD_SEQ_URL" "In Review" "menata_role=Submitter"
+post_status "$BASE_URL/mch_approval_step/$AS2_ID/events/evt_as_approve" "" "menata_role=Approver" >/dev/null
+body_contains "$AD_SEQ_URL" "Approved" "menata_role=Submitter"
+check T24 "CAP-A08" "Document auto-transitions to Approved once every Step is Approved" $?
+
+# T25 — Parallel-mode document: no sequential gating (approve Step 2 before
+# Step 1 succeeds, unlike T22's Sequential-mode document)
+AD_PAR_DATA="fld_ad_title=T25+Contract&fld_ad_document_type=Contract&fld_ad_file=contract.pdf&fld_ad_submitted_by=Alice&fld_ad_approval_mode=Parallel"
+AD_PAR_URL=$(post_redirect "$BASE_URL/mch_approval_document" "$AD_PAR_DATA")
+AD_PAR_ID="${AD_PAR_URL##*/}"
+post_status "$BASE_URL/mch_approval_document/$AD_PAR_ID/events/evt_ad_submit" "" "menata_role=Submitter" >/dev/null
+PS1_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_PAR_ID&fld_as_approver=Bob&fld_as_sequence=1&fld_as_notes=T26+rejection+note")
+PS1_ID="${PS1_URL##*/}"
+PS2_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_PAR_ID&fld_as_approver=Carol&fld_as_sequence=2")
+PS2_ID="${PS2_URL##*/}"
+CODE=$(post_status "$BASE_URL/mch_approval_step/$PS2_ID/events/evt_as_approve" "" "menata_role=Approver")
+[ "$CODE" = "303" ]
+check T25 "CAP-A07" "Parallel mode has no sequential gating -- Step 2 decided before Step 1 (got $CODE)" $?
+
+# T26 — CAP-A08 any-rejected cascade: fires immediately, doesn't wait for the
+# still-pending... (here, already-Approved) sibling.
+post_status "$BASE_URL/mch_approval_step/$PS1_ID/events/evt_as_reject" "" "menata_role=Approver" >/dev/null
+body_contains "$AD_PAR_URL" "Rejected" "menata_role=Submitter"
+check T26 "CAP-A08" "Document cascades to Rejected as soon as any Step rejects, not waiting for the rest" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
