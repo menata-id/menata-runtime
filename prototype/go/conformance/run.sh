@@ -197,6 +197,18 @@ else
     printf 'SKIP  T19  %-22s %s\n' "CAP-C09" "DATABASE_URL not set -- backdating fixture unavailable"
 fi
 
+# T20 — CAP-A02 dynamic values: "today"/"current_user" resolve to real values,
+# not stored as the literal token. Reuses $REC_ID/$DETAIL_URL from T08-T12,
+# which evt_lr_approve already stamped with Approved Date/Approved By.
+TODAY=$(date +%Y-%m-%d)
+body_contains "$DETAIL_URL" "$TODAY" "menata_role=Manager" && ! body_contains "$DETAIL_URL" "current_user" "menata_role=Manager"
+check T20 "CAP-A02" "Approve stamps real today's date and the acting role, not literal tokens" $?
+
+# T21 — CAP-V06 child records sub-list: reuses $MGR_URL/CB-EMP's Manager
+# relationship already established by T14/T15 (CAP-F13).
+body_contains "$MGR_URL" "ConformanceBot Report"
+check T21 "CAP-V06" "manager's detail page lists its direct report via reverse reference" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

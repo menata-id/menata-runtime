@@ -52,3 +52,20 @@ type DetailField struct {
 	Value string
 	Link  string
 }
+
+// ChildList is a sub-list on a parent's detail page (CAP-V06): every record
+// on another Machine whose `reference` field points back to this one. Title
+// names both the source Machine and which Field references it, since Menata
+// Language has no way (yet) for a business author to name this relationship
+// themselves (e.g. "Direct Reports") — a prototype-honest generic label, not
+// a final design.
+type ChildList struct {
+	Title string
+	Items []ChildListItem
+}
+
+// ChildListItem is one linked row in a ChildList.
+type ChildListItem struct {
+	Label string
+	Link  string
+}

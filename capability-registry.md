@@ -68,7 +68,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | ID | Capability | Status | Discovered by | Pattern ref | Prio | Proof |
 |----|-----------|--------|---------------|-------------|------|-------|
 | CAP-A01 | `set_field` with static value | ✅ | Case 1 | — | | conformance T10 |
-| CAP-A02 | `set_field` with dynamic value (`now`, `today`, `current_user`) | ❌ | Case 3 (P2) | WDP-7 Environment Data | 3 | Case 7 (Delegate) surfaces a narrower, related gap: reading a field's *own value immediately before this event's actions mutate it* (`previous(field)`) — not covered by `now`/`today`/`current_user`, which only read environment state, never the record's own pre-mutation value. Note here rather than a new CAP until a second case needs it |
+| CAP-A02 | `set_field` with dynamic value (`now`, `today`, `current_user`) | ✅ | Case 3 (P2) | WDP-7 Environment Data | | conformance T20. **Implemented 2026-07-11:** `internal/executor.resolveValue` resolves the three tokens at `Simulate` time; anything else passes through as a static literal, unchanged. `current_user` resolves to the acting role (the login cookie) — this prototype has no real per-user session, so it is honestly a role stand-in, not a person, same scope caveat as CAP-F05. Proven on Leave Request's Approve event: stamps `Approved Date` (`today`) and `Approved By` (`current_user`) — T20 asserts the real date renders and the literal string `current_user` never does. Case 7 (Delegate) surfaces a narrower, related gap: reading a field's *own value immediately before this event's actions mutate it* (`previous(field)`) — not covered by `now`/`today`/`current_user`, which only read environment state, never the record's own pre-mutation value. Note here rather than a new CAP until a second case needs it |
 | CAP-A03 | `notify` to role | ⚠️ | Case 1 | — | 5 | slog only — no real delivery channel |
 | CAP-A04 | `notify` to dynamic recipient (record's approver/submitter) | ❌ | Case 3 | WRP | 5 | — |
 | CAP-A06 | `create_record` in another machine | ❌ | schema doc | WCP-13/14 MI | 13 | — |
@@ -119,7 +119,7 @@ Seeded from: the 16-feature platform benchmark (`prototype/README.md`), Case 3 g
 | CAP-V03 | `detail` view (all fields) | ✅ | Case 1 | — | | conformance T09 |
 | CAP-V04 | `default_sort` honored in list | ⚠️ | Study 1 code check | — | 9 | loaded into model; store hardcodes `created_at DESC` |
 | CAP-V05 | Filtered list (my records / pending my approval) | ❌ | Case 3 | — | 8 | — |
-| CAP-V06 | Child records sub-list on parent detail | ❌ | Case 3 (P1) | — | 3 | depends on CAP-F13 |
+| CAP-V06 | Child records sub-list on parent detail | ✅ | Case 3 (P1) | — | | conformance T21. **Implemented 2026-07-11:** `internal/handler.childLists` scans every Machine's `reference` fields for ones targeting the current Machine, and lists matching records as a titled sub-list section — generic by construction (not hard-coded per relationship), so any future `reference` field gets a reverse-lookup sub-list automatically. Section titles are a prototype-honest generic label ("Employee (via Manager)"), since Menata Language has no way yet for a business author to name the relationship themselves (e.g. "Direct Reports"). Proven on Case 18's Employee↔Manager self-reference. Depended on CAP-F13, now done. |
 | CAP-V07 | `dashboard` / `calendar` / `timeline` views | ❌ | schema doc, first real case evidence from Case 20 (Doctor Calendar — "what does Dr. X's Tuesday look like" cannot be served by a flat filtered list) | — | 15 | — |
 | CAP-V08 | List search & filter | ❌ | Study 2 survey | universal (6/6 platforms) | 8 | — |
 | CAP-V09 | Declarative view-level filter (Due Today, Overdue Tasks) | ❌ | Case 4 [UNTARGETED FINDING] | — | 8 | view `filter` block in metadata |
@@ -191,8 +191,8 @@ All discovered by Case 10 `[COMPOSITION FINDING]` — capabilities that belong t
 |------|-------------|-------|
 | ~~1~~ | ~~CAP-F13~~ ✅ | ~~Reference fields — biggest unlock (6 patterns depend on it)~~ done 2026-07-11, conformance T13–T16 |
 | ~~2~~ | ~~CAP-E06, CAP-C09~~ ✅ | ~~Correctness: state guards + constraints on events~~ done 2026-07-11, conformance T17–T19 |
-| 3 | CAP-A02, CAP-V06 | Dynamic values + child sub-list (completes Case 3 basics) — **next up** |
-| 4 | CAP-A07, CAP-A08, CAP-X03 | Workflow actions + machine config (Case 3 complete) |
+| ~~3~~ | ~~CAP-A02, CAP-V06~~ ✅ | ~~Dynamic values + child sub-list (completes Case 3 basics)~~ done 2026-07-11, conformance T20–T21 |
+| 4 | CAP-A07, CAP-A08, CAP-X03 | Workflow actions + machine config (Case 3 complete) — **next up** |
 | 5 | CAP-R02, CAP-A03/A04, CAP-A10 | Record editing + real notify (with delivery channels) |
 | 6 | CAP-P02, CAP-P05, CAP-E05 | Record/CRUD-level permission + system events |
 | 7 | CAP-E02, CAP-A09, CAP-X05 | Time-driven events + conditional actions + metadata validation |

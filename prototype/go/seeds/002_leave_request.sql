@@ -14,13 +14,17 @@ INSERT INTO machines (id, application_id, name) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Fields
+-- fld_lr_approved_date / fld_lr_approved_by: stamped by evt_lr_approve's dynamic
+-- values (CAP-A02, "today" / "current_user") -- not set at Create, not in the form.
 INSERT INTO fields (id, machine_id, name, type, position, required, options) VALUES
-    ('fld_lr_employee',   'mch_leave_request', 'Employee',   'user',       0, true,  '{}'),
-    ('fld_lr_leave_type', 'mch_leave_request', 'Leave Type', 'value_list', 1, true,  '{"values":["Annual Leave","Sick Leave","Emergency Leave","Unpaid Leave"]}'),
-    ('fld_lr_start_date', 'mch_leave_request', 'Start Date', 'date',       2, true,  '{}'),
-    ('fld_lr_end_date',   'mch_leave_request', 'End Date',   'date',       3, true,  '{}'),
-    ('fld_lr_reason',     'mch_leave_request', 'Reason',     'rich_text',  4, true,  '{}'),
-    ('fld_lr_status',     'mch_leave_request', 'Status',     'value_list', 5, false, '{"values":["Draft","Submitted","Approved","Rejected","Cancelled"]}')
+    ('fld_lr_employee',      'mch_leave_request', 'Employee',      'user',       0, true,  '{}'),
+    ('fld_lr_leave_type',    'mch_leave_request', 'Leave Type',    'value_list', 1, true,  '{"values":["Annual Leave","Sick Leave","Emergency Leave","Unpaid Leave"]}'),
+    ('fld_lr_start_date',    'mch_leave_request', 'Start Date',    'date',       2, true,  '{}'),
+    ('fld_lr_end_date',      'mch_leave_request', 'End Date',      'date',       3, true,  '{}'),
+    ('fld_lr_reason',        'mch_leave_request', 'Reason',        'rich_text',  4, true,  '{}'),
+    ('fld_lr_status',        'mch_leave_request', 'Status',        'value_list', 5, false, '{"values":["Draft","Submitted","Approved","Rejected","Cancelled"]}'),
+    ('fld_lr_approved_date', 'mch_leave_request', 'Approved Date', 'date',       6, false, '{}'),
+    ('fld_lr_approved_by',   'mch_leave_request', 'Approved By',   'text',       7, false, '{}')
 ON CONFLICT (id) DO NOTHING;
 
 -- Events
@@ -35,10 +39,15 @@ INSERT INTO events (id, machine_id, name, position, condition) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Event Actions
+-- CAP-A02: evt_lr_approve stamps Approved Date ("today") and Approved By
+-- ("current_user" -- resolves to the acting role; this prototype has no
+-- per-user session, see internal/executor.Simulate's doc comment).
 INSERT INTO event_actions (event_id, type, position, params) VALUES
     ('evt_lr_submit',  'set_field', 0, '{"field":"fld_lr_status","value":"Submitted"}'),
     ('evt_lr_approve', 'set_field', 0, '{"field":"fld_lr_status","value":"Approved"}'),
-    ('evt_lr_approve', 'notify',    1, '{"role":"Employee"}'),
+    ('evt_lr_approve', 'set_field', 1, '{"field":"fld_lr_approved_date","value":"today"}'),
+    ('evt_lr_approve', 'set_field', 2, '{"field":"fld_lr_approved_by","value":"current_user"}'),
+    ('evt_lr_approve', 'notify',    3, '{"role":"Employee"}'),
     ('evt_lr_reject',  'set_field', 0, '{"field":"fld_lr_status","value":"Rejected"}'),
     ('evt_lr_reject',  'notify',    1, '{"role":"Employee"}'),
     ('evt_lr_cancel',  'set_field', 0, '{"field":"fld_lr_status","value":"Cancelled"}');

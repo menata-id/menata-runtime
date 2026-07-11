@@ -345,8 +345,16 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > `Executor.Simulate`/`Persist` split lets constraints be checked against an event's
 > result before committing it, not just at Create. Both proven on the existing Leave
 > Request seed (conformance T17–T19) — T18 reproduces and confirms the fix for Study
-> 1's exact headline finding ("an Approved record can still be Rejected"). Item 3
-> (CAP-A02 dynamic values + CAP-V06 child sub-list) is next up.
+> 1's exact headline finding ("an Approved record can still be Rejected").
+>
+> **Status update (2026-07-11, same day):** Item 3, **CAP-A02 + CAP-V06, is now ✅
+> Supported** — `Executor.resolveValue` resolves `today`/`now`/`current_user` at
+> `Simulate` time (`current_user` is honestly the acting role, not a real person; this
+> prototype has no per-user session); `internal/handler.childLists` generically lists,
+> on any record's detail page, every other record whose `reference` field points back
+> to it. Both proven on Leave Request's Approve stamping + Case 18's Employee↔Manager
+> self-reference (conformance T20–T21). Item 4 (CAP-A07/A08 workflow actions +
+> CAP-X03 machine config, closing Case 3) is next up.
 
 ---
 

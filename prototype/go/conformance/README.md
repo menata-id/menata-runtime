@@ -49,6 +49,8 @@ export `DATABASE_URL` (same value as the server's `.env`) — it's skipped other
 | T17 | CAP-E06 | Approve rejected while record is still Draft |
 | T18 | CAP-E06 | Reject rejected on an already-Approved record — the exact Study 1 gap |
 | T19 | CAP-C09 | a Constraint satisfied at Create is re-checked at event trigger, not skipped |
+| T20 | CAP-A02 | `set_field` dynamic values (`today`, `current_user`) resolve to real values, not literal tokens |
+| T21 | CAP-V06 | a record's detail page lists other records that reference it back (reverse lookup) |
 
 ---
 

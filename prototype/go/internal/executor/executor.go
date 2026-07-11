@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"menata.id/runtime/internal/model"
 	"menata.id/runtime/internal/store"
@@ -20,7 +21,13 @@ func New(records *store.RecordStore) *Executor {
 // without persisting anything. CAP-C09 validates constraints against this
 // result before Persist commits it — a record must satisfy every Constraint
 // after an event, not just at Create.
-func (e *Executor) Simulate(event *model.Event, record *store.Record) map[string]any {
+//
+// actorRole resolves CAP-A02's dynamic values: "today", "now", and
+// "current_user". This prototype has no real per-user session — role
+// selection (the login cookie) is the only identity concept that exists —
+// so current_user resolves to the acting role, not a person. Real identity
+// is CAP-O01/CAP-F05 territory, not part of this capability.
+func (e *Executor) Simulate(event *model.Event, record *store.Record, actorRole string) map[string]any {
 	newData := make(map[string]any, len(record.Data))
 	for k, v := range record.Data {
 		newData[k] = v
@@ -32,10 +39,25 @@ func (e *Executor) Simulate(event *model.Event, record *store.Record) map[string
 		field, _ := action.Params["field"].(string)
 		value, _ := action.Params["value"].(string)
 		if field != "" {
-			newData[field] = value
+			newData[field] = resolveValue(value, actorRole)
 		}
 	}
 	return newData
+}
+
+// resolveValue resolves CAP-A02 dynamic value tokens; any other string is a
+// static literal, returned unchanged.
+func resolveValue(value, actorRole string) string {
+	switch value {
+	case "today":
+		return time.Now().Format("2006-01-02")
+	case "now":
+		return time.Now().Format(time.RFC3339)
+	case "current_user":
+		return actorRole
+	default:
+		return value
+	}
 }
 
 // Persist saves newData (already validated by the caller — CAP-C09) as the

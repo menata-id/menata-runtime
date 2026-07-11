@@ -238,7 +238,8 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	role := h.role(r)
-	if err := ui.Detail(role, machine, rec, fields, h.interp.PermittedEvents(machineID, role)).Render(r.Context(), w); err != nil {
+	childLists := h.childLists(r.Context(), machine, recordID)
+	if err := ui.Detail(role, machine, rec, fields, h.interp.PermittedEvents(machineID, role), childLists).Render(r.Context(), w); err != nil {
 		slog.Error("render detail", "error", err)
 	}
 }
@@ -279,8 +280,9 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 
 	// CAP-C09 — constraints evaluated on event trigger, not just Create:
 	// simulate the event's effect first, validate the result, only persist
-	// if it still satisfies every declared Constraint.
-	newData := h.exec.Simulate(event, rec)
+	// if it still satisfies every declared Constraint. CAP-A02 — role resolves
+	// this event's "current_user" dynamic values, if any.
+	newData := h.exec.Simulate(event, rec, role)
 	if violations := h.engine.Violations(machine, newData); len(violations) > 0 {
 		http.Error(w, strings.Join(violations, " "), http.StatusBadRequest)
 		return
@@ -334,6 +336,43 @@ func (h *Handler) buildFormFields(ctx context.Context, machine *model.Machine, v
 }
 
 // referenceOptions lists a target Machine's records as picker choices.
+// childLists finds every Machine with a `reference` field pointing at
+// machine, and lists the records where that field equals recordID (CAP-V06).
+// Generic by construction — it doesn't special-case Employee/Manager, so any
+// future reference relationship gets a sub-list automatically.
+func (h *Handler) childLists(ctx context.Context, machine *model.Machine, recordID string) []ui.ChildList {
+	var out []ui.ChildList
+	for _, m := range h.interp.AllMachines() {
+		for _, f := range m.Fields {
+			if f.Type != model.FieldTypeReference || f.Options.TargetMachine != machine.ID {
+				continue
+			}
+			records, err := h.records.List(ctx, m.ID)
+			if err != nil {
+				slog.Error("list child records", "machine", m.ID, "error", err)
+				continue
+			}
+			var items []ui.ChildListItem
+			for _, rec := range records {
+				v, ok := rec.Data[f.ID]
+				if !ok {
+					continue
+				}
+				if refID, _ := v.(string); refID == recordID {
+					items = append(items, ui.ChildListItem{
+						Label: displayLabel(m, rec.Data),
+						Link:  "/" + m.ID + "/" + rec.ID,
+					})
+				}
+			}
+			if len(items) > 0 {
+				out = append(out, ui.ChildList{Title: fmt.Sprintf("%s (via %s)", m.Name, f.Name), Items: items})
+			}
+		}
+	}
+	return out
+}
+
 func (h *Handler) referenceOptions(ctx context.Context, targetMachineID string) []ui.ReferenceOption {
 	records, err := h.records.List(ctx, targetMachineID)
 	if err != nil {
