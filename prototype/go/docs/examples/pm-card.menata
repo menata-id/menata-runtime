@@ -2,7 +2,11 @@
 # Example Business Knowledge expressed in Menata Language
 # Domain: Project Management — a task card, freely reordered within and across Lists
 # Case 19 of the Case Portfolio (runtime/case-portfolio.md)
-# References: pm-list.menata
+# References: pm-list.menata, pm-checklist-item.menata
+#
+# The individual checklist entries belong to Checklist Item, a separate Object that
+# references back to this one (- Card : Card, see pm-checklist-item.menata) — no
+# "Checklist" field declared here.
 
 Card
 
@@ -14,7 +18,6 @@ Fields
 - Position : Number
 - Assignee : User
 - Due Date : Date
-- Checklist : Table of (Item Text, Done)
 
 Constraints
 

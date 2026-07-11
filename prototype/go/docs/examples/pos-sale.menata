@@ -8,13 +8,17 @@
 # confirmation, Case 15's line-item order shape. The one operationally distinct trait
 # is that Sale and Payment happen in the SAME moment (no separate webhook delay,
 # no cart lingering) — a timing detail, not a new capability.
+# References: pos-sale-line.menata
+#
+# The individual line items belong to Sale Line, a separate Object that references
+# back to this one (- Sale : Sale, see pos-sale-line.menata) — no "Lines" field
+# declared here, same pattern as ecommerce-order.menata / ecommerce-order-line.menata.
 
 Sale
 
 Fields
 
 - Cashier : User
-- Lines : Table of (Product, Quantity, Unit Price, Line Total)
 - Total Amount : Money
 - Amount Tendered : Money
 - Change Due : Money
@@ -32,7 +36,7 @@ When Complete
 Constraints
 
 - Cashier is required.
-- Lines is required.
+- At least one Sale Line is required.
 - Payment Method is required.
 
     Amount Tendered must be greater than or equal to Total Amount.

@@ -1,0 +1,39 @@
+# Hospital Prescription
+# Example Business Knowledge expressed in Menata Language
+# Domain: Hospital — one drug prescribed as part of a Medical Record
+# Case 20 of the Case Portfolio (runtime/case-portfolio.md)
+# References: hospital-medical-record.menata
+#
+# Split out from hospital-medical-record.menata (corrected 2026-07-11): originally an
+# inline `Table of (...)` field. Already fully expressible as an ordinary Object
+# References pattern (001-object.md §Relationships) — "a Medical Record has many
+# Prescriptions" is implied by "each Prescription references one Medical Record," no
+# separate grammar needed. Clinical decision support (drug interaction checks, dosage
+# limits) stays out of scope here, same boundary the parent file draws.
+
+Prescription
+
+Fields
+
+- Medical Record : Medical Record
+- Drug Name : Text
+- Dosage : Text
+- Frequency : Text
+- Duration : Duration
+
+Constraints
+
+- Drug Name is required.
+- Dosage is required.
+
+Permissions
+
+Clinician
+
+- Create
+- View
+
+Views
+
+- Prescription List : List
+- Prescription Detail : Detail

@@ -1,12 +1,17 @@
 # Hospital Medical Record — Runtime Metadata
 # Realization of hospital-medical-record.menata
 # STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
-# References: hospital-patient.yaml, hospital-appointment.yaml
+# References: hospital-patient.yaml, hospital-appointment.yaml, hospital-prescription.yaml
 #
 # THE FINDING: `Notes` needs field-level visibility restricted to the treating
 # Clinician (CAP-P06, previously spec-example only — "Salary visible only to HR" —
 # no case had exercised it). A HIPAA-equivalent access-restriction requirement,
 # same weight class as Case 9's SOX-driven CAP-P03/R04 findings.
+#
+# No `fld_mr_prescriptions` field: Prescription rows reference this Machine back
+# (fld_rx_medical_record, see hospital-prescription.yaml), the ordinary
+# `reference` pattern — corrected 2026-07-11, see roadmap.md's dated correction
+# note.
 
 version: "0.1"
 
@@ -43,11 +48,6 @@ machine:
       # can view the record, it sees every field. A HIPAA-equivalent restriction
       # (only the treating clinician sees full notes) needs field-level, not just
       # record-level, permission.
-    - id: fld_mr_prescriptions                # [NOT YET] — CAP-F16, same shape as
-      name: Prescriptions                       #   Case 9's Journal Entry Lines
-      type: child_table
-      target_machine: mch_medical_record_prescription
-      required: false
     - id: fld_mr_created_by                     # [PARTIAL] — CAP-F05; stamping is CAP-A02
       name: Created By
       type: user
@@ -72,7 +72,10 @@ machine:
     - id: vw_mr_form                                 # [SUPPORTED]
       name: Record Form
       type: form
-      fields: [ fld_mr_patient, fld_mr_visit_date, fld_mr_diagnosis, fld_mr_notes, fld_mr_prescriptions ]
+      fields: [ fld_mr_patient, fld_mr_visit_date, fld_mr_diagnosis, fld_mr_notes ]
+      # Prescription rows render as a related-record panel scoped to this record
+      # (fld_rx_medical_record) — a rendering concern, not a field on this
+      # Machine's own form.
     - id: vw_mr_patient_history                       # [NOT YET] — CAP-V05 filter Patient = this
       name: Patient History
       type: list

@@ -78,7 +78,7 @@ candidates are queued, not silently dropped.
 |--------|-----------|---------|
 | `Item` → `Stock Movement` / `Stock Ledger` links | CAP-F13 | `reference` field |
 | `Stock On Hand` = rollup of Stock Ledger entries | CAP-F14 | Computed / aggregate field |
-| `Unit Conversions` child table on Item (Tier 2: Cement — BOX/DOZEN/PCS) | CAP-F16 | Line items — proves Study 15's Quantity Tier 2 |
+| `Item Unit Conversion` — own Object, back-reference to Item (Tier 2: Cement — BOX/DOZEN/PCS) | CAP-F16 | Line items — proves Study 15's Quantity Tier 2 |
 | `Quantity` + `Unit` with a fixed conversion pair (Tier 1: Rice — KG/SAK) | **CAP-F19 (new)** | Tiered UoM conversion — proves Study 15's Quantity Tier 1 |
 | `Movement Date` stamped `Today` at Confirm | CAP-A02 | WDP-7 Environment Data |
 | Confirm → `create_record` into Stock Ledger | CAP-A06 | WCP-13/14 Multiple Instance |
@@ -92,8 +92,9 @@ write atomicity) have no registry entry before this case — both should be regi
 each already carrying dual evidence (benchmark + case) per `capability-lifecycle.md`'s admission test.
 
 Files: `prototype/go/docs/examples/inventory-item.{menata,yaml}`,
+`inventory-item-unit-conversion.{menata,yaml}`,
 `inventory-stock-movement.{menata,yaml}`, `inventory-stock-ledger.{menata,yaml}`
-(three Machines, one file pair each — same convention as Case 3's
+(four Machines, one file pair each — same convention as Case 3's
 `approval-document` / `approval-step`)
 
 ---
@@ -201,7 +202,7 @@ platforms happen to implement. The addendum caught a real gap in Study 6's own o
 |--------|-----------|---------|
 | `Journal Entry` → `Journal Entry Line` / `Chart of Account` / `Fiscal Period` links | CAP-F13 | `reference`, including self-reference for COA hierarchy |
 | `Normal Balance` derived from `Account Type` (Asset/Expense→Debit, Liability/Equity/Revenue→Credit) | CAP-F14 | Computed field — static categorical lookup (GAAP-standard, deterministic) |
-| `Lines` child table on Journal Entry (Account, Debit, Credit, Memo) | CAP-F16 | Line items — the actual line-level facts a Trial Balance reports over |
+| `Journal Entry Line` — own Object, back-reference to Journal Entry (Account, Debit, Credit, Memo) | CAP-F16 | Line items — the actual line-level facts a Trial Balance reports over |
 | `Entry Number` auto-numbered (`JE-2026-00001`) | CAP-F18 | Auto-numbering |
 | `Posting Date`, `Prepared By`, `Posted By` stamped at their respective events | CAP-A02 | WDP-7 Environment Data |
 | `sum(Lines.Debit) = sum(Lines.Credit)` before Post | CAP-C10 | Aggregate line constraint — the double-entry invariant |
@@ -333,7 +334,8 @@ Cart into a real Order. Payment reuses Case 8's Payment machine — not rebuilt.
 | Product ~ Item, Payment ~ Case 8's Payment | — | Deliberate composition, not re-derived |
 
 Files: `prototype/go/docs/examples/ecommerce-product.{menata,yaml}`,
-`ecommerce-cart.{menata,yaml}`, `ecommerce-order.{menata,yaml}` (three Machines)
+`ecommerce-cart.{menata,yaml}`, `ecommerce-cart-item.{menata,yaml}`,
+`ecommerce-order.{menata,yaml}`, `ecommerce-order-line.{menata,yaml}` (five Machines)
 
 ## Case 16 — Point of Sale (target declaration)
 
@@ -344,7 +346,7 @@ lingering, no webhook delay.
 into one event since there's no async webhook), Case 15 (line-item shape). No new capability
 expected or found — written to confirm the composition actually holds, not to discover anything.
 
-Files: `prototype/go/docs/examples/pos-sale.{menata,yaml}` (one Machine)
+Files: `prototype/go/docs/examples/pos-sale.{menata,yaml}`, `pos-sale-line.{menata,yaml}` (two Machines)
 
 ## Case 17 — Helpdesk (target declaration)
 
@@ -381,10 +383,10 @@ are freely reordered by drag-and-drop, and Cards move between Lists.
 | `List.Reorder`, `Card.Move` — user-set position, no formula | **CAP-V14 (new)** | Manual/free ordering — distinct from CAP-V04's declarative `default_sort` |
 | Renumbering every sibling on reorder | CAP-V14 | Batch update shaped like CAP-A15, rewriting existing records instead of creating new ones |
 | `Card.Move` changing List | CAP-F13 + CAP-A13 | Reused |
-| `Checklist` child table | CAP-F16 | Same shape as every prior case |
+| `Checklist Item` — own Object, back-reference to Card | CAP-F16 | Same shape as every prior case |
 
 Files: `prototype/go/docs/examples/pm-board.{menata,yaml}`, `pm-list.{menata,yaml}`,
-`pm-card.{menata,yaml}` (three Machines)
+`pm-card.{menata,yaml}`, `pm-checklist-item.{menata,yaml}` (four Machines)
 
 ## Case 20 — Hospital System (target declaration)
 
@@ -398,13 +400,14 @@ support (drug interactions, dosage limits) is deliberately out of scope.
 |--------|-----------|---------|
 | Doctor Calendar | **CAP-V07 (first real case evidence)** | A flat filtered list cannot serve "what does Dr. X's Tuesday look like" |
 | `Notes` visible only to the treating Clinician | **CAP-P06 (first real case evidence)** | HIPAA-equivalent weight, same class as Case 9's SOX findings |
-| `Prescriptions` child table | CAP-F16 | Same shape as Case 9's Journal Entry Lines |
+| `Prescription` — own Object, back-reference to Medical Record | CAP-F16 | Same shape as Case 9's Journal Entry Lines |
 
 **Deliberately out of scope:** clinical decision rules (drug interaction checks, dosage limits) —
 same domain-engine boundary Study 6 drew for posting derivation, Case 18 drew for payroll.
 
 Files: `prototype/go/docs/examples/hospital-patient.{menata,yaml}`,
-`hospital-appointment.{menata,yaml}`, `hospital-medical-record.{menata,yaml}` (three Machines)
+`hospital-appointment.{menata,yaml}`, `hospital-medical-record.{menata,yaml}`,
+`hospital-prescription.{menata,yaml}` (four Machines)
 
 ## Case 21 — E-learning (target declaration, closes the Extended Portfolio)
 
@@ -420,7 +423,8 @@ and receive a rendered Certificate once complete.
 | Sequential Lesson unlock | CAP-E06 | Reused, no new capability |
 
 Files: `prototype/go/docs/examples/elearning-course.{menata,yaml}`,
-`elearning-enrollment.{menata,yaml}`, `elearning-certificate.{menata,yaml}` (three Machines)
+`elearning-lesson.{menata,yaml}`,
+`elearning-enrollment.{menata,yaml}`, `elearning-certificate.{menata,yaml}` (four Machines)
 
 ---
 

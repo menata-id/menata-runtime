@@ -1,0 +1,65 @@
+# Point of Sale — Sale Line — Runtime Metadata
+# Realization of pos-sale-line.menata (Case 16)
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: pos-sale.yaml
+# Split out 2026-07-11 from pos-sale.yaml's provisional `child_table` field — see
+# roadmap.md's dated correction note. Same shape as ecommerce-order-line.yaml /
+# accounting-journal-entry-line.yaml.
+
+version: "0.1"
+
+machine:
+  id: mch_sale_line                     # [SUPPORTED] — as a plain Machine; whether it is later
+  name: Sale Line                       #   realized as a CAP-F16 scoped child table is a
+  application: app_pos                  #   storage-strategy detail, not a blocker here.
+
+  fields:
+    - id: fld_sl_sale                     # [NOT YET] — CAP-F13, the field this Machine's
+      name: Sale                          #   scoping to one Sale depends on
+      type: reference
+      target_machine: mch_sale
+      required: true
+    - id: fld_sl_product                   # [NOT YET] — CAP-F13
+      name: Product
+      type: reference
+      target_machine: mch_product
+      required: true
+    - id: fld_sl_quantity                  # [PARTIAL] — CAP-F07
+      name: Quantity
+      type: number
+      required: true
+    - id: fld_sl_unit_price                 # [NOT YET] — CAP-F17, reference sugar (Study 15)
+      name: Unit Price
+      type: money
+      required: true
+      options: { currency: "IDR" }
+    - id: fld_sl_line_total                  # [NOT YET] — CAP-F14, computed
+      name: Line Total
+      type: money
+      computed: true
+      formula: "quantity * unit_price"
+      options: { currency: "IDR" }
+
+  constraints:
+    - id: cst_sl_product_required            # [SUPPORTED]
+      rule: Product is required.
+      expression: { field: fld_sl_product, operator: required }
+    - id: cst_sl_quantity_positive            # [SUPPORTED]
+      rule: Quantity must be greater than zero.
+      expression: { field: fld_sl_quantity, operator: greater_than, value: 0 }
+    - id: cst_sl_line_total_formula           # [NOT YET] — CAP-F14
+      rule: Line Total must equal Quantity times Unit Price.
+      expression:
+        field: fld_sl_line_total
+        operator: equals
+        formula: "fld_sl_quantity * fld_sl_unit_price"
+
+  permissions:
+    - role: Cashier                           # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_sl_list                          # [SUPPORTED]
+      name: Sale Line List
+      type: list
+      columns: [ fld_sl_product, fld_sl_quantity, fld_sl_line_total ]

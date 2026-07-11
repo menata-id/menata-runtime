@@ -162,8 +162,13 @@ machine:
 records of a target Machine, scoped to one parent. See `capability-registry.md` (CAP-F16) for the
 reporting-independence distinction (some child Machines, e.g. Journal Entry Line, must stay
 independently queryable across parents for aggregate reports; others, e.g. Item Unit Conversion,
-never are) and `prototype/go/docs/examples/inventory-item.menata` for the current Language-layer
-notation (`Table of (...)`, itself provisional — no formal grammar exists for this yet).
+never are). The `.menata` source for a child Machine looks like any other Object — a Field
+referencing back to its parent (e.g. `- Journal Entry : Journal Entry`, see
+`prototype/go/docs/examples/accounting-journal-entry-line.menata`); no special Language notation is
+involved (corrected 2026-07-11 — an earlier revision believed `Table of (...)` was a provisional
+stand-in for missing Language grammar; it wasn't needed). `child_table` is the Runtime Metadata
+translator's choice of *storage strategy* for that already-expressible relationship, not a mirror of
+anything declared in `.menata` itself.
 
 ### `money`, `user`, `file` are "reference sugar"
 

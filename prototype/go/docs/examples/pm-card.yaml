@@ -1,9 +1,13 @@
 # Project Management Card — Runtime Metadata
 # Realization of pm-card.menata
 # STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
-# References: pm-list.yaml
+# References: pm-list.yaml, pm-checklist-item.yaml
 # Second instance of CAP-V14 (manual ordering) — Cards reorder both within a List
 # and across Lists (Move), the latter also writing a different List's reference.
+#
+# No `fld_crd_checklist` field: Checklist Item rows reference this Machine back
+# (fld_ck_card, see pm-checklist-item.yaml), the ordinary `reference` pattern —
+# corrected 2026-07-11, see roadmap.md's dated correction note.
 
 version: "0.1"
 
@@ -38,12 +42,6 @@ machine:
       name: Due Date
       type: date
       required: false
-    - id: fld_crd_checklist                    # [NOT YET] — CAP-F16, same Language-layer
-      name: Checklist                           #   gap as every prior child-table field
-      type: child_table
-      target_machine: mch_card_checklist_item
-      required: false
-
   events:
     - id: evt_crd_move                          # [NOT YET] — CAP-V14, second instance;
       name: Move                                  #   also changes List (a cross-record
@@ -67,7 +65,10 @@ machine:
     - id: vw_crd_form                               # [SUPPORTED]
       name: Card Form
       type: form
-      fields: [ fld_crd_title, fld_crd_description, fld_crd_assignee, fld_crd_due_date, fld_crd_checklist ]
+      fields: [ fld_crd_title, fld_crd_description, fld_crd_assignee, fld_crd_due_date ]
+      # Checklist Item rows render as a related-record panel scoped to this
+      # record (fld_ck_card) — a rendering concern, not a field on this Machine's
+      # own form.
     - id: vw_crd_list_cards                          # [NOT YET] — CAP-V05 filter List = this,
       name: List Cards                                #   sorted by Position
       type: list

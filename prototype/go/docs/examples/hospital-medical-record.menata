@@ -6,7 +6,11 @@
 # interaction checks, dosage limits) is explicitly out of scope — domain-engine
 # territory, same boundary Study 6 drew for posting derivation.
 # Case 20 of the Case Portfolio (runtime/case-portfolio.md)
-# References: hospital-patient.menata, hospital-appointment.menata
+# References: hospital-patient.menata, hospital-appointment.menata, hospital-prescription.menata
+#
+# The individual drugs prescribed belong to Prescription, a separate Object that
+# references back to this one (- Medical Record : Medical Record, see hospital-
+# prescription.menata) — no "Prescriptions" field declared here.
 
 Medical Record
 
@@ -17,7 +21,6 @@ Fields
 - Visit Date : Date
 - Diagnosis : Rich Text
 - Notes : Rich Text
-- Prescriptions : Table of (Drug Name, Dosage, Frequency, Duration)
 - Created By : User
 
 Constraints

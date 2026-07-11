@@ -9,6 +9,15 @@
 #
 # References: accounting-chart-of-account.yaml, accounting-journal-entry-line.yaml,
 # accounting-fiscal-period.yaml
+#
+# No `fld_je_lines` field: the Journal Entry Line rows reference this Machine back
+# (fld_jel_journal_entry, see accounting-journal-entry-line.yaml), the ordinary
+# `reference` pattern — same as .menata (corrected 2026-07-11, see roadmap.md's
+# dated correction note). Whether Machine Interpretation physically realizes that
+# relationship as a genuine scoped child table (CAP-F16, faster atomic-with-parent
+# writes + optional cross-parent query) or as an ordinary independent Machine is a
+# storage-strategy decision for whoever implements CAP-F16 — not yet reflected as a
+# schema property here because CAP-F16 itself is still ❌ not implemented.
 
 version: "0.1"
 
@@ -63,16 +72,6 @@ machine:
       type: date
       required: false
 
-    - id: fld_je_lines                            # [NOT YET] — child table (CAP-F16)
-      name: Lines
-      type: child_table
-      target_machine: mch_journal_entry_line
-      required: true
-      # [NOT YET] Same Language- and Runtime-layer gap as Case 5's Unit Conversions.
-      # Unlike Case 5's child table, these rows must be independently queryable
-      # across every Journal Entry for the Trial Balance report (CAP-V13) — see
-      # accounting-journal-entry-line.yaml and the CAP-F16 registry note.
-
   events:
     - id: evt_je_post                             # [NOT YET] — every check below composes
       name: Post                                  #   CAP-C10 + CAP-C11 + CAP-P03, all unimplemented
@@ -101,22 +100,30 @@ machine:
       rule: Fiscal Period is required.
       expression: { field: fld_je_fiscal_period, operator: required }
 
-    - id: cst_je_lines_required                    # [SUPPORTED]
-      rule: Lines is required.
-      expression: { field: fld_je_lines, operator: required }
+    - id: cst_je_lines_required                    # [NOT YET] — existence check over a related
+      rule: At least one Journal Entry Line is required.                     # Machine, not a field
+      expression:
+        exists: true
+        target_machine: mch_journal_entry_line
+        scoped_by: fld_jel_journal_entry
+      # [NOT YET] No "at least one related record exists" constraint mechanism
+      # exists yet — depends on CAP-F16 (or at minimum CAP-F13's reference)
+      # existing first.
 
     - id: cst_je_debit_equals_credit                # [NOT YET] — CAP-C10, aggregate over
-      rule: Sum of Lines Debit Amount must equal sum of Lines Credit Amount.  # child-table rows
+      rule: Sum of Lines Debit Amount must equal sum of Lines Credit Amount.  # related-Machine rows
       expression:
         aggregate: sum
         field: fld_jel_debit_amount
-        target: fld_je_lines
+        target_machine: mch_journal_entry_line
+        scoped_by: fld_jel_journal_entry
         operator: equals
         compare_aggregate:
           aggregate: sum
           field: fld_jel_credit_amount
-          target: fld_je_lines
-      # [NOT YET] The double-entry invariant. No aggregate-over-line-items
+          target_machine: mch_journal_entry_line
+          scoped_by: fld_jel_journal_entry
+      # [NOT YET] The double-entry invariant. No aggregate-over-related-records
       # constraint mechanism exists yet — depends on CAP-F16 existing first.
 
     - id: cst_je_period_not_closed                  # [NOT YET] — CAP-C11
@@ -152,7 +159,9 @@ machine:
         - fld_je_entry_date
         - fld_je_fiscal_period
         - fld_je_memo
-        - fld_je_lines
+      # Journal Entry Line rows render as a related-record panel scoped to this
+      # record (fld_jel_journal_entry) — a rendering concern, not a field on this
+      # Machine's own form.
 
     - id: vw_je_draft                               # [SUPPORTED] — as a plain list; filtering
       name: Draft Entries                           #   by Status = Draft needs CAP-V09

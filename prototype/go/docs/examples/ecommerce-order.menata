@@ -3,7 +3,12 @@
 # Domain: E-commerce — a real, constrained header-detail document, same shape as
 # Case 9's Journal Entry. Payment is Case 8's Payment machine, referenced, not rebuilt.
 # Case 15 of the Case Portfolio (runtime/case-portfolio.md)
-# References: ecommerce-cart.menata, ecommerce-product.menata
+# References: ecommerce-cart.menata, ecommerce-product.menata, ecommerce-order-line.menata
+#
+# The individual line items belong to Order Line, a separate Object that references
+# back to this one (- Order : Order, see ecommerce-order-line.menata) — no "Lines"
+# field is declared here, same pattern as accounting-journal-entry.menata /
+# accounting-journal-entry-line.menata.
 
 Order
 
@@ -11,7 +16,6 @@ Fields
 
 - Order Number : Text
 - Customer : User
-- Lines : Table of (Product, Quantity, Unit Price, Line Total)
 - Total Amount : Money
 - Status : Pending | Paid | Fulfilled
 - Placed At : Date
@@ -20,7 +24,7 @@ Constraints
 
 - Order Number is required.
 - Customer is required.
-- Lines is required.
+- At least one Order Line is required.
 
 Permissions
 

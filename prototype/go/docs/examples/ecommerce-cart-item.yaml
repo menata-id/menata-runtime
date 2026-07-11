@@ -1,0 +1,42 @@
+# E-commerce Cart Item — Runtime Metadata
+# Realization of ecommerce-cart-item.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: ecommerce-cart.yaml, ecommerce-product.yaml
+# Split out 2026-07-11 from ecommerce-cart.yaml's provisional `child_table` field —
+# see roadmap.md's dated correction note. Deliberately no constraints — a Cart is
+# scratch state by design (see ecommerce-cart.yaml), unlike Case 9's Journal Entry
+# Lines.
+
+version: "0.1"
+
+machine:
+  id: mch_cart_item                     # [SUPPORTED] — as a plain Machine; whether it is later
+  name: Cart Item                       #   realized as a CAP-F16 scoped child table is a
+  application: app_ecommerce            #   storage-strategy detail, not a blocker here.
+
+  fields:
+    - id: fld_ci_cart                     # [NOT YET] — CAP-F13, the field this Machine's
+      name: Cart                          #   scoping to one Cart depends on
+      type: reference
+      target_machine: mch_cart
+      required: true
+    - id: fld_ci_product                   # [NOT YET] — CAP-F13
+      name: Product
+      type: reference
+      target_machine: mch_product
+      required: false
+      # Deliberately not required — a Cart Item is scratch state by design.
+    - id: fld_ci_quantity                  # [PARTIAL] — CAP-F07
+      name: Quantity
+      type: number
+      required: false
+
+  permissions:
+    - role: Customer                        # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_ci_list                        # [SUPPORTED]
+      name: Cart Item List
+      type: list
+      columns: [ fld_ci_product, fld_ci_quantity ]

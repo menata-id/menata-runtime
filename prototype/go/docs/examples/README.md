@@ -214,18 +214,21 @@ Complete → stamp Last Completed = today → advance Next Due Date by Frequency
 **Status:** ⚠️ Documented boundary test — proves Study 15's Quantity tiering framework (`runtime/benchmarks/005-field-modeling-decision-framework.md`); external benchmark done first (`runtime/benchmarks/006-inventory-warehouse-benchmark.md`), see `runtime/case-portfolio.md`
 
 ```
-inventory-item.menata               Menata Language source — Item (master, UoM tiering)
-inventory-item.yaml                 Runtime Metadata + inline gap annotations
-inventory-stock-movement.menata     Menata Language source — Stock Movement (request)
-inventory-stock-movement.yaml       Runtime Metadata + inline gap annotations
-inventory-stock-ledger.menata       Menata Language source — Stock Ledger Entry (append-only)
-inventory-stock-ledger.yaml         Runtime Metadata + inline gap annotations
+inventory-item.menata                    Menata Language source — Item (master, UoM tiering)
+inventory-item.yaml                      Runtime Metadata + inline gap annotations
+inventory-item-unit-conversion.menata    Menata Language source — Item Unit Conversion (Tier 2 rows)
+inventory-item-unit-conversion.yaml      Runtime Metadata + inline gap annotations
+inventory-stock-movement.menata          Menata Language source — Stock Movement (request)
+inventory-stock-movement.yaml            Runtime Metadata + inline gap annotations
+inventory-stock-ledger.menata            Menata Language source — Stock Ledger Entry (append-only)
+inventory-stock-ledger.yaml              Runtime Metadata + inline gap annotations
 ```
 
 **Workflow:**
 ```
 Item carries Base Unit + (Tier 1: a fixed conversion pair, e.g. Rice KG<->SAK,
-                          Tier 2: a Unit Conversions child table, e.g. Cement BOX/DOZEN/PCS)
+                          Tier 2: Item Unit Conversion records, e.g. Cement BOX/DOZEN/PCS —
+                          own Object with a back-reference to Item, CAP-F16)
     ↓
 Stock Movement requested: Item, Movement Type (In/Out/Adjustment), Quantity, Unit
     ↓
@@ -243,7 +246,7 @@ Item.Stock On Hand recomputes as the rollup of its Stock Ledger Entries
 |--------|--------|
 | Reference fields (CAP-F13) | confirmed gap — Item↔Movement↔Ledger links |
 | Computed / aggregate field (CAP-F14) | confirmed gap — Normalized Quantity + Stock On Hand rollup |
-| Child table (CAP-F16) | confirmed gap — Unit Conversions (Tier 2 proof) |
+| Child table (CAP-F16) | confirmed gap — Item Unit Conversion (Tier 2 proof) |
 | Quantity/UoM tiered conversion | **[UNTARGETED FINDING, promoted]** → registered as CAP-F19 (Study 15 prediction, now case-evidenced) |
 | Environment data `today` (CAP-A02) | confirmed gap — same as Case 4 |
 | `create_record` (CAP-A06) | confirmed gap — Confirm → Stock Ledger Entry |
@@ -505,9 +508,11 @@ lending-repayment.menata / .yaml                Repayment
 **Status:** ⚠️ Documented boundary test — heavily composes Cases 5/8/9, see `runtime/case-portfolio.md`
 
 ```
-ecommerce-product.menata / .yaml    Product
-ecommerce-cart.menata / .yaml       Cart (mutable pre-commit document — new pattern)
-ecommerce-order.menata / .yaml      Order (Case 9's header+line shape, reused)
+ecommerce-product.menata / .yaml      Product
+ecommerce-cart.menata / .yaml         Cart (mutable pre-commit document — new pattern)
+ecommerce-cart-item.menata / .yaml    Cart Item (own Object, back-reference to Cart)
+ecommerce-order.menata / .yaml        Order (Case 9's header+line shape, reused)
+ecommerce-order-line.menata / .yaml   Order Line (own Object, back-reference to Order)
 ```
 
 **Declared targets vs findings:**
@@ -527,7 +532,8 @@ ecommerce-order.menata / .yaml      Order (Case 9's header+line shape, reused)
 **Status:** ⚠️ Documented — pure composition of Cases 5/8/15, no new capability, see `runtime/case-portfolio.md`
 
 ```
-pos-sale.menata / .yaml    Sale (one Machine, deliberately)
+pos-sale.menata / .yaml         Sale (header)
+pos-sale-line.menata / .yaml    Sale Line (own Object, back-reference to Sale)
 ```
 
 No new findings — written to confirm the composition holds, not to discover anything.
@@ -576,9 +582,10 @@ hr-employee.menata / .yaml    Employee (one Machine, deliberately)
 **Status:** ⚠️ Documented boundary test — first case needing user-editable manual ordering, see `runtime/case-portfolio.md`
 
 ```
-pm-board.menata / .yaml    Board
-pm-list.menata / .yaml     List (first CAP-V14 instance)
-pm-card.menata / .yaml     Card (second CAP-V14 instance, plus cross-List move)
+pm-board.menata / .yaml              Board
+pm-list.menata / .yaml               List (first CAP-V14 instance)
+pm-card.menata / .yaml               Card (second CAP-V14 instance, plus cross-List move)
+pm-checklist-item.menata / .yaml     Checklist Item (own Object, back-reference to Card)
 ```
 
 **Declared targets vs findings:**
@@ -587,7 +594,7 @@ pm-card.menata / .yaml     Card (second CAP-V14 instance, plus cross-List move)
 |--------|--------|
 | Manual/free ordering | **[UNTARGETED FINDING]** → registered as CAP-V14 — distinct from CAP-V04's declarative sort; the reorder action renumbers every sibling record |
 | Card moving between Lists | reuses CAP-F13 + CAP-A13 |
-| Checklist child table | reuses CAP-F16 |
+| Checklist Item — own Object, back-reference to Card | reuses CAP-F16 |
 
 ---
 
@@ -602,6 +609,7 @@ pm-card.menata / .yaml     Card (second CAP-V14 instance, plus cross-List move)
 hospital-patient.menata / .yaml          Patient
 hospital-appointment.menata / .yaml      Appointment (first CAP-V07 calendar evidence)
 hospital-medical-record.menata / .yaml   Medical Record (first CAP-P06 evidence)
+hospital-prescription.menata / .yaml     Prescription (own Object, back-reference to Medical Record)
 ```
 
 **Declared targets vs findings:**
@@ -610,7 +618,7 @@ hospital-medical-record.menata / .yaml   Medical Record (first CAP-P06 evidence)
 |--------|--------|
 | Calendar view (CAP-V07) | **first real case evidence** — previously schema-doc only, no case had exercised it |
 | Field-level visibility (CAP-P06) | **first real case evidence** — previously spec-example only |
-| Prescriptions child table | reuses CAP-F16 |
+| Prescription — own Object, back-reference to Medical Record | reuses CAP-F16 |
 | Clinical decision support | explicitly out of scope — domain-engine boundary |
 
 ---
@@ -624,6 +632,7 @@ hospital-medical-record.menata / .yaml   Medical Record (first CAP-P06 evidence)
 
 ```
 elearning-course.menata / .yaml        Course
+elearning-lesson.menata / .yaml        Lesson (own Object, back-reference to Course)
 elearning-enrollment.menata / .yaml    Enrollment (fourth CAP-F20 instance)
 elearning-certificate.menata / .yaml   Certificate (new: templated generation)
 ```

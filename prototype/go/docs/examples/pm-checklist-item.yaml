@@ -1,0 +1,57 @@
+# Project Management Checklist Item — Runtime Metadata
+# Realization of pm-checklist-item.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: pm-card.yaml
+# Split out 2026-07-11 from pm-card.yaml's provisional `child_table` field — see
+# roadmap.md's dated correction note.
+
+version: "0.1"
+
+machine:
+  id: mch_card_checklist_item            # [SUPPORTED] — as a plain Machine; whether it is later
+  name: Checklist Item                   #   realized as a CAP-F16 scoped child table is a
+  application: app_project_management    #   storage-strategy detail, not a blocker here.
+
+  fields:
+    - id: fld_ck_card                      # [NOT YET] — CAP-F13, the field this Machine's
+      name: Card                           #   scoping to one Card depends on
+      type: reference
+      target_machine: mch_card
+      required: true
+    - id: fld_ck_item_text                  # [SUPPORTED]
+      name: Item Text
+      type: text
+      required: true
+    - id: fld_ck_done                       # [SUPPORTED]
+      name: Done
+      type: boolean
+      required: false
+    - id: fld_ck_position                   # [PARTIAL] — CAP-F07; same manual-ordering
+      name: Position                        #   shape as CAP-V14 on Card/List
+      type: number
+      required: false
+
+  events:
+    - id: evt_ck_check                       # [SUPPORTED]
+      name: Check
+      actions:
+        - set_field: { field: fld_ck_done, value: true }
+    - id: evt_ck_uncheck                     # [SUPPORTED]
+      name: Uncheck
+      actions:
+        - set_field: { field: fld_ck_done, value: false }
+
+  constraints:
+    - id: cst_ck_item_text_required           # [SUPPORTED]
+      rule: Item Text is required.
+      expression: { field: fld_ck_item_text, operator: required }
+
+  permissions:
+    - role: Member                             # [SUPPORTED]
+      events: [ evt_ck_check, evt_ck_uncheck ]
+
+  views:
+    - id: vw_ck_list                           # [SUPPORTED]
+      name: Checklist Item List
+      type: list
+      columns: [ fld_ck_item_text, fld_ck_done ]

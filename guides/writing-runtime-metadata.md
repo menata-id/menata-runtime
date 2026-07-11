@@ -171,19 +171,28 @@ INSERT INTO fields (id, machine_id, name, type, position, required, options) VAL
 | `File` | `file` | `{}` |
 | `A \| B \| C` | `value_list` | `{"values":["A","B","C"]}` |
 | `Reference: X` | `reference` | `{"target_machine":"mch_x"}` |
-| `Table of (...)` | `child_table` | `{"target_machine":"mch_x"}` — target-nya machine anak (line items), lihat catatan di bawah |
 
 > ⚠️ **Key yang benar untuk `reference` adalah `target_machine`, bukan `machine`.** Konsisten dengan
 > contoh nyata di `prototype/go/docs/examples/approval-step.yaml` (`Document` field, `mch_approval_document`).
 
-#### `child_table` (CAP-F16, ❌ belum diimplementasikan)
+#### `child_table` (CAP-F16, ❌ belum diimplementasikan) — pilihan storage, bukan pemetaan tipe field
 
-Baris-baris `child_table` sebenarnya record biasa dari sebuah machine anak, di-scope ke satu induk —
-bukan tipe primitif baru. Contoh: `Journal Entry Line` (harus tetap bisa di-query lintas induk untuk
-laporan agregat — lihat catatan "reporting-independence" di `capability-registry.md` CAP-F16) vs.
-`Item Unit Conversion` (murni lookup per-induk, tidak pernah di-query lintas record). Notasi `Table
-of (...)` di `.menata` juga masih provisional — belum ada grammar formal untuk ini, lihat
-`prototype/go/docs/examples/inventory-item.menata`.
+Di `.menata`, "satu Journal Entry punya banyak Journal Entry Line" tidak pernah dituliskan sebagai
+Field khusus — itu Object biasa (`Journal Entry Line`) dengan satu Field yang merujuk balik ke
+induknya (`- Journal Entry : Journal Entry`), pola Object References standar
+(`specification/001-object.md` §Relationships di repo `menata`), lihat
+`prototype/go/docs/examples/accounting-journal-entry-line.menata`. (Koreksi 2026-07-11: revisi
+sebelumnya menulis ini sebagai notasi sementara `Table of (...)` di induknya, mengira belum ada
+grammar Language untuk pola ini — ternyata sudah ada, lihat `capability-registry.md` CAP-F16.)
+
+Yang jadi tugas developer saat menerjemahkan ke Runtime Metadata: Machine hasil terjemahan Object
+semacam ini **boleh** disimpan sebagai `child_table` (baris-baris record biasa dari machine anak,
+di-scope ke satu induk) alih-alih machine independen biasa — itu murni keputusan storage/query di
+level Machine Interpretation, tidak tercermin apa pun di `.menata`. Contoh: `Journal Entry Line`
+(harus tetap bisa di-query lintas induk untuk laporan agregat — lihat catatan
+"reporting-independence" di `capability-registry.md` CAP-F16) vs. `Item Unit Conversion` (murni
+lookup per-induk, tidak pernah di-query lintas record) — keduanya ditulis dengan pola `.menata` yang
+identik, tapi bisa berbeda strategi penyimpanan.
 
 #### Money, User, File — "reference sugar" (Study 15)
 

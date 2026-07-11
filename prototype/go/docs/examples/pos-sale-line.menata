@@ -1,0 +1,37 @@
+# Point of Sale — Sale Line
+# Example Business Knowledge expressed in Menata Language
+# Domain: Retail — one Product/Quantity fact inside a Sale
+# Case 16 of the Case Portfolio (runtime/case-portfolio.md)
+# References: pos-sale.menata
+#
+# Split out from pos-sale.menata (corrected 2026-07-11): originally an inline
+# `Table of (...)` field. Already fully expressible as an ordinary Object References
+# pattern (001-object.md §Relationships) — "a Sale has many Lines" is implied by
+# "each Line references one Sale," no separate grammar needed. Same shape as
+# ecommerce-order-line.menata / accounting-journal-entry-line.menata.
+
+Sale Line
+
+Fields
+
+- Sale : Sale
+- Product : Product
+- Quantity : Number
+- Unit Price : Money
+- Line Total : Money
+
+Constraints
+
+- Product is required.
+- Quantity must be greater than zero.
+- Line Total must equal Quantity times Unit Price.
+
+Permissions
+
+Cashier
+
+- View
+
+Views
+
+- Sale Line List : List

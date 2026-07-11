@@ -1,10 +1,14 @@
 # E-commerce Order — Runtime Metadata
 # Realization of ecommerce-order.menata
 # STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
-# References: ecommerce-cart.yaml, ecommerce-product.yaml
+# References: ecommerce-cart.yaml, ecommerce-product.yaml, ecommerce-order-line.yaml
 # Same header+line-item shape as Case 9's Journal Entry — not re-derived; see that
 # case's CAP-F16 reporting-independence note, which applies here too (Order Line
 # rows need to be queryable across orders for sales reporting).
+#
+# No `fld_ord_lines` field: Order Line rows reference this Machine back
+# (fld_ordl_order, see ecommerce-order-line.yaml), the ordinary `reference`
+# pattern — corrected 2026-07-11, see roadmap.md's dated correction note.
 
 version: "0.1"
 
@@ -23,11 +27,6 @@ machine:
     - id: fld_ord_customer                  # [PARTIAL] — CAP-F05
       name: Customer
       type: user
-      required: true
-    - id: fld_ord_lines                      # [NOT YET] — CAP-F16, same shape as Case 9's
-      name: Lines                             #   Journal Entry Lines
-      type: child_table
-      target_machine: mch_order_line
       required: true
     - id: fld_ord_total_amount                # [NOT YET] — CAP-F14, aggregate rollup
       name: Total Amount
@@ -52,9 +51,12 @@ machine:
     - id: cst_ord_customer_required             # [SUPPORTED]
       rule: Customer is required.
       expression: { field: fld_ord_customer, operator: required }
-    - id: cst_ord_lines_required                # [SUPPORTED]
-      rule: Lines is required.
-      expression: { field: fld_ord_lines, operator: required }
+    - id: cst_ord_lines_required                # [NOT YET] — existence check over a related
+      rule: At least one Order Line is required.  #   Machine, not a field
+      expression:
+        exists: true
+        target_machine: mch_order_line
+        scoped_by: fld_ordl_order
 
   permissions:
     - role: Customer                             # [SUPPORTED]

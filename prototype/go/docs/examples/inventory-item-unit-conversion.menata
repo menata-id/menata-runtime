@@ -1,0 +1,41 @@
+# Inventory Item Unit Conversion
+# Example Business Knowledge expressed in Menata Language
+# Domain: Warehouse — how many of an Item's Base Unit equal one alternate unit
+# Case 5 of the Case Portfolio (runtime/case-portfolio.md)
+# References: inventory-item.menata
+#
+# Split out from inventory-item.menata (Study 15 Tier 2, corrected 2026-07-11):
+# originally written inline on Item as a provisional `Table of (...)` field,
+# believing no Language grammar existed for "an Item has several of these." It
+# already did — this is the ordinary Object References pattern (001-object.md
+# §Relationships): "an Item has many Unit Conversions" is implied by "each Unit
+# Conversion references one Item," the same shape accounting-journal-entry-
+# line.menata already used correctly. Only Cement-shaped items (Tier 2, multiple
+# alternate units) need any rows here at all — Rice-shaped items (Tier 1, one fixed
+# pair) hold their conversion as two flat fields elsewhere and need none.
+
+Item Unit Conversion
+
+Fields
+
+- Item : Item
+- Unit : PCS | KG | BOX | SAK
+- Factor : Number
+
+Constraints
+
+- Unit is required.
+- Factor must be greater than zero.
+
+    A Unit may appear only once per Item.
+
+Permissions
+
+Warehouse Staff
+
+- View
+
+Views
+
+- Unit Conversion List : List
+- Unit Conversion Detail : Detail

@@ -4,9 +4,18 @@
 # Case 9 of the Case Portfolio (runtime/case-portfolio.md)
 # References: accounting-chart-of-account.menata, accounting-journal-entry-line.menata, accounting-fiscal-period.menata
 #
-# Note: "Lines" below is a table-of-rows field — same Language-layer gap as Case 5's
-# Unit Conversions (no child-table grammar exists yet). Written provisionally as one
-# Fields line, pending a formal grammar addition.
+# Note: the individual debit/credit facts belong to Journal Entry Line, a separate
+# Object that references back to this one (- Journal Entry : Journal Entry, see
+# accounting-journal-entry-line.menata) — no "Lines" field is declared here. This is
+# the ordinary Object References pattern (001-object.md §Relationships): "a Journal
+# Entry has many Lines" is already implied by "each Line references one Journal
+# Entry," with no separate grammar needed for the collection side. Events and
+# Constraints below still refer to "Lines" in plain business language (Journal Entry
+# Line records scoped to this Journal Entry), the same way accounting-fiscal-
+# period.menata refers to "Every Journal Entry in this Fiscal Period" without a
+# declared field. (An earlier revision of this file modeled Lines as a provisional
+# `Table of (...)` field, believing no Language grammar existed for this yet — see
+# roadmap.md's dated correction note for why that was a misdiagnosis.)
 
 Journal Entry
 
@@ -20,7 +29,6 @@ Fields
 - Prepared By : User
 - Posted By : User
 - Posting Date : Date
-- Lines : Table of (Account, Debit Amount, Credit Amount, Line Memo)
 
 Events
 
@@ -43,7 +51,7 @@ Constraints
 - Entry Number is required.
 - Entry Date is required.
 - Fiscal Period is required.
-- Lines is required.
+- At least one Journal Entry Line is required.
 
     Sum of Lines Debit Amount must equal sum of Lines Credit Amount.
 

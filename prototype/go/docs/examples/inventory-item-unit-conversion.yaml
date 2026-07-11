@@ -1,0 +1,73 @@
+# Inventory Item Unit Conversion — Runtime Metadata
+# Realization of inventory-item-unit-conversion.menata (Case 5)
+# Menata Runtime Prototype v0.1
+#
+# STATUS ANNOTATIONS:
+#   [SUPPORTED]     — works in current prototype
+#   [NOT YET]       — valid metadata, runtime extension required
+#   [PARTIAL]       — works but with limitations noted
+#
+# References: inventory-item.yaml
+# Split out 2026-07-11 from inventory-item.yaml's provisional `child_table` field —
+# see roadmap.md's dated correction note. Tier 2 of CAP-F19: only needed when an
+# Item converts to MORE THAN ONE alternate unit (Cement: BOX/DOZEN/PCS). Tier 1
+# (Rice: one fixed KG<->SAK pair) needs no rows here at all — see Stock Movement's
+# own Quantity/Unit fields, which cover Tier 1 inline.
+
+version: "0.1"
+
+machine:
+  id: mch_item_unit_conversion             # [SUPPORTED] — as a plain Machine; whether it is later
+  name: Item Unit Conversion               #   realized as a CAP-F16 scoped child table is a
+  application: app_warehouse               #   storage-strategy detail, not a blocker here.
+
+  fields:
+    - id: fld_iuc_item                     # [NOT YET] — CAP-F13, the field this Machine's scoping
+      name: Item                           #   to one Item depends on
+      type: reference
+      target_machine: mch_item
+      required: true
+
+    - id: fld_iuc_unit                      # [SUPPORTED]
+      name: Unit
+      type: value_list
+      required: true
+      values: [PCS, KG, BOX, SAK, DOZEN]
+
+    - id: fld_iuc_factor                    # [PARTIAL] — CAP-F07, falls back to text input,
+      name: Factor                          #   no numeric validation yet.
+      type: number
+      required: true
+
+  constraints:
+    - id: cst_iuc_unit_required              # [SUPPORTED]
+      rule: Unit is required.
+      expression: { field: fld_iuc_unit, operator: required }
+
+    - id: cst_iuc_factor_positive             # [SUPPORTED]
+      rule: Factor must be greater than zero.
+      expression: { field: fld_iuc_factor, operator: greater_than, value: 0 }
+
+    - id: cst_iuc_unit_unique_per_item        # [NOT YET] — CAP-C12, composite uniqueness
+      rule: A Unit may appear only once per Item.
+      expression:
+        unique_within:
+          scope: fld_iuc_item
+          field: fld_iuc_unit
+
+  permissions:
+    - role: Warehouse Staff                   # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_iuc_list                         # [SUPPORTED]
+      name: Unit Conversion List
+      type: list
+      columns:
+        - fld_iuc_item
+        - fld_iuc_unit
+        - fld_iuc_factor
+
+    - id: vw_iuc_detail                       # [SUPPORTED]
+      name: Unit Conversion Detail
+      type: detail

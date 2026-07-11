@@ -10,6 +10,13 @@
 # Case 5 declared targets: CAP-F13, CAP-F14, CAP-F16, CAP-F19 (new), CAP-A02, CAP-A06,
 # CAP-C05, CAP-C07, CAP-C08, CAP-X12 (new). See runtime/case-portfolio.md.
 # External benchmark: runtime/benchmarks/006-inventory-warehouse-benchmark.md
+#
+# No `fld_item_unit_conversions` field: Item Unit Conversion rows reference this
+# Machine back (fld_iuc_item, see inventory-item-unit-conversion.yaml), the ordinary
+# `reference` pattern (corrected 2026-07-11, see roadmap.md's dated correction
+# note — an earlier revision believed this needed a child_table field here, and
+# additionally believed Item Unit Conversion couldn't be its own named Business
+# Concept; both were wrong).
 
 version: "0.1"
 
@@ -54,16 +61,6 @@ machine:
       # [NOT YET] Cross-record aggregate rollup. No computed-field mechanism exists
       # today (CAP-F14) — this is the "balance" half of the case's dominant cluster.
 
-    - id: fld_item_unit_conversions          # [NOT YET] — child table (CAP-F16)
-      name: Unit Conversions
-      type: child_table
-      target_machine: mch_item_unit_conversion
-      required: false
-      # [NOT YET] Tier 2 of CAP-F19: only needed when an Item converts to MORE THAN
-      # ONE alternate unit (Cement: BOX/DOZEN/PCS). Tier 1 (Rice: one fixed KG<->SAK
-      # pair) does NOT need this child table at all — see Stock Movement's own
-      # Quantity/Unit fields, which cover Tier 1 inline without a child table.
-
   constraints:
     - id: cst_item_name_required             # [SUPPORTED]
       rule: Name is required.
@@ -85,7 +82,9 @@ machine:
         - fld_item_name
         - fld_item_base_unit
         - fld_item_min_stock
-        - fld_item_unit_conversions
+      # Item Unit Conversion rows (Tier 2 only) render as a related-record panel
+      # scoped to this record (fld_iuc_item) — a rendering concern, not a field on
+      # this Machine's own form.
 
     - id: vw_item_list                        # [SUPPORTED]
       name: Item List
@@ -111,22 +110,15 @@ machine:
       name: Item Detail
       type: detail
 
-# [NOT YET] fld_item_unit_conversions' target_machine (mch_item_unit_conversion) has
-# no file of its own — unlike Stock Movement / Stock Ledger Entry, it has no
-# independent Business Knowledge existence (no separate .menata makes sense for it;
-# it is a table nested inside Item, not a standalone concept a domain expert would
-# name on its own). Illustrative row shape only, not a formal Machine declaration:
+# Item Unit Conversion (Tier 2 only) is its own Machine, with its own file
+# (inventory-item-unit-conversion.menata / .yaml) — corrected 2026-07-11. An earlier
+# revision of this comment claimed it had "no independent Business Knowledge
+# existence" and couldn't be its own named Business Concept; re-examined, "for Item
+# X, 1 BOX = 12 PCS" is exactly as nameable a business fact as any other Object in
+# this corpus (e.g. Journal Entry Line's "for this Journal Entry, this Account was
+# debited this much") — see roadmap.md's dated correction note.
 #
-#   Item Unit Conversion (target of fld_item_unit_conversions, Tier 2 only)
-#     - Unit   : value_list [PCS, KG, BOX, SAK, DOZEN]
-#     - Factor : number       # how many Base Unit per this Unit
-#
-#   Example — Cement (Base Unit: PCS):
-#     BOX,   Factor 1
-#     DOZEN, Factor 12
-#     PCS,   Factor 1
-#
-#   Rice (Base Unit: KG, Tier 1) has NO rows here at all — its one fixed
+#   Rice (Base Unit: KG, Tier 1) has NO rows there at all — its one fixed
 # conversion pair (KG <-> SAK) is covered inline on Stock Movement's own
-# Quantity/Unit fields, per Study 15's tiering rule: escalate to a child table
-# only when an Item needs more than one alternate unit.
+# Quantity/Unit fields, per Study 15's tiering rule: escalate to Tier 2 only when
+# an Item needs more than one alternate unit.

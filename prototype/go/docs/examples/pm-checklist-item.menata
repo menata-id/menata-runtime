@@ -1,0 +1,45 @@
+# Project Management Checklist Item
+# Example Business Knowledge expressed in Menata Language
+# Domain: Project Management — one to-do line inside a Card's checklist
+# Case 19 of the Case Portfolio (runtime/case-portfolio.md)
+# References: pm-card.menata
+#
+# Split out from pm-card.menata (corrected 2026-07-11): originally an inline
+# `Table of (...)` field. Already fully expressible as an ordinary Object References
+# pattern (001-object.md §Relationships) — "a Card has many Checklist Items" is
+# implied by "each Checklist Item references one Card," no separate grammar needed.
+
+Checklist Item
+
+Fields
+
+- Card : Card
+- Item Text : Text
+- Done : Boolean
+- Position : Number
+
+Events
+
+When Check
+
+    Done True
+
+When Uncheck
+
+    Done False
+
+Constraints
+
+- Item Text is required.
+
+Permissions
+
+Member
+
+- Check
+- Uncheck
+- Edit
+
+Views
+
+- Checklist Item List : List

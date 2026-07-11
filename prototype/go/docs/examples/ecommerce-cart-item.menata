@@ -1,0 +1,29 @@
+# E-commerce Cart Item
+# Example Business Knowledge expressed in Menata Language
+# Domain: E-commerce — a single Product/Quantity fact inside a Cart
+# Case 15 of the Case Portfolio (runtime/case-portfolio.md)
+# References: ecommerce-cart.menata, ecommerce-product.menata
+#
+# Split out from ecommerce-cart.menata (corrected 2026-07-11): originally an inline
+# `Table of (...)` field. Deliberately carries no Constraints, matching Cart's own
+# "editable scratch state" framing (Add Item/Remove Item on Cart freely create and
+# delete these rows — no stock check, no minimum, until Checkout converts the Cart
+# into a real Order).
+
+Cart Item
+
+Fields
+
+- Cart : Cart
+- Product : Product
+- Quantity : Number
+
+Permissions
+
+Customer
+
+- View
+
+Views
+
+- Cart Item List : List

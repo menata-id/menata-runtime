@@ -1,0 +1,59 @@
+# Hospital Prescription — Runtime Metadata
+# Realization of hospital-prescription.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: hospital-medical-record.yaml
+# Split out 2026-07-11 from hospital-medical-record.yaml's provisional
+# `child_table` field — see roadmap.md's dated correction note. Clinical decision
+# support (drug interaction checks, dosage limits) stays out of scope here, same
+# boundary the parent file draws.
+
+version: "0.1"
+
+machine:
+  id: mch_medical_record_prescription    # [SUPPORTED] — as a plain Machine; whether it is later
+  name: Prescription                     #   realized as a CAP-F16 scoped child table is a
+  application: app_hospital              #   storage-strategy detail, not a blocker here.
+
+  fields:
+    - id: fld_rx_medical_record            # [NOT YET] — CAP-F13, the field this Machine's
+      name: Medical Record                 #   scoping to one Medical Record depends on
+      type: reference
+      target_machine: mch_medical_record
+      required: true
+    - id: fld_rx_drug_name                  # [SUPPORTED]
+      name: Drug Name
+      type: text
+      required: true
+    - id: fld_rx_dosage                     # [SUPPORTED]
+      name: Dosage
+      type: text
+      required: true
+    - id: fld_rx_frequency                  # [SUPPORTED]
+      name: Frequency
+      type: text
+      required: false
+    - id: fld_rx_duration                   # [SUPPORTED]
+      name: Duration
+      type: duration
+      required: false
+
+  constraints:
+    - id: cst_rx_drug_name_required          # [SUPPORTED]
+      rule: Drug Name is required.
+      expression: { field: fld_rx_drug_name, operator: required }
+    - id: cst_rx_dosage_required              # [SUPPORTED]
+      rule: Dosage is required.
+      expression: { field: fld_rx_dosage, operator: required }
+
+  permissions:
+    - role: Clinician                         # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_rx_list                          # [SUPPORTED]
+      name: Prescription List
+      type: list
+      columns: [ fld_rx_drug_name, fld_rx_dosage, fld_rx_frequency ]
+    - id: vw_rx_detail                        # [SUPPORTED]
+      name: Prescription Detail
+      type: detail

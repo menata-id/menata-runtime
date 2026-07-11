@@ -8,21 +8,25 @@
 #   [PARTIAL]       — works but with limitations noted
 #
 # References: accounting-chart-of-account.yaml, accounting-journal-entry.yaml
-# Target of fld_je_lines (accounting-journal-entry.yaml's child_table field) — but unlike
-# Case 5's Item Unit Conversion, this Machine has its own file: its rows must be
-# independently queryable across every Journal Entry for the Trial Balance below
-# (CAP-V13), not just readable as a nested table under one parent.
+# Scoped to one Journal Entry via fld_jel_journal_entry (an ordinary `reference`,
+# see accounting-journal-entry.yaml's note on why no child_table field exists on
+# the parent) — but unlike Case 5's Item Unit Conversion, this Machine has its own
+# file: its rows must be independently queryable across every Journal Entry for
+# the Trial Balance below (CAP-V13), not just readable as a nested table under one
+# parent. This independence is exactly why CAP-F16's eventual storage strategy for
+# this Machine may differ from a simpler case like Item Unit Conversion, even
+# though both are declared with the identical .menata pattern.
 
 version: "0.1"
 
 machine:
-  id: mch_journal_entry_line                    # [NOT YET] — exists only as a target of
-  name: Journal Entry Line                      #   CAP-F16; no child-table machine kind today.
-  application: app_accounting
+  id: mch_journal_entry_line                    # [SUPPORTED] — as a plain Machine; whether it is
+  name: Journal Entry Line                      #   later realized as a CAP-F16 scoped child table
+  application: app_accounting                   #   is a storage-strategy detail, not a blocker here.
 
   fields:
-    - id: fld_jel_journal_entry                  # [NOT YET] — CAP-F13
-      name: Journal Entry
+    - id: fld_jel_journal_entry                  # [NOT YET] — CAP-F13, the field this Machine's
+      name: Journal Entry                        #   scoping to one Journal Entry depends on
       type: reference
       target_machine: mch_journal_entry
       required: true

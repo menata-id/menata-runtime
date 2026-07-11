@@ -550,6 +550,49 @@ coverage) — several would only re-prove an existing case's capability cluster.
 
 ---
 
+# Correction (2026-07-11) — `Table of (...)` was never a Language-layer gap
+
+Since Study 6 (2026-07-04), CAP-F16's registry entry and several `.menata` example files
+(`accounting-journal-entry.menata`, `inventory-item.menata`) carried a claim that no Menata
+Language grammar existed for a child-table/line-item Field, and wrote one provisionally as
+`Table of (...)` pending "a formal grammar addition."
+
+A direct question from the maintainer, working from the `menata`-side Language spec rather than
+this repo's Runtime-side framing, caught that the claim was wrong: **`001-object.md` §Relationships
+already covers this.** "A Journal Entry has many Lines" is fully implied by "each Line references
+one Journal Entry" — no separate grammar for the collection side is needed, exactly the same
+Object References pattern used everywhere else in the language. The proof was sitting in the
+corpus's own contradiction: `accounting-journal-entry-line.menata` already modeled this correctly
+as a standalone Object with a back-reference, while `accounting-journal-entry.menata` — in the same
+case — duplicated the same information as a provisional inline field, believing no other way existed.
+
+**What this is not:** CAP-F16 itself is untouched. It remains a real ❌ Runtime capability — *how*
+Machine Interpretation chooses to physically store and query an already-expressible parent-owned
+relationship (a real scoped child table for fast atomic-with-parent writes, vs. an ordinary
+independent table) is exactly the kind of decision this capability tracks. Only the claim that the
+*Language* needed new grammar was wrong.
+
+**Fixed:**
+- All eight `Table of (...)` usages split into standalone Objects with a back-reference Field,
+  matching `accounting-journal-entry-line.menata`'s existing pattern: `inventory-item-unit-
+  conversion.menata`, `ecommerce-order-line.menata`, `ecommerce-cart-item.menata`, `elearning-
+  lesson.menata`, `hospital-prescription.menata`, `pos-sale-line.menata`, `pm-checklist-item.menata`
+  (new files), plus removing the redundant `Lines` field from `accounting-journal-entry.menata`.
+  Corresponding `.yaml` Runtime Metadata updated/created to match.
+- `capability-registry.md` CAP-F16 entry, `runtime-metadata-schema.md`, `guides/writing-runtime-
+  metadata.md`, `case-portfolio.md`, and `prototype/go/docs/examples/README.md` corrected to drop
+  the Language-layer-gap framing.
+- `menata` repo's own `specification/002-field.md` and `006-view.md` separately gained `Money` and
+  `Card` (already used as examples elsewhere in that spec but missing from their own type lists) —
+  an unrelated but adjacent fix made in the same session.
+
+**Why this belongs in the roadmap, not silently rewritten into history:** Studies 6, 15, and 16
+above are left as originally written — they reflect what was believed true when each was produced.
+This entry is the record of the correction, following the same discipline Study 15's own
+"adversarial pass" corrections used: append the correction, don't erase the trail that led to it.
+
+---
+
 # Principles
 
 - **The map before the territory** — benchmark catalogs predict gaps before cases find them.

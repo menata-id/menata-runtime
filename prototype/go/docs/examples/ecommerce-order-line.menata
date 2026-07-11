@@ -1,0 +1,42 @@
+# E-commerce Order Line
+# Example Business Knowledge expressed in Menata Language
+# Domain: E-commerce — the individual Product/Quantity facts that make up an Order,
+# same shape as accounting-journal-entry-line.menata
+# Case 15 of the Case Portfolio (runtime/case-portfolio.md)
+# References: ecommerce-order.menata, ecommerce-product.menata
+#
+# Split out from ecommerce-order.menata (corrected 2026-07-11): originally an inline
+# `Table of (...)` field on Order. Already fully expressible as an ordinary Object
+# References pattern (001-object.md §Relationships) — "an Order has many Lines" is
+# implied by "each Line references one Order," no separate grammar needed.
+
+Order Line
+
+Fields
+
+- Order : Order
+- Product : Product
+- Quantity : Number
+- Unit Price : Money
+- Line Total : Money
+
+Constraints
+
+- Product is required.
+- Quantity must be greater than zero.
+- Line Total must equal Quantity times Unit Price.
+
+Permissions
+
+Customer
+
+- View
+
+Fulfillment
+
+- View
+
+Views
+
+- Order Line List : List
+- Order Line Detail : Detail

@@ -1,13 +1,19 @@
 # E-commerce Cart — Runtime Metadata
 # Realization of ecommerce-cart.menata
 # STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
-# References: ecommerce-product.yaml, ecommerce-order.yaml
+# References: ecommerce-product.yaml, ecommerce-order.yaml, ecommerce-cart-item.yaml
 #
 # THE NEW FINDING: unlike every prior "document" (Case 9's Journal Entry, Case 14's
 # Loan Application), a Cart's Draft-equivalent state ("Open") has NO constraints at
 # all — no required fields, no stock check. Only Checkout (converting Cart into
 # Order) is a real commit point. No capability distinguishes editable scratch state
 # from a constrained Draft record.
+#
+# No `fld_cart_items` field: Cart Item rows reference this Machine back
+# (fld_ci_cart, see ecommerce-cart-item.yaml), the ordinary `reference` pattern —
+# corrected 2026-07-11, see roadmap.md's dated correction note. The scratch-state
+# finding above is unaffected — it was always about Cart's own (lack of)
+# constraints, not about how Items are modeled.
 
 version: "0.1"
 
@@ -21,13 +27,6 @@ machine:
       name: Customer
       type: user
       required: false
-    - id: fld_cart_items                  # [NOT YET] — CAP-F16, same Language-layer gap
-      name: Items                          #   as every prior child-table field
-      type: child_table
-      target_machine: mch_cart_item
-      required: false
-      # Deliberately no `required` fields inside the child rows — a Cart is
-      # scratch state by design, unlike Case 9's Journal Entry Lines.
     - id: fld_cart_status                  # [SUPPORTED]
       name: Status
       type: value_list

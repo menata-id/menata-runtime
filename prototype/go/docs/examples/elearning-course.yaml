@@ -2,6 +2,11 @@
 # Realization of elearning-course.menata (Case 21 — final case of this batch:
 # sequential unlock reuses CAP-E06, templated certificate generation is new)
 # STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: elearning-lesson.yaml
+#
+# No `fld_crs_lessons` field: Lesson rows reference this Machine back
+# (fld_lsn_course, see elearning-lesson.yaml), the ordinary `reference` pattern —
+# corrected 2026-07-11, see roadmap.md's dated correction note.
 
 version: "0.1"
 
@@ -28,11 +33,6 @@ machine:
       name: Description
       type: rich_text
       required: false
-    - id: fld_crs_lessons                 # [NOT YET] — CAP-F16, same Language-layer
-      name: Lessons                        #   gap as every prior child-table field.
-      type: child_table                    #   Sequential unlock (Lesson N gated on
-      target_machine: mch_course_lesson    #   Lesson N-1 completed) reuses CAP-E06's
-      required: false                      #   state-guard shape — no new capability.
 
   constraints:
     - id: cst_crs_title_required           # [SUPPORTED]
@@ -49,7 +49,10 @@ machine:
     - id: vw_crs_form                        # [SUPPORTED]
       name: Course Form
       type: form
-      fields: [ fld_crs_title, fld_crs_description, fld_crs_lessons ]
+      fields: [ fld_crs_title, fld_crs_description ]
+      # Lesson rows render as a related-record panel scoped to this record
+      # (fld_lsn_course) — a rendering concern, not a field on this Machine's own
+      # form.
     - id: vw_crs_catalog                      # [SUPPORTED]
       name: Course Catalog
       type: list

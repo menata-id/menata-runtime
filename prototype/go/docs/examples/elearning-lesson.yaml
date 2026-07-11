@@ -1,0 +1,57 @@
+# E-learning Lesson — Runtime Metadata
+# Realization of elearning-lesson.menata (Case 21)
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: elearning-course.yaml
+# Split out 2026-07-11 from elearning-course.yaml's provisional `child_table` field —
+# see roadmap.md's dated correction note. Sequential unlock (Lesson N gated on
+# Lesson N-1 completed, driven by fld_lsn_sequence) reuses CAP-E06's state-guard
+# shape — no new capability.
+
+version: "0.1"
+
+machine:
+  id: mch_course_lesson                 # [SUPPORTED] — as a plain Machine; whether it is later
+  name: Lesson                          #   realized as a CAP-F16 scoped child table is a
+  application: app_elearning            #   storage-strategy detail, not a blocker here.
+
+  fields:
+    - id: fld_lsn_course                  # [NOT YET] — CAP-F13, the field this Machine's
+      name: Course                        #   scoping to one Course depends on
+      type: reference
+      target_machine: mch_course
+      required: true
+    - id: fld_lsn_title                    # [SUPPORTED]
+      name: Lesson Title
+      type: text
+      required: true
+    - id: fld_lsn_content                  # [SUPPORTED]
+      name: Content
+      type: rich_text
+      required: false
+    - id: fld_lsn_sequence                 # [PARTIAL] — CAP-F07; drives sequential unlock,
+      name: Sequence                       #   see header note
+      type: number
+      required: true
+
+  constraints:
+    - id: cst_lsn_title_required            # [SUPPORTED]
+      rule: Lesson Title is required.
+      expression: { field: fld_lsn_title, operator: required }
+    - id: cst_lsn_sequence_required          # [SUPPORTED]
+      rule: Sequence is required.
+      expression: { field: fld_lsn_sequence, operator: required }
+
+  permissions:
+    - role: Instructor                       # [SUPPORTED]
+      events: []
+    - role: Student                          # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_lsn_list                        # [SUPPORTED]
+      name: Lesson List
+      type: list
+      columns: [ fld_lsn_course, fld_lsn_sequence, fld_lsn_title ]
+    - id: vw_lsn_detail                      # [SUPPORTED]
+      name: Lesson Detail
+      type: detail

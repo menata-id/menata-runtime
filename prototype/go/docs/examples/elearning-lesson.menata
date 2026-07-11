@@ -1,0 +1,41 @@
+# E-learning Lesson
+# Example Business Knowledge expressed in Menata Language
+# Domain: E-learning — one unit of a Course's curriculum, unlocked in sequence
+# Case 21 of the Case Portfolio (runtime/case-portfolio.md)
+# References: elearning-course.menata
+#
+# Split out from elearning-course.menata (corrected 2026-07-11): originally an inline
+# `Table of (...)` field. Already fully expressible as an ordinary Object References
+# pattern (001-object.md §Relationships) — "a Course has many Lessons" is implied by
+# "each Lesson references one Course," no separate grammar needed. Sequence still
+# drives the sequential-unlock guard described in elearning-course.menata's header
+# (reusing CAP-E06's state-guard shape).
+
+Lesson
+
+Fields
+
+- Course : Course
+- Lesson Title : Text
+- Content : Rich Text
+- Sequence : Number
+
+Constraints
+
+- Lesson Title is required.
+- Sequence is required.
+
+Permissions
+
+Instructor
+
+- Author
+
+Student
+
+- View
+
+Views
+
+- Lesson List : List
+- Lesson Detail : Detail

@@ -1,0 +1,70 @@
+# E-commerce Order Line — Runtime Metadata
+# Realization of ecommerce-order-line.menata
+# STATUS ANNOTATIONS: [SUPPORTED] works today · [NOT YET] needs a runtime extension · [PARTIAL] limited
+# References: ecommerce-order.yaml, ecommerce-product.yaml
+# Split out 2026-07-11 from ecommerce-order.yaml's provisional `child_table` field —
+# see roadmap.md's dated correction note. Same shape as accounting-journal-entry-
+# line.yaml.
+
+version: "0.1"
+
+machine:
+  id: mch_order_line                     # [SUPPORTED] — as a plain Machine; whether it is later
+  name: Order Line                       #   realized as a CAP-F16 scoped child table is a
+  application: app_ecommerce             #   storage-strategy detail, not a blocker here.
+
+  fields:
+    - id: fld_ordl_order                   # [NOT YET] — CAP-F13, the field this Machine's
+      name: Order                          #   scoping to one Order depends on
+      type: reference
+      target_machine: mch_order
+      required: true
+    - id: fld_ordl_product                  # [NOT YET] — CAP-F13
+      name: Product
+      type: reference
+      target_machine: mch_product
+      required: true
+    - id: fld_ordl_quantity                 # [PARTIAL] — CAP-F07
+      name: Quantity
+      type: number
+      required: true
+    - id: fld_ordl_unit_price                # [NOT YET] — CAP-F17, reference sugar (Study 15)
+      name: Unit Price
+      type: money
+      required: true
+      options: { currency: "IDR" }
+    - id: fld_ordl_line_total                 # [NOT YET] — CAP-F14, computed
+      name: Line Total
+      type: money
+      computed: true
+      formula: "quantity * unit_price"
+      options: { currency: "IDR" }
+
+  constraints:
+    - id: cst_ordl_product_required           # [SUPPORTED]
+      rule: Product is required.
+      expression: { field: fld_ordl_product, operator: required }
+    - id: cst_ordl_quantity_positive           # [SUPPORTED]
+      rule: Quantity must be greater than zero.
+      expression: { field: fld_ordl_quantity, operator: greater_than, value: 0 }
+    - id: cst_ordl_line_total_formula          # [NOT YET] — CAP-F14
+      rule: Line Total must equal Quantity times Unit Price.
+      expression:
+        field: fld_ordl_line_total
+        operator: equals
+        formula: "fld_ordl_quantity * fld_ordl_unit_price"
+
+  permissions:
+    - role: Customer                           # [SUPPORTED]
+      events: []
+    - role: Fulfillment                        # [SUPPORTED]
+      events: []
+
+  views:
+    - id: vw_ordl_list                         # [SUPPORTED]
+      name: Order Line List
+      type: list
+      columns: [ fld_ordl_order, fld_ordl_product, fld_ordl_quantity, fld_ordl_line_total ]
+    - id: vw_ordl_detail                       # [SUPPORTED]
+      name: Order Line Detail
+      type: detail
