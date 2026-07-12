@@ -30,7 +30,7 @@ export `DATABASE_URL` (same value as the server's `.env`) — it's skipped other
 | Test | Capabilities | Proves |
 |------|--------------|--------|
 | T00 | — | server reachable (gate) |
-| T01 | CAP-X01 | multi-application, multi-machine in one workspace |
+| T01 | CAP-X01 | multi-application, multi-machine in one workspace — observed via the CAP-O03 workspace home (role-scoped, not a flat machine list) |
 | T02 | CAP-V01 | form view: fields config drives inputs; status excluded |
 | T03 | CAP-V02 | list view: columns config drives table |
 | T04 | CAP-C01 | `required` constraint rejects empty submit |
@@ -75,6 +75,9 @@ export `DATABASE_URL` (same value as the server's `.env`) — it's skipped other
 | T43 | CAP-I04 | one request's correlation_id is shared across every `record_events` row it produces, even across a cross-record cascade (DB inspection) |
 | T44 | CAP-P05 | Approver can read Approval Document — needed for context on the Step they're deciding, surfaced by production log data |
 | T45 | CAP-P05 | Approver still denied Create on Approval Document — read-only, not full access (negative case) |
+| T46 | CAP-O03 | drilling into an Application (`GET /apps/{id}`) lists its own Machines |
+| T47 | CAP-O03 | role-aware: an Application with zero readable Machines never shows its card on the workspace home (negative case) |
+| T48 | CAP-O03 | within a visible Application, only individually-readable Machines are listed, not all of them |
 
 ---
 

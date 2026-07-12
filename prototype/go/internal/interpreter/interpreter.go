@@ -58,6 +58,40 @@ func (i *Interpreter) ScopeFor(machineID string) (workspaceID, applicationID str
 	return app.WorkspaceID, app.ID
 }
 
+// GetApplication looks up an Application by id.
+func (i *Interpreter) GetApplication(id string) (*model.Application, bool) {
+	app, ok := i.apps[id]
+	return app, ok
+}
+
+// AllApplications returns every Application across every Workspace, sorted
+// by name for a stable order (CAP-O03 — Application, not Machine, is this
+// prototype's actual top-level display unit; see the workspace home it
+// backs in handler.Apps).
+func (i *Interpreter) AllApplications() []*model.Application {
+	out := make([]*model.Application, 0, len(i.apps))
+	for _, app := range i.apps {
+		out = append(out, app)
+	}
+	sort.Slice(out, func(a, b int) bool { return out[a].Name < out[b].Name })
+	return out
+}
+
+// MachinesForApplication returns an Application's own Machines, sorted by
+// name — the per-application menu CAP-O03's Navigation concept names
+// (006-runtime-model.md: Navigation is an Application-level concern,
+// sibling to Machine, not a Machine-level one).
+func (i *Interpreter) MachinesForApplication(applicationID string) []*model.Machine {
+	app, ok := i.apps[applicationID]
+	if !ok {
+		return nil
+	}
+	out := make([]*model.Machine, len(app.Machines))
+	copy(out, app.Machines)
+	sort.Slice(out, func(a, b int) bool { return out[a].Name < out[b].Name })
+	return out
+}
+
 func (i *Interpreter) AllMachines() []*model.Machine {
 	out := make([]*model.Machine, 0, len(i.machines))
 	for _, m := range i.machines {

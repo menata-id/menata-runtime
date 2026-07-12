@@ -543,6 +543,35 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > this session's audit-logging work doing its actual job — not just passing its own
 > conformance tests, but surfacing a real, unrelated permission gap from production traffic
 > within the first few log lines that existed.
+>
+> **Status update (2026-07-12, same day) — CAP-O03, pulled forward from Prio 9:** a direct
+> question about the home page ("the workspace/application/machine hierarchy exists, why is
+> the home page a flat machine list?") named exactly the finding Case 10 already recorded —
+> *"the prototype home lists all machines flat... application grouping, role-aware menus"*
+> — never acted on. Closed now: `Interpreter.AllApplications`/`MachinesForApplication`
+> (`006-runtime-model.md`: Navigation is an Application-level concern, sibling to Machine);
+> the workspace home (`handler.Apps`) lists Applications, drilling into one
+> (`handler.AppMachines`, `GET /apps/{applicationID}`) lists its own Machines. Role-visibility
+> reuses `Guard.CanRead` (CAP-P05, no new metadata needed) — an Application's card only
+> appears if the role can read at least one of its Machines, and within it only individually
+> readable Machines are listed; matches the app-launcher/module-grid pattern every real
+> workspace platform this project has surveyed uses (Salesforce App Launcher, Frappe Desk).
+> T01 (multi-application, multi-machine) had to be rewritten to observe the same fact through
+> the new role-scoped home instead of a single no-cookie flat list. Conformance T46–T48, full
+> suite 49/49. Deployed and verified live at `aksi.menata.id`.
+>
+> Asked in the same conversation to also resolve the two other "not yet studied" concepts
+> from `006-runtime-model.md`'s hierarchy that came up alongside Navigation — **Page and
+> Theme, checked and both still correctly unregistered**: every one of the 21 portfolio
+> cases was checked for evidence. Page fully collapses into the already-registered CAP-V10
+> (composed dashboard/landing view) — `case-portfolio.md` had already recorded this for
+> Case 13's one-page Blog landing, no case shows a need CAP-V10 doesn't already name. Theme
+> has *zero* evidence anywhere in the portfolio — not even one case asking for per-workspace
+> branding, a color palette, or dark mode, let alone the dual-evidence bar every registered
+> capability had to clear. Both conclusions are recorded, dated, in
+> `capability-registry.md`'s "Tracked but Not Yet Studied" section — a real "we looked, no
+> case supports this yet" is a documented decision, not silence, and not the same as never
+> having checked.
 
 ---
 

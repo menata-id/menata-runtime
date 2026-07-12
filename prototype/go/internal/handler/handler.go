@@ -61,19 +61,70 @@ func (h *Handler) identity(r *http.Request) string {
 	return c.Value
 }
 
-// Home — list of all machines.
-func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
-	machines := h.interp.AllMachines()
-	cards := make([]ui.MachineCard, len(machines))
-	for i, m := range machines {
-		cards[i] = ui.MachineCard{
+// Apps — workspace home (CAP-O03): Applications, not Machines, are this
+// runtime's actual top-level display unit (006-runtime-model.md's
+// Workspace > Application > Machine hierarchy) — matches every real
+// workspace platform's own app-launcher/module-grid pattern (Salesforce App
+// Launcher, Frappe Desk), and is what Case 10 named this gap against
+// ("the prototype home lists all machines flat"). Role-aware: an
+// Application only appears if the current role can read at least one of its
+// Machines (Guard.CanRead, CAP-P05) — derived from existing per-machine
+// grants, no new metadata concept needed for this first cut. A locked-out
+// role sees an empty grid, not an error.
+func (h *Handler) Apps(w http.ResponseWriter, r *http.Request) {
+	role := h.role(r)
+	apps := h.interp.AllApplications()
+	cards := make([]ui.Card, 0, len(apps))
+	for _, app := range apps {
+		machines := h.interp.MachinesForApplication(app.ID)
+		readable := 0
+		for _, m := range machines {
+			if h.guard.CanRead(m, role) {
+				readable++
+			}
+		}
+		if readable == 0 {
+			continue
+		}
+		cards = append(cards, ui.Card{
+			ID:          app.ID,
+			Name:        app.Name,
+			Description: fmt.Sprintf("%d machine(s)", readable),
+		})
+	}
+	page := ui.CardGrid("Home", role, "Applications", "Select an application to view its machines.", "/apps/", "", cards, h.unreadCount(r.Context(), role))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render apps", "error", err)
+	}
+}
+
+// AppMachines — one Application's own Machines (CAP-O03's per-application
+// Navigation, 006-runtime-model.md: Navigation is an Application-level
+// concern, sibling to Machine). Same role-aware filtering as Apps, just one
+// level down: a Machine only appears if the role can read it.
+func (h *Handler) AppMachines(w http.ResponseWriter, r *http.Request) {
+	appID := chi.URLParam(r, "applicationID")
+	app, ok := h.interp.GetApplication(appID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.role(r)
+	machines := h.interp.MachinesForApplication(appID)
+	cards := make([]ui.Card, 0, len(machines))
+	for _, m := range machines {
+		if !h.guard.CanRead(m, role) {
+			continue
+		}
+		cards = append(cards, ui.Card{
 			ID:          m.ID,
 			Name:        m.Name,
 			Description: fmt.Sprintf("%d fields · %d events", len(m.Fields), len(m.Events)),
-		}
+		})
 	}
-	if err := ui.Home(h.role(r), cards, h.unreadCount(r.Context(), h.role(r))).Render(r.Context(), w); err != nil {
-		slog.Error("render home", "error", err)
+	page := ui.CardGrid(app.Name, role, app.Name, "Select a machine to view its records.", "/", "/", cards, h.unreadCount(r.Context(), role))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render app machines", "error", err)
 	}
 }
 

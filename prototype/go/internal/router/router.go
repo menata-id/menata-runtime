@@ -12,7 +12,8 @@ import (
 // (loaded from Runtime Metadata), not hardcoded.
 //
 // URL scheme:
-//   /                                        home — list of machines
+//   /                                        workspace home — list of applications (CAP-O03)
+//   /apps/{applicationID}                    one application's own machines
 //   /login                                   role selection (prototype auth)
 //   /notifications                           in-app notification inbox (CAP-A10)
 //   /{machineID}                             default list view
@@ -27,7 +28,8 @@ func Mount(r chi.Router, h *handler.Handler) {
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("ok"))
 	})
-	r.Get("/", h.Home)
+	r.Get("/", h.Apps)
+	r.Get("/apps/{applicationID}", h.AppMachines)
 
 	r.Get("/login", h.LoginForm)
 	r.Post("/login", h.Login)

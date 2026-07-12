@@ -2,11 +2,14 @@ package ui
 
 import "menata.id/runtime/internal/model"
 
-// MachineCard is the home page summary of one Machine.
-type MachineCard struct {
+// Card is a clickable summary tile — an Application on the workspace home
+// (CAP-O03), or a Machine on an Application's own page (drilled into from
+// there). Same shape either way: ID becomes the link target, Description is
+// a short stat line ("3 machines" / "7 fields · 5 events").
+type Card struct {
 	ID          string
 	Name        string
-	Description string // e.g. "7 fields · 5 events"
+	Description string
 }
 
 // ColumnDef is a resolved column header for the list view.

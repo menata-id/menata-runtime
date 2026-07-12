@@ -87,9 +87,12 @@ curl -s -o /dev/null --max-time 5 "$BASE_URL/health"
 check T00 "—" "server /health reachable" $?
 [ "$FAIL" -gt 0 ] && { echo "Server unreachable — aborting."; exit 1; }
 
-# T01 — CAP-X01 multi-application, multi-machine
-body_contains "$BASE_URL/" "Design Request" && body_contains "$BASE_URL/" "Leave Request"
-check T01 "CAP-X01" "home lists machines from both applications" $?
+# T01 — CAP-X01 multi-application, multi-machine, now observed through
+# CAP-O03: the workspace home lists Applications (role-aware), not a flat
+# machine list -- Requester sees Design, HR sees HR, both exist in one
+# workspace and are independently reachable.
+body_contains "$BASE_URL/" "Design" "menata_role=Requester" && body_contains "$BASE_URL/" "HR" "menata_role=HR"
+check T01 "CAP-X01" "workspace home lists applications, role-scoped, from both applications" $?
 
 # T02 — CAP-V01 form view: fields config drives inputs; status excluded.
 # Employee is Leave Request's real submitting role (CAP-P05: NewForm needs
@@ -430,6 +433,27 @@ check T44 "CAP-P05" "Approver can read Approval Document, needed for context on 
 CODE=$(post_status "$BASE_URL/mch_approval_document" "fld_ad_title=T45" "menata_role=Approver; menata_identity=Bob")
 [ "$CODE" = "403" ]
 check T45 "CAP-P05" "Approver still denied Create on Approval Document -- read-only, not full access (got $CODE)" $?
+
+# --- CAP-O03 (Navigation metadata: app grouping, role-aware menus, workspace
+# home) -- Workspace > Application > Machine, 006-runtime-model.md ---
+
+# T46 -- drilling into an Application lists its own Machines
+body_contains "$BASE_URL/apps/app_design" "Design Request" "menata_role=Requester"
+check T46 "CAP-O03" "drilling into an Application lists its own Machines" $?
+
+# T47 -- role-aware: a role with zero readable machines in an Application
+# never sees that Application's card on the workspace home at all
+! body_contains "$BASE_URL/" 'href="/apps/app_hr"' "menata_role=Requester"
+check T47 "CAP-O03" "Requester (no access anywhere in HR) never sees the HR application card" $?
+
+# T48 -- negative: drilling into an Application whose Machines the role
+# can't read still 404s the Application route itself correctly, and shows
+# no Machine cards for one it partially can't -- Manager can read
+# mch_leave_request (HR) but not mch_employee (also HR); the HR app page
+# must show Leave Request without Employee.
+body_contains "$BASE_URL/apps/app_hr" "Leave Request" "menata_role=Manager" \
+  && ! body_contains "$BASE_URL/apps/app_hr" 'href="/mch_employee"' "menata_role=Manager"
+check T48 "CAP-O03" "within an Application, only individually-readable Machines are listed" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

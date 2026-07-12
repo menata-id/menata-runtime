@@ -1,15 +1,28 @@
 package ui
 
-templ Home(role string, cards []MachineCard, unreadCount int) {
-	@Page("Home", role, unreadCount) {
+// CardGrid renders the workspace home (CAP-O03) — one level of
+// 006-runtime-model.md's Workspace > Application > Machine hierarchy at a
+// time. pageTitle is the browser tab title; heading/subtitle sit above the
+// grid; hrefPrefix is prepended to each card's ID to build its link
+// ("/apps/" for Applications, "/" for a Machine within one). backLink is
+// shown above the heading when set (empty at the workspace home itself,
+// "/" when drilled into one Application).
+templ CardGrid(pageTitle, role, heading, subtitle, hrefPrefix, backLink string, cards []Card, unreadCount int) {
+	@Page(pageTitle, role, unreadCount) {
 		<div class="mb-6">
-			<h1 class="text-xl font-semibold text-slate-900">Machines</h1>
-			<p class="mt-1 text-sm text-slate-500">Select a machine to view its records.</p>
+			if backLink != "" {
+				<a href={ templ.SafeURL(backLink) } class="text-sm text-slate-400 hover:text-slate-600 transition-colors">← Back</a>
+			}
+			<h1 class="text-xl font-semibold text-slate-900">{ heading }</h1>
+			<p class="mt-1 text-sm text-slate-500">{ subtitle }</p>
 		</div>
+		if len(cards) == 0 {
+			<p class="text-sm text-slate-400">Nothing here yet for your role.</p>
+		}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			for _, card := range cards {
 				<a
-					href={ templ.SafeURL("/" + card.ID) }
+					href={ templ.SafeURL(hrefPrefix + card.ID) }
 					class="group block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-blue-400 hover:shadow-md"
 				>
 					<div class="font-semibold text-slate-900 transition-colors group-hover:text-blue-600">
