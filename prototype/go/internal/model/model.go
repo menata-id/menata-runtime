@@ -92,6 +92,7 @@ type Event struct {
 	Actions            []*EventAction
 	Condition          *ConstraintExpression
 	AggregateCondition *AggregateCondition
+	InputFields        []string // CAP-P04: field ids collected fresh at trigger time (a delegation target picker), not read from the record's own data
 }
 
 // EventAction is a single step executed when an Event fires.
@@ -197,6 +198,7 @@ type Permission struct {
 	CanCreate  bool
 	CanEdit    bool
 	CanDelete  bool // CAP-R03 -- defaults false at the DB level, unlike the other three
+	HiddenFields []string // CAP-P06 -- field ids this role's Permission excludes from List/Detail/Form rendering
 }
 
 // View describes how a Machine's data is presented.

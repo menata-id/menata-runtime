@@ -38,7 +38,15 @@ func New(records *store.RecordStore, notifications *store.NotificationStore) *Ex
 // cookie); "current_user" now resolves to that identity, falling back to
 // actorRole when identity is empty (internal "System"-triggered events pass
 // both as "System"). "today"/"now" are unaffected by either.
-func (e *Executor) Simulate(machine *model.Machine, event *model.Event, record *store.Record, actorRole, actorIdentity string) map[string]any {
+//
+// eventInput (CAP-P04) carries fresh values submitted alongside THIS
+// trigger request, for a Field the Event declares in its own InputFields —
+// "who to delegate to" can only be known at the moment of delegating, not
+// baked into the record beforehand. A `set_field.value` of "input:<field>"
+// reads from here, distinct from "field:<id>" (reads the record's own
+// EXISTING data, used by create_record/batch_generate's field-copying).
+// nil/empty for every trigger that isn't CAP-P04-shaped.
+func (e *Executor) Simulate(machine *model.Machine, event *model.Event, record *store.Record, actorRole, actorIdentity string, eventInput map[string]string) map[string]any {
 	newData := make(map[string]any, len(record.Data))
 	for k, v := range record.Data {
 		newData[k] = v
@@ -57,7 +65,7 @@ func (e *Executor) Simulate(machine *model.Machine, event *model.Event, record *
 		field, _ := action.Params["field"].(string)
 		value, _ := action.Params["value"].(string)
 		if field != "" {
-			newData[field] = resolveValue(value, newData, fieldByID[field], actorRole, actorIdentity)
+			newData[field] = resolveValue(value, newData, fieldByID[field], actorRole, actorIdentity, eventInput)
 		}
 	}
 	return newData
@@ -163,11 +171,12 @@ func resolveNextValue(field *model.Field, data map[string]any) (string, bool) {
 }
 
 // resolveValue resolves CAP-A02 dynamic value tokens, CAP-A11 date
-// arithmetic, and CAP-A12 value_list stepping; any other string is a static
-// literal, returned unchanged. field is the field this value is being
-// written to (nil where that isn't known/relevant, e.g. create_record's
-// target fields) -- only CAP-A12's "next" needs it.
-func resolveValue(value string, data map[string]any, field *model.Field, actorRole, actorIdentity string) string {
+// arithmetic, CAP-A12 value_list stepping, and CAP-P04's "input:<field>"
+// (eventInput, see Simulate's own doc comment); any other string is a
+// static literal, returned unchanged. field is the field this value is
+// being written to (nil where that isn't known/relevant, e.g.
+// create_record's target fields) -- only CAP-A12's "next" needs it.
+func resolveValue(value string, data map[string]any, field *model.Field, actorRole, actorIdentity string, eventInput map[string]string) string {
 	switch value {
 	case "today":
 		return time.Now().Format("2006-01-02")
@@ -180,6 +189,9 @@ func resolveValue(value string, data map[string]any, field *model.Field, actorRo
 			return v
 		}
 		return value
+	}
+	if inputField, ok := strings.CutPrefix(value, "input:"); ok {
+		return eventInput[inputField]
 	}
 	if v, ok := resolveDateArithmetic(value, data); ok {
 		return v
@@ -294,7 +306,7 @@ func resolveActionFields(raw any, sourceData map[string]any, actorRole, actorIde
 			out[field] = sourceData[copied]
 			continue
 		}
-		out[field] = resolveValue(s, sourceData, nil, actorRole, actorIdentity)
+		out[field] = resolveValue(s, sourceData, nil, actorRole, actorIdentity, nil)
 	}
 	return out
 }
@@ -348,7 +360,7 @@ func (e *Executor) doCrossSetField(ctx context.Context, action *model.EventActio
 	for k, v := range targetRecord.Data {
 		newData[k] = v
 	}
-	newData[targetField] = resolveValue(value, newData, nil, "System", "System")
+	newData[targetField] = resolveValue(value, newData, nil, "System", "System", nil)
 	if err := e.records.Update(ctx, targetID, newData); err != nil {
 		slog.Error("cross_set_field: update failed", "target_id", targetID, "error", err)
 	}

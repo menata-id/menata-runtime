@@ -161,6 +161,16 @@ type ImportRowResult struct {
 	Message string
 }
 
+// EventTrigger (CAP-P04) pairs a permitted Event with any inline input it
+// needs collected at trigger time -- Inputs is empty for an ordinary
+// trigger (a bare button, unchanged from before this existed), non-empty
+// for one declaring InputFields (a delegation target picker rendered
+// alongside the button, same FieldInput/picker shape a Form uses).
+type EventTrigger struct {
+	Event  *model.Event
+	Inputs []FormField
+}
+
 // NotificationItem is one row on the Notifications page (CAP-A10). Link is
 // empty when the triggering record can't be resolved (shouldn't normally
 // happen, but a Notification row outlives the record it points to being

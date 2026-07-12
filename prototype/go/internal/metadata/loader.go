@@ -276,6 +276,17 @@ func validateReferences(workspaces []*model.Workspace) error {
 						}
 					}
 				}
+
+				// CAP-P04: an Event's input_fields must name real Fields on
+				// this same machine -- the picker rendered alongside the
+				// trigger button only makes sense for a Field that exists.
+				for _, e := range m.Events {
+					for _, fid := range e.InputFields {
+						if _, ok := fieldByID[fid]; !ok {
+							return fmt.Errorf("event %s on machine %s: input_fields %q does not name a Field on this machine", e.ID, m.ID, fid)
+						}
+					}
+				}
 			}
 		}
 	}
@@ -406,7 +417,7 @@ func (l *Loader) loadFields(ctx context.Context, machineID string) ([]*model.Fie
 
 func (l *Loader) loadEvents(ctx context.Context, machineID string) ([]*model.Event, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, machine_id, name, position, condition::text FROM events WHERE machine_id = $1 ORDER BY position`,
+		`SELECT id, machine_id, name, position, condition::text, input_fields FROM events WHERE machine_id = $1 ORDER BY position`,
 		machineID)
 	if err != nil {
 		return nil, err
@@ -417,7 +428,7 @@ func (l *Loader) loadEvents(ctx context.Context, machineID string) ([]*model.Eve
 	for rows.Next() {
 		e := &model.Event{}
 		var condJSON *string
-		if err := rows.Scan(&e.ID, &e.MachineID, &e.Name, &e.Position, &condJSON); err != nil {
+		if err := rows.Scan(&e.ID, &e.MachineID, &e.Name, &e.Position, &condJSON, &e.InputFields); err != nil {
 			return nil, err
 		}
 		if condJSON != nil {
@@ -519,7 +530,7 @@ func (l *Loader) loadConstraints(ctx context.Context, machineID string) ([]*mode
 
 func (l *Loader) loadPermissions(ctx context.Context, machineID string) ([]*model.Permission, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, machine_id, role, events, owner_field, can_read, can_create, can_edit, can_delete
+		`SELECT id, machine_id, role, events, owner_field, can_read, can_create, can_edit, can_delete, hidden_fields
 		 FROM permissions WHERE machine_id = $1`,
 		machineID)
 	if err != nil {
@@ -531,7 +542,7 @@ func (l *Loader) loadPermissions(ctx context.Context, machineID string) ([]*mode
 	for rows.Next() {
 		p := &model.Permission{}
 		var ownerField *string
-		if err := rows.Scan(&p.ID, &p.MachineID, &p.Role, &p.Events, &ownerField, &p.CanRead, &p.CanCreate, &p.CanEdit, &p.CanDelete); err != nil {
+		if err := rows.Scan(&p.ID, &p.MachineID, &p.Role, &p.Events, &ownerField, &p.CanRead, &p.CanCreate, &p.CanEdit, &p.CanDelete, &p.HiddenFields); err != nil {
 			return nil, err
 		}
 		if ownerField != nil {

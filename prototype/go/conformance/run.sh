@@ -165,6 +165,10 @@ IVY=$(session_for accountant@example.com password)  # Accountant (app_accounting
 PAM=$(session_for pm@example.com password)          # PM (app_action_lab)
 VERA=$(session_for vera@example.com password)       # Member (app_views_lab)
 REX=$(session_for rex@example.com password)         # Member (app_record_lifecycle)
+NORA=$(session_for nora@example.com password)       # Member (app_permissions_lab)
+OMAR=$(session_for omar@example.com password)       # Member (app_permissions_lab)
+HANA=$(session_for hana@example.com password)       # HR (app_permissions_lab)
+IRIS=$(session_for iris@example.com password)       # Staff (app_permissions_lab)
 
 # Real user ids (CAP-F05) for the four genuine person-reference fields
 # (fld_requester, fld_lr_employee, fld_ad_submitted_by, fld_as_approver) --
@@ -862,14 +866,19 @@ body_contains "$ONB_URL" "Wendy Wizard $$" "$VERA" && body_contains "$ONB_URL" "
 check T82 "CAP-V12" "final step creates one record combining every step's fields" $?
 
 # T83 -- CAP-V14: moving a record up swaps its position with its immediate
-# predecessor in a manual-order list.
+# predecessor in a manual-order list. Sorted sort_order ASC (oldest first),
+# so these two freshly-created items are always the LAST two -- on the
+# LAST page once this suite's own repeated runs push mch_vl_backlog past
+# CAP-R05's 25-row page size, not page 1.
 B1_URL=$(post_redirect "$BASE_URL/mch_vl_backlog" "fld_vlb_title=Item+A+$$" "$VERA")
 sleep 1
 B2_URL=$(post_redirect "$BASE_URL/mch_vl_backlog" "fld_vlb_title=Item+B+$$" "$VERA")
 B2_ID="${B2_URL##*/}"
-BEFORE=$(get_body "$BASE_URL/mch_vl_backlog" "$VERA" | grep -o "Item [AB] $$" | head -1)
+LAST_PAGE=$(get_body "$BASE_URL/mch_vl_backlog?page=1" "$VERA" | grep -oE 'Page 1 of [0-9]+' | grep -oE '[0-9]+$')
+LAST_PAGE=${LAST_PAGE:-1}
+BEFORE=$(get_body "$BASE_URL/mch_vl_backlog?page=$LAST_PAGE" "$VERA" | grep -o "Item [AB] $$" | head -1)
 post_status "$BASE_URL/mch_vl_backlog/$B2_ID/move/up" "" "$VERA" >/dev/null
-AFTER=$(get_body "$BASE_URL/mch_vl_backlog" "$VERA" | grep -o "Item [AB] $$" | head -1)
+AFTER=$(get_body "$BASE_URL/mch_vl_backlog?page=$LAST_PAGE" "$VERA" | grep -o "Item [AB] $$" | head -1)
 [ "$BEFORE" = "Item A $$" ] && [ "$AFTER" = "Item B $$" ]
 check T83 "CAP-V14" "moving a record up swaps it with its predecessor (before=$BEFORE, after=$AFTER)" $?
 
@@ -899,8 +908,9 @@ for i in $(seq 1 26); do
     post_redirect "$BASE_URL/mch_rl_ticket" "fld_rlt_title=Page+Item+$$-$i" "$REX" >/dev/null
 done
 PAGE1=$(get_body "$BASE_URL/mch_rl_ticket?page=1" "$REX")
-echo "$PAGE1" | grep -qE 'Page 1 of [2-9][0-9]*'
-check T86 "CAP-R05" "a list with more than 25 records paginates into multiple pages" $?
+TOTAL_PAGES=$(echo "$PAGE1" | grep -oE 'Page 1 of [0-9]+' | grep -oE '[0-9]+$')
+[ -n "$TOTAL_PAGES" ] && [ "$TOTAL_PAGES" -ge 2 ]
+check T86 "CAP-R05" "a list with more than 25 records paginates into multiple pages (got $TOTAL_PAGES pages)" $?
 
 # T87 -- CAP-R06: CSV export contains a real record's own field value.
 RLD_URL=$(post_redirect "$BASE_URL/mch_rl_document" "fld_rld_title=Export+Me+$$&fld_rld_amount=42" "$REX")
@@ -951,6 +961,80 @@ post_status "$CART_URL" "fld_rlc_item=Widget+$$&fld_rlc_quantity=3" "$REX" >/dev
 CHECKOUT_AFTER=$(post_status "$BASE_URL/mch_rl_cart/$CART_ID/events/evt_rlc_checkout" "" "$REX")
 [ "$CHECKOUT_BEFORE" = "400" ] && [ "$CHECKOUT_AFTER" = "303" ]
 check T92 "CAP-R08" "checkout on an incomplete Cart is rejected, succeeds once fixed (got $CHECKOUT_BEFORE/$CHECKOUT_AFTER)" $?
+
+# --- Batch 6: Permissions (2026-07-12) ---
+# seeds/012_permissions_lab.sql. CAP-P05 (deny-by-default CRUD) shipped
+# earlier, not part of this batch.
+
+NORA_ID=$(user_option_id "$BASE_URL/mch_pl_expense/new" "$NORA" "Nora")
+OMAR_ID=$(user_option_id "$BASE_URL/mch_pl_expense/new" "$NORA" "Omar")
+HANA_ID=$(user_option_id "$BASE_URL/mch_pl_expense/new" "$NORA" "Hana")
+
+# T93 -- CAP-P03 negative: Nora submits an Expense, assigns herself as its
+# Approver (passes CAP-P02's owner_field check), then tries to approve it --
+# blocked by separation of duties even though she IS the assigned owner.
+EXP1_DATA="fld_ple_title=SoD+Self+$$&fld_ple_submitted_by=$NORA_ID"
+EXP1_URL=$(post_redirect "$BASE_URL/mch_pl_expense" "$EXP1_DATA" "$NORA")
+EXP1_ID="${EXP1_URL##*/}"
+EA1_URL=$(post_redirect "$BASE_URL/mch_pl_expense_approval" "fld_plea_expense=$EXP1_ID&fld_plea_approver=$NORA_ID" "$NORA")
+EA1_ID="${EA1_URL##*/}"
+CODE=$(post_status "$BASE_URL/mch_pl_expense_approval/$EA1_ID/events/evt_plea_approve" "" "$NORA")
+[ "$CODE" = "400" ]
+check T93 "CAP-P03" "the submitter of a record cannot also decide its own Approval, even as the assigned owner (got $CODE)" $?
+
+# T94 -- CAP-P03 positive: Omar submits a DIFFERENT Expense; Nora (who did
+# NOT submit it) approves normally -- proves the block is about self-
+# dealing specifically, not a blanket failure.
+EXP2_DATA="fld_ple_title=SoD+Other+$$&fld_ple_submitted_by=$OMAR_ID"
+EXP2_URL=$(post_redirect "$BASE_URL/mch_pl_expense" "$EXP2_DATA" "$OMAR")
+EXP2_ID="${EXP2_URL##*/}"
+EA2_URL=$(post_redirect "$BASE_URL/mch_pl_expense_approval" "fld_plea_expense=$EXP2_ID&fld_plea_approver=$NORA_ID" "$NORA")
+EA2_ID="${EA2_URL##*/}"
+CODE=$(post_status "$BASE_URL/mch_pl_expense_approval/$EA2_ID/events/evt_plea_approve" "" "$NORA")
+[ "$CODE" = "303" ]
+check T94 "CAP-P03" "approving a DIFFERENT person's submission succeeds normally (got $CODE)" $?
+
+# T95 -- CAP-P04: Omar (assigned Approver, not the submitter) delegates to
+# Hana -- the Detail page's inline picker submits a fresh value at trigger
+# time (input:<field>), and Delegated By stamps who handed it off.
+EXP3_DATA="fld_ple_title=Delegation+$$&fld_ple_submitted_by=$NORA_ID"
+EXP3_URL=$(post_redirect "$BASE_URL/mch_pl_expense" "$EXP3_DATA" "$NORA")
+EXP3_ID="${EXP3_URL##*/}"
+EA3_URL=$(post_redirect "$BASE_URL/mch_pl_expense_approval" "fld_plea_expense=$EXP3_ID&fld_plea_approver=$OMAR_ID" "$NORA")
+EA3_ID="${EA3_URL##*/}"
+OMAR_CSRF=$(csrf_for "$OMAR")
+curl -s -b "$OMAR" -X POST "$BASE_URL/mch_pl_expense_approval/$EA3_ID/events/evt_plea_delegate" \
+    -d "csrf_token=$OMAR_CSRF&fld_plea_approver=$HANA_ID" >/dev/null
+body_contains "$EA3_URL" "Hana" "$OMAR" && body_contains "$EA3_URL" "Omar" "$OMAR"
+check T95 "CAP-P04" "delegating reassigns the Approver and stamps Delegated By with who handed it off" $?
+
+# T96 -- CAP-P06: a field a role's Permission hides never reaches List or
+# Detail -- HR sees Salary, Staff (same Machine, real read access) does not.
+EMP_DATA="fld_ple2_name=Priya+$$&fld_ple2_salary=95000"
+EMP_URL=$(post_redirect "$BASE_URL/mch_pl_employee" "$EMP_DATA" "$HANA")
+body_contains "$EMP_URL" "95000" "$HANA" && \
+    ! body_contains "$EMP_URL" "95000" "$IRIS" && \
+    ! body_contains "$BASE_URL/mch_pl_employee" "95000" "$IRIS"
+check T96 "CAP-P06" "a hidden field is absent from Staff's List and Detail but visible to HR" $?
+
+# T97 -- CAP-P07: an anonymous request (no session cookie at all) reaches a
+# Machine whose Permissions grant role Visitor read access -- List and
+# Detail both, GET only.
+POST_DATA="fld_plp_title=Visitor+Post+$$&fld_plp_body=hello&fld_plp_status=Published"
+POST_URL=$(post_redirect "$BASE_URL/mch_pl_post" "$POST_DATA" "$NORA")
+ANON_LIST_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/mch_pl_post")
+ANON_DETAIL_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$POST_URL")
+[ "$ANON_LIST_CODE" = "200" ] && [ "$ANON_DETAIL_CODE" = "200" ] && \
+    curl -s "$POST_URL" | grep -q "Visitor Post $$"
+check T97 "CAP-P07" "an anonymous request reads a Machine whose Permissions grant Visitor read access (list=$ANON_LIST_CODE, detail=$ANON_DETAIL_CODE)" $?
+
+# T98 -- CAP-P07 negative: the SAME anonymous request is denied a Machine
+# with no Visitor grant (redirected to /login, not silently allowed), and
+# denied a POST even to the public Machine (read-only, not a write door).
+ANON_OTHER_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/mch_pl_employee")
+ANON_POST_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE_URL/mch_pl_post" -d "fld_plp_title=Hacked")
+[ "$ANON_OTHER_CODE" = "303" ] && [ "$ANON_POST_CODE" = "401" ]
+check T98 "CAP-P07" "anonymous access is still denied for a Machine with no Visitor grant, and for any POST (other=$ANON_OTHER_CODE, post=$ANON_POST_CODE)" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

@@ -428,9 +428,16 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	view := h.interp.DefaultListView(machineID)
 	fieldByID := fieldIndex(machine)
 
+	// CAP-P06: field-level visibility -- a column this role's Permission
+	// hides never reaches the List page at all, not just hidden client-side.
+	hidden := h.hiddenFields(machine, role)
 	colIDs := []string{}
 	if view != nil {
-		colIDs = view.Config.Columns
+		for _, id := range view.Config.Columns {
+			if !hidden[id] {
+				colIDs = append(colIDs, id)
+			}
+		}
 	}
 	cols := make([]ui.ColumnDef, 0, len(colIDs))
 	for _, id := range colIDs {
@@ -1477,7 +1484,8 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if role := h.roleForApp(r, applicationID); !h.guard.CanRead(machine, role) {
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanRead(machine, role) {
 		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
@@ -1488,8 +1496,14 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// CAP-P06: a field this role's Permission hides never reaches the
+	// Detail page.
+	hidden := h.hiddenFields(machine, role)
 	fields := make([]ui.DetailField, 0, len(machine.Fields))
 	for _, f := range machine.Fields {
+		if hidden[f.ID] {
+			continue
+		}
 		val := ""
 		if v, ok := rec.Data[f.ID]; ok {
 			val = fmt.Sprintf("%v", v)
@@ -1510,9 +1524,19 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		fields = append(fields, ui.DetailField{Name: f.Name, Value: val, Link: link})
 	}
 
-	role := h.roleForApp(r, applicationID)
 	childLists := h.childLists(r.Context(), machine, recordID)
-	permittedEvents := h.interp.PermittedEventsForRecord(machineID, role, h.identityID(r), rec.Data)
+	events := h.interp.PermittedEventsForRecord(machineID, role, h.identityID(r), rec.Data)
+	// CAP-P04: an event declaring InputFields (e.g. "delegate to") renders
+	// an inline picker alongside its trigger button, same field/options
+	// shape a Form uses -- built here, not in ui, since resolving a `user`
+	// field's own picker options needs the UserStore (buildFormFieldsFor).
+	permittedEvents := make([]ui.EventTrigger, len(events))
+	for i, evt := range events {
+		permittedEvents[i] = ui.EventTrigger{Event: evt}
+		if len(evt.InputFields) > 0 {
+			permittedEvents[i].Inputs = h.buildFormFieldsFor(r.Context(), machine, evt.InputFields, nil)
+		}
+	}
 	a := h.auth(r)
 	page := ui.Detail(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
@@ -1561,7 +1585,23 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.triggerEvent(r.Context(), machine, event, rec, role, identity); err != nil {
+	// CAP-P04: an event declaring InputFields (e.g. "delegate to") needs
+	// fresh values submitted alongside this trigger, not read from the
+	// record's own data -- collected here, resolved by set_field's
+	// "input:<field>" (Executor.resolveValue).
+	var eventInput map[string]string
+	if len(event.InputFields) > 0 {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		eventInput = make(map[string]string, len(event.InputFields))
+		for _, id := range event.InputFields {
+			eventInput[id] = r.FormValue(id)
+		}
+	}
+
+	if err := h.triggerEvent(r.Context(), machine, event, rec, role, identity, h.identityID(r), eventInput); err != nil {
 		var rv *ruleViolation
 		if errors.As(err, &rv) {
 			h.logRuleViolation(r.Context(), "trigger", machineID, eventID, role, identity, rv.Error())
@@ -1632,11 +1672,26 @@ func (h *Handler) logRuleViolation(ctx context.Context, action, machineID, event
 // doTriggerEvent) — same guards, same validation, same persistence, so a
 // system-triggered transition can never skip a check a user-triggered one
 // would have to pass.
-func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, event *model.Event, rec *store.Record, actorRole, actorIdentity string) error {
+func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, event *model.Event, rec *store.Record, actorRole, actorIdentity, actorIdentityID string, eventInput map[string]string) error {
 	// CAP-E06 — state guard: the event may only fire when the record's
 	// CURRENT data satisfies its condition (e.g. Reject only from Submitted).
 	if event.Condition != nil && !constraint.Eval(*event.Condition, rec.Data) {
 		return &ruleViolation{fmt.Sprintf("%s is not allowed in the record's current state", event.Name)}
+	}
+
+	// CAP-P03 — separation of duties: the person who submitted the PARENT
+	// record (looked up via this record's own reference field) may not also
+	// decide this one, even if they happen to hold the deciding role too --
+	// cross-record, so like CAP-A07's sequential guard it can't be expressed
+	// as an event Condition (CAP-E06 only reads this record's own data).
+	// actorIdentityID == "" (System-triggered events, doAggregateStatus) is
+	// exempt -- there's no human actor to self-deal.
+	if actorIdentityID != "" {
+		if msg, err := h.separationOfDutiesViolation(ctx, machine, rec, actorIdentityID); err != nil {
+			return err
+		} else if msg != "" {
+			return &ruleViolation{msg}
+		}
 	}
 
 	// CAP-A07 — sequential step guard: in a Sequential-mode parent, a step may
@@ -1661,7 +1716,7 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 	// if it still satisfies every declared Constraint. CAP-A02 — actorIdentity
 	// (falling back to actorRole) resolves this event's "current_user" dynamic
 	// values, if any.
-	newData := h.exec.Simulate(machine, event, rec, actorRole, actorIdentity)
+	newData := h.exec.Simulate(machine, event, rec, actorRole, actorIdentity, eventInput)
 	if violations := h.engine.Violations(machine, newData); len(violations) > 0 {
 		return &ruleViolation{strings.Join(violations, " ")}
 	}
@@ -1685,6 +1740,25 @@ func fieldIndex(m *model.Machine) map[string]*model.Field {
 	out := make(map[string]*model.Field, len(m.Fields))
 	for _, f := range m.Fields {
 		out[f.ID] = f
+	}
+	return out
+}
+
+// hiddenFields (CAP-P06) returns the set of field ids role's own Permission
+// row on machine excludes from List/Detail/Form rendering -- "Salary
+// visible only to HR." A role with no matching Permission row (or one that
+// doesn't declare hidden_fields) hides nothing extra -- CAP-P05's
+// deny-by-default already governs whether the role can see the Machine at
+// all; this is a narrower, opt-in restriction on top of that.
+func (h *Handler) hiddenFields(machine *model.Machine, role string) map[string]bool {
+	out := map[string]bool{}
+	for _, perm := range machine.Permissions {
+		if perm.Role == role {
+			for _, id := range perm.HiddenFields {
+				out[id] = true
+			}
+			break
+		}
 	}
 	return out
 }
@@ -2223,6 +2297,39 @@ func (h *Handler) aggregateConditionViolation(ctx context.Context, event *model.
 	return "", nil
 }
 
+// separationOfDutiesViolation (CAP-P03) blocks a decision when the acting
+// identity is the same person who submitted the PARENT record this one
+// belongs to -- "Requester != Approver," even when the actor happens to
+// also hold the deciding role. Declared via Machine.Config (CAP-X03, no
+// new migration column, same pattern CAP-R07/R08 already use):
+//
+//	sod_reference_field:  this Machine's own `reference` field pointing at
+//	                      the parent (e.g. an Approval Step's fld_as_document)
+//	sod_requester_field:  the `user`-typed field on the PARENT Machine
+//	                      holding who submitted it
+//
+// Returns "" (no violation) when the Machine doesn't declare either key --
+// separation of duties is opt-in, not a default every Machine pays for.
+func (h *Handler) separationOfDutiesViolation(ctx context.Context, machine *model.Machine, rec *store.Record, actorIdentityID string) (string, error) {
+	refField := machine.Config["sod_reference_field"]
+	requesterField := machine.Config["sod_requester_field"]
+	if refField == "" || requesterField == "" {
+		return "", nil
+	}
+	parentID, _ := rec.Data[refField].(string)
+	if parentID == "" {
+		return "", nil
+	}
+	parent, err := h.records.Get(ctx, parentID)
+	if err != nil {
+		return "", nil
+	}
+	if fmt.Sprintf("%v", parent.Data[requesterField]) == actorIdentityID {
+		return "you submitted this record and cannot also decide it (separation of duties)", nil
+	}
+	return "", nil
+}
+
 // sequentialGuardViolation implements CAP-A07's hard block: in Sequential
 // mode, a step may only be Approved or Rejected once every sibling with a
 // lower Sequence has already left Pending. Applies to any event carrying an
@@ -2398,7 +2505,7 @@ func (h *Handler) doTriggerEvent(ctx context.Context, machine *model.Machine, pa
 		return
 	}
 	rec := &store.Record{ID: recordID, Data: data}
-	if err := h.triggerEvent(ctx, machine, targetEvent, rec, "System", "System"); err != nil {
+	if err := h.triggerEvent(ctx, machine, targetEvent, rec, "System", "System", "", nil); err != nil {
 		slog.Error("trigger_event: failed to trigger chained event",
 			"machine", machine.ID, "record", recordID, "event", targetEventID, "error", err)
 	}
@@ -2478,7 +2585,7 @@ func (h *Handler) doAggregateStatus(ctx context.Context, machine *model.Machine,
 	if err != nil {
 		return
 	}
-	if err := h.triggerEvent(ctx, parentMachine, targetEvent, parentRec, "System", "System"); err != nil {
+	if err := h.triggerEvent(ctx, parentMachine, targetEvent, parentRec, "System", "System", "", nil); err != nil {
 		slog.Error("aggregate_status: failed to trigger parent event",
 			"parent_machine", parentMachine.ID, "parent_record", parentID, "event", targetEventID, "error", err)
 	}

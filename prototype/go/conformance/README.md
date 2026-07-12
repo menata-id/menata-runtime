@@ -135,6 +135,12 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T90 | CAP-R07 | a Posted (immutable) record rejects both Update and Archive — every mutation path, not just events (negative case) |
 | T91 | CAP-R08 | a record created directly into its declared scratch state skips normally-blocking Constraints |
 | T92 | CAP-R08 | the same incomplete scratch record rejects the event that would commit it out of scratch state, then succeeds once fixed |
+| T93 | CAP-P03 | a record's own submitter cannot decide its Approval, even as the assigned owner (negative case) |
+| T94 | CAP-P03 | deciding a DIFFERENT person's submission succeeds normally |
+| T95 | CAP-P04 | delegating reassigns the owner field via a fresh trigger-time input, stamping who handed it off |
+| T96 | CAP-P06 | a role's hidden field is absent from List and Detail, visible to a role that isn't restricted |
+| T97 | CAP-P07 | an anonymous request (no session) reads a Machine whose Permissions grant role Visitor |
+| T98 | CAP-P07 | anonymous access is still denied for a Machine with no Visitor grant, and for any POST (negative case) |
 
 ---
 

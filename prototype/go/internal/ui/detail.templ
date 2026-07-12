@@ -3,7 +3,7 @@ package ui
 import "menata.id/runtime/internal/model"
 import "menata.id/runtime/internal/store"
 
-templ Detail(identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, fields []DetailField, permittedEvents []*model.Event, childLists []ChildList, unreadCount int) {
+templ Detail(identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, fields []DetailField, permittedEvents []EventTrigger, childLists []ChildList, unreadCount int) {
 	@Page(machine.Name + " — Detail", identity, csrfToken, isAdmin, unreadCount) {
 		<div class="mx-auto max-w-2xl">
 			<div class="mb-5 flex items-center gap-3">
@@ -35,18 +35,22 @@ templ Detail(identity, csrfToken string, isAdmin bool, machine *model.Machine, r
 					}
 				</dl>
 				if len(permittedEvents) > 0 {
-					<div class="flex flex-wrap gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4">
-						for _, evt := range permittedEvents {
+					<div class="flex flex-wrap items-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4">
+						for _, trig := range permittedEvents {
 							<form
 								method="POST"
-								action={ templ.SafeURL("/" + machine.ID + "/" + record.ID + "/events/" + evt.ID) }
+								action={ templ.SafeURL("/" + machine.ID + "/" + record.ID + "/events/" + trig.Event.ID) }
+								class="flex items-end gap-2"
 							>
 								@CSRFField(csrfToken)
+								for _, inp := range trig.Inputs {
+									@FieldInput(inp.Field, inp.Name, inp.Value, inp.Options)
+								}
 								<button
 									type="submit"
 									class="inline-flex items-center rounded-md bg-slate-900 px-3.5 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 transition-colors"
 								>
-									{ evt.Name }
+									{ trig.Event.Name }
 								</button>
 							</form>
 						}

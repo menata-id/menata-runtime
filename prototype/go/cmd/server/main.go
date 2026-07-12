@@ -19,6 +19,7 @@ import (
 	"menata.id/runtime/internal/handler"
 	"menata.id/runtime/internal/interpreter"
 	"menata.id/runtime/internal/metadata"
+	"menata.id/runtime/internal/permission"
 	"menata.id/runtime/internal/router"
 	"menata.id/runtime/internal/store"
 )
@@ -81,7 +82,7 @@ func main() {
 	// anything else runs -- workspaceTx's own workspace_id now comes from
 	// the authenticated User (store.AuthFromContext), not a client-suppliable
 	// cookie, so this must run first.
-	r.Use(sessionAuth(sessions, users))
+	r.Use(sessionAuth(sessions, users, interp, &permission.Guard{}))
 	// CAP-X02: CSRF check, after sessionAuth (needs the session's stored
 	// token from ctx) and before workspaceTx (a rejected request shouldn't
 	// pay for opening a transaction).
@@ -208,6 +209,49 @@ func isPublicPath(path string) bool {
 	return strings.HasPrefix(path, "/static/")
 }
 
+// visitorAuth (CAP-P07) grants a synthetic, unauthenticated Auth for a GET
+// straight to a Machine whose own Permissions declare role "Visitor" with
+// can_read -- "a Blog's Visitor reading Published Posts," a role that is
+// the ABSENCE of a session, not a restricted one. Every route here is
+// `/{machineID}[/...]`, so the URL's first path segment is always the
+// Machine id regardless of which sub-route (list/detail/report/...) is
+// being requested; a segment that isn't a real Machine id (`/`, `/apps/...`,
+// `/admin/users`, `/notifications`) simply fails GetMachine and falls
+// through to the caller's normal deny — CAP-P07 is per-Machine, not
+// general anonymous navigation.
+//
+// Deliberately GET-only (read-only) and scoped to ws_default: this
+// prototype has no per-request tenant resolution (which workspace an
+// anonymous visitor belongs to isn't derivable from a hostname or anything
+// else here), so an anonymous visitor is always ws_default's own — a named
+// scope boundary, not a silently assumed one. "submitting Comments"
+// (Case 13's own other half) would need a real anonymous-write design,
+// deliberately deferred.
+func visitorAuth(r *http.Request, interp *interpreter.Interpreter, guard *permission.Guard) (*store.Auth, bool) {
+	if r.Method != http.MethodGet {
+		return nil, false
+	}
+	segment := strings.TrimPrefix(r.URL.Path, "/")
+	if i := strings.IndexByte(segment, '/'); i >= 0 {
+		segment = segment[:i]
+	}
+	if segment == "" {
+		return nil, false
+	}
+	machine, ok := interp.GetMachine(segment)
+	if !ok {
+		return nil, false
+	}
+	if !guard.CanRead(machine, "Visitor") {
+		return nil, false
+	}
+	_, applicationID := interp.ScopeFor(segment)
+	return &store.Auth{
+		User:             &store.User{Name: "Visitor", WorkspaceID: "ws_default"},
+		ApplicationRoles: map[string]string{applicationID: "Visitor"},
+	}, true
+}
+
 // sessionAuth is CAP-X02's core enforcement: resolves the session cookie
 // into a real store.Auth (User + CAP-O01 per-Application role map + CSRF
 // token) and attaches it to ctx, or rejects the request. Runs before
@@ -216,10 +260,15 @@ func isPublicPath(path string) bool {
 // client-suppliable cookie.
 //
 // Unauthenticated: a GET is redirected to /login (a browser navigating
-// somewhere it can't see yet is normal, not an error); anything else
-// (a POST from an expired session, a stale HTMX request) gets a plain 401 --
-// there's no useful page to redirect a form submission to.
-func sessionAuth(sessions *store.SessionStore, users *store.UserStore) func(http.Handler) http.Handler {
+// somewhere it can't see yet is normal, not an error) UNLESS it's CAP-P07's
+// one carve-out -- a GET straight to a Machine whose own Permissions grant
+// role "Visitor" read access, which gets a synthetic Auth instead (see
+// visitorAuth). Anything else (a POST from an expired session, a stale
+// HTMX request, or a GET a Visitor isn't granted) gets a plain 401/redirect
+// as before -- there's no useful page to redirect a form submission to,
+// and CAP-P07 is deliberately read-only: no anonymous Create/Update/
+// TriggerEvent, only GET.
+func sessionAuth(sessions *store.SessionStore, users *store.UserStore, interp *interpreter.Interpreter, guard *permission.Guard) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if isPublicPath(r.URL.Path) {
@@ -237,6 +286,10 @@ func sessionAuth(sessions *store.SessionStore, users *store.UserStore) func(http
 
 			c, err := r.Cookie("menata_session")
 			if err != nil || c.Value == "" {
+				if a, ok := visitorAuth(r, interp, guard); ok {
+					next.ServeHTTP(w, r.WithContext(store.WithAuth(r.Context(), a)))
+					return
+				}
 				deny()
 				return
 			}

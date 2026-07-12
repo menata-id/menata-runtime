@@ -1224,6 +1224,55 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > added (84 existing + 9 new... plus T70's fix = 93 total), verified on an isolated port
 > against both a fresh schema and production's real data (twice, catching both regressions
 > above), then live at `aksi.menata.id`.
+>
+> **Status update (2026-07-12, same day) — Batch 6: the Permissions cluster (CAP-P03/P04/
+> P06/P07) now ✅ Supported**, four capabilities, CAP-P05 (deny-by-default CRUD) already
+> shipped earlier and untouched here. CAP-P03 (separation of duties) followed CAP-R07/R08's
+> own precedent exactly: a `Machine.Config` pair (`sod_reference_field`/`sod_requester_field`),
+> checked inside `triggerEvent` alongside the existing state/sequential guards, composing with
+> CAP-P02's `owner_field` rather than replacing it — being the assigned owner isn't enough if
+> you're also the submitter. CAP-P04 (delegation) needed the most genuinely new mechanism of
+> the batch: an Event's `input_fields` collects a value fresh at trigger time (an inline
+> picker next to the trigger button, not read from the record's existing data), resolved by a
+> new `set_field.value = "input:<field>"` prefix parallel to CAP-A06's `"field:<id>"` — no new
+> action type, delegation composes from two ordinary `set_field` actions. The two compose as
+> designed: a delegator who is also the record's own submitter is still blocked by CAP-P03,
+> the same self-dealing check closes the same door either way.
+>
+> CAP-P06 (field-level visibility) is a new `permissions.hidden_fields` column filtering List
+> columns and Detail fields for a role — deliberately scoped to read surfaces only, not
+> Create/Edit forms (would need `role` threaded through several existing call sites for a
+> case this row didn't actually need). CAP-P07 (public/unauthenticated read access) touched
+> the most architecturally sensitive code this session has changed: `cmd/server/main.go`'s
+> `sessionAuth` middleware, which every other request in this codebase already assumes
+> resolves to a real authenticated `store.Auth` or rejects outright. A new `visitorAuth` check
+> lets exactly one case through unauthenticated — a GET to a Machine whose own Permissions
+> grant role `"Visitor"` `can_read` — by attaching a synthetic Auth instead of a real session,
+> scoped to `ws_default` (no per-request tenant resolution exists to pick a different
+> workspace for an anonymous caller, a named boundary). Every write path still rejects
+> anonymous requests unchanged; "submitting Comments" (Case 13's other half) is deliberately
+> deferred, not attempted.
+>
+> **CAP-R05's pagination (Batch 5) surfaced two more regressions this same verification
+> pass, both in the conformance suite itself, not runtime code**: T86's own new check used a
+> regex (`[2-9][0-9]*`) that only matches page counts starting with a digit 2–9 — "12" pages
+> failed it despite being well past the "more than one page" bar being tested, simply because
+> "1" isn't in that character class. And T83 (CAP-V14, Batch 4) grepped only page 1 of a
+> manual-order list for its two newest items — correct when that Machine had few records, but
+> those two items are always the LAST two in an ascending manual-order sort, so once repeated
+> suite runs pushed the Machine's own record count past 25, they moved to the last page instead
+> and the check silently found nothing. Both are the same class of gap CAP-R05's own commit
+> already flagged for T70 — a check that only makes sense against a fresh, small dataset,
+> invisible until production's own accumulated history crosses the new page boundary. Fixed
+> by comparing the parsed page count numerically instead of via a fragile character class, and
+> by reading the actual last-page number before asserting, the same fix shape as T70's own.
+>
+> One new seed file (`seeds/012_permissions_lab.sql`, four Machines: Expense Report, Expense
+> Approval, Employee, Blog Post — Expense Report/Approval deliberately new rather than
+> retrofitting `seeds/004`'s already-tested Approval Document/Step, keeping the ratchet rule
+> clean). Conformance T93–T98 added, T83/T86 repaired (99/99 passing against production,
+> confirmed stable across three consecutive full-suite runs), verified on an isolated port
+> against both a fresh schema and production's real data, then live at `aksi.menata.id`.
 
 ---
 
