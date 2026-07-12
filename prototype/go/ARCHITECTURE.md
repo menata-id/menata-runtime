@@ -136,7 +136,10 @@ The engine never hardcodes business rules.
 
 ### Permission Guard
 
-The Permission Guard enforces which roles may perform which events.
+The Permission Guard enforces which roles may perform which events (CAP-P01), further narrowed
+to the specific identity a Permission's `owner_field` names, not just the role class (CAP-P02) —
+and, independently of Events, which roles may read/create/edit a Machine's records at all
+(CAP-P05, deny-by-default: no Permission row on a Machine means no access).
 
 Permissions are defined in Runtime Metadata.
 
@@ -160,12 +163,12 @@ Workspace
 | Runtime Model Concept | Prototype Realization |
 |-----------------------|----------------------|
 | Workspace | PostgreSQL schema boundary |
-| Application | Group of machines with shared navigation |
+| Application | Group of machines with shared navigation — the workspace home (CAP-O03) lists Applications, drilling into one lists its own Machines, both role-scoped |
 | Machine | Core realization unit — owns fields, events, constraints, permissions, views |
 | Field | Typed business information (Text, Number, Date, User, Reference, Value List) |
 | Event | Business occurrence trigger — executes actions on state change |
 | Constraint | Business rule enforced before/after event execution |
-| Permission | Role-based event authorization |
+| Permission | Role-based event authorization (CAP-P01), narrowed to a specific identity where a Permission declares one (CAP-P02), plus independent CRUD-level read/create/edit grants (CAP-P05) |
 | View (List) | Table or card presentation of multiple records |
 | View (Detail) | Full record presentation |
 | View (Form) | Input surface for creating or updating records |
@@ -227,10 +230,12 @@ Running applications remain stable during reload failures.
 This prototype intentionally simplifies some runtime concepts.
 
 - Single workspace only
-- No background job scheduler (events are request-triggered only)
+- No background job scheduler (events are request- or same-request-cascade-triggered only —
+  CAP-E05's `trigger_event` fires another event from within the same request, but nothing fires
+  on a timer; CAP-E02 time-driven events remain unimplemented)
 - No external integrations
 - No API exposure
-- No notification system
+- No real authentication (CAP-X02) — a role/identity cookie pair, not a session
 
 These limitations exist to keep the prototype focused on validating the core interpretation model.
 
