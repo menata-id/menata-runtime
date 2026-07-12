@@ -170,6 +170,7 @@ OMAR=$(session_for omar@example.com password)       # Member (app_permissions_la
 HANA=$(session_for hana@example.com password)       # HR (app_permissions_lab)
 IRIS=$(session_for iris@example.com password)       # Staff (app_permissions_lab)
 SAM=$(session_for sam@example.com password)         # Member (app_event_sources)
+THEO=$(session_for theo@example.com password)       # Member (app_integration_lab)
 
 # Real user ids (CAP-F05) for the four genuine person-reference fields
 # (fld_requester, fld_lr_employee, fld_ad_submitted_by, fld_as_approver) --
@@ -1094,6 +1095,52 @@ WRONG_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
     "$BASE_URL/webhooks/mch_es_payment/$PAY2_ID/evt_esp_confirm")
 [ "$WRONG_CODE" = "401" ] && ! body_contains "$PAY2_URL" "Paid" "$SAM"
 check T103 "CAP-E04" "a webhook with the wrong secret is rejected, record left untouched (got $WRONG_CODE)" $?
+
+# --- Batch 8: Cross-Machine Integration (2026-07-12) ---
+# seeds/014_integration_lab.sql. CAP-I04 (correlation trace) shipped
+# earlier, not part of this batch.
+
+# T104 -- CAP-I01: an Order Placed event fires a Subscription declared on
+# an ENTIRELY DIFFERENT Machine (Audit Log) -- Order's own metadata never
+# names Audit Log at all.
+ORD1_DATA="fld_into_customer=SmallCust$$&fld_into_total=50"
+ORD1_URL=$(post_redirect "$BASE_URL/mch_int_order" "$ORD1_DATA" "$THEO")
+ORD1_ID="${ORD1_URL##*/}"
+post_status "$BASE_URL/mch_int_order/$ORD1_ID/events/evt_into_placed" "" "$THEO" >/dev/null
+body_contains "$BASE_URL/mch_int_audit_log" "SmallCust$$" "$THEO"
+check T104 "CAP-I01" "a cross-machine Subscription creates a record on a Machine the publisher's own metadata never names" $?
+
+# T105 -- CAP-I03 negative: the SAME Order also has a Points Ledger
+# Subscription, but ITS OWN Contract (total >= 100) isn't met by this
+# order -- skipped, not created.
+! body_contains "$BASE_URL/mch_int_points" "SmallCust$$" "$THEO"
+check T105 "CAP-I03" "a Subscription's Contract violation skips that Subscription's own action (negative case)" $?
+
+# T106 -- CAP-I03 positive: a large order (total >= 100) satisfies the same
+# Contract, so the Points Ledger Subscription fires.
+ORD2_DATA="fld_into_customer=BigCust$$&fld_into_total=150"
+ORD2_URL=$(post_redirect "$BASE_URL/mch_int_order" "$ORD2_DATA" "$THEO")
+ORD2_ID="${ORD2_URL##*/}"
+post_status "$BASE_URL/mch_int_order/$ORD2_ID/events/evt_into_placed" "" "$THEO" >/dev/null
+body_contains "$BASE_URL/mch_int_points" "BigCust$$" "$THEO"
+check T106 "CAP-I03" "a Subscription's Contract being satisfied lets its own action fire" $?
+
+# T107 -- CAP-I05: a SECOND, unrelated publisher Event (Referral Completed,
+# a different Machine entirely from Order) ALSO contributes to the SAME
+# Points Ledger -- one shared KPI Machine, fed by two independent sources,
+# neither aware of the other.
+REF_DATA="fld_intr_referrer=Referrer$$"
+REF_URL=$(post_redirect "$BASE_URL/mch_int_referral" "$REF_DATA" "$THEO")
+REF_ID="${REF_URL##*/}"
+post_status "$BASE_URL/mch_int_referral/$REF_ID/events/evt_intr_completed" "" "$THEO" >/dev/null
+body_contains "$BASE_URL/mch_int_points" "Referrer$$" "$THEO" && body_contains "$BASE_URL/mch_int_points" "BigCust$$" "$THEO"
+check T107 "CAP-I05" "the same shared Machine accumulates contributions from two different, unrelated publisher Events" $?
+
+# T108 -- CAP-I02: a deprecated Event still functions (backward compat),
+# and its own Detail page shows a Deprecated indicator.
+CODE=$(post_status "$BASE_URL/mch_int_order/$ORD1_ID/events/evt_into_legacy_notify" "" "$THEO")
+[ "$CODE" = "303" ] && body_contains "$ORD1_URL" "Deprecated" "$THEO"
+check T108 "CAP-I02" "a deprecated Event still works and shows a Deprecated indicator (got $CODE)" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

@@ -1754,6 +1754,13 @@ func (h *Handler) logRuleViolation(ctx context.Context, action, machineID, event
 // system-triggered transition can never skip a check a user-triggered one
 // would have to pass.
 func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, event *model.Event, rec *store.Record, actorRole, actorIdentity, actorIdentityID string, eventInput map[string]string) error {
+	// CAP-I02 — a deprecated Event still works (backward compat by design)
+	// but logs a warning every time it's actually used, so a real
+	// deprecation can be tracked/acted on instead of staying invisible.
+	if event.DeprecatedMessage != "" {
+		slog.Warn("triggered deprecated event", "event", event.ID, "machine", machine.ID, "message", event.DeprecatedMessage)
+	}
+
 	// CAP-E06 — state guard: the event may only fire when the record's
 	// CURRENT data satisfies its condition (e.g. Reject only from Submitted).
 	if event.Condition != nil && !constraint.Eval(*event.Condition, rec.Data) {
@@ -1812,7 +1819,40 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 	// pending sibling, aggregate_status may internally trigger a rollup event
 	// on the parent, trigger_event may fire another event on this same record.
 	h.runWorkflowActions(ctx, machine, event, rec.ID, newData)
+
+	// CAP-I01 — cross-machine subscribers run last, after the publisher's
+	// OWN write and workflow actions have already succeeded (error rule 1:
+	// a subscriber's failure never rolls back the publisher).
+	h.processSubscriptions(ctx, event, newData, actorRole, actorIdentity, workspaceID)
 	return nil
+}
+
+// processSubscriptions (CAP-I01) dispatches every Subscription declaring
+// interest in event.ID -- one new record per Subscription, on its own
+// MachineID, Fields resolved from the publisher's post-event data.
+// CAP-I03's Contract/OnViolation gate each one independently first. Error
+// rules 2-4 (see model.Subscription's own doc comment): each Subscription
+// is processed regardless of whether an earlier one failed; every failure
+// is logged, never silently dropped; every Subscription sees the same
+// final data, never a partial view.
+func (h *Handler) processSubscriptions(ctx context.Context, event *model.Event, data map[string]any, actorRole, actorIdentity, workspaceID string) {
+	for _, sub := range h.interp.SubscriptionsFor(event.ID) {
+		violated := false
+		for _, c := range sub.Contract {
+			if !constraint.Eval(c, data) {
+				violated = true
+				slog.Warn("subscription contract violation", "subscription", sub.ID, "publisher_event", event.ID, "field", c.Field, "on_violation", sub.OnViolation)
+				break
+			}
+		}
+		if violated && sub.OnViolation == "skip" {
+			continue
+		}
+		fields := h.exec.ResolveFields(sub.Fields, data, actorRole, actorIdentity)
+		if _, err := h.records.Create(ctx, sub.MachineID, workspaceID, fields); err != nil {
+			slog.Error("subscription failed", "subscription", sub.ID, "publisher_event", event.ID, "machine", sub.MachineID, "error", err)
+		}
+	}
 }
 
 // --- helpers -----------------------------------------------------------------

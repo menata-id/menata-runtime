@@ -25,6 +25,19 @@ func New(records *store.RecordStore, notifications *store.NotificationStore) *Ex
 	return &Executor{records: records, notifications: notifications}
 }
 
+// ResolveFields exports resolveActionFields (CAP-A06's own field-mapping
+// resolution -- "field:<id>" copies from sourceData, a literal is a
+// literal, dynamic tokens resolve the same way) for CAP-I01's Subscription
+// processing (handler.processSubscriptions), which lives in Handler (not
+// Executor -- it needs Interpreter access to find subscribers, the same
+// "cross-record/cross-machine logic belongs in Handler" boundary
+// Executor's own doc comment already establishes) but wants the exact same
+// resolution a create_record action already gets, not a second
+// implementation of it.
+func (e *Executor) ResolveFields(raw any, sourceData map[string]any, actorRole, actorIdentity string) map[string]any {
+	return resolveActionFields(raw, sourceData, actorRole, actorIdentity)
+}
+
 // Simulate computes a record's data after applying event's set_field actions,
 // without persisting anything. CAP-C09 validates constraints against this
 // result before Persist commits it — a record must satisfy every Constraint

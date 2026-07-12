@@ -118,11 +118,19 @@ func validateOperators(workspaces []*model.Workspace) error {
 func validateReferences(workspaces []*model.Workspace) error {
 	known := make(map[string]bool)
 	machineByID := make(map[string]*model.Machine)
+	// CAP-I01: which Machine a given Event id belongs to -- a Subscription
+	// names a PublisherEventID that can be on ANY Machine, not just this
+	// one, so validating it (and its Contract's own field names) needs a
+	// global index, the same reasoning machineByID already exists for.
+	eventMachine := make(map[string]*model.Machine)
 	for _, ws := range workspaces {
 		for _, app := range ws.Applications {
 			for _, m := range app.Machines {
 				known[m.ID] = true
 				machineByID[m.ID] = m
+				for _, e := range m.Events {
+					eventMachine[e.ID] = m
+				}
 			}
 		}
 	}
@@ -317,6 +325,41 @@ func validateReferences(workspaces []*model.Workspace) error {
 						}
 					}
 				}
+
+				// CAP-I01/I03: a Subscription's publisher_event_id must
+				// name a real Event (anywhere -- cross-machine by design);
+				// its fields mapping's target keys must be real Fields on
+				// THIS (subscriber) machine; its Contract's own field
+				// names must be real Fields on the PUBLISHER's machine
+				// (the data a Contract checks is the publisher's, not the
+				// subscriber's); on_violation must be a value the handler
+				// actually understands.
+				for _, sub := range m.Subscriptions {
+					pubMachine, ok := eventMachine[sub.PublisherEventID]
+					if !ok {
+						return fmt.Errorf("subscription %s on machine %s: publisher_event_id %q does not name a real Event", sub.ID, m.ID, sub.PublisherEventID)
+					}
+					for target := range sub.Fields {
+						if _, ok := fieldByID[target]; !ok {
+							return fmt.Errorf("subscription %s on machine %s: fields target %q does not name a Field on this machine", sub.ID, m.ID, target)
+						}
+					}
+					pubFieldByID := make(map[string]bool, len(pubMachine.Fields))
+					for _, pf := range pubMachine.Fields {
+						pubFieldByID[pf.ID] = true
+					}
+					for _, c := range sub.Contract {
+						if !pubFieldByID[c.Field] {
+							return fmt.Errorf("subscription %s on machine %s: contract field %q does not name a Field on publisher machine %s", sub.ID, m.ID, c.Field, pubMachine.ID)
+						}
+						if !model.SupportedOperators[c.Operator] {
+							return fmt.Errorf("subscription %s on machine %s: contract operator %q is not supported", sub.ID, m.ID, c.Operator)
+						}
+					}
+					if sub.OnViolation != "skip" && sub.OnViolation != "log_only" {
+						return fmt.Errorf("subscription %s on machine %s: on_violation %q must be \"skip\" or \"log_only\"", sub.ID, m.ID, sub.OnViolation)
+					}
+				}
 			}
 		}
 	}
@@ -416,6 +459,10 @@ func (l *Loader) loadMachineDetails(ctx context.Context, m *model.Machine) error
 		return err
 	}
 	m.Views, err = l.loadViews(ctx, m.ID)
+	if err != nil {
+		return err
+	}
+	m.Subscriptions, err = l.loadSubscriptions(ctx, m.ID)
 	return err
 }
 
@@ -447,7 +494,9 @@ func (l *Loader) loadFields(ctx context.Context, machineID string) ([]*model.Fie
 
 func (l *Loader) loadEvents(ctx context.Context, machineID string) ([]*model.Event, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, machine_id, name, position, condition::text, input_fields, schedule::text FROM events WHERE machine_id = $1 ORDER BY position`,
+		`SELECT id, machine_id, name, position, condition::text, input_fields, schedule::text,
+		        COALESCE(category, ''), COALESCE(schema_version, ''), COALESCE(deprecated_message, '')
+		 FROM events WHERE machine_id = $1 ORDER BY position`,
 		machineID)
 	if err != nil {
 		return nil, err
@@ -458,7 +507,8 @@ func (l *Loader) loadEvents(ctx context.Context, machineID string) ([]*model.Eve
 	for rows.Next() {
 		e := &model.Event{}
 		var condJSON, schedJSON *string
-		if err := rows.Scan(&e.ID, &e.MachineID, &e.Name, &e.Position, &condJSON, &e.InputFields, &schedJSON); err != nil {
+		if err := rows.Scan(&e.ID, &e.MachineID, &e.Name, &e.Position, &condJSON, &e.InputFields, &schedJSON,
+			&e.Category, &e.SchemaVersion, &e.DeprecatedMessage); err != nil {
 			return nil, err
 		}
 		if schedJSON != nil {
@@ -504,6 +554,41 @@ func (l *Loader) loadEvents(ctx context.Context, machineID string) ([]*model.Eve
 		}
 	}
 	return events, nil
+}
+
+// loadSubscriptions (CAP-I01) loads machineID's own declared interest in
+// OTHER machines' Events -- keyed by subscriber, the same "who's
+// listening" direction Pattern C requires (a publisher never enumerates
+// its own subscribers).
+func (l *Loader) loadSubscriptions(ctx context.Context, machineID string) ([]*model.Subscription, error) {
+	rows, err := l.db.Query(ctx,
+		`SELECT id, machine_id, publisher_event_id, fields::text, contract::text, on_violation
+		 FROM event_subscriptions WHERE machine_id = $1 ORDER BY position`,
+		machineID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subs []*model.Subscription
+	for rows.Next() {
+		s := &model.Subscription{}
+		var fieldsJSON string
+		var contractJSON *string
+		if err := rows.Scan(&s.ID, &s.MachineID, &s.PublisherEventID, &fieldsJSON, &contractJSON, &s.OnViolation); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(fieldsJSON), &s.Fields); err != nil {
+			return nil, fmt.Errorf("parse fields for subscription %s: %w", s.ID, err)
+		}
+		if contractJSON != nil {
+			if err := json.Unmarshal([]byte(*contractJSON), &s.Contract); err != nil {
+				return nil, fmt.Errorf("parse contract for subscription %s: %w", s.ID, err)
+			}
+		}
+		subs = append(subs, s)
+	}
+	return subs, rows.Err()
 }
 
 func (l *Loader) loadEventActions(ctx context.Context, eventID string) ([]*model.EventAction, error) {

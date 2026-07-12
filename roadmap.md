@@ -1305,6 +1305,37 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > a fresh schema and production's real data, then live at `aksi.menata.id`. 37 of the 68
 > capabilities named at the start of this push are done (Batches 1–7); Batches 8–10 (CAP-I,
 > CAP-O, CAP-X) and the remaining field types are still open.
+>
+> **Status update (2026-07-12, same day) — Batch 8: the Cross-Machine Integration cluster
+> (CAP-I01/I02/I03/I05) now ✅ Supported**, four capabilities, CAP-I04 (correlation trace)
+> shipped earlier and untouched here. All four turned out to compose into ONE mechanism, not
+> four parallel ones — the batch's real work was recognizing that, not building four separate
+> systems. CAP-I01 is the base: a new `event_subscriptions` table where a SUBSCRIBER Machine
+> declares interest in a PUBLISHER Event elsewhere, the publisher's own metadata never naming
+> its subscribers at all (Pattern C's whole point). Field resolution reuses CAP-A06's own
+> `create_record` mapping shape (`Executor.ResolveFields`, newly exported) rather than a
+> second implementation. Dispatch runs from the exact same post-commit call site CAP-A07/A08/
+> E05's own workflow actions already use, giving the "4 error-isolation rules" this
+> capability was originally named for almost for free: a subscriber's failure can't roll back
+> the publisher (it runs strictly after `Persist` succeeds), each Subscription is independent
+> of the others, every failure is logged not swallowed, and every Subscription sees the same
+> final data. CAP-I03 (contract) is two more columns on that same row (`contract`/
+> `on_violation`) — CAP-I05 (cross-cutting contribution) needed no new column *at all*,
+> proven instead by two Subscriptions from different publishers targeting one shared Machine,
+> a usage pattern of CAP-I01 rather than a fourth mechanism. CAP-I02 (event schema
+> declaration) is the one independent piece — `category`/`schema_version`/
+> `deprecated_message` on an Event, where deprecation is the only column with real behavior
+> (still fires, backward compat, but logs a warning and shows a "Deprecated" badge on its own
+> trigger button).
+>
+> One new seed file (`seeds/014_integration_lab.sql`, four Machines: Order, Referral, Audit
+> Log, Points Ledger — Points Ledger receiving contributions from both Order Placed and
+> Referral Completed is CAP-I05's own proof). Conformance T104–T108 added (109/109 passing,
+> confirmed stable across two consecutive full-suite runs against production), verified on an
+> isolated port against both a fresh schema and production's real data, then live at
+> `aksi.menata.id`. 41 of the 68 capabilities named at the start of this push are now done
+> (Batches 1–8); Batches 9–10 (Workspace services, Infra) and the remaining field types are
+> still open.
 
 ---
 

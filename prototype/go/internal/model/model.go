@@ -34,6 +34,7 @@ type Machine struct {
 	Permissions   []*Permission
 	Views         []*View
 	Config        map[string]string
+	Subscriptions []*Subscription // CAP-I01: this Machine's OWN declared interest in other Machines' Events
 }
 
 // Field is a typed piece of business information on a Machine.
@@ -94,6 +95,9 @@ type Event struct {
 	AggregateCondition *AggregateCondition
 	InputFields        []string // CAP-P04: field ids collected fresh at trigger time (a delegation target picker), not read from the record's own data
 	Schedule           *Schedule // CAP-E02/E03: fires without any user action, on a time or date-field trigger
+	Category           string    // CAP-I02: documentation metadata, no runtime behavior of its own
+	SchemaVersion      string    // CAP-I02: documentation metadata
+	DeprecatedMessage  string    // CAP-I02: non-empty means this Event still works but logs a warning when triggered
 }
 
 // Schedule (CAP-E02/E03) declares an Event that fires on its own, not from
@@ -112,6 +116,49 @@ type Schedule struct {
 	Time       string `json:"time,omitempty"`        // CAP-E02: "HH:MM", UTC, fires daily
 	DateField  string `json:"date_field,omitempty"`   // CAP-E03: a date Field on this Event's own Machine
 	OffsetDays int    `json:"offset_days,omitempty"`  // CAP-E03: fires when today == that Field's value + OffsetDays
+}
+
+// Subscription (CAP-I01) is a SUBSCRIBER Machine's own declared interest in
+// a PUBLISHER Event elsewhere -- Pattern C's whole point is the publisher
+// never names its subscribers; only the subscriber names the publisher.
+// When PublisherEventID fires (on any record), one new record is created
+// on this Subscription's own MachineID, Fields resolved from the
+// publisher's post-event data the same way CAP-A06's create_record already
+// resolves fields ("field:<id>" copies, a literal is a literal, dynamic
+// tokens like current_user/today resolve the same way).
+//
+// Contract/OnViolation (CAP-I03) gate that creation on the publisher's own
+// data first -- Contract is AND-combined ConstraintExpressions (the same
+// shape/operators a Constraint or Event Condition already uses) checked
+// against the publisher's data; OnViolation decides what a failed check
+// means for THIS subscription only ("skip", the default -- don't create
+// the record, just log it -- or "log_only" -- create it anyway, just note
+// the mismatch).
+//
+// CAP-I05 (cross-cutting contribution) needs no new field here at all --
+// it's proven by two or more Subscriptions, from DIFFERENT
+// PublisherEventIDs, targeting the SAME MachineID (a shared KPI/
+// gamification Machine) -- the same mechanism, applied to more than one
+// publisher, decoupled from each publisher's own definition.
+//
+// Error isolation (the "4 rules" this capability was named for): (1) a
+// subscriber's own failure never rolls back the publisher's already-
+// persisted write -- Subscriptions process strictly AFTER Persist
+// succeeds (handler.processSubscriptions, called from the same place
+// CAP-A07/A08/E05's own post-commit workflow actions already run); (2)
+// each Subscription is independent -- one failing (a Contract violation,
+// or a real error creating the record) doesn't stop the next from
+// running; (3) every failure is logged (slog.Warn/Error), never silently
+// swallowed; (4) a Subscription only ever sees the publisher's FINAL
+// post-event data, the same source create_record/notify/cross_set_field
+// already read from, never a partial/uncommitted view.
+type Subscription struct {
+	ID               string
+	MachineID        string // subscriber -- one new record is created HERE
+	PublisherEventID string // the Event this subscribes to, cross-machine
+	Fields           map[string]any
+	Contract         []ConstraintExpression
+	OnViolation      string // "skip" (default) | "log_only"
 }
 
 // EventAction is a single step executed when an Event fires.

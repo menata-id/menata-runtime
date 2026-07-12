@@ -146,6 +146,11 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T101 | CAP-E03 | a date-driven Event does not fire for a record whose own date field hasn't reached the offset yet (negative case) |
 | T102 | CAP-E04 | a webhook with the correct per-Machine secret triggers an event with no session, stamping its own payload field via InputFields |
 | T103 | CAP-E04 | a webhook with the wrong secret is rejected, record left untouched (negative case) |
+| T104 | CAP-I01 | a cross-machine Subscription creates a record on a Machine the publisher's own metadata never names |
+| T105 | CAP-I03 | a Subscription's Contract violation skips that Subscription's own action (negative case) |
+| T106 | CAP-I03 | a Subscription's Contract being satisfied lets its own action fire |
+| T107 | CAP-I05 | the same shared Machine accumulates contributions from two different, unrelated publisher Events |
+| T108 | CAP-I02 | a deprecated Event still works and shows a Deprecated indicator |
 
 ---
 

@@ -10,26 +10,42 @@ import (
 // Interpreter builds an indexed Application Model from Runtime Metadata.
 // Handlers and the Router use it for fast lookups — no DB access at request time.
 type Interpreter struct {
-	workspaces []*model.Workspace
-	apps       map[string]*model.Application
-	machines   map[string]*model.Machine
+	workspaces         []*model.Workspace
+	apps               map[string]*model.Application
+	machines           map[string]*model.Machine
+	subscriptionsByPub map[string][]*model.Subscription
 }
 
 func New(workspaces []*model.Workspace) *Interpreter {
 	i := &Interpreter{
-		workspaces: workspaces,
-		apps:       make(map[string]*model.Application),
-		machines:   make(map[string]*model.Machine),
+		workspaces:         workspaces,
+		apps:               make(map[string]*model.Application),
+		machines:           make(map[string]*model.Machine),
+		subscriptionsByPub: make(map[string][]*model.Subscription),
 	}
 	for _, ws := range workspaces {
 		for _, app := range ws.Applications {
 			i.apps[app.ID] = app
 			for _, m := range app.Machines {
 				i.machines[m.ID] = m
+				// CAP-I01: each Subscription is declared on its SUBSCRIBER
+				// Machine, but must be found by PUBLISHER event id at
+				// dispatch time -- the reverse index Pattern C's own
+				// decoupling requires (the publisher never enumerates its
+				// subscribers, so something has to, once, at boot).
+				for _, sub := range m.Subscriptions {
+					i.subscriptionsByPub[sub.PublisherEventID] = append(i.subscriptionsByPub[sub.PublisherEventID], sub)
+				}
 			}
 		}
 	}
 	return i
+}
+
+// SubscriptionsFor (CAP-I01) returns every Subscription (on any Machine,
+// cross-cutting by design) declaring interest in publisherEventID.
+func (i *Interpreter) SubscriptionsFor(publisherEventID string) []*model.Subscription {
+	return i.subscriptionsByPub[publisherEventID]
 }
 
 func (i *Interpreter) GetMachine(id string) (*model.Machine, bool) {

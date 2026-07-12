@@ -52,6 +52,12 @@ templ Detail(identity, csrfToken string, isAdmin bool, machine *model.Machine, r
 								>
 									{ trig.Event.Name }
 								</button>
+								if trig.Event.DeprecatedMessage != "" {
+									<span
+										class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700"
+										title={ trig.Event.DeprecatedMessage }
+									>Deprecated</span>
+								}
 							</form>
 						}
 					</div>
