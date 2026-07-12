@@ -126,14 +126,16 @@ The application will be available at `http://localhost:3100`.
 
 ## Production Deployment
 
-This prototype is live at **`https://aksi.menata.id`** (reassigned to this port/domain
-2026-07-12 — see `/root/projects/MULTI-APP-GUIDE.md` for the full multi-app picture on that
-host). On that host specifically:
+This prototype is live at **`https://menata.app`** (reassigned to this port 2026-07-12 as
+`aksi.menata.id`; domain changed to `menata.app` the same day — the old domain permanently
+redirects to the new one — see `/root/projects/MULTI-APP-GUIDE.md` for the full multi-app
+picture on that host). On that host specifically:
 
 - Runs from `/root/projects/menata-runtime/prototype/go` (no separate `/root/production/`
   copy — unlike some other apps on that host, dev path *is* the deployed path).
 - `PORT=4000` in `.env` (not the `3100` default above), proxied by Caddy
-  (`aksi.menata.id { reverse_proxy localhost:4000 ... }` in `/etc/caddy/Caddyfile`).
+  (`menata.app { reverse_proxy localhost:4000 ... }` in `/etc/caddy/Caddyfile`; `aksi.menata.id`
+  is a separate `redir` block to `menata.app`).
 - Restart via the sanctioned script, never a bare `go run` left in the background — a bare
   dev-mode process on port 4000 will squat on production traffic:
   ```bash

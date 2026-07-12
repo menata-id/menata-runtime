@@ -129,7 +129,7 @@ Rule: a synchronous request path may not contain a P4 operation — slow work is
 
 This document is the **standard**; `capability-lifecycle.md` §3b makes it a **gate**: a capability cannot pass Incubating → Supported until its area's NFR profile is either satisfied (with evidence: test, fitness function, or measurement) or explicitly waived with reason in the registry row.
 
-Status note (updated 2026-07-12): this document is the standard capabilities are checked against as they implement NFR gates — no longer "nothing implemented yet." `aksi.menata.id` is no longer blanket PoC-exempt; see `prototype/go/docs/decisions/005-deployment-status.md` for exactly what's covered and what remains accepted risk.
+Status note (updated 2026-07-12): this document is the standard capabilities are checked against as they implement NFR gates — no longer "nothing implemented yet." `menata.app` (domain changed from `aksi.menata.id` 2026-07-12, same deployment) is no longer blanket PoC-exempt; see `prototype/go/docs/decisions/005-deployment-status.md` for exactly what's covered and what remains accepted risk.
 
 ---
 

@@ -36,8 +36,9 @@ honest, itemized status.
 
 ## Decision
 
-As of 2026-07-12, `aksi.menata.id` is treated as having real, if partial, NFR coverage —
-not blanket-exempt. Specifically:
+As of 2026-07-12, `aksi.menata.id` (domain changed to `menata.app` later the same day — same
+deployment, same coverage; `aksi.menata.id` now redirects to `menata.app`) is treated as
+having real, if partial, NFR coverage — not blanket-exempt. Specifically:
 
 **Now covered, with proof:**
 | Area | Capability | Evidence |

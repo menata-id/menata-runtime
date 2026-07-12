@@ -15,7 +15,7 @@
 ./conformance/run.sh
 
 # against any deployment
-BASE_URL=https://aksi.menata.id ./conformance/run.sh
+BASE_URL=https://menata.app ./conformance/run.sh
 ```
 
 Exit code 0 = all pass. Non-zero = at least one capability regressed.

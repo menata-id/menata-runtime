@@ -7,7 +7,7 @@
 #
 # Usage:
 #   ./conformance/run.sh                     # against http://localhost:4000
-#   BASE_URL=https://aksi.menata.id ./conformance/run.sh
+#   BASE_URL=https://menata.app ./conformance/run.sh
 #
 # Requires: seeds 001-007 applied, server running.
 # Note: creates test records in the target database (prototype-acceptable).

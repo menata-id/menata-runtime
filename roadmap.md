@@ -1547,6 +1547,27 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > using existing seed data, no new migration or seed file needed. Live at `aksi.menata.id`. Six
 > more registered candidates remain unimplemented (CAP-V14 Tier 2, CAP-V15–V19).
 
+> **Status update (2026-07-12, same day) — production domain changed from `aksi.menata.id` to
+> `menata.app`.** Infra change, not a capability — recorded here since every earlier status
+> entry above references `aksi.menata.id` by name as "live at," and those entries are kept
+> as-written (accurate history of what was true when each batch shipped), not retroactively
+> rewritten. `aksi.menata.id` now permanently redirects (301) to `menata.app`; same server,
+> same app, same database, same everything else — only the hostname changed. Caddy config
+> (`/etc/caddy/Caddyfile`, backed up before editing) updated: the `aksi.menata.id` block
+> renamed to `menata.app` (new Let's Encrypt cert, DNS already pointed here), plus a new
+> minimal `aksi.menata.id { redir https://menata.app{uri} permanent }` block so old
+> links/bookmarks don't break. `systemctl reload caddy` hung repeatedly with no logged error
+> (not a config problem — `caddy validate` passed cleanly throughout); `systemctl restart
+> caddy` resolved it cleanly with a few seconds of shared downtime across every domain this
+> Caddy instance serves (disclosed and accepted before running). Verified after restart: both
+> domains correct, and the other apps sharing this Caddy instance unaffected — the 403/502/503
+> responses observed from a couple of them were pre-existing (backend processes already not
+> running, an app's own bot-detection logic), confirmed via listening-port checks, not caused
+> by this change. Operational docs (`CLAUDE.md`, `DEVELOPMENT.md`, `MULTI-APP-GUIDE.md`,
+> `conformance/README.md`/`run.sh`, `nfr-standards.md`, `docs/decisions/005-deployment-status.md`,
+> `internal/config/config.go`'s own comment) updated to the new domain; this roadmap's own
+> historical batch entries were not.
+
 ---
 
 # Principles

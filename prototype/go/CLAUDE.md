@@ -148,7 +148,9 @@ Postgres runs locally in this environment already (`pg_isready`). `.env.example`
 `postgres:password@localhost:5432/menata_runtime` are working credentials, not a placeholder.
 
 **`.env`'s `PORT=4000` is not a free dev port on this host** — this prototype is deployed live at
-`https://aksi.menata.id` on that exact port (see DEVELOPMENT.md "Production Deployment"), managed
+`https://menata.app` (domain changed from `aksi.menata.id` 2026-07-12; the old domain now
+permanently redirects to the new one) on that exact port (see DEVELOPMENT.md "Production
+Deployment"), managed
 by `/root/scripts/server-manager.sh restart menata-runtime`, not a bare `go run`/`make dev` left
 running in the background. Before starting any server here, check
 `/root/projects/MULTI-APP-GUIDE.md`'s port allocation map and `ss -ltnp | grep :4000` first — a
@@ -193,7 +195,7 @@ reading the code alone would not have surfaced.
 
 **An isolated-schema test server that outlives its schema fails every request, and looks like a
 data bug if you don't check for it first.** The safe way to try a new migration/seed against
-this shared production database without risking `aksi.menata.id` is `CREATE SCHEMA test_batchN`,
+this shared production database without risking `menata.app` is `CREATE SCHEMA test_batchN`,
 apply migrations/seeds with `?options=-csearch_path%3Dtest_batchN` appended to `DATABASE_URL`,
 and run a throwaway server on a different `PORT` (e.g. 4099) against it — fully reversible via
 `DROP SCHEMA test_batchN CASCADE` when done. The gotcha: if you forget to kill that throwaway
@@ -211,7 +213,7 @@ across more than one verification pass in the same session.
 **This build now has a real cgo dependency: `github.com/chai2010/webp`, linked against the
 host's own `libwebp` (CAP-F06's image-compression pipeline, `internal/handler/upload.go`).**
 Confirmed present on this host (`pkg-config --exists libwebp`, `CGO_ENABLED=1` by default) and
-the same host serves both dev and production (`aksi.menata.id` runs on this exact machine, see
+the same host serves both dev and production (`menata.app` runs on this exact machine, see
 `/root/projects/MULTI-APP-GUIDE.md`), so a build here reproduces there — but if this project is
 ever built on a *different* host, `go build` will fail at the cgo link step unless that host also
 has `libwebp` installed. `golang.org/x/image` (the resize step, `golang.org/x/image/draw`) is
