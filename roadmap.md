@@ -508,12 +508,26 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > also carry `workspace`/`application` scope (`Interpreter.ScopeFor`), not just `machine`,
 > even though CAP-X06 (workspace isolation/RLS) isn't enforced yet and only one workspace
 > exists today — the log schema doesn't need retrofitting once it is. Conformance T42–T43,
-> full suite 44/44. Deliberately **not** done in this pass (named, not silently skipped):
-> JSON-formatted structured logs (chi's `middleware.Logger` access-log line and `slog`'s
-> app-level lines are still two differently-formatted text outputs, now correlated by id
-> but not unified in format); `record_events` retention/partitioning (Study 8 scale
-> concern, not relevant at this prototype's size); no UI to view the audit trail (CAP-R04's
-> pre-existing, unchanged scope note).
+> full suite 44/44.
+>
+> **Status update (2026-07-12, same day):** the one thing named as deliberately deferred
+> above — unifying the log format — turned out cheap enough to close immediately after a
+> direct follow-up ("samakan format log"). `cmd/server/main.go` now sets one
+> `slog.NewJSONHandler` as the process-wide default before anything else logs; chi's
+> `middleware.Logger` (stdlib `log`, plain text) is replaced with `slogAccessLog`, a small
+> custom access-log middleware writing through the same handler with the same
+> `correlation_id` key every other log line already uses (`middleware.NewWrapResponseWriter`
+> to capture status/bytes, the same technique chi's own Logger uses internally). Every log
+> line this process writes — startup, access log, `record_events`-adjacent security events,
+> and this same day's permission-denied/rule-violation/role-switch lines — is now one JSON
+> stream, correlated by one id, not two differently-shaped text outputs stitched together
+> after the fact. Verified: an access-log line and its corresponding `permission denied`
+> line for the same request now share identical `correlation_id` values. Full suite 44/44
+> (already covered, no log-format-specific test — conformance is HTTP black-box and log
+> lines aren't HTTP-observable, verified manually instead, same category as the other
+> manual-only checks `prototype/go/CLAUDE.md` already documents). Still open (unchanged):
+> `record_events` retention/partitioning (Study 8 scale concern); no UI to view the audit
+> trail (CAP-R04's pre-existing scope note).
 
 ---
 
