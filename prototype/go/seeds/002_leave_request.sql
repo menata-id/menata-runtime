@@ -63,8 +63,17 @@ INSERT INTO constraints (id, machine_id, rule, expression, condition, position) 
      'mch_leave_request',
      'Start Date must be after today.',
      '{"field":"fld_lr_start_date","operator":"after","value":"today"}',
-     NULL, 1)
+     NULL, 1),
+    ('cst_lr_end_after_start',
+     'mch_leave_request',
+     'End Date must be after Start Date.',
+     '{"field":"fld_lr_end_date","operator":"after","value_field":"fld_lr_start_date"}',
+     NULL, 2)
 ON CONFLICT (id) DO NOTHING;
+-- CAP-C07 (cross-field comparison, 2026-07-12): the canonical "End Date
+-- after Start Date" case this capability was named for -- compares against
+-- another Field's own value (value_field), not a literal, so it stays
+-- correct no matter what Start Date is, unlike a hardcoded date would.
 
 -- Permissions
 INSERT INTO permissions (id, machine_id, role, events) VALUES

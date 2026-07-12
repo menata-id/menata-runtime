@@ -129,6 +129,34 @@ func (s *RecordStore) Exists(ctx context.Context, machineID, recordID string) (b
 	return exists, nil
 }
 
+// ExistsWithFieldValues (CAP-C12) reports whether another record on
+// machineID already has the exact same value for every field named in
+// fieldValues -- single-field uniqueness when fieldValues has one entry,
+// composite/multi-field when it has several (all must match together,
+// e.g. "one request per employee per period" needs both fields to collide,
+// not either alone). excludeRecordID is the record being updated (empty
+// string on Create, where nothing to exclude exists yet) -- a record never
+// collides with its own unchanged value.
+func (s *RecordStore) ExistsWithFieldValues(ctx context.Context, machineID string, fieldValues map[string]string, excludeRecordID string) (bool, error) {
+	sql := `SELECT EXISTS(SELECT 1 FROM records WHERE machine_id = $1`
+	args := []any{machineID}
+	for field, value := range fieldValues {
+		args = append(args, field, value)
+		sql += fmt.Sprintf(` AND data->>$%d = $%d`, len(args)-1, len(args))
+	}
+	if excludeRecordID != "" {
+		args = append(args, excludeRecordID)
+		sql += fmt.Sprintf(` AND id != $%d`, len(args))
+	}
+	sql += `)`
+
+	var exists bool
+	if err := s.db(ctx).QueryRow(ctx, sql, args...).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check uniqueness: %w", err)
+	}
+	return exists, nil
+}
+
 func (s *RecordStore) Update(ctx context.Context, id string, data map[string]any) error {
 	dataJSON, err := json.Marshal(data)
 	if err != nil {

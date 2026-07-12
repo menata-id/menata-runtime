@@ -43,7 +43,52 @@ func (l *Loader) LoadAll(ctx context.Context) ([]*model.Workspace, error) {
 	if err := validateReferences(workspaces); err != nil {
 		return nil, err
 	}
+	if err := validateOperators(workspaces); err != nil {
+		return nil, err
+	}
 	return workspaces, nil
+}
+
+// validateOperators (CAP-X05) rejects any Constraint expression/condition or
+// Event condition naming an operator this runtime doesn't actually
+// implement. Before this existed, an unrecognized operator (a typo, or a
+// genuinely unsupported one like "greater_than_or_equal" before CAP-C05
+// added it) didn't error anywhere — constraint.Eval's default case returns
+// true ("satisfied") for any operator it doesn't recognize, so the
+// constraint or guard silently never fired. That's a metadata-authoring
+// trap this catches at load time instead: "Unknown = explicit"
+// (capability-lifecycle.md §4 rule 3), same discipline as
+// validateReferences' dangling-reference check.
+func validateOperators(workspaces []*model.Workspace) error {
+	checkExpr := func(expr *model.ConstraintExpression, ctx string) error {
+		if expr == nil {
+			return nil
+		}
+		if !model.SupportedOperators[expr.Operator] {
+			return fmt.Errorf("%s: unrecognized operator %q", ctx, expr.Operator)
+		}
+		return nil
+	}
+	for _, ws := range workspaces {
+		for _, app := range ws.Applications {
+			for _, m := range app.Machines {
+				for _, c := range m.Constraints {
+					if err := checkExpr(&c.Expression, fmt.Sprintf("constraint %s on machine %s", c.ID, m.ID)); err != nil {
+						return err
+					}
+					if err := checkExpr(c.Condition, fmt.Sprintf("constraint %s's condition on machine %s", c.ID, m.ID)); err != nil {
+						return err
+					}
+				}
+				for _, e := range m.Events {
+					if err := checkExpr(e.Condition, fmt.Sprintf("event %s's condition on machine %s", e.ID, m.ID)); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // validateReferences enforces CAP-F13's load-time contract: every `reference`

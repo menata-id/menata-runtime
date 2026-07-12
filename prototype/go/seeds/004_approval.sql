@@ -110,8 +110,20 @@ INSERT INTO constraints (id, machine_id, rule, expression, condition, position) 
     ('cst_as_approver_required', 'mch_approval_step', 'Approver is required.',
      '{"field":"fld_as_approver","operator":"required"}', NULL, 2),
     ('cst_as_sequence_required', 'mch_approval_step', 'Sequence is required.',
-     '{"field":"fld_as_sequence","operator":"required"}', NULL, 3)
+     '{"field":"fld_as_sequence","operator":"required"}', NULL, 3),
+    ('cst_as_sequence_positive', 'mch_approval_step', 'Sequence must be a positive number.',
+     '{"field":"fld_as_sequence","operator":"greater_than","value":"0"}', NULL, 4),
+    ('cst_as_unique_sequence', 'mch_approval_step', 'This Document already has a Step at that Sequence.',
+     '{"fields":["fld_as_document","fld_as_sequence"],"operator":"unique"}', NULL, 5)
 ON CONFLICT (id) DO NOTHING;
+-- CAP-C05 (comparison operators, 2026-07-12): Sequence's own natural
+-- invariant -- WCP-1 Sequence has no meaning at 0 or below.
+-- CAP-C12 (uniqueness, 2026-07-12): two Steps on the same Document can't
+-- share a Sequence number -- CAP-A07's sequential guard (Sequence-ordered
+-- Approve/Reject) silently assumes this was already true; now enforced,
+-- not just assumed. Composite (fld_as_document, fld_as_sequence): the same
+-- Sequence number is fine across different Documents, only a collision
+-- within the SAME Document's own Steps matters.
 
 -- Permissions
 -- System (CAP-A08): evt_ad_approve/reject are never triggered via this row --

@@ -1025,6 +1025,32 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > explicitly framed for both human and AI metadata authors, since none of these are
 > discoverable from the grammar alone.
 
+> **Status update (2026-07-12, same day) — Batch 1 of a full remaining-registry push:
+> CAP-C05, CAP-C07, CAP-C12, CAP-X05 all now ✅ Supported**, in response to a direct
+> "kerjakan semua CAP" (work on all remaining capabilities) directive covering the 68
+> capabilities that were still ❌/⚠️. Sequenced by dependency rather than the registry's
+> own Prio numbers (this session's own established pattern): constraint/validation
+> foundations first, since several later batches build on them.
+>
+> `constraint.Eval` gained `before`/`greater_than`/`less_than`/`greater_than_or_equal`/
+> `less_than_or_equal` (CAP-C05), and `ConstraintExpression.value_field` (CAP-C07) lets a
+> comparison target another Field's own value instead of a literal — "End Date after Start
+> Date" (Leave Request) is the canonical proof, correct regardless of what Start Date
+> actually is. `unique`/composite-`unique` (CAP-C12) needed real cross-record DB access
+> `constraint.Engine` deliberately doesn't have, so it's enforced separately
+> (`handler.uniquenessViolations` + a new `RecordStore.ExistsWithFieldValues`, same tier as
+> `referenceViolations`) — proof: Approval Step's (Document, Sequence) pair, which CAP-A07's
+> sequential guard had silently assumed unique all along. `metadata.Loader` now rejects any
+> unrecognized operator at load time (CAP-X05) — directly closes the exact "silently never
+> fires" trap this same day's bulk example-verification pass (`docs/examples/README.md`)
+> had just written up as undocumented behavior; manually verified, since a boot-time
+> rejection isn't something a live-server conformance test can exercise itself.
+>
+> Conformance T60–T62 added, 63/63 passing, verified on an isolated port and live at
+> `aksi.menata.id`. Next: Batch 2, CAP-F16 (child table / line items) — the single biggest
+> remaining structural gap, and a prerequisite several later batches (CAP-C10, F17, F19,
+> V13) depend on.
+
 ---
 
 # Principles

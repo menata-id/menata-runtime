@@ -574,6 +574,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	violations = append(violations, userViolations...)
+	uniqueViolations, err := h.uniquenessViolations(r.Context(), machine, data, "")
+	if err != nil {
+		http.Error(w, "failed to validate uniqueness", http.StatusInternalServerError)
+		return
+	}
+	violations = append(violations, uniqueViolations...)
 
 	if len(violations) > 0 {
 		role := h.roleForApp(r, applicationID)
@@ -697,6 +703,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	violations = append(violations, userViolations...)
+	uniqueViolations, err := h.uniquenessViolations(r.Context(), machine, data, recordID)
+	if err != nil {
+		http.Error(w, "failed to validate uniqueness", http.StatusInternalServerError)
+		return
+	}
+	violations = append(violations, uniqueViolations...)
 
 	if len(violations) > 0 {
 		role := h.roleForApp(r, applicationID)
@@ -1156,6 +1168,52 @@ func (h *Handler) userReferenceViolations(ctx context.Context, machine *model.Ma
 		}
 		if !exists {
 			out = append(out, fmt.Sprintf("%s does not reference an existing user.", f.Name))
+		}
+	}
+	return out, nil
+}
+
+// uniquenessViolations (CAP-C12) enforces `unique` constraints -- single or
+// composite/multi-field -- against every OTHER record on the same machine.
+// Unlike engine.Violations, this needs the database (RecordStore), so it's a
+// separate check at the same tier as referenceViolations/
+// userReferenceViolations, not folded into constraint.Engine (which
+// deliberately never touches storage). excludeRecordID is the record being
+// updated -- empty on Create, where nothing to exclude exists yet.
+func (h *Handler) uniquenessViolations(ctx context.Context, machine *model.Machine, data map[string]any, excludeRecordID string) ([]string, error) {
+	var out []string
+	for _, c := range machine.Constraints {
+		if c.Expression.Operator != "unique" {
+			continue
+		}
+		fields := c.Expression.Fields
+		if len(fields) == 0 && c.Expression.Field != "" {
+			fields = []string{c.Expression.Field}
+		}
+		if len(fields) == 0 {
+			continue
+		}
+		fieldValues := make(map[string]string, len(fields))
+		allSet := true
+		for _, fid := range fields {
+			v, ok := data[fid]
+			if !ok {
+				allSet = false
+				break
+			}
+			fieldValues[fid] = fmt.Sprintf("%v", v)
+		}
+		if !allSet {
+			// Nothing to collide with yet -- CAP-C01 `required` already
+			// covers "this field must have a value" separately.
+			continue
+		}
+		exists, err := h.records.ExistsWithFieldValues(ctx, machine.ID, fieldValues, excludeRecordID)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			out = append(out, c.Rule)
 		}
 	}
 	return out, nil

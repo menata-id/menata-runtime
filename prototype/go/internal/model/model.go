@@ -116,10 +116,41 @@ type Constraint struct {
 }
 
 // ConstraintExpression is the evaluatable part of a Constraint.
+// CAP-C07 (cross-field comparison): ValueField, when set, compares against
+// data[ValueField] instead of the literal Value -- e.g. "End Date after
+// Start Date" as opposed to "Due Date after today". Exactly one of Value/
+// ValueField is meaningful per expression; ValueField wins if both are set.
+// CAP-C12 (uniqueness): Fields, when set (operator "unique" only), names a
+// composite key -- ["fld_a","fld_b"] for a multi-field uniqueness rule,
+// checked cross-record (constraint.Engine can't do this alone, see
+// handler.uniquenessViolations), not evaluated by constraint.Eval.
 type ConstraintExpression struct {
-	Field    string `json:"field"`
-	Operator string `json:"operator"`
-	Value    string `json:"value,omitempty"`
+	Field      string   `json:"field,omitempty"`
+	Fields     []string `json:"fields,omitempty"`
+	Operator   string   `json:"operator"`
+	Value      string   `json:"value,omitempty"`
+	ValueField string   `json:"value_field,omitempty"`
+}
+
+// SupportedOperators is every constraint/condition operator this runtime
+// actually evaluates (constraint.Eval) or otherwise enforces ("unique",
+// enforced cross-record by handler.uniquenessViolations, not Eval). CAP-X05:
+// the loader rejects any Constraint or Event condition naming an operator
+// outside this set at load time -- an unrecognized operator used to
+// silently never fire (constraint.Eval's default case returned true,
+// "satisfied"); failing the load instead turns a silent no-op into an
+// immediate, explicit error a metadata author actually sees.
+var SupportedOperators = map[string]bool{
+	"required":              true,
+	"equals":                true,
+	"not_equals":            true,
+	"after":                 true,
+	"before":                true,
+	"greater_than":          true,
+	"less_than":             true,
+	"greater_than_or_equal": true,
+	"less_than_or_equal":    true,
+	"unique":                true,
 }
 
 // Permission assigns a set of Events to a business Role.

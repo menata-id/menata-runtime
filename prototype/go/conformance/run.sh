@@ -647,6 +647,29 @@ body_contains "$BASE_URL/apps/app_design" "Design Request" "$ALICE" \
   && body_contains "$BASE_URL/apps/app_approval" "Approval Document" "$ALICE"
 check T59 "CAP-O01" "one identity resolves a different role per Application in the same session, no switch" $?
 
+# --- CAP-C05 (comparison operators), CAP-C07 (cross-field comparison),
+# CAP-C12 (uniqueness constraint), CAP-X05 (operator validated at load time) ---
+
+# T60 -- CAP-C07: End Date before Start Date rejected -- compares against
+# another Field's own value (fld_lr_start_date), not a hardcoded literal.
+LR_BADRANGE_DATA="fld_lr_employee=$DAVE_ID&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-10&fld_lr_end_date=2030-01-05&fld_lr_reason=T60"
+post_body_contains "$BASE_URL/mch_leave_request" "$LR_BADRANGE_DATA" "End Date must be after Start Date" "$DAVE"
+check T60 "CAP-C07" "cross-field comparison rejects End Date before Start Date" $?
+
+# T61 -- CAP-C05: a non-positive Sequence rejected -- generalizes "after" and
+# adds greater_than/less_than beyond the old today-only special case.
+AS_BADSEQ_DATA="fld_as_document=$AD_SEQ_ID&fld_as_approver=$BOB_ID&fld_as_sequence=0"
+post_body_contains "$BASE_URL/mch_approval_step" "$AS_BADSEQ_DATA" "Sequence must be a positive number" "$ALICE"
+check T61 "CAP-C05" "greater_than rejects a non-positive Sequence" $?
+
+# T62 -- CAP-C12: a second Step at the same Sequence on the same Document
+# rejected -- composite uniqueness (document, sequence); reusing sequence 1
+# on a DIFFERENT document (T22-T26's Parallel-mode AD_PAR_ID) is fine, only
+# a collision within the SAME document's own Steps is rejected.
+AS_DUPSEQ_DATA="fld_as_document=$AD_SEQ_ID&fld_as_approver=$CAROL_ID&fld_as_sequence=1"
+post_body_contains "$BASE_URL/mch_approval_step" "$AS_DUPSEQ_DATA" "already has a Step at that Sequence" "$ALICE"
+check T62 "CAP-C12" "composite uniqueness rejects a duplicate (document, sequence) pair" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
