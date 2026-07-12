@@ -199,9 +199,21 @@ INSERT INTO fields (id, machine_id, name, type, position, required, options) VAL
 | `File` | `file` | `{}` |
 | `A \| B \| C` | `value_list` | `{"values":["A","B","C"]}` |
 | `Reference: X` | `reference` | `{"target_machine":"mch_x"}` |
+| — | `computed` | `{"source_field":"fld_x","factor":1.1}` atau `{"source_field":"fld_x","factor_field":"fld_y"}` — CAP-F14 ✅, tidak pernah tersimpan, dihitung ulang tiap render |
 
 > ⚠️ **Key yang benar untuk `reference` adalah `target_machine`, bukan `machine`.** Konsisten dengan
 > contoh nyata di `prototype/go/docs/examples/approval-step.yaml` (`Document` field, `mch_approval_document`).
+
+**Status per 2026-07-12 (batch terakhir)**: `number` (CAP-F07), `money` (CAP-F08), `boolean`
+(CAP-F09), `time`/`date_time` (CAP-F10) semua ✅ — render sebagai input HTML5 sungguhan
+(`type="number"`/`"checkbox"`/`"time"`/`"datetime-local"`), bukan lagi text fallback.
+`duration` (CAP-F10) disimpan sebagai integer menit — belum ada grammar durasi terstruktur
+(ISO 8601 atau pasangan nilai+satuan), penyederhanaan yang disengaja. `file` (CAP-F06) ✅ —
+upload sungguhan tersimpan di disk (`prototype/go/uploads/`, key token 32-byte tak-tertebak),
+disajikan di `GET /files/{key}`; `options.compress: true` menjalankan pipeline resize (`golang.
+org/x/image/draw`) + re-encode JPEG/WebP sungguhan (`github.com/chai2010/webp` + `libwebp` host)
+di server, terlepas dari kompresi client-side. `user` (CAP-F05) ✅ sudah diimplementasikan
+sebelumnya — lihat baris CAP-F05 di `capability-registry.md`, bukan lagi teks bebas.
 
 #### `child_table` (CAP-F16, ✅ diimplementasikan 2026-07-12) — pilihan storage, bukan pemetaan tipe field
 
@@ -230,9 +242,9 @@ terpisah hanya karena runtime belum punya target-nya:
 
 | Tipe | Target reference-nya | Status target |
 |------|----------------------|----------------|
-| `user` | Identitas platform (siapa penggunanya) | CAP-O01 (identity & role registry) sudah ✅ — `users`/`user_application_roles` — tapi `type: user` belum dimigrasikan untuk menunjuk ke situ sebagai target `reference`; masih dirender sebagai teks bebas (CAP-F05 ⚠️) |
-| `money` | Currency (kode + kurs) | CAP-O02 (master data designation) sudah ✅ (2026-07-12), tapi Currency sendiri sebagai target `reference` yang nyata masih menunggu CAP-F17 (multi-currency money) — belum diimplementasikan |
-| `file` | Entitas File/Document terkelola runtime | Belum ada — CAP-F06 masih ⚠️ partial |
+| `user` | Identitas platform (siapa penggunanya) | ✅ CAP-F05 — picker sungguhan ke-scope `user_application_roles`, menyimpan user id (bukan nama), referential integrity di-enforce |
+| `money` | Currency (kode + kurs) | ⚠️ CAP-F08 sudah render/validasi/hitung dengan benar, tapi `currency`/`currency_field` masih sekadar field `value_list`/`text` biasa berisi kode — Currency sebagai Machine master-data sungguhan (CAP-F17) masih terbuka |
+| `file` | Entitas File/Document terkelola runtime | ⚠️ CAP-F06 — upload tersimpan & tersaji nyata (lihat catatan status di atas), tapi masih field value berbasis disk, belum jadi Machine mandiri dengan identity/lifecycle sendiri |
 
 Detail lengkap pohon keputusan + kalibrasi: `runtime/benchmarks/005-field-modeling-decision-framework.md`.
 

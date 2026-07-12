@@ -205,6 +205,7 @@ machine:
 | `value_list` | Predefined values | Status, Priority, Type | `values` — mandatory array |
 | `reference` | Reference to another Machine | Department, Project | `target_machine` — mandatory |
 | `child_table` | Line items owned by a parent record (header-detail document) | Journal Entry Lines, Unit Conversions | `target_machine` — mandatory (points at the child Machine's schema) |
+| `computed` | Derived value, never stored — resolved fresh at render time (CAP-F14) | Line Total (Price × Quantity) | `source_field` — mandatory, plus one of `factor` or `factor_field` |
 
 **`child_table` (CAP-F16, ✅ implemented 2026-07-12)** is not a primitive either — its rows are ordinary
 records of a target Machine, scoped to one parent. See `capability-registry.md` (CAP-F16) for the
@@ -221,21 +222,36 @@ anything declared in `.menata` itself.
 ### `money`, `user`, `file` are "reference sugar"
 
 These three are not independent primitive types conceptually — each is `reference` to a
-predetermined target, kept as its own named type today only because the runtime does not yet have
-that target to point at:
+predetermined target, kept as its own named type today only because the runtime did not, for a
+while, have that target to point at. Two of the three now have real, working targets; only
+`money`'s target is still a placeholder:
 
 | Type | Reference target | Target status |
 |------|-------------------|-----------------|
-| `user` | Platform identity | CAP-O01 (identity & role registry) is now ✅ — `users`/`user_application_roles` — but `type: user` has not yet been migrated to point at it as a `reference` target; still renders as free text (CAP-F05 ⚠️) |
-| `money` | Currency (code + exchange rate) | Pending CAP-O02 (master data designation) |
-| `file` | Runtime-managed File/Document entity | Not yet implemented — CAP-F06 ⚠️ partial |
+| `user` | Platform identity | ✅ CAP-F05, 2026-07-12 — a real picker scoped to CAP-O01's `users`/`user_application_roles`, storing a user id (never a display name), referential integrity enforced at Create/Update |
+| `money` | Currency (code + exchange rate) | ⚠️ CAP-F08 renders/validates/computes correctly (below), but `currency`/`currency_field` still just names a `value_list`/`text` field holding a code string — Currency as its own canonical, identity-bearing Machine (CAP-O02-style master data) is CAP-F17's still-open half |
+| `file` | Runtime-managed File/Document entity | ⚠️ CAP-F06, 2026-07-12 — uploads are genuinely stored and served (below), but as a disk-backed field value, not yet a first-class Machine with its own identity/lifecycle/versioning |
 
 **`type: money` MUST include `currency` (fixed code, e.g. `"IDR"`) or `currency_field` (a reference
-to another field on the same record) in its `options`.** Metadata declaring `money` without either
-is incomplete — the same discipline already required for `value_list` (`values`) and `reference`
-(`target_machine`). This is validated at load time by CAP-X05 once implemented.
+to another field on the same record, for CAP-F17's per-transaction currency) in its `options`.**
+Metadata declaring `money` without either is incomplete — the same discipline already required for
+`value_list` (`values`) and `reference` (`target_machine`), and load-time enforced since
+2026-07-12 (`metadata.Loader`'s money-options check). A money field renders as a number input and
+displays with its resolved currency: `IDR 15000`.
 
-### `file` — image handling `options`
+```yaml
+- id: fld_ad_amount
+  name: Amount
+  type: money
+  options: { currency: "IDR" }
+
+- id: fld_inv_amount        # CAP-F17 — per-transaction currency instead of a fixed one
+  name: Amount
+  type: money
+  options: { currency_field: fld_inv_currency }
+```
+
+### `file` — real storage + image handling `options` (CAP-F06, ✅ implemented 2026-07-12)
 
 `file` does not get a separate `image` type. Whether a file is an image is a **processing policy**
 on the same reference-sugar `file` type, not a different reference target — the same reasoning that
@@ -247,11 +263,20 @@ metadata-facing fact; only the `options` schema below is something a metadata au
   name: Photo Evidence
   type: file
   options:
-    accept: image/*        # MIME types accepted; triggers the compression policy below
-    compress: true          # apply the compression pipeline
-    max_dimension: 1920     # resize policy (longest edge, px)
-    format: webp            # target storage format
+    accept: image/*        # MIME allow-list; a rejected type is a 400 at Create/Update, not a silent drop
+    compress: true          # runs the real server-side pipeline below, regardless of client-side compression
+    max_dimension: 1920     # resize policy (longest edge, px; only ever shrinks, never upscales)
+    format: webp            # "webp" (real WebP via libwebp) or omit for JPEG (default)
 ```
+
+An uploaded file is now genuinely stored (`prototype/go/uploads/` on disk, keyed by an
+unguessable 32-byte token) and served back at `GET /files/{key}` — before 2026-07-12, the picker
+rendered but Create/Update never read the multipart body at all, so a selected file silently
+vanished. `compress: true` always re-runs server-side (stdlib `image` decode, resize, JPEG/WebP
+re-encode) even if the browser already compressed client-side — the server never trusts that
+happened, the same "client is advisory, server enforces" principle CAP-C09 already applies to
+Constraints. `accept` is enforced against the upload's actual `Content-Type`, not just the file
+extension.
 
 *How* the runtime realizes `compress: true` (client-side vs. server-side, and the enforcement rule
 that the server never trusts client-side compression alone) is a runtime-behavior concern, not a
@@ -260,6 +285,111 @@ and `nfr-standards.md` §2.1, not repeated here.
 
 Full reasoning, the decision tree for choosing between `value_list` / `reference` / a primitive, and
 worked examples: `runtime/benchmarks/005-field-modeling-decision-framework.md`.
+
+### `time` / `date_time` / `duration` (CAP-F10, ✅ implemented 2026-07-12)
+
+`time` and `date_time` render real HTML5 inputs (`<input type="time">` / `<input
+type="datetime-local">`), not a text fallback. `duration` is stored as a plain integer count of
+**minutes** (rendered as a number input with a "minutes" suffix) — there is no structured
+duration grammar (ISO 8601 duration, or a value+unit pair) yet; this is a deliberate, named
+simplification, not an oversight.
+
+### `computed` — derived field, never stored (CAP-F14, ⚠️ one sub-pattern implemented 2026-07-12)
+
+```yaml
+- id: fld_pol_total
+  name: Total
+  type: computed
+  options:
+    source_field: fld_pol_price
+    factor: 1.1                    # a FIXED multiplier -- e.g. a tax-inclusive markup
+
+- id: fld_inv_base_amount           # CAP-F17's own base-currency mirror
+  name: Base Amount (IDR)
+  type: computed
+  options:
+    source_field: fld_inv_amount
+    factor_field: fld_inv_rate      # a PER-RECORD multiplier -- another Field's own value
+```
+
+`data[source_field] * multiplier` resolved fresh every time the record is displayed (List/
+Detail) — never written to the database, never read from a Create/Update form (a submitter
+POSTing a value for this field is silently ignored, same trust posture as CAP-F18's
+auto-numbers). Exactly one of `factor` (a fixed constant) or `factor_field` (another `number`/
+`money` Field on the same Machine, read live) is meaningful; `factor_field` wins if both are
+set. `source_field` (and `factor_field`, when set) must both be real `number`/`money` Fields on
+the same Machine — validated at load time.
+
+**Only one sub-pattern is implemented**: a single source × a single multiplier. Not a real
+formula language — no function calls, no multi-operand expressions, no non-numeric arithmetic.
+Cross-record aggregate rollups are a *different* existing mechanism (CAP-A14's
+`aggregate_condition` / `SumField`), not this one.
+
+### Field defaults (CAP-F15, ✅ implemented 2026-07-12)
+
+```yaml
+- id: fld_pr_priority
+  name: Priority
+  type: text
+  options: { default: "Normal" }
+```
+
+`options.default` applies whenever Create's form doesn't expose the field at all, or exposes it
+and the submitter leaves it blank — generalizes the pre-existing "a `value_list` field not
+shown on the form starts at its first declared value" convention to any field, any type.
+
+### Auto-numbering (CAP-F18, ✅ implemented 2026-07-12)
+
+```yaml
+- id: fld_inv_number
+  name: Invoice Number
+  type: text
+  options:
+    auto_number_prefix: "INV-"
+    auto_number_padding: 4          # 0 or omit = no zero-padding, just prefix + plain number
+```
+
+A `text` field with `auto_number_prefix` generates its own value at Create when left blank —
+`"INV-0001"`, `"INV-0002"`, ... — backed by a per-(Machine, Field) counter (`field_sequences`),
+claimed via a single atomic `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` (never a
+SELECT-then-UPDATE, which would let two concurrent Creates read the same "next" value and both
+generate the same number). A submitter-POSTed value for this field is ignored, same as
+`computed` fields above.
+
+### Multi-currency money and Quantity/UoM conversion (CAP-F17/CAP-F19) — composition, not new mechanisms
+
+Both capabilities are explicitly **not** a new field type — they compose from what's already
+above, exactly the framing each capability's own registry row calls for:
+
+```yaml
+# CAP-F17: multi-currency money
+fields:
+  - { id: fld_inv_currency, name: Currency, type: value_list, options: { values: [IDR, USD, EUR] } }
+  - { id: fld_inv_amount, name: Amount, type: money, options: { currency_field: fld_inv_currency } }
+  - { id: fld_inv_rate, name: "Rate to IDR", type: number }
+  - { id: fld_inv_base_amount, name: "Base Amount (IDR)", type: computed,
+      options: { source_field: fld_inv_amount, factor_field: fld_inv_rate } }
+
+# CAP-F19: Quantity / unit-of-measure conversion, Tier 1 (flat factor pair)
+fields:
+  - { id: fld_shp_quantity, name: Quantity, type: number }
+  - { id: fld_shp_unit, name: Unit, type: value_list, options: { values: [Kg, G] } }
+  - { id: fld_shp_factor, name: "Factor to Grams", type: number }
+  - { id: fld_shp_base_qty, name: "Quantity (Grams)", type: computed,
+      options: { source_field: fld_shp_quantity, factor_field: fld_shp_factor } }
+```
+
+CAP-F19's Tier 2 (a CAP-F16 child table of conversion rows) and Tier 3 (a CAP-F13
+history-tracked conversion-factor Machine) remain unexercised — no case has evidenced either
+yet; escalate only when cardinality actually demands it, per this capability's own name.
+
+### Document generation (CAP-F21, ⚠️ HTML output only, implemented 2026-07-12)
+
+A `document`-type View (see Views below) renders an `html/template` source against one
+record's own data — the reverse direction of `file` above (this stores what a *user* uploads;
+`document` generates output from a template + the record's own data, computed at render time,
+nothing stored). Output is HTML, not a binary PDF/image — a browser's own "print to PDF" is the
+practical stand-in for this prototype; a real binary renderer is a separate, deferred concern.
 
 ---
 
@@ -670,6 +800,7 @@ views:
 | `calendar` | ✅ CAP-V07 — records grouped by `date_field`'s own value, server-rendered (no JS month-grid widget, matching this prototype's no-SPA posture) |
 | `timeline` | ✅ CAP-V07 — records ordered chronologically by `date_field` |
 | `report` | ✅ CAP-V13 (metadata type name is `report`, not `aggregate_report`) — group-by/rollup over ANOTHER Machine's records (Trial Balance, Leaderboard-shaped), computed at render time, nothing stored; requires `report: { machine, group_field, sum_fields }` |
+| `document` | ⚠️ CAP-F21, HTML output only — renders `template` (an `html/template` source, `{{.fld_x}}` merge fields, auto-escaped) against one record's own data at `GET /{machine}/{record}/document`; computed at render time, nothing stored |
 
 ### View `config` per type
 
@@ -716,6 +847,16 @@ views:
     machine: mch_journal_entry_line
     group_field: fld_jel_account
     sum_fields: [ fld_jel_debit, fld_jel_credit ]
+
+- id: vw_certificate
+  name: Product Certificate
+  type: document
+  template: |                                # CAP-F21 -- html/template, {{.fld_x}} merge fields, auto-escaped
+    <html><body>
+      <h1>Certificate</h1>
+      <p>SKU: {{.fld_ftp_sku}}</p>
+      <p>Title: {{.fld_ftp_title}}</p>
+    </body></html>
 ```
 
 ---
@@ -734,6 +875,10 @@ metadata tree (every Machine's Fields/Events/Constraints/Permissions/Views/Confi
 straight from the loaded Application Model. Read-only for now; there is no import endpoint —
 metadata still only enters this runtime via SQL seeds (or, upstream of that, the `.menata` →
 Runtime Metadata authoring pipeline this whole document describes).
+
+`GET /files/{key}` (CAP-F06) serves whatever a `file` field's own value points at — also not
+something a metadata author declares; `key` is generated at upload time (an unguessable
+32-byte token), never authored.
 
 ---
 

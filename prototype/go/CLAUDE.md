@@ -196,6 +196,28 @@ which looks exactly like corrupted seed data, not a leftover process. Check `ss 
 actually matches what you just exported, before trusting a health check on a port you've reused
 across more than one verification pass in the same session.
 
+**This build now has a real cgo dependency: `github.com/chai2010/webp`, linked against the
+host's own `libwebp` (CAP-F06's image-compression pipeline, `internal/handler/upload.go`).**
+Confirmed present on this host (`pkg-config --exists libwebp`, `CGO_ENABLED=1` by default) and
+the same host serves both dev and production (`aksi.menata.id` runs on this exact machine, see
+`/root/projects/MULTI-APP-GUIDE.md`), so a build here reproduces there — but if this project is
+ever built on a *different* host, `go build` will fail at the cgo link step unless that host also
+has `libwebp` installed. `golang.org/x/image` (the resize step, `golang.org/x/image/draw`) is
+pure Go, no such risk. If `go build ./...` fails with a missing-package error for either after a
+fresh clone, run `go mod tidy` — `go mod tidy` also silently *removes* an added dependency from
+`go.mod`/`go.sum` if nothing in the tree imports it yet, so add the import first, then `go get`,
+then `go mod tidy`, not the other way around (bit this session once: `go get` followed
+immediately by `go mod tidy` before any file actually imported the package removed it again).
+
+**Uploaded files live on local disk (`prototype/go/uploads/`, gitignored, created on first
+upload via `os.MkdirAll`), not in Postgres.** This is a deliberate prototype-scope choice
+(no object storage exists anywhere else in this stack either) with a real consequence: it does
+NOT survive a redeploy that replaces the working directory, and it's specific to whichever host
+`bin/server` runs from. Isolated-schema testing (the pattern described above) creates real files
+under this same shared directory — clean them up (`rm -rf uploads`) after an isolated-schema
+verification pass the same way you'd drop the schema itself, so stray test images don't
+accumulate across every future batch's own verification runs.
+
 **A seed/permission data change needs a server restart to take effect, same as a code change.**
 The Interpreter loads every Machine's Permissions (and everything else) into memory once at boot
 (`interpreter.New`) — re-running a seed file that adds or updates a `permissions` row (e.g. a new
