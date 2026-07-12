@@ -307,6 +307,10 @@ func (i *Interpreter) DashboardView(machineID string) *model.View {
 	return i.viewOfType(machineID, model.ViewTypeDashboard)
 }
 
+func (i *Interpreter) DocumentView(machineID string) *model.View {
+	return i.viewOfType(machineID, model.ViewTypeDocument)
+}
+
 func (i *Interpreter) viewOfType(machineID string, t model.ViewType) *model.View {
 	m, ok := i.machines[machineID]
 	if !ok {

@@ -173,6 +173,7 @@ SAM=$(session_for sam@example.com password)         # Member (app_event_sources)
 THEO=$(session_for theo@example.com password)       # Member (app_integration_lab)
 YARA=$(session_for yara@example.com password)       # Member (app_workspace_lab_hr, app_workspace_lab_ops)
 ZARA=$(session_for zara@example.com password)       # Admin, Member (app_infra_lab)
+WIRA=$(session_for wira@example.com password)       # Member (app_field_types_lab)
 
 # Real user ids (CAP-F05) for the four genuine person-reference fields
 # (fld_requester, fld_lr_employee, fld_ad_submitted_by, fld_as_approver) --
@@ -1301,6 +1302,118 @@ EXPORT_DENIED_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$YARA" "$BASE_UR
 [ "$EXPORT_CODE" = "200" ] && [ "$EXPORT_DENIED_CODE" = "403" ] && \
     body_contains "$BASE_URL/apps/app_infra_lab/export" "Webhook Source" "$ZARA"
 check T121 "CAP-X08" "an Application's metadata exports as JSON for an Admin; denied for a non-admin role (export=$EXPORT_CODE, denied=$EXPORT_DENIED_CODE)" $?
+
+# --- Batch 11: Remaining Field Types (2026-07-12) ---
+# seeds/017_field_types_lab.sql. CAP-F17 (multi-currency money) and CAP-F19
+# (quantity/UoM) are proven by composition (CAP-F08/F14/F07 + value_list),
+# no new mechanism -- same framing as CAP-I05 in Batch 8.
+
+# T122 -- CAP-F07: a `number` field renders and round-trips a real numeric
+# value (not falling back to a bare text input with no validation).
+FT1_URL=$(post_redirect "$BASE_URL/mch_ft_product" "fld_ftp_title=NumProbe+$$&fld_ftp_qty=7" "$WIRA")
+body_contains "$FT1_URL" ">7<" "$WIRA"
+check T122 "CAP-F07" "a number field's value round-trips through Create and Detail" $?
+
+# T123 -- CAP-F08: a `money` field displays with its declared currency.
+FT2_URL=$(post_redirect "$BASE_URL/mch_ft_product" "fld_ftp_title=MoneyProbe+$$&fld_ftp_price=25000" "$WIRA")
+body_contains "$FT2_URL" "IDR 25000" "$WIRA"
+check T123 "CAP-F08" "a money field renders with its declared currency" $?
+
+# T124 -- CAP-F09: a `boolean` field is Yes when checked, No when the
+# checkbox is left unchecked (submits nothing at all, not an empty string).
+FT3_URL=$(post_redirect "$BASE_URL/mch_ft_product" "fld_ftp_title=BoolYes+$$&fld_ftp_active=true" "$WIRA")
+FT4_URL=$(post_redirect "$BASE_URL/mch_ft_product" "fld_ftp_title=BoolNo+$$" "$WIRA")
+body_contains "$FT3_URL" ">Yes<" "$WIRA" && body_contains "$FT4_URL" ">No<" "$WIRA"
+check T124 "CAP-F09" "a boolean field is Yes when checked, No when the checkbox is left unchecked" $?
+
+# T125 -- CAP-F10: `time`/`date_time`/`duration` all render real HTML5
+# input types on the New form (not a bare text fallback) and round-trip
+# their values through Create and Detail.
+body_contains "$BASE_URL/mch_ft_product/new" 'type="time"' "$WIRA" && \
+    body_contains "$BASE_URL/mch_ft_product/new" 'type="datetime-local"' "$WIRA"
+check T125 "CAP-F10" "time and date_time fields render real HTML5 input types, not a text fallback" $?
+FT5_URL=$(post_redirect "$BASE_URL/mch_ft_product" "fld_ftp_title=TimeProbe+$$&fld_ftp_release_time=14:30&fld_ftp_launched_at=2026-07-12T09:00&fld_ftp_prep_duration=90" "$WIRA")
+body_contains "$FT5_URL" "14:30" "$WIRA" && body_contains "$FT5_URL" "2026-07-12T09:00" "$WIRA" && body_contains "$FT5_URL" ">90<" "$WIRA"
+check T126 "CAP-F10" "time/date_time/duration values round-trip through Create and Detail" $?
+
+# T126 -- CAP-F14: a `computed` field is never stored, never read from a
+# form submission -- it's always Price * Quantity, freshly computed at
+# render time, even if a submitter tries to POST a value for it directly.
+FT6_URL=$(post_redirect "$BASE_URL/mch_ft_product" "fld_ftp_title=CompProbe+$$&fld_ftp_price=1000&fld_ftp_qty=4&fld_ftp_total=999999" "$WIRA")
+body_contains "$FT6_URL" ">4000<" "$WIRA" && ! body_contains "$FT6_URL" "999999" "$WIRA"
+check T127 "CAP-F14" "a computed field is Price times Quantity, ignoring any value POSTed directly for it" $?
+
+# T127 -- CAP-F15: a field's declared default applies when the submitter
+# leaves it blank -- generalized beyond the pre-existing value_list-only
+# first-value convention (Priority here is a plain text field).
+FT7_URL=$(post_redirect "$BASE_URL/mch_ft_product" "fld_ftp_title=DefaultProbe+$$" "$WIRA")
+body_contains "$FT7_URL" ">Normal<" "$WIRA"
+check T128 "CAP-F15" "a plain (non-value_list) field's declared default applies when left blank" $?
+
+# T128 -- CAP-F18: an auto-number field left blank gets a real, sequential,
+# server-generated value -- never a submitter-supplied string (T126's own
+# "ignore a directly-POSTed value" proof applies the same way here).
+FT8_URL=$(post_redirect "$BASE_URL/mch_ft_product" "fld_ftp_title=SeqProbe1+$$" "$WIRA")
+FT9_URL=$(post_redirect "$BASE_URL/mch_ft_product" "fld_ftp_title=SeqProbe2+$$" "$WIRA")
+SKU1=$(get_body "$FT8_URL" "$WIRA" | grep -oE '>SKU-[0-9]+<' | head -1 | tr -d '<>')
+SKU2=$(get_body "$FT9_URL" "$WIRA" | grep -oE '>SKU-[0-9]+<' | head -1 | tr -d '<>')
+N1=$(echo "$SKU1" | grep -oE '[0-9]+')
+N2=$(echo "$SKU2" | grep -oE '[0-9]+')
+[ -n "$N1" ] && [ -n "$N2" ] && [ "$((10#$N2))" -eq "$((10#$N1 + 1))" ]
+check T129 "CAP-F18" "consecutive Creates get sequential, zero-padded auto-numbers (got $SKU1, $SKU2)" $?
+
+# T129 -- CAP-F06: an uploaded image is genuinely stored (not silently
+# dropped, the pre-Batch-11 behavior), resized to max_dimension, and
+# re-encoded as real WebP (RIFF/WEBP magic bytes) -- not just copied
+# through unchanged. A file type outside the declared accept list is
+# rejected outright.
+PNG_B64="iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAIAAAD2HxkiAAACd0lEQVR42u3TsQkAAAzDsJzez5sbOnUR6AKDk1ngkwRgQjAhYEIwIWBCMCFgQjAhYEIwIWBCMCFgQjAhYEIwIWBCMCFgQjAhYEIwIWBCMCFgQjAhYEIwIWBCMCFgQjAhYEIwIWBCMCFgQjAhYEIwIWBCMCFgQjAhYEIwIWBCMCFgQjAhYEIwIWBCMCFgQjAhYEIwIWBCMCFgQjAhYEIwIZhQAjAhmBAwIZgQMCGYEDAhmBAwIZgQMCGYEDAhmBAwIZgQMCGYEDAhmBAwIZgQMCGYEDAhmBAwIZgQMCGYEDAhmBAwIZgQMCGYEDAhmBAwIZgQMCGYEDAhmBAwIZgQMCGYEDAhmBAwIZgQMCGYEDAhmBAwIZgQMCGYEDAhmBAwIZgQTKgCmBBMCJgQTAiYEEwImBBMCJgQTAiYEEwImBBMCJgQTAiYEEwImBBMCJgQTAiYEEwImBBMCJgQTAiYEEwImBBMCJgQTAiYEEwImBBMCJgQTAiYEEwImBBMCJgQTAiYEEwImBBMCJgQTAiYEEwImBBMCJgQTAiYEEwImBBMCJgQTAgmBEwIJgRMCCYETAgmBEwIJgRMCCYETAgmBEwIJgRMCCYETAgmBEwIJgRMCCYETAgmBEwIJgRMCCYETAgmBEwIJgRMCCYETAgmBEwIJgRMCCYETAgmBEwIJgRMCCYETAgmBEwIJgRMCCYETAgmBEwIJgRMCCYETAgmBEwIJgQkABOCCQETggkBE4IJAROCCQETggkBE4IJAROCCQETggkBE4IJAROCCQETggkBE4IJAROCCQETggkBE4IJAROCCQETggkBE4IJAROCCQETggmBmwIoGRdDVqoymgAAAABJRU5ErkJggg=="
+PNG_FILE=$(mktemp)
+echo "$PNG_B64" | base64 -d > "$PNG_FILE" 2>/dev/null || echo "$PNG_B64" | base64 --decode > "$PNG_FILE"
+FT_CSRF=$(csrf_for "$WIRA")
+UPLOAD_HEADERS=$(mktemp)
+UPLOAD_CODE=$(curl -s -b "$WIRA" -D "$UPLOAD_HEADERS" -o /dev/null -w '%{http_code}' -X POST "$BASE_URL/mch_ft_product" \
+    -F "csrf_token=$FT_CSRF" -F "fld_ftp_title=PhotoProbe$$" -F "fld_ftp_photo=@$PNG_FILE;type=image/png")
+UPLOAD_REDIRECT=$(grep -i '^location' "$UPLOAD_HEADERS" | tr -d '\r' | sed -E 's/^[Ll]ocation: //')
+FILE_HREF=$(get_body "$BASE_URL$UPLOAD_REDIRECT" "$WIRA" | grep -oE 'href="/files/[^"]*"' | sed -E 's/href="(.*)"/\1/')
+STORED_FILE=$(mktemp)
+curl -s -D "$UPLOAD_HEADERS" -o "$STORED_FILE" "$BASE_URL$FILE_HREF"
+SERVED_CONTENT_TYPE=$(grep -i '^content-type' "$UPLOAD_HEADERS" | tr -d '\r')
+ORIG_SIZE=$(wc -c < "$PNG_FILE" | tr -d ' ')
+STORED_SIZE=$(wc -c < "$STORED_FILE" | tr -d ' ')
+[ "$UPLOAD_CODE" = "303" ] && \
+    echo "$SERVED_CONTENT_TYPE" | grep -qi "image/webp" && \
+    [ "$(head -c 4 "$STORED_FILE")" = "RIFF" ] && \
+    [ "$STORED_SIZE" -lt "$ORIG_SIZE" ]
+check T130 "CAP-F06" "an uploaded image is stored, resized, and re-encoded as real WebP (orig=${ORIG_SIZE}b, stored=${STORED_SIZE}b, content-type=$SERVED_CONTENT_TYPE)" $?
+BAD_UPLOAD_FILE=$(mktemp)
+printf 'not an image' > "$BAD_UPLOAD_FILE"
+BAD_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$WIRA" -X POST "$BASE_URL/mch_ft_product" \
+    -F "csrf_token=$FT_CSRF" -F "fld_ftp_title=BadUpload$$" -F "fld_ftp_photo=@$BAD_UPLOAD_FILE;type=text/plain")
+[ "$BAD_CODE" = "400" ]
+check T131 "CAP-F06" "a file type outside the declared accept list is rejected, not silently stored (got $BAD_CODE)" $?
+rm -f "$PNG_FILE" "$UPLOAD_HEADERS" "$STORED_FILE" "$BAD_UPLOAD_FILE"
+
+# T130 -- CAP-F17: multi-currency money, composed from CAP-F08's own
+# currency_field option plus a CAP-F14 computed base-currency mirror -- no
+# dedicated new field type.
+FT10_URL=$(post_redirect "$BASE_URL/mch_ft_invoice" "fld_fti_currency=USD&fld_fti_amount=100&fld_fti_rate=16000" "$WIRA")
+body_contains "$FT10_URL" "USD 100" "$WIRA" && body_contains "$FT10_URL" ">1600000<" "$WIRA"
+check T132 "CAP-F17" "multi-currency money (currency + rate) computes its base-currency mirror correctly" $?
+
+# T131 -- CAP-F19: quantity/UoM Tier 1 (flat factor pair), composed from
+# `number` + `value_list` + a CAP-F14 computed field -- no dedicated new
+# field type.
+FT11_URL=$(post_redirect "$BASE_URL/mch_ft_shipment" "fld_fts_quantity=5&fld_fts_unit=Kg&fld_fts_factor=1000" "$WIRA")
+body_contains "$FT11_URL" ">5000<" "$WIRA"
+check T133 "CAP-F19" "quantity/UoM Tier 1 composition converts to its base unit correctly (5 Kg * 1000 = 5000 g)" $?
+
+# T132 -- CAP-F21: a `document` View renders its own html/template source
+# against one real record's data -- merge fields resolved, not literal
+# placeholder text left in the output.
+DOC_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$WIRA" "$FT1_URL/document")
+body_contains "$FT1_URL/document" "SKU: SKU-" "$WIRA" && ! body_contains "$FT1_URL/document" "{{.fld_ftp_sku}}" "$WIRA"
+check T134 "CAP-F21" "a document View renders its template with real merge fields resolved (got $DOC_CODE)" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

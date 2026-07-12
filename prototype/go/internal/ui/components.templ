@@ -85,6 +85,61 @@ templ FieldInput(f *model.Field, name, value string, refOptions []ReferenceOptio
 				value={ value }
 				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
 			/>
+		case model.FieldTypeDateTime:
+			<input
+				type="datetime-local"
+				id={ name }
+				name={ name }
+				value={ value }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			/>
+		case model.FieldTypeTime:
+			<input
+				type="time"
+				id={ name }
+				name={ name }
+				value={ value }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			/>
+		case model.FieldTypeDuration:
+			<div class="flex items-center gap-2">
+				<input
+					type="number"
+					min="0"
+					id={ name }
+					name={ name }
+					value={ value }
+					class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+				/>
+				<span class="text-xs text-slate-400 whitespace-nowrap">minutes</span>
+			</div>
+		case model.FieldTypeNumber:
+			<input
+				type="number"
+				step="any"
+				id={ name }
+				name={ name }
+				value={ value }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			/>
+		case model.FieldTypeMoney:
+			<input
+				type="number"
+				step="0.01"
+				id={ name }
+				name={ name }
+				value={ value }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			/>
+		case model.FieldTypeBoolean:
+			<input
+				type="checkbox"
+				id={ name }
+				name={ name }
+				value="true"
+				checked?={ value == "true" }
+				class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-1 focus:ring-blue-500"
+			/>
 		case model.FieldTypeFile:
 			<input
 				type="file"

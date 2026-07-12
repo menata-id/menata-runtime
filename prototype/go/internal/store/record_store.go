@@ -288,6 +288,21 @@ func (s *RecordStore) LogEvent(ctx context.Context, recordID, eventID, performed
 	return err
 }
 
+// NextSequence (CAP-F18) atomically returns the next value of a
+// per-(machineID, fieldID) counter, starting at 1 -- a single INSERT ...
+// ON CONFLICT DO UPDATE ... RETURNING, never a SELECT-then-UPDATE (which
+// would let two concurrent Creates read the same "current" value and both
+// generate the same document number).
+func (s *RecordStore) NextSequence(ctx context.Context, machineID, fieldID string) (int64, error) {
+	var next int64
+	err := s.db(ctx).QueryRow(ctx,
+		`INSERT INTO field_sequences (machine_id, field_id, next_value) VALUES ($1, $2, 2)
+		 ON CONFLICT (machine_id, field_id) DO UPDATE SET next_value = field_sequences.next_value + 1
+		 RETURNING next_value - 1`,
+		machineID, fieldID).Scan(&next)
+	return next, err
+}
+
 // ClaimWebhookEvent (CAP-X13) atomically claims (machineID, eventID,
 // idempotencyKey) via INSERT ... ON CONFLICT DO NOTHING -- returns true if
 // this call made the claim (first delivery, proceed), false if it was

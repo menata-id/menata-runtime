@@ -60,10 +60,21 @@ const (
 	FieldTypeBoolean   FieldType = "boolean"
 	FieldTypeDate      FieldType = "date"
 	FieldTypeDateTime  FieldType = "date_time"
+	FieldTypeTime      FieldType = "time"     // CAP-F10, 2026-07-12
+	FieldTypeDuration  FieldType = "duration" // CAP-F10, 2026-07-12
 	FieldTypeUser      FieldType = "user"
 	FieldTypeFile      FieldType = "file"
 	FieldTypeValueList FieldType = "value_list"
 	FieldTypeReference FieldType = "reference"
+	// FieldTypeComputed (CAP-F14, 2026-07-12) has no stored value at all --
+	// List/Detail render Options.SourceField's own value times Options.Factor
+	// at render time (same "computed at render time, nothing stored"
+	// precedent CAP-V13's report View already established), never part of a
+	// Create/Update form. Covers the one sub-pattern with real evidence
+	// (Study 15's unit/currency conversion, amount * factor); cross-record
+	// aggregate rollup and static categorical lookup are still open, see
+	// capability-registry.md's own CAP-F14 row.
+	FieldTypeComputed FieldType = "computed"
 )
 
 // FieldOptions holds type-specific configuration.
@@ -72,6 +83,51 @@ const (
 type FieldOptions struct {
 	Values        []string `json:"values,omitempty"`
 	TargetMachine string   `json:"target_machine,omitempty"`
+
+	// Default (CAP-F15, 2026-07-12): a literal value this field starts at on
+	// Create when the submitter leaves it blank -- the same "first value ="
+	// initial state" convention Status already had, generalized to any
+	// field, any type. Never overrides a value the submitter DID provide.
+	Default string `json:"default,omitempty"`
+
+	// money (CAP-F08, 2026-07-12): exactly one of Currency (fixed code,
+	// e.g. "IDR") or CurrencyField (a reference to another field on the
+	// same record, for CAP-F17's per-transaction currency) is required --
+	// enforced at load time, see loader.go's validateMoneyOptions.
+	Currency      string `json:"currency,omitempty"`
+	CurrencyField string `json:"currency_field,omitempty"`
+
+	// file (CAP-F06, 2026-07-12): Accept is a comma-separated MIME
+	// allow-list (empty = any file type accepted, no image pipeline runs).
+	// Compress/MaxDimension/Format only apply when Accept implies images
+	// (e.g. "image/*") -- see internal/handler/upload.go.
+	Accept       string `json:"accept,omitempty"`
+	Compress     bool   `json:"compress,omitempty"`
+	MaxDimension int    `json:"max_dimension,omitempty"`
+	Format       string `json:"format,omitempty"` // "jpeg" (default) or "webp"
+
+	// computed (CAP-F14, 2026-07-12): this field's OWN value is never
+	// stored -- List/Detail compute data[SourceField] * multiplier at
+	// render time, where multiplier is either the fixed Factor (a static
+	// conversion ratio, e.g. kg -> g via x1000) or data[FactorField] (a
+	// PER-RECORD multiplier -- CAP-F17's own per-transaction exchange
+	// rate; exactly one of Factor/FactorField is meaningful, FactorField
+	// wins if both are set). SourceField and FactorField (when set) must
+	// both be real `number`/`money` Fields on the same Machine (validated
+	// at load time).
+	SourceField string  `json:"source_field,omitempty"`
+	Factor      float64 `json:"factor,omitempty"`
+	FactorField string  `json:"factor_field,omitempty"`
+
+	// text (CAP-F18, 2026-07-12): non-empty AutoNumberPrefix marks this
+	// field as auto-generated at Create when left blank -- "INV-0001",
+	// zero-padded to AutoNumberPadding digits (0 = no padding), backed by
+	// a per-(machine,field) counter (migrations/018, RecordStore.
+	// NextSequence's atomic UPSERT). Still just a `text` field otherwise --
+	// no new FieldType, matching CAP-F19's own "compose, don't add a type"
+	// precedent.
+	AutoNumberPrefix  string `json:"auto_number_prefix,omitempty"`
+	AutoNumberPadding int    `json:"auto_number_padding,omitempty"`
 }
 
 // Event is a business occurrence that triggers actions on a Machine.
@@ -289,6 +345,17 @@ const (
 	ViewTypeCalendar  ViewType = "calendar"
 	ViewTypeTimeline  ViewType = "timeline"
 	ViewTypeReport    ViewType = "report" // CAP-V13: grouped aggregate (e.g. Trial Balance)
+	// ViewTypeDocument (CAP-F21, 2026-07-12) renders Config.Template (an
+	// html/template source authored with {{.fld_x}}-style placeholders,
+	// auto-escaped) against one record's own Data -- a merge-fields
+	// document (certificate, simple invoice layout), computed at render
+	// time and never stored, same "computed at render time" precedent
+	// CAP-V13's report View already established. Output is HTML, not a
+	// binary PDF/image -- "print to PDF" from the browser is the practical
+	// stand-in for this prototype; a real PDF renderer is a deliberately
+	// separate, deferred concern (swapping the final render step, not this
+	// mechanism).
+	ViewTypeDocument ViewType = "document"
 )
 
 // ViewConfig holds view-specific presentation configuration.
@@ -303,6 +370,7 @@ type ViewConfig struct {
 	Sections    []DashboardSection `json:"sections,omitempty"`     // dashboard: CAP-V10 composed multi-machine summary
 	Steps       [][]string         `json:"steps,omitempty"`        // form: CAP-V12 multi-step wizard -- each entry is a Fields subset shown one step at a time; unset means single-step (existing behavior)
 	ManualOrder bool               `json:"manual_order,omitempty"` // list: CAP-V14 -- sort by the free-standing sort_order column (migrations/011) and render Up/Down controls, instead of DefaultSort/created_at
+	Template    string             `json:"template,omitempty"`     // document: CAP-F21 -- html/template source, {{.fld_x}} placeholders resolved against one record's Data
 }
 
 // ReportConfig (CAP-V13) declares a "report" View as a grouped aggregate

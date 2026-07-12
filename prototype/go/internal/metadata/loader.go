@@ -175,6 +175,69 @@ func validateReferences(workspaces []*model.Workspace) error {
 					}
 				}
 
+				// CAP-F08/F17: a `money` field must declare exactly one of
+				// Currency (fixed code) or CurrencyField (a reference to
+				// another field on the same record, for per-transaction
+				// currency) -- same "Unknown = explicit" discipline; closes
+				// the gap CAP-X05's own row named as deferred ("waits for
+				// CAP-F08's real implementation").
+				for _, f := range m.Fields {
+					if f.Type != model.FieldTypeMoney {
+						continue
+					}
+					hasCurrency, hasField := f.Options.Currency != "", f.Options.CurrencyField != ""
+					if hasCurrency == hasField {
+						return fmt.Errorf("field %s (%s) on machine %s: type money requires exactly one of options.currency or options.currency_field",
+							f.ID, f.Name, m.ID)
+					}
+					if hasField {
+						if _, ok := fieldByID[f.Options.CurrencyField]; !ok {
+							return fmt.Errorf("field %s (%s) on machine %s: currency_field %q does not name a Field on this machine",
+								f.ID, f.Name, m.ID, f.Options.CurrencyField)
+						}
+					}
+				}
+
+				// CAP-F14: a `computed` field's source_field must name a
+				// real number/money Field on the same machine -- the
+				// arithmetic only makes sense against a numeric value.
+				for _, f := range m.Fields {
+					if f.Type != model.FieldTypeComputed {
+						continue
+					}
+					sf, ok := fieldByID[f.Options.SourceField]
+					if !ok {
+						return fmt.Errorf("field %s (%s) on machine %s: computed source_field %q does not name a Field on this machine",
+							f.ID, f.Name, m.ID, f.Options.SourceField)
+					}
+					if sf.Type != model.FieldTypeNumber && sf.Type != model.FieldTypeMoney {
+						return fmt.Errorf("field %s (%s) on machine %s: computed source_field %q must be type \"number\" or \"money\", got %q",
+							f.ID, f.Name, m.ID, f.Options.SourceField, sf.Type)
+					}
+					if f.Options.FactorField != "" {
+						ff, ok := fieldByID[f.Options.FactorField]
+						if !ok {
+							return fmt.Errorf("field %s (%s) on machine %s: computed factor_field %q does not name a Field on this machine",
+								f.ID, f.Name, m.ID, f.Options.FactorField)
+						}
+						if ff.Type != model.FieldTypeNumber && ff.Type != model.FieldTypeMoney {
+							return fmt.Errorf("field %s (%s) on machine %s: computed factor_field %q must be type \"number\" or \"money\", got %q",
+								f.ID, f.Name, m.ID, f.Options.FactorField, ff.Type)
+						}
+					}
+				}
+
+				// CAP-F18: auto_number_prefix only makes sense on a `text`
+				// field -- Create's own auto-number generation (handler.go)
+				// writes a formatted string, which would silently mismatch
+				// any other declared type.
+				for _, f := range m.Fields {
+					if f.Options.AutoNumberPrefix != "" && f.Type != model.FieldTypeText {
+						return fmt.Errorf("field %s (%s) on machine %s: auto_number_prefix requires type \"text\", got %q",
+							f.ID, f.Name, m.ID, f.Type)
+					}
+				}
+
 				// CAP-F16: a form view's child_lines must name a real child
 				// Machine with a real `reference` field pointing back at
 				// this parent -- same "Unknown = explicit" discipline.

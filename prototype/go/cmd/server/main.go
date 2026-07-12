@@ -242,15 +242,20 @@ func slogAccessLog(next http.Handler) http.Handler {
 
 // publicPaths never require a session -- the login page and its own POST
 // (nothing to authenticate against yet), the health check (ops tooling, not
-// a browser session), static assets (CSS/JS, not per-user), and CAP-E04's
+// a browser session), static assets (CSS/JS, not per-user), CAP-E04's
 // webhook endpoint (an external system, authenticated by its own
 // Machine-specific shared secret inside handler.Webhook itself, not a user
-// session at all).
+// session at all), and CAP-F06's uploaded-file serving (handler.ServeFile --
+// gated by an unguessable 32-byte key, the same trust boundary a session or
+// CSRF token already gets, not a per-request permission re-check; a file's
+// own record may itself be behind a role a Visitor-anonymous reader could
+// never see, but the FILE's key was never handed out anywhere the reader
+// couldn't already reach the record it belongs to).
 func isPublicPath(path string) bool {
 	if path == "/login" || path == "/health" {
 		return true
 	}
-	if strings.HasPrefix(path, "/webhooks/") {
+	if strings.HasPrefix(path, "/webhooks/") || strings.HasPrefix(path, "/files/") {
 		return true
 	}
 	return strings.HasPrefix(path, "/static/")

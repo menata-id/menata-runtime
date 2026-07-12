@@ -164,6 +164,19 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T119 | CAP-X07 | the JSON API lists and reads a machine's records, permission-trimmed; an unauthenticated request is denied |
 | T120 | CAP-X07 | a JSON create via X-CSRF-Token header succeeds; a request with no CSRF token is rejected |
 | T121 | CAP-X08 | an Application's metadata exports as JSON for an Admin; denied for a non-admin role |
+| T122 | CAP-F07 | a number field's value round-trips through Create and Detail |
+| T123 | CAP-F08 | a money field renders with its declared currency |
+| T124 | CAP-F09 | a boolean field is Yes when checked, No when the checkbox is left unchecked |
+| T125 | CAP-F10 | time and date_time fields render real HTML5 input types, not a text fallback |
+| T126 | CAP-F10 | time/date_time/duration values round-trip through Create and Detail |
+| T127 | CAP-F14 | a computed field is Price times Quantity, ignoring any value POSTed directly for it |
+| T128 | CAP-F15 | a plain (non-value_list) field's declared default applies when left blank |
+| T129 | CAP-F18 | consecutive Creates get sequential, zero-padded auto-numbers |
+| T130 | CAP-F06 | an uploaded image is stored, resized, and re-encoded as real WebP |
+| T131 | CAP-F06 | a file type outside the declared accept list is rejected, not silently stored |
+| T132 | CAP-F17 | multi-currency money (currency + rate) computes its base-currency mirror correctly |
+| T133 | CAP-F19 | quantity/UoM Tier 1 composition converts to its base unit correctly |
+| T134 | CAP-F21 | a document View renders its template with real merge fields resolved |
 
 ---
 

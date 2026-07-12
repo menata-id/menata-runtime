@@ -1413,6 +1413,56 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > `runtime-metadata-schema.md`/`guides/writing-runtime-metadata.md` before this batch's own
 > commit.
 
+> **Status update (2026-07-12, same day) — the final batch: all 11 remaining field types now
+> ✅/⚠️ (CAP-F06/F07/F08/F09/F10/F15/F18/F19 ✅; CAP-F14/F17/F21 ⚠️, real but deliberately
+> scoped-down)**. This closes the "kerjakan semua CAP" push started earlier this session —
+> every capability originally named across Batches 1–10 plus this final field-types sweep is
+> now either ✅, a deliberately-scoped ⚠️, or a reviewed-and-deferred ❌ with its reasoning on
+> record (CAP-X04/X09/X10/X11, plus CAP-O07 from earlier).
+>
+> The quick wins first: CAP-F07 (number), CAP-F08 (money, with load-time-enforced
+> `currency`/`currency_field`), CAP-F09 (boolean, with correct "unchecked checkbox submits
+> nothing" handling on both Create and Update), CAP-F10 (real `time`/`datetime-local` HTML5
+> inputs; `duration` stored as plain minutes — the one named simplification), and CAP-F15
+> (field defaults generalized beyond the old value_list-only convention) were all rendering/
+> validation changes, no new mechanism.
+>
+> Three more compounded into each other: CAP-F14 (computed field) is a new `type: computed`
+> Field — `SourceField * Factor` or, critically, `SourceField * data[FactorField]` for a
+> PER-RECORD multiplier — never stored, resolved at render time (CAP-V13's own "computed at
+> render time" precedent, extended). That per-record multiplier is what made CAP-F17
+> (multi-currency money) and CAP-F19 (quantity/UoM conversion) buildable as pure composition
+> instead of new mechanisms — CAP-F08's `currency_field` (or a plain `number` + `value_list`
+> unit pair) plus one computed base-mirror field, exactly the framing both capabilities'
+> registry rows already called for. CAP-F18 (auto-numbering) is a new `field_sequences` table
+> claimed via a single atomic `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` — the same
+> never-check-then-act discipline CAP-X13's webhook claim established one batch earlier, reused
+> here for a different dedupe-adjacent problem (safe sequence generation under concurrent
+> Creates).
+>
+> CAP-F06 (`file` field) was the real architectural gap — the picker rendered but nothing ever
+> read the multipart body, so an upload silently vanished. Now Create/Update genuinely parse
+> and store the bytes (local disk, unguessable-token-keyed, `GET /files/{key}`), with a real
+> server-side image pipeline: `golang.org/x/image/draw` resize plus JPEG or genuine WebP
+> re-encoding via `github.com/chai2010/webp` against the host's own `libwebp` (confirmed
+> available, added as a real dependency per this session's own scope decision — not stubbed).
+> T130 proves a 400×400 test image lands as an actual 200×200 WebP file (RIFF/WEBP magic bytes
+> checked directly). CAP-F21 (templated document generation) reuses the exact same
+> "computed/rendered at request time" posture as CAP-F14 — a new `document` View type
+> (`html/template` source, auto-escaped `{{.fld_x}}` merge fields) rendered against one
+> record's data. Deliberately HTML output, not a binary PDF — a browser's own print-to-PDF is
+> the practical stand-in until a real case demands a binary artifact specifically.
+>
+> One new migration (`migrations/018_field_types.sql`: `field_sequences`) and one new seed file
+> (`seeds/017_field_types_lab.sql`: three Machines proving all 11 capabilities, including the
+> CAP-F17/F19 composition patterns). Conformance T122–T134 added (135/135 passing — one test
+> initially failed on the isolated schema with a corrupted embedded test-image fixture, a
+> transcription error caught and fixed before touching production, not a code defect — then
+> confirmed stable across two consecutive full-suite runs against production), verified on an
+> isolated schema against both a fresh install and production's real data, then live at
+> `aksi.menata.id`, including the real WebP compression pipeline working end-to-end through the
+> production Caddy HTTPS proxy.
+
 ---
 
 # Principles

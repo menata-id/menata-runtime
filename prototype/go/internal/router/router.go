@@ -51,6 +51,8 @@ func Mount(r chi.Router, h *handler.Handler) {
 
 	r.Get("/search", h.Search) // CAP-O04
 
+	r.Get("/files/{key}", h.ServeFile) // CAP-F06 -- unguessable key IS the access control, see upload.go
+
 	// CAP-X07: auto-generated outbound JSON API, one route family per
 	// Machine, same session+CSRF auth and permission trimming as the HTML
 	// routes below -- see internal/handler/api.go's own top-of-file note
@@ -69,6 +71,7 @@ func Mount(r chi.Router, h *handler.Handler) {
 	r.Get("/{machineID}/dashboard", h.Dashboard) // CAP-V10
 	r.Get("/{machineID}/{recordID}", h.Detail)
 	r.Get("/{machineID}/{recordID}/edit", h.EditForm)
+	r.Get("/{machineID}/{recordID}/document", h.Document) // CAP-F21
 	r.Post("/{machineID}/{recordID}", h.Update)
 	r.Post("/{machineID}/{recordID}/events/{eventID}", h.TriggerEvent)
 	r.Post("/{machineID}/{recordID}/move/{direction}", h.MoveRecord) // CAP-V14

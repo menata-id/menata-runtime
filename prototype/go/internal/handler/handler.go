@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	htmltemplate "html/template"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -562,17 +563,26 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 				val = fmt.Sprintf("%v", v)
 			}
 			link := ""
-			if cols[j].Type == model.FieldTypeReference && val != "" {
+			switch {
+			case cols[j].Type == model.FieldTypeReference && val != "":
 				refID := val
 				target := fieldByID[id].Options.TargetMachine
 				if label, err := h.referenceLabel(r.Context(), target, refID); err == nil && label != "" {
 					val = label
 					link = "/" + target + "/" + refID
 				}
-			} else if cols[j].Type == model.FieldTypeUser && val != "" {
+			case cols[j].Type == model.FieldTypeUser && val != "":
 				if label, err := h.userLabel(r.Context(), val); err == nil && label != "" {
 					val = label
 				}
+			case cols[j].Type == model.FieldTypeBoolean:
+				val = boolLabel(val) // CAP-F09
+			case cols[j].Type == model.FieldTypeMoney && val != "":
+				val = formatMoney(val, fieldByID[id], rec.Data) // CAP-F08
+			case cols[j].Type == model.FieldTypeFile && val != "":
+				link = "/files/" + val // CAP-F06
+			case cols[j].Type == model.FieldTypeComputed:
+				val = computedValue(fieldByID[id], rec.Data) // CAP-F14
 			}
 			cells[j] = ui.ListCell{
 				Value:         val,
@@ -706,6 +716,55 @@ func (h *Handler) MoveRecord(w http.ResponseWriter, r *http.Request) {
 // not this Machine's. Read access is checked against the SOURCE machine
 // (the data being aggregated), same reasoning as CAP-V06's reverse-lookup
 // child lists reading the child Machine's own records.
+// Document handles GET /{machineID}/{recordID}/document (CAP-F21) -- renders
+// the Machine's own `document`-type View (Config.Template, an html/template
+// source with {{.fld_x}} placeholders) against one record's Data. html/
+// template auto-escapes every interpolated value, so a record whose data
+// happens to contain HTML/script-looking text can't inject anything into
+// the rendered page. Output is HTML, not a binary PDF/image -- see
+// model.ViewTypeDocument's own doc comment for why that's a deliberate,
+// named scope cut, not an oversight.
+func (h *Handler) Document(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	recordID := chi.URLParam(r, "recordID")
+	machine, ok := h.interp.GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanRead(machine, role) {
+		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	view := h.interp.DocumentView(machineID)
+	if view == nil || view.Config.Template == "" {
+		http.NotFound(w, r)
+		return
+	}
+	rec, err := h.records.Get(r.Context(), recordID)
+	if err != nil || rec.MachineID != machineID {
+		http.NotFound(w, r)
+		return
+	}
+	tmpl, err := htmltemplate.New(view.ID).Parse(view.Config.Template)
+	if err != nil {
+		slog.Error("parse document template", "view", view.ID, "error", err)
+		http.Error(w, "failed to render document", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := tmpl.Execute(w, rec.Data); err != nil {
+		slog.Error("render document", "view", view.ID, "error", err)
+	}
+}
+
 func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	machine, ok := h.interp.GetMachine(machineID)
@@ -1228,14 +1287,58 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	data := make(map[string]any)
 	for _, f := range machine.Fields {
-		if !formFieldIDs[f.ID] && f.Type == model.FieldTypeValueList && len(f.Options.Values) > 0 {
+		if formFieldIDs[f.ID] || f.Type == model.FieldTypeComputed {
+			continue
+		}
+		if f.Type == model.FieldTypeValueList && len(f.Options.Values) > 0 {
 			data[f.ID] = f.Options.Values[0]
+		} else if f.Options.Default != "" {
+			// CAP-F15: any field's own declared default, generalized from
+			// the value_list-only convention above -- applies whenever the
+			// Create form doesn't expose the field at all.
+			data[f.ID] = f.Options.Default
 		}
 	}
 	for _, f := range machine.Fields {
+		if f.Type == model.FieldTypeComputed {
+			continue // CAP-F14: never a stored value, never read from a form
+		}
 		if v := r.FormValue(f.ID); v != "" {
 			data[f.ID] = v
+		} else if f.Type == model.FieldTypeBoolean && formFieldIDs[f.ID] {
+			data[f.ID] = "false" // CAP-F09: an unchecked checkbox submits nothing at all
+		} else if f.Options.Default != "" && formFieldIDs[f.ID] {
+			data[f.ID] = f.Options.Default // CAP-F15: exposed but left blank
 		}
+	}
+	// CAP-F06: `file` fields' actual uploaded bytes -- csrfProtect
+	// (cmd/server/main.go) already called ParseMultipartForm for a
+	// multipart request before this handler ever runs, so r.MultipartForm
+	// is already populated here.
+	uploaded, err := h.processFileUploads(r, machine)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	for fieldID, key := range uploaded {
+		data[fieldID] = key
+	}
+
+	// CAP-F18: an auto-number field left blank gets the next sequence value
+	// -- atomic per (machine, field), never a submitter-supplied string.
+	for _, f := range machine.Fields {
+		if f.Options.AutoNumberPrefix == "" {
+			continue
+		}
+		if v, ok := data[f.ID]; ok && fmt.Sprintf("%v", v) != "" {
+			continue
+		}
+		n, err := h.records.NextSequence(r.Context(), machineID, f.ID)
+		if err != nil {
+			http.Error(w, "failed to generate document number", http.StatusInternalServerError)
+			return
+		}
+		data[f.ID] = formatAutoNumber(f.Options, n)
 	}
 
 	// CAP-R08: see the matching comment in Update -- a record created
@@ -1428,9 +1531,36 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		data[k] = v
 	}
 	for _, f := range machine.Fields {
-		if formFieldIDs[f.ID] {
-			data[f.ID] = r.FormValue(f.ID)
+		if !formFieldIDs[f.ID] || f.Type == model.FieldTypeComputed {
+			continue // CAP-F14: never a stored value, never read from a form
 		}
+		if f.Type == model.FieldTypeBoolean {
+			// CAP-F09: an unchecked checkbox submits nothing at all --
+			// FormValue("") would otherwise silently write an empty string
+			// instead of "false".
+			if r.FormValue(f.ID) == "true" {
+				data[f.ID] = "true"
+			} else {
+				data[f.ID] = "false"
+			}
+			continue
+		}
+		if f.Type == model.FieldTypeFile {
+			// CAP-F06: a file input's FormValue is always "" (the browser
+			// sends the bytes as a multipart file part, not a form value)
+			// -- leave the record's existing stored key alone here; a real
+			// new upload (if any) overlays it below, AFTER this loop.
+			continue
+		}
+		data[f.ID] = r.FormValue(f.ID)
+	}
+	uploaded, err := h.processFileUploads(r, machine)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	for fieldID, key := range uploaded {
+		data[fieldID] = key
 	}
 
 	// CAP-R08: a record still in its declared "scratch" state (e.g. a Cart
@@ -1523,17 +1653,26 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 			val = fmt.Sprintf("%v", v)
 		}
 		link := ""
-		if f.Type == model.FieldTypeReference && val != "" {
+		switch {
+		case f.Type == model.FieldTypeReference && val != "":
 			refID := val
 			target := f.Options.TargetMachine
 			if label, err := h.referenceLabel(r.Context(), target, refID); err == nil && label != "" {
 				val = label
 				link = "/" + target + "/" + refID
 			}
-		} else if f.Type == model.FieldTypeUser && val != "" {
+		case f.Type == model.FieldTypeUser && val != "":
 			if label, err := h.userLabel(r.Context(), val); err == nil && label != "" {
 				val = label
 			}
+		case f.Type == model.FieldTypeBoolean:
+			val = boolLabel(val) // CAP-F09
+		case f.Type == model.FieldTypeMoney && val != "":
+			val = formatMoney(val, f, rec.Data) // CAP-F08
+		case f.Type == model.FieldTypeFile && val != "":
+			link = "/files/" + val // CAP-F06
+		case f.Type == model.FieldTypeComputed:
+			val = computedValue(f, rec.Data) // CAP-F14
 		}
 		fields = append(fields, ui.DetailField{Name: f.Name, Value: val, Link: link})
 	}
@@ -2164,6 +2303,71 @@ func (h *Handler) referenceLabel(ctx context.Context, targetMachineID, recordID 
 // business author declare "this is the field people should see when
 // referencing a record" — this heuristic is a prototype stand-in for that
 // missing capability, not a final design.
+// formatAutoNumber (CAP-F18) renders a sequence value as "<prefix><padded
+// number>", e.g. prefix "INV-" + padding 4 + n=7 -> "INV-0007". padding 0
+// (or omitted) means no zero-padding at all -- just the prefix and the
+// plain number.
+func formatAutoNumber(opts model.FieldOptions, n int64) string {
+	if opts.AutoNumberPadding > 0 {
+		return fmt.Sprintf("%s%0*d", opts.AutoNumberPrefix, opts.AutoNumberPadding, n)
+	}
+	return fmt.Sprintf("%s%d", opts.AutoNumberPrefix, n)
+}
+
+// boolLabel (CAP-F09) renders a boolean field's stored "true"/"false"
+// string as a human-readable Yes/No -- anything else (unset, malformed) is
+// treated as No, the same "absent = false" convention Create/Update's own
+// checkbox handling already uses.
+func boolLabel(val string) string {
+	if val == "true" {
+		return "Yes"
+	}
+	return "No"
+}
+
+// formatMoney (CAP-F08) appends the resolved currency code to a money
+// field's raw numeric value -- Options.Currency (fixed) or
+// data[Options.CurrencyField] (CAP-F17's per-transaction currency).
+func formatMoney(val string, f *model.Field, data map[string]any) string {
+	currency := f.Options.Currency
+	if f.Options.CurrencyField != "" {
+		currency = fmt.Sprintf("%v", data[f.Options.CurrencyField])
+	}
+	if currency == "" || currency == "<nil>" {
+		return val
+	}
+	return currency + " " + val
+}
+
+// computedValue (CAP-F14) resolves a `computed` field's display value at
+// render time -- data[Options.SourceField] * Options.Factor -- never
+// stored, matching CAP-V13's own "computed at render time" precedent. A
+// non-numeric or missing source renders blank rather than "0", the same
+// "don't fabricate a number for missing data" posture SumField already
+// takes.
+func computedValue(f *model.Field, data map[string]any) string {
+	raw, ok := data[f.Options.SourceField]
+	if !ok {
+		return ""
+	}
+	n, err := strconv.ParseFloat(fmt.Sprintf("%v", raw), 64)
+	if err != nil {
+		return ""
+	}
+	multiplier := f.Options.Factor
+	if f.Options.FactorField != "" {
+		fv, ok := data[f.Options.FactorField]
+		if !ok {
+			return ""
+		}
+		multiplier, err = strconv.ParseFloat(fmt.Sprintf("%v", fv), 64)
+		if err != nil {
+			return ""
+		}
+	}
+	return strconv.FormatFloat(n*multiplier, 'f', -1, 64)
+}
+
 func displayLabel(machine *model.Machine, data map[string]any) string {
 	if machine != nil {
 		var firstText *model.Field
