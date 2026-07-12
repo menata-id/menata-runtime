@@ -45,11 +45,24 @@ npm install
 ### 5. Set up PostgreSQL
 
 Create a database matching `.env.example`'s name (`menata_runtime`) — or edit `.env` in the next step
-to match whatever name/credentials you actually created:
+to match whatever name/credentials you actually created. **Create a role scoped to this database,
+not the shared `postgres` superuser** — see "Database role" below for why.
 
 ```sql
-CREATE DATABASE menata_runtime;
+CREATE ROLE menata_runtime_app WITH LOGIN PASSWORD '<strong-random-password>';
+CREATE DATABASE menata_runtime OWNER menata_runtime_app;
 ```
+
+#### Database role — why not `postgres`
+
+On a box that only ever runs this prototype, connecting as the `postgres` superuser is harmless.
+On a **shared host running other apps**, the `postgres` role is a single cluster-wide account —
+its password is not per-database. Setting it here (`ALTER ROLE postgres WITH PASSWORD ...`, or a
+`DATABASE_URL` that happens to use it) changes it for every app on the host, and has caused a
+production outage for another app before. **Always use a dedicated role scoped to one database —
+never the shared `postgres` account — on any host that isn't exclusively yours.** Ops/deployment
+specifics for any shared host this runs on live outside this repo — check with whoever manages
+that host.
 
 ### 6. Configure environment
 
@@ -59,10 +72,10 @@ Copy the example environment file:
 cp .env.example .env
 ```
 
-`.env.example` already has working defaults:
+Edit `.env` to use the role/password you created in step 5:
 
 ```env
-DATABASE_URL=postgres://postgres:password@localhost:5432/menata_runtime?sslmode=disable
+DATABASE_URL=postgres://menata_runtime_app:<password>@localhost:5432/menata_runtime?sslmode=disable
 PORT=3100
 ```
 
@@ -108,6 +121,32 @@ make dev
 ```
 
 The application will be available at `http://localhost:3100`.
+
+---
+
+## Production Deployment
+
+This prototype is live at **`https://aksi.menata.id`** (reassigned to this port/domain
+2026-07-12 — see `/root/projects/MULTI-APP-GUIDE.md` for the full multi-app picture on that
+host). On that host specifically:
+
+- Runs from `/root/projects/menata-runtime/prototype/go` (no separate `/root/production/`
+  copy — unlike some other apps on that host, dev path *is* the deployed path).
+- `PORT=4000` in `.env` (not the `3100` default above), proxied by Caddy
+  (`aksi.menata.id { reverse_proxy localhost:4000 ... }` in `/etc/caddy/Caddyfile`).
+- Restart via the sanctioned script, never a bare `go run` left in the background — a bare
+  dev-mode process on port 4000 will squat on production traffic:
+  ```bash
+  cd /root/projects/menata-runtime/prototype/go
+  go build -o bin/server ./cmd/server
+  /root/scripts/server-manager.sh restart menata-runtime
+  ```
+- **Before running anything on port 4000 on that host** (or any port), check
+  `/root/projects/MULTI-APP-GUIDE.md`'s port allocation map first — this host runs several
+  unrelated apps, and a plain `kill`/`pkill` without checking what's actually listening has
+  taken down another app's production instance before.
+- No auto-restart of any kind (systemd `Restart=`, cron, watchdog) — see
+  `/root/docs/server-policies/NO-AUTO-RESTART-POLICY.md`. Manual restart only.
 
 ---
 

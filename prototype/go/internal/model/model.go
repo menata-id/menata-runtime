@@ -102,6 +102,7 @@ const (
 	ActionCreateRecord    ActionType = "create_record"
 	ActionActivateNext    ActionType = "activate_next"    // CAP-A07
 	ActionAggregateStatus ActionType = "aggregate_status" // CAP-A08
+	ActionTriggerEvent    ActionType = "trigger_event"    // CAP-E05
 )
 
 // Constraint is a business rule enforced before an event is accepted.
@@ -122,11 +123,23 @@ type ConstraintExpression struct {
 }
 
 // Permission assigns a set of Events to a business Role.
+// OwnerField (CAP-P02): when set, the Events this Permission grants also
+// require the acting identity to equal the record's own OwnerField value —
+// e.g. only the specific Approver named on an Approval Step, not anyone
+// holding the "Approver" role, may decide it (WRP-1 Direct Allocation).
+// Empty = role-only, the default.
+// CanRead/CanCreate/CanEdit (CAP-P05): CRUD-level permission, independent of
+// Events. A role with no Permission row at all on a machine has none of
+// these — deny-by-default.
 type Permission struct {
-	ID        string
-	MachineID string
-	Role      string
-	Events    []string // event ids
+	ID         string
+	MachineID  string
+	Role       string
+	Events     []string // event ids
+	OwnerField string
+	CanRead    bool
+	CanCreate  bool
+	CanEdit    bool
 }
 
 // View describes how a Machine's data is presented.

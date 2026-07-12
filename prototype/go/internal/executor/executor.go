@@ -24,12 +24,12 @@ func New(records *store.RecordStore, notifications *store.NotificationStore) *Ex
 // result before Persist commits it — a record must satisfy every Constraint
 // after an event, not just at Create.
 //
-// actorRole resolves CAP-A02's dynamic values: "today", "now", and
-// "current_user". This prototype has no real per-user session — role
-// selection (the login cookie) is the only identity concept that exists —
-// so current_user resolves to the acting role, not a person. Real identity
-// is CAP-O01/CAP-F05 territory, not part of this capability.
-func (e *Executor) Simulate(event *model.Event, record *store.Record, actorRole string) map[string]any {
+// actorIdentity resolves CAP-A02's "current_user" dynamic value. CAP-P02
+// added a real identity concept distinct from role (the menata_identity
+// cookie); "current_user" now resolves to that identity, falling back to
+// actorRole when identity is empty (internal "System"-triggered events pass
+// both as "System"). "today"/"now" are unaffected by either.
+func (e *Executor) Simulate(event *model.Event, record *store.Record, actorRole, actorIdentity string) map[string]any {
 	newData := make(map[string]any, len(record.Data))
 	for k, v := range record.Data {
 		newData[k] = v
@@ -41,7 +41,7 @@ func (e *Executor) Simulate(event *model.Event, record *store.Record, actorRole 
 		field, _ := action.Params["field"].(string)
 		value, _ := action.Params["value"].(string)
 		if field != "" {
-			newData[field] = resolveValue(value, actorRole)
+			newData[field] = resolveValue(value, actorRole, actorIdentity)
 		}
 	}
 	return newData
@@ -49,13 +49,16 @@ func (e *Executor) Simulate(event *model.Event, record *store.Record, actorRole 
 
 // resolveValue resolves CAP-A02 dynamic value tokens; any other string is a
 // static literal, returned unchanged.
-func resolveValue(value, actorRole string) string {
+func resolveValue(value, actorRole, actorIdentity string) string {
 	switch value {
 	case "today":
 		return time.Now().Format("2006-01-02")
 	case "now":
 		return time.Now().Format(time.RFC3339)
 	case "current_user":
+		if actorIdentity != "" {
+			return actorIdentity
+		}
 		return actorRole
 	default:
 		return value

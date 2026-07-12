@@ -48,6 +48,18 @@ func (h *Handler) role(r *http.Request) string {
 	return c.Value
 }
 
+// identity (CAP-P02): the acting person's name, distinct from role. Empty
+// when unset — deliberately fails closed for owner-gated events rather than
+// defaulting to something that might accidentally match a record's owner
+// field.
+func (h *Handler) identity(r *http.Request) string {
+	c, err := r.Cookie("menata_identity")
+	if err != nil {
+		return ""
+	}
+	return c.Value
+}
+
 // Home — list of all machines.
 func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 	machines := h.interp.AllMachines()
@@ -66,12 +78,18 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 
 // LoginForm — role selection page.
 func (h *Handler) LoginForm(w http.ResponseWriter, r *http.Request) {
-	if err := ui.LoginPage(h.role(r), h.unreadCount(r.Context(), h.role(r))).Render(r.Context(), w); err != nil {
+	interpGroups := h.interp.AllRoles()
+	roleGroups := make([]ui.RoleGroup, 0, len(interpGroups))
+	for _, g := range interpGroups {
+		roleGroups = append(roleGroups, ui.RoleGroup{AppName: g.AppName, Roles: g.Roles})
+	}
+	role := h.role(r)
+	if err := ui.LoginPage(role, h.identity(r), roleGroups, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 		slog.Error("render login", "error", err)
 	}
 }
 
-// Login — set role cookie.
+// Login — set role and identity cookies.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	role := r.FormValue("role")
@@ -79,6 +97,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		role = "Requester"
 	}
 	http.SetCookie(w, &http.Cookie{Name: "menata_role", Value: role, Path: "/"})
+	http.SetCookie(w, &http.Cookie{Name: "menata_identity", Value: r.FormValue("identity"), Path: "/"})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
@@ -88,6 +107,12 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	machine, ok := h.interp.GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
+		return
+	}
+	// CAP-P05 — deny-by-default: no permission row for this role on this
+	// machine means no read access, not implicitly allowed.
+	if !h.guard.CanRead(machine, h.role(r)) {
+		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
 
@@ -155,6 +180,10 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	role := h.role(r)
+	if !h.guard.CanCreate(machine, role) {
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
 	if err := ui.Form(role, machine, "", h.buildFormFields(r.Context(), machine, nil), nil, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 		slog.Error("render form", "error", err)
 	}
@@ -166,6 +195,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	machine, ok := h.interp.GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
+		return
+	}
+	if !h.guard.CanCreate(machine, h.role(r)) {
+		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
 	if err := r.ParseForm(); err != nil {
@@ -231,12 +264,16 @@ func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	role := h.role(r)
+	if !h.guard.CanEdit(machine, role) {
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
 	rec, err := h.records.Get(r.Context(), recordID)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
-	role := h.role(r)
 	if err := ui.Form(role, machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 		slog.Error("render edit form", "error", err)
 	}
@@ -253,6 +290,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	machine, ok := h.interp.GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
+		return
+	}
+	if !h.guard.CanEdit(machine, h.role(r)) {
+		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
 	rec, err := h.records.Get(r.Context(), recordID)
@@ -314,6 +355,10 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if !h.guard.CanRead(machine, h.role(r)) {
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
 	rec, err := h.records.Get(r.Context(), recordID)
 	if err != nil {
 		http.NotFound(w, r)
@@ -338,9 +383,10 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		fields = append(fields, ui.DetailField{Name: f.Name, Value: val, Link: link})
 	}
 
-	role := h.role(r)
+	role, identity := h.role(r), h.identity(r)
 	childLists := h.childLists(r.Context(), machine, recordID)
-	if err := ui.Detail(role, machine, rec, fields, h.interp.PermittedEvents(machineID, role), childLists, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
+	permittedEvents := h.interp.PermittedEventsForRecord(machineID, role, identity, rec.Data)
+	if err := ui.Detail(role, machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 		slog.Error("render detail", "error", err)
 	}
 }
@@ -356,11 +402,6 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	role := h.role(r)
-	if !h.guard.CanTrigger(machine, role, eventID) {
-		http.Error(w, "not permitted", http.StatusForbidden)
-		return
-	}
 	event, ok := h.interp.GetEvent(machineID, eventID)
 	if !ok {
 		http.NotFound(w, r)
@@ -371,8 +412,16 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	role, identity := h.role(r), h.identity(r)
+	// CAP-P02 — ownership check needs the record's own data, so this can't
+	// run until after the record fetch above (unlike role-only permission,
+	// which didn't need it).
+	if !h.guard.CanTrigger(machine, role, identity, eventID, rec.Data) {
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
 
-	if err := h.triggerEvent(r.Context(), machine, event, rec, role); err != nil {
+	if err := h.triggerEvent(r.Context(), machine, event, rec, role, identity); err != nil {
 		var rv *ruleViolation
 		if errors.As(err, &rv) {
 			http.Error(w, rv.Error(), http.StatusBadRequest)
@@ -394,10 +443,11 @@ func (e *ruleViolation) Error() string { return e.msg }
 
 // triggerEvent is the single path every event trigger runs through, whether
 // from an HTTP button (TriggerEvent) or fired internally by another event's
-// aggregate_status action (CAP-A08, doAggregateStatus) — same guards, same
-// validation, same persistence, so a system-triggered transition can never
-// skip a check a user-triggered one would have to pass.
-func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, event *model.Event, rec *store.Record, actorRole string) error {
+// aggregate_status or trigger_event action (CAP-A08/CAP-E05, doAggregateStatus/
+// doTriggerEvent) — same guards, same validation, same persistence, so a
+// system-triggered transition can never skip a check a user-triggered one
+// would have to pass.
+func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, event *model.Event, rec *store.Record, actorRole, actorIdentity string) error {
 	// CAP-E06 — state guard: the event may only fire when the record's
 	// CURRENT data satisfies its condition (e.g. Reject only from Submitted).
 	if event.Condition != nil && !constraint.Eval(*event.Condition, rec.Data) {
@@ -414,9 +464,10 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 
 	// CAP-C09 — constraints evaluated on event trigger, not just Create:
 	// simulate the event's effect first, validate the result, only persist
-	// if it still satisfies every declared Constraint. CAP-A02 — actorRole
-	// resolves this event's "current_user" dynamic values, if any.
-	newData := h.exec.Simulate(event, rec, actorRole)
+	// if it still satisfies every declared Constraint. CAP-A02 — actorIdentity
+	// (falling back to actorRole) resolves this event's "current_user" dynamic
+	// values, if any.
+	newData := h.exec.Simulate(event, rec, actorRole, actorIdentity)
 	if violations := h.engine.Violations(machine, newData); len(violations) > 0 {
 		return &ruleViolation{strings.Join(violations, " ")}
 	}
@@ -425,9 +476,10 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 		return err
 	}
 
-	// CAP-A07/CAP-A08 — workflow actions run after a successful commit, using
-	// the now-current data: activate_next notifies the next pending sibling,
-	// aggregate_status may internally trigger a rollup event on the parent.
+	// CAP-A07/CAP-A08/CAP-E05 — workflow actions run after a successful
+	// commit, using the now-current data: activate_next notifies the next
+	// pending sibling, aggregate_status may internally trigger a rollup event
+	// on the parent, trigger_event may fire another event on this same record.
 	h.runWorkflowActions(ctx, machine, event, rec.ID, newData)
 	return nil
 }
@@ -729,6 +781,8 @@ func (h *Handler) runWorkflowActions(ctx context.Context, machine *model.Machine
 			h.doActivateNext(ctx, machine, a.Params, recordID, data)
 		case model.ActionAggregateStatus:
 			h.doAggregateStatus(ctx, machine, a.Params, data)
+		case model.ActionTriggerEvent:
+			h.doTriggerEvent(ctx, machine, a.Params, recordID, data)
 		}
 	}
 }
@@ -798,6 +852,33 @@ func (h *Handler) doActivateNext(ctx context.Context, machine *model.Machine, pa
 	}
 	slog.Info("activate_next: next step ready (prototype: notify logged only)",
 		"machine", machine.ID, "next_record", next.ID, "sequence", nextSeq, "approver", approver)
+}
+
+// doTriggerEvent (CAP-E05): fires another event on the SAME record — a
+// narrower, same-record counterpart to doAggregateStatus's cross-record
+// rollup. No extra DB fetch needed (unlike doAggregateStatus, which reaches
+// into a different record): `data` is already this event's just-persisted
+// result, and recordID is this same record's own ID. Runs through the same
+// triggerEvent path an HTTP request would use (CAP-E06/CAP-C09 guards still
+// apply), as "System" for both role and identity — same precedent as
+// doAggregateStatus, and the same reason guard.CanTrigger is bypassed
+// entirely here rather than called: a system-triggered transition isn't a
+// business role acting, so there's no role/identity to check permission
+// against.
+func (h *Handler) doTriggerEvent(ctx context.Context, machine *model.Machine, params map[string]any, recordID string, data map[string]any) {
+	targetEventID, _ := params["event"].(string)
+	if targetEventID == "" {
+		return
+	}
+	targetEvent, ok := h.interp.GetEvent(machine.ID, targetEventID)
+	if !ok {
+		return
+	}
+	rec := &store.Record{ID: recordID, Data: data}
+	if err := h.triggerEvent(ctx, machine, targetEvent, rec, "System", "System"); err != nil {
+		slog.Error("trigger_event: failed to trigger chained event",
+			"machine", machine.ID, "record", recordID, "event", targetEventID, "error", err)
+	}
 }
 
 // doAggregateStatus (CAP-A08): rolls sibling steps' Decision up to the parent
@@ -874,7 +955,7 @@ func (h *Handler) doAggregateStatus(ctx context.Context, machine *model.Machine,
 	if err != nil {
 		return
 	}
-	if err := h.triggerEvent(ctx, parentMachine, targetEvent, parentRec, "System"); err != nil {
+	if err := h.triggerEvent(ctx, parentMachine, targetEvent, parentRec, "System", "System"); err != nil {
 		slog.Error("aggregate_status: failed to trigger parent event",
 			"parent_machine", parentMachine.ID, "parent_record", parentID, "event", targetEventID, "error", err)
 	}

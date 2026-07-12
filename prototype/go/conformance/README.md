@@ -65,6 +65,12 @@ export `DATABASE_URL` (same value as the server's `.env`) — it's skipped other
 | T33 | CAP-A10 | marking a notification read persists (button disappears, not just a redirect) |
 | T34 | CAP-A04 | dynamic `recipient_field` resolves to the record's own specific submitter, not a role |
 | T35 | CAP-A04 | the generic role does not also receive the dynamically-targeted notification (negative case) |
+| T36 | CAP-P02 | correct role but wrong identity is denied deciding another Approver's Step — direct allocation, not just role class (negative case) |
+| T37 | CAP-E05 | `trigger_event` blocked from firing while the source event's own `events.condition` gate fails (negative case) |
+| T38 | CAP-E05 | one event's `trigger_event` action fires another event on the SAME record — proven via a manual stand-in for the still-unbuilt daily cron trigger |
+| T39 | CAP-P05 | a role with no permission row at all on a machine is denied List — deny-by-default, not implicitly allowed (negative case) |
+| T40 | CAP-P05 | same reasoning, denied Create (negative case) |
+| T41 | CAP-P05 | same reasoning, denied the Edit form (negative case) |
 
 ---
 

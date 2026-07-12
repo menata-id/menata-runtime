@@ -91,45 +91,49 @@ check T00 "—" "server /health reachable" $?
 body_contains "$BASE_URL/" "Design Request" && body_contains "$BASE_URL/" "Leave Request"
 check T01 "CAP-X01" "home lists machines from both applications" $?
 
-# T02 — CAP-V01 form view: fields config drives inputs; status excluded
-curl -s "$BASE_URL/mch_leave_request/new" | grep -q 'for="fld_lr_reason"' \
-  && ! curl -s "$BASE_URL/mch_leave_request/new" | grep -q 'for="fld_lr_status"'
+# T02 — CAP-V01 form view: fields config drives inputs; status excluded.
+# Employee is Leave Request's real submitting role (CAP-P05: NewForm needs
+# CanCreate, no permission row means denied).
+curl -s -H "Cookie: menata_role=Employee" "$BASE_URL/mch_leave_request/new" | grep -q 'for="fld_lr_reason"' \
+  && ! curl -s -H "Cookie: menata_role=Employee" "$BASE_URL/mch_leave_request/new" | grep -q 'for="fld_lr_status"'
 check T02 "CAP-V01" "form renders configured fields, excludes status" $?
 
 # T03 — CAP-V02 list view: columns config drives table
-body_contains "$BASE_URL/mch_leave_request" "Leave Type"
+body_contains "$BASE_URL/mch_leave_request" "Leave Type" "menata_role=Employee"
 check T03 "CAP-V02" "list renders configured columns" $?
 
 # T04 — CAP-C01 required constraint
-post_body_contains "$BASE_URL/mch_leave_request" "" "Reason is required."
+post_body_contains "$BASE_URL/mch_leave_request" "" "Reason is required." "menata_role=Employee"
 check T04 "CAP-C01" "empty submit rejected: required violation" $?
 
 # T05 — CAP-C02 after:today constraint
-post_body_contains "$BASE_URL/mch_leave_request" "" "Start Date must be after today."
+post_body_contains "$BASE_URL/mch_leave_request" "" "Start Date must be after today." "menata_role=Employee"
 check T05 "CAP-C02" "empty submit rejected: date-future violation" $?
 
-# T06 — CAP-C03+C04 conditional constraint fires (Banner without attachment)
+# T06 — CAP-C03+C04 conditional constraint fires (Banner without attachment).
+# Requester is Design Request's real submitting role (CAP-P05: Create needs
+# CanCreate).
 DR_DATA_BANNER="fld_requester=ConformanceBot&fld_design_type=Banner+2%3A1&fld_due_date=2030-01-01&fld_title=Conformance+T06&fld_description=Test"
-post_body_contains "$BASE_URL/mch_design_request" "$DR_DATA_BANNER" "Attachment is required"
+post_body_contains "$BASE_URL/mch_design_request" "$DR_DATA_BANNER" "Attachment is required" "menata_role=Requester"
 check T06 "CAP-C03,CAP-C04" "conditional constraint fires when condition true" $?
 
 # T07 — CAP-C04 conditional constraint silent when condition false (Poster)
 DR_DATA_POSTER="fld_requester=ConformanceBot&fld_design_type=Poster&fld_due_date=2030-01-01&fld_title=Conformance+T07&fld_description=Test"
-CODE=$(post_status "$BASE_URL/mch_design_request" "$DR_DATA_POSTER")
+CODE=$(post_status "$BASE_URL/mch_design_request" "$DR_DATA_POSTER" "menata_role=Requester")
 [ "$CODE" = "303" ]
 check T07 "CAP-C04" "conditional constraint silent when condition false (got $CODE)" $?
 
 # T08 — CAP-R01 create record with default status
 LR_DATA="fld_lr_employee=ConformanceBot&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=Conformance+run"
-DETAIL_URL=$(post_redirect "$BASE_URL/mch_leave_request" "$LR_DATA")
-[ -n "$DETAIL_URL" ] && body_contains "$DETAIL_URL" "Draft"
+DETAIL_URL=$(post_redirect "$BASE_URL/mch_leave_request" "$LR_DATA" "menata_role=Employee")
+[ -n "$DETAIL_URL" ] && body_contains "$DETAIL_URL" "Draft" "menata_role=Employee"
 check T08 "CAP-R01" "valid create redirects to detail with default status Draft" $?
 
 # derive record id from redirect
 REC_ID="${DETAIL_URL##*/}"
 
 # T09 — CAP-V03 detail view shows all fields
-body_contains "$DETAIL_URL" "Reason"
+body_contains "$DETAIL_URL" "Reason" "menata_role=Employee"
 check T09 "CAP-V03" "detail renders machine fields" $?
 
 # T10 — CAP-E01+A01 permitted event executes set_field
@@ -149,33 +153,34 @@ check T12 "CAP-P01,CAP-E01" "Manager triggers Approve; status becomes Approved" 
 
 # --- CAP-F13 (reference fields) — requires seeds/003_hr_employee.sql ---
 
-# T13 — CAP-F13 form renders a picker (<select>), not a bare text input
-body_contains "$BASE_URL/mch_employee/new" 'select id="fld_emp_manager"'
+# T13 — CAP-F13 form renders a picker (<select>), not a bare text input.
+# HR is Employee's only real permission-bearing role (CAP-P05).
+body_contains "$BASE_URL/mch_employee/new" 'select id="fld_emp_manager"' "menata_role=HR"
 check T13 "CAP-F13" "reference field renders as a picker" $?
 
 # T14 — CAP-F13 create with an empty (optional) reference succeeds
 MGR_DATA="fld_emp_id=CB-MGR&fld_emp_name=ConformanceBot+Manager&fld_emp_hire_date=2020-01-01"
-MGR_URL=$(post_redirect "$BASE_URL/mch_employee" "$MGR_DATA")
+MGR_URL=$(post_redirect "$BASE_URL/mch_employee" "$MGR_DATA" "menata_role=HR")
 [ -n "$MGR_URL" ]
 check T14 "CAP-F13" "create with empty reference succeeds (Manager is optional)" $?
 MGR_ID="${MGR_URL##*/}"
 
 # T15 — CAP-F13 create with a valid reference succeeds; detail links to the target
 REPORT_DATA="fld_emp_id=CB-EMP&fld_emp_name=ConformanceBot+Report&fld_emp_hire_date=2024-01-01&fld_emp_manager=$MGR_ID"
-REPORT_URL=$(post_redirect "$BASE_URL/mch_employee" "$REPORT_DATA")
-[ -n "$REPORT_URL" ] && body_contains "$REPORT_URL" "href=\"/mch_employee/$MGR_ID\""
+REPORT_URL=$(post_redirect "$BASE_URL/mch_employee" "$REPORT_DATA" "menata_role=HR")
+[ -n "$REPORT_URL" ] && body_contains "$REPORT_URL" "href=\"/mch_employee/$MGR_ID\"" "menata_role=HR"
 check T15 "CAP-F13" "create with valid reference succeeds; detail links to target record" $?
 
 # T16 — CAP-F13 dangling reference rejected (security NFR gate: negative case)
 BAD_DATA="fld_emp_id=CB-GHOST&fld_emp_name=ConformanceBot+Ghost&fld_emp_hire_date=2024-01-01&fld_emp_manager=00000000-0000-0000-0000-000000000000"
-post_body_contains "$BASE_URL/mch_employee" "$BAD_DATA" "does not reference an existing"
+post_body_contains "$BASE_URL/mch_employee" "$BAD_DATA" "does not reference an existing" "menata_role=HR"
 check T16 "CAP-F13" "dangling reference value rejected, not silently accepted" $?
 
 # --- CAP-E06 (state-conditional event availability) ---
 
 # T17 — Approve rejected while a record is still Draft (never Submitted)
 DRAFT_DATA="fld_lr_employee=ConformanceBot&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=T17"
-DRAFT_URL=$(post_redirect "$BASE_URL/mch_leave_request" "$DRAFT_DATA")
+DRAFT_URL=$(post_redirect "$BASE_URL/mch_leave_request" "$DRAFT_DATA" "menata_role=Employee")
 DRAFT_ID="${DRAFT_URL##*/}"
 CODE=$(post_status "$BASE_URL/mch_leave_request/$DRAFT_ID/events/evt_lr_approve" "" "menata_role=Manager")
 [ "$CODE" = "400" ]
@@ -194,7 +199,7 @@ check T18 "CAP-E06" "Reject rejected on an already-Approved record (got $CODE) -
 # Approve too, not just Create. See header note re: psql use here.
 if [ -n "$DATABASE_URL" ]; then
     C09_DATA="fld_lr_employee=ConformanceBot&fld_lr_leave_type=Sick+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=T19"
-    C09_URL=$(post_redirect "$BASE_URL/mch_leave_request" "$C09_DATA")
+    C09_URL=$(post_redirect "$BASE_URL/mch_leave_request" "$C09_DATA" "menata_role=Employee")
     C09_ID="${C09_URL##*/}"
     post_status "$BASE_URL/mch_leave_request/$C09_ID/events/evt_lr_submit" "" "menata_role=Employee" >/dev/null
     psql "$DATABASE_URL" -q -c \
@@ -215,29 +220,32 @@ check T20 "CAP-A02" "Approve stamps real today's date and the acting role, not l
 
 # T21 — CAP-V06 child records sub-list: reuses $MGR_URL/CB-EMP's Manager
 # relationship already established by T14/T15 (CAP-F13).
-body_contains "$MGR_URL" "ConformanceBot Report"
+body_contains "$MGR_URL" "ConformanceBot Report" "menata_role=HR"
 check T21 "CAP-V06" "manager's detail page lists its direct report via reverse reference" $?
 
 # --- CAP-A07 (activate_next / sequential step guard), CAP-A08 (aggregate_status
 # rollup), CAP-X03 (machine config) — requires seeds/004_approval.sql ---
 
-# Sequential-mode document with two steps (Bob seq 1, Carol seq 2)
+# Sequential-mode document with two steps (Bob seq 1, Carol seq 2). Submitter
+# creates both the Document and its Steps (CAP-P05: perm_ad_submitter_steps).
 AD_SEQ_DATA="fld_ad_title=T22+Policy&fld_ad_document_type=Policy&fld_ad_file=policy.pdf&fld_ad_submitted_by=Alice&fld_ad_approval_mode=Sequential"
-AD_SEQ_URL=$(post_redirect "$BASE_URL/mch_approval_document" "$AD_SEQ_DATA")
+AD_SEQ_URL=$(post_redirect "$BASE_URL/mch_approval_document" "$AD_SEQ_DATA" "menata_role=Submitter")
 AD_SEQ_ID="${AD_SEQ_URL##*/}"
 post_status "$BASE_URL/mch_approval_document/$AD_SEQ_ID/events/evt_ad_submit" "" "menata_role=Submitter" >/dev/null
-AS1_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_SEQ_ID&fld_as_approver=Bob&fld_as_sequence=1")
+AS1_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_SEQ_ID&fld_as_approver=Bob&fld_as_sequence=1" "menata_role=Submitter")
 AS1_ID="${AS1_URL##*/}"
-AS2_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_SEQ_ID&fld_as_approver=Carol&fld_as_sequence=2")
+AS2_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_SEQ_ID&fld_as_approver=Carol&fld_as_sequence=2" "menata_role=Submitter")
 AS2_ID="${AS2_URL##*/}"
 
-# T22 — CAP-A07 hard block: approving Step 2 before Step 1 is rejected
-CODE=$(post_status "$BASE_URL/mch_approval_step/$AS2_ID/events/evt_as_approve" "" "menata_role=Approver")
+# T22 — CAP-A07 hard block: approving Step 2 before Step 1 is rejected.
+# Carol is AS2's actual assigned Approver (CAP-P02) -- must pass ownership to
+# even reach the sequential guard being tested here.
+CODE=$(post_status "$BASE_URL/mch_approval_step/$AS2_ID/events/evt_as_approve" "" "menata_role=Approver; menata_identity=Carol")
 [ "$CODE" = "400" ]
 check T22 "CAP-A07" "out-of-sequence Approve rejected in Sequential mode (got $CODE)" $?
 
-# T23 — CAP-A07 in-order approval succeeds
-CODE=$(post_status "$BASE_URL/mch_approval_step/$AS1_ID/events/evt_as_approve" "" "menata_role=Approver")
+# T23 — CAP-A07 in-order approval succeeds. Bob is AS1's assigned Approver.
+CODE=$(post_status "$BASE_URL/mch_approval_step/$AS1_ID/events/evt_as_approve" "" "menata_role=Approver; menata_identity=Bob")
 [ "$CODE" = "303" ]
 check T23 "CAP-A07" "in-sequence Approve succeeds (got $CODE)" $?
 
@@ -245,36 +253,65 @@ check T23 "CAP-A07" "in-sequence Approve succeeds (got $CODE)" $?
 # step is Approved, then transitions automatically (no direct Approve call
 # on the Document itself -- only System may trigger it).
 body_contains "$AD_SEQ_URL" "In Review" "menata_role=Submitter"
-post_status "$BASE_URL/mch_approval_step/$AS2_ID/events/evt_as_approve" "" "menata_role=Approver" >/dev/null
+post_status "$BASE_URL/mch_approval_step/$AS2_ID/events/evt_as_approve" "" "menata_role=Approver; menata_identity=Carol" >/dev/null
 body_contains "$AD_SEQ_URL" "Approved" "menata_role=Submitter"
 check T24 "CAP-A08" "Document auto-transitions to Approved once every Step is Approved" $?
 
 # T25 — Parallel-mode document: no sequential gating (approve Step 2 before
 # Step 1 succeeds, unlike T22's Sequential-mode document)
 AD_PAR_DATA="fld_ad_title=T25+Contract&fld_ad_document_type=Contract&fld_ad_file=contract.pdf&fld_ad_submitted_by=Alice&fld_ad_approval_mode=Parallel"
-AD_PAR_URL=$(post_redirect "$BASE_URL/mch_approval_document" "$AD_PAR_DATA")
+AD_PAR_URL=$(post_redirect "$BASE_URL/mch_approval_document" "$AD_PAR_DATA" "menata_role=Submitter")
 AD_PAR_ID="${AD_PAR_URL##*/}"
 post_status "$BASE_URL/mch_approval_document/$AD_PAR_ID/events/evt_ad_submit" "" "menata_role=Submitter" >/dev/null
-PS1_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_PAR_ID&fld_as_approver=Bob&fld_as_sequence=1&fld_as_notes=T26+rejection+note")
+PS1_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_PAR_ID&fld_as_approver=Bob&fld_as_sequence=1&fld_as_notes=T26+rejection+note" "menata_role=Submitter")
 PS1_ID="${PS1_URL##*/}"
-PS2_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_PAR_ID&fld_as_approver=Carol&fld_as_sequence=2")
+PS2_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_PAR_ID&fld_as_approver=Carol&fld_as_sequence=2" "menata_role=Submitter")
 PS2_ID="${PS2_URL##*/}"
-CODE=$(post_status "$BASE_URL/mch_approval_step/$PS2_ID/events/evt_as_approve" "" "menata_role=Approver")
+CODE=$(post_status "$BASE_URL/mch_approval_step/$PS2_ID/events/evt_as_approve" "" "menata_role=Approver; menata_identity=Carol")
 [ "$CODE" = "303" ]
 check T25 "CAP-A07" "Parallel mode has no sequential gating -- Step 2 decided before Step 1 (got $CODE)" $?
 
 # T26 — CAP-A08 any-rejected cascade: fires immediately, doesn't wait for the
 # still-pending... (here, already-Approved) sibling.
-post_status "$BASE_URL/mch_approval_step/$PS1_ID/events/evt_as_reject" "" "menata_role=Approver" >/dev/null
+post_status "$BASE_URL/mch_approval_step/$PS1_ID/events/evt_as_reject" "" "menata_role=Approver; menata_identity=Bob" >/dev/null
 body_contains "$AD_PAR_URL" "Rejected" "menata_role=Submitter"
 check T26 "CAP-A08" "Document cascades to Rejected as soon as any Step rejects, not waiting for the rest" $?
+
+# --- CAP-P02 (record-level ownership) ---
+
+# T36 — negative: Carol holds the correct "Approver" role but is not AS1's
+# assigned Approver (Bob is) -- role alone is not enough, direct allocation
+# denies her.
+CODE=$(post_status "$BASE_URL/mch_approval_step/$AS1_ID/events/evt_as_reject" "" "menata_role=Approver; menata_identity=Carol")
+[ "$CODE" = "403" ]
+check T36 "CAP-P02" "correct role but wrong identity denied deciding another Approver's Step (got $CODE)" $?
+
+# --- CAP-E05 (same-record trigger_event) — requires seeds/005_complaint.sql ---
+
+CMP_DATA="fld_cmp_complainant_name=Conformance+Tester"
+CMP_URL=$(post_redirect "$BASE_URL/mch_complaint" "$CMP_DATA" "menata_role=Agent")
+CMP_ID="${CMP_URL##*/}"
+
+# T37 — negative: Run SLA Check blocked while Status is still New (events.condition,
+# CAP-E06) — the chained Escalate must not fire, Assigned To stays empty.
+CODE=$(post_status "$BASE_URL/mch_complaint/$CMP_ID/events/evt_cmp_run_sla_check" "" "menata_role=Supervisor")
+[ "$CODE" = "400" ] && ! body_contains "$CMP_URL" "Supervisor" "menata_role=Agent"
+check T37 "CAP-E05" "Run SLA Check blocked outside Investigating; chained Escalate did not fire (got $CODE)" $?
+
+# T38 — positive: once Status reaches Investigating, Run SLA Check's trigger_event
+# action fires Escalate on the SAME record — Assigned To becomes Supervisor.
+post_status "$BASE_URL/mch_complaint/$CMP_ID/events/evt_cmp_triage" "" "menata_role=Agent" >/dev/null
+post_status "$BASE_URL/mch_complaint/$CMP_ID/events/evt_cmp_add_investigation_note" "" "menata_role=Agent" >/dev/null
+CODE=$(post_status "$BASE_URL/mch_complaint/$CMP_ID/events/evt_cmp_run_sla_check" "" "menata_role=Supervisor")
+[ "$CODE" = "303" ] && body_contains "$CMP_URL" "Supervisor" "menata_role=Agent"
+check T38 "CAP-E05" "Run SLA Check while Investigating chains into Escalate on the same record (got $CODE)" $?
 
 # --- CAP-R02 (edit / update record via form) ---
 # Reuses $REC_ID (Leave Request, Approved by T12) and $MGR_ID/$REPORT_URL
 # (Employee, CAP-F13 references established by T14/T15).
 
 # T27 — edit form pre-fills the record's current values
-body_contains "$BASE_URL/mch_leave_request/$REC_ID/edit" 'value="ConformanceBot"'
+body_contains "$BASE_URL/mch_leave_request/$REC_ID/edit" 'value="ConformanceBot"' "menata_role=Employee"
 check T27 "CAP-R02" "edit form pre-fills existing field values" $?
 
 # T28 — valid update persists the change and leaves fields the form doesn't
@@ -295,7 +332,7 @@ check T29 "CAP-R02,CAP-C09" "update rejected on required-field violation, same a
 # development, see internal/store/record_store.go's Exists comment)
 REPORT_ID="${REPORT_URL##*/}"
 EMP_BAD_DATA="fld_emp_id=CB-EMP&fld_emp_name=ConformanceBot+Report&fld_emp_hire_date=2024-01-01&fld_emp_manager=not-a-real-id"
-post_body_contains "$BASE_URL/mch_employee/$REPORT_ID" "$EMP_BAD_DATA" "does not reference an existing"
+post_body_contains "$BASE_URL/mch_employee/$REPORT_ID" "$EMP_BAD_DATA" "does not reference an existing" "menata_role=HR"
 check T30 "CAP-R02,CAP-F13" "update rejected on a malformed (non-UUID) reference value, not a 500" $?
 
 # --- CAP-A03 (notify to role), CAP-A04 (notify to dynamic recipient),
@@ -334,6 +371,26 @@ check T34 "CAP-A04" "dynamic recipient_field notifies the record's specific subm
 # both firing.
 ! body_contains "$BASE_URL/notifications" "Approval Document: Approve" "menata_role=Submitter"
 check T35 "CAP-A04" "generic Submitter role does not also receive the dynamically-targeted notification" $?
+
+# --- CAP-P05 (CRUD-level permissions, deny-by-default) ---
+
+# T39 — negative: Manager has no permission row at all on mch_employee (only
+# HR does) -- read is denied, not implicitly allowed.
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Cookie: menata_role=Manager" "$BASE_URL/mch_employee")
+[ "$CODE" = "403" ]
+check T39 "CAP-P05" "role with no permission row on a machine is denied List (got $CODE)" $?
+
+# T40 — negative: Employee has no permission row at all on
+# mch_approval_document (only Submitter/System do) -- Create is denied.
+CODE=$(post_status "$BASE_URL/mch_approval_document" "fld_ad_title=T40" "menata_role=Employee")
+[ "$CODE" = "403" ]
+check T40 "CAP-P05" "role with no permission row on a machine is denied Create (got $CODE)" $?
+
+# T41 — negative: same reasoning, the Edit form -- distinct code path from
+# T40's Create denial on the same machine.
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Cookie: menata_role=Employee" "$BASE_URL/mch_approval_document/$AD_SEQ_ID/edit")
+[ "$CODE" = "403" ]
+check T41 "CAP-P05" "role with no permission row on a machine is denied the Edit form (got $CODE)" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

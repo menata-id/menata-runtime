@@ -70,6 +70,16 @@ type ChildListItem struct {
 	Link  string
 }
 
+// RoleGroup is one application's set of selectable business roles, for the
+// login page's role dropdown (grouped by application so a long role list
+// stays scannable). "System" is deliberately never included — it's the
+// internal actor system-triggered events run as (CAP-A08/CAP-E05), not a
+// role a human logs in as.
+type RoleGroup struct {
+	AppName string
+	Roles   []string
+}
+
 // NotificationItem is one row on the Notifications page (CAP-A10). Link is
 // empty when the triggering record can't be resolved (shouldn't normally
 // happen, but a Notification row outlives the record it points to being

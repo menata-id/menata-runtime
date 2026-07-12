@@ -431,6 +431,57 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > event, or the two concepts collapse into each other by accident. Item 5 (CAP-R02 +
 > CAP-A03/A04 + CAP-A10) is now fully done. Prio 6 (CAP-P02, CAP-P05, CAP-E05 — record/
 > CRUD-level permission + system-triggered events) is next up.
+>
+> **Status update (2026-07-12):** Prio 6, **CAP-P02, CAP-E05, and CAP-P05, are all now
+> ✅ Supported** — conformance T36–T41, plus every one of T01–T35 updated to carry a real
+> business-role cookie instead of relying on the implicit "no cookie" behavior CAP-P05
+> just closed off. Case 3's last two gaps (P5, P6) are done; P1–P6 are now all Supported.
+>
+> **CAP-P02 (record-level ownership):** the prototype's login previously collapsed
+> "role" and "identity" into one free-text cookie, which defeated direct allocation —
+> anyone who typed the generic role "Approver" could decide any Approval Step, not just
+> the one actually assigned to them. A second cookie, `menata_identity`, now exists
+> alongside `menata_role`; `permissions.owner_field` (migrations/006) names a Field on
+> the record, and `Guard.CanTrigger` requires the acting identity to match that field's
+> value, in addition to holding the role. Deliberately narrower than CAP-O01: two
+> free-text cookies set at login, no persistent identity/role registry, no
+> cross-application role resolution. `Detail`'s Approve/Reject buttons are ownership-aware
+> now too (`Interpreter.PermittedEventsForRecord`), not just the POST guard. Side effect:
+> CAP-A02's `current_user` now resolves to this real identity instead of the acting role,
+> dropping the honesty caveat that capability carried since 2026-07-11.
+>
+> **CAP-E05 (internal/system-triggered event):** confirms the split the registry
+> predicted when Case 7 was seeded — this turned out to be two separate mechanisms, not
+> one capability. Case 3's cross-record flavor (`aggregate_status` triggering a *parent*
+> record's event) already landed with CAP-A08. What closes here is Case 7's flavor: a new
+> `trigger_event` action/`doTriggerEvent`, firing another event on the SAME record,
+> dispatched from `runWorkflowActions` and reusing `triggerEvent` as `"System"`/`"System"`
+> — same guard/constraint path an HTTP request would go through. Proven on a new,
+> deliberately minimal `seeds/005_complaint.sql` slice of Case 7 (not the full case): a
+> Supervisor-triggered "Run SLA Check" event, gated by a single-field `events.condition`,
+> whose one action chains into Escalate. A manual stand-in for the real case's still-`[NOT
+> YET]` daily cron (CAP-E02) and compound date+status condition (CAP-A09) — neither of
+> those closes here. Delegate/CAP-P04, Reopen, and the Customer role also stay unseeded.
+>
+> **CAP-P05 (CRUD-level permissions):** closes the gap Study 2's platform survey found
+> universal across all 6 benchmarked platforms — until today, every logged-in role could
+> read/create/edit every machine's records, no gating at all. `permissions.can_read/
+> can_create/can_edit` (migrations/006) default `true`, so every role that already had an
+> Events row on a machine (i.e. every role actually named in that case's business
+> narrative) kept working unchanged; the real change is structural — a role with **no**
+> permission row at all on a machine is now denied, matching `nfr-standards.md`'s stated
+> target ("must become deny-by-default"). `Guard.CanRead/CanCreate/CanEdit` gate
+> `List`/`Detail`, `NewForm`/`Create`, and `EditForm`/`Update`. Only one genuinely new
+> permission row was needed (`perm_ad_submitter_steps` — Submitter organizes their
+> document's approval chain by creating its Steps, and had no row on that machine before);
+> everywhere else, the default-`true` migration already covered the real business role.
+> The conformance suite's own reliance on "no cookie defaults to Requester, and Requester
+> could do anything" — every no-cookie GET/POST across T01–T21 — had to be replaced with
+> the actual business role for that machine; those tests were previously passing for the
+> wrong reason, not because the role acting was really the right one.
+>
+> Prio 7 (CAP-E02, CAP-A09, CAP-X05 — time-driven events + conditional actions + metadata
+> validation) is next up.
 
 ---
 

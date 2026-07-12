@@ -27,6 +27,7 @@ migrate-up:
 	psql "$(DB_URL)" -f migrations/003_event_conditions.sql
 	psql "$(DB_URL)" -f migrations/004_machine_config.sql
 	psql "$(DB_URL)" -f migrations/005_notifications.sql
+	psql "$(DB_URL)" -f migrations/006_permission_extensions.sql
 
 # Every seeds/NNN_*.sql file, in order. Fields/constraints/permissions/views
 # use ON CONFLICT DO NOTHING and are safe to re-run; event_actions has no
@@ -37,6 +38,7 @@ seed:
 	psql "$(DB_URL)" -f seeds/002_leave_request.sql
 	psql "$(DB_URL)" -f seeds/003_hr_employee.sql
 	psql "$(DB_URL)" -f seeds/004_approval.sql
+	psql "$(DB_URL)" -f seeds/005_complaint.sql
 
 # The real test suite (there are no Go unit tests in this codebase -- every
 # capability's proof is here, per capability-registry.md's Proof column).

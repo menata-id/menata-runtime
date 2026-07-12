@@ -88,6 +88,16 @@ CAP-A02 change for a worked example.
 Postgres runs locally in this environment already (`pg_isready`). `.env.example`'s
 `postgres:password@localhost:5432/menata_runtime` are working credentials, not a placeholder.
 
+**`.env`'s `PORT=4000` is not a free dev port on this host** — this prototype is deployed live at
+`https://aksi.menata.id` on that exact port (see DEVELOPMENT.md "Production Deployment"), managed
+by `/root/scripts/server-manager.sh restart menata-runtime`, not a bare `go run`/`make dev` left
+running in the background. Before starting any server here, check
+`/root/projects/MULTI-APP-GUIDE.md`'s port allocation map and `ss -ltnp | grep :4000` first — a
+bare dev process on that port silently squats on production traffic instead of erroring, and
+`kill`/`pkill` without checking what's actually listening has taken down another app's production
+instance before. If you need an ad hoc dev instance, use a different `PORT` for it, or stop with
+`server-manager.sh` (not a raw `kill`) and restart the same way when done.
+
 ```bash
 make migrate-up && make seed         # fresh database only, see Makefile comments
 make dev                              # foreground; Ctrl-C to stop, or kill by port (see below)
@@ -95,9 +105,14 @@ DATABASE_URL="postgres://postgres:password@localhost:5432/menata_runtime?sslmode
   make conformance                    # in another terminal, server must be running
 ```
 
-After editing a `.templ` file: `make generate && go build ./...` before restarting the server —
-edits to the generated `_templ.go` files directly will be silently overwritten and are never the
-right place to make a change.
+After editing a `.templ` file: regenerate with the exact version pinned in `go.mod`, **not**
+`make generate`, then `go build ./...` before restarting the server —
+`go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate`. `make generate` uses
+`$(go env GOPATH)/bin/templ`, a locally-cached binary that can be older than `go.mod`'s pinned
+version; running it regenerates *every* `_templ.go` file with an older code-generation style, not
+just the one you meant to touch — check `git diff --stat` only shows your intended file after
+regenerating. Edits to the generated `_templ.go` files directly will be silently overwritten and
+are never the right place to make a change either way.
 
 To verify a capability manually before trusting the conformance suite alone: `curl` the actual
 running server. Every capability implemented so far in this codebase (CAP-F13, CAP-E06, CAP-C09,

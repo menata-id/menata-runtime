@@ -119,11 +119,23 @@ ON CONFLICT (id) DO NOTHING;
 -- gate entirely, the same way a cron-fired event would (CAP-E05 territory).
 -- The row is kept for documentation fidelity with approval-document.yaml, not
 -- because anything currently checks it.
-INSERT INTO permissions (id, machine_id, role, events) VALUES
-    ('perm_ad_submitter', 'mch_approval_document', 'Submitter', ARRAY['evt_ad_submit','evt_ad_withdraw']),
-    ('perm_ad_system',    'mch_approval_document', 'System',    ARRAY['evt_ad_approve','evt_ad_reject']),
-    ('perm_as_approver',  'mch_approval_step',     'Approver',  ARRAY['evt_as_approve','evt_as_reject'])
+-- perm_as_approver carries owner_field (CAP-P02): Approve/Reject additionally
+-- require the acting identity to equal this Step's own Approver field value
+-- (WRP-1 Direct Allocation) -- holding the "Approver" role alone is not
+-- enough. perm_ad_submitter_steps (CAP-P05): the Submitter organizes their
+-- document's approval chain, so they need CRUD access to Approval Step too,
+-- not just Document -- no events of their own, read/create only.
+INSERT INTO permissions (id, machine_id, role, events, owner_field) VALUES
+    ('perm_ad_submitter', 'mch_approval_document', 'Submitter', ARRAY['evt_ad_submit','evt_ad_withdraw'], NULL),
+    ('perm_ad_system',    'mch_approval_document', 'System',    ARRAY['evt_ad_approve','evt_ad_reject'], NULL),
+    ('perm_as_approver',  'mch_approval_step',     'Approver',  ARRAY['evt_as_approve','evt_as_reject'], 'fld_as_approver'),
+    ('perm_ad_submitter_steps', 'mch_approval_step', 'Submitter', ARRAY[]::TEXT[], NULL)
 ON CONFLICT (id) DO NOTHING;
+
+-- Scoped fixes for databases that already ran the INSERT above before
+-- owner_field/can_create existed (ON CONFLICT DO NOTHING skips them there).
+UPDATE permissions SET owner_field = 'fld_as_approver' WHERE id = 'perm_as_approver' AND owner_field IS NULL;
+UPDATE permissions SET can_create = true, can_read = true WHERE id = 'perm_ad_submitter_steps';
 
 -- Views
 INSERT INTO views (id, machine_id, name, type, position, config) VALUES
