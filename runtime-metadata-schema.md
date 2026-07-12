@@ -473,6 +473,75 @@ views:
 
 ---
 
+## Load-Time Contract — What's Enforced, What Silently No-ops
+
+Found the hard way (2026-07-12): converting 50 previously-untested example `.yaml` files
+into loadable metadata surfaced several failure modes that aren't obvious from reading the
+grammar alone. Every one of these applies whether the metadata was written by a person or
+an AI — this section exists specifically so the next author (of either kind) doesn't have
+to rediscover them by trial and error.
+
+**One bad Machine fails the entire server, not just that Machine.** `Loader.LoadAll` loads
+every Workspace's full tree in one pass; a single invalid field/event/constraint/permission
+anywhere aborts the whole boot (`os.Exit(1)` in `cmd/server/main.go`) — there is no partial
+load, no per-Machine quarantine. A metadata error in one Application you're not even working
+on can take the entire runtime down for every other workspace too.
+
+**A `value` in `constraint.expression`, `constraint.condition`, or `event.condition` MUST be
+a string, even when it reads like a number.** `value: 100` (a YAML/JSON number) crashes the
+loader (`cannot unmarshal number into Go struct field ConstraintExpression.value of type
+string`) — write `value: "100"`. This is one of the load-time-fatal mistakes above, not a
+silent no-op.
+
+**Only four constraint/condition operators are implemented**: `required`, `equals`,
+`not_equals`, `after` (and `after` only against the literal value `"today"`). `before`,
+`greater_than`, `less_than`, `greater_than_or_equal`, `unique`, and any compound/aggregate
+shape (`aggregate: sum`, a plural `conditions:` list instead of singular `condition:`) are
+**not errors — they silently never fire** (`constraint.Eval`'s default case returns `true`,
+meaning "satisfied," for any operator it doesn't recognize). A constraint or event guard
+written with one of these looks correctly declared, loads without complaint, and then simply
+never does anything. If you need one of these, it isn't supported yet — don't write it as if
+it were; name the gap instead (see `capability-registry.md`'s CAP-C10/CAP-A09/CAP-C12 rows).
+
+**`set_field.value` supports exactly a literal string, or one of three dynamic tokens**:
+`today`, `now`, `current_user`. Anything else — a function call (`raise_one_level(priority)`,
+`sla_offset(priority)`), field arithmetic (`reopen_count + 1`), template interpolation
+(`{{ this.field }}`), a `previous(field)` read, a `role:X` dynamic target — is **not
+evaluated at all**. It gets written to the record as that literal text, verbatim, silently
+wrong data, not an error. None of these expression forms exist in the runtime today.
+
+**`create_record` is declared as an action type but has no implementation** — `Executor.
+Persist` logs it and does nothing else (CAP-A06, ❌). Metadata naming it loads and runs
+without error; it just never creates the record it names.
+
+**A `reference` field's `target_machine` must be a real Machine id already present in the
+same load** — including reserved/pseudo targets like `"$identity"` (CAP-F13's still-
+unimplemented flavor (b), the built-in identity target) count as dangling and fail the load,
+same blast radius as above. If you mean "the currently acting person," that's `type: user`
+(CAP-F05), not a `reference` with a made-up target.
+
+**A `permissions.owner_field` must name a Field declared `type: user`** on the same Machine
+(CAP-P02/CAP-F05, enforced at load time since 2026-07-12) — pointing it at a `text` field or
+any other type fails the load. Omit `owner_field` entirely for role-only gating if no
+Field on the Machine genuinely represents "the specific person who must act."
+
+**Unrecognized YAML/JSON keys are silently dropped, not rejected.** Go's default JSON
+decoding ignores fields a struct doesn't declare — a `views.filter` block (CAP-V09, not
+implemented) doesn't error, it just vanishes with no trace. The absence of a load error is
+not confirmation that everything you wrote was understood; cross-check against what this
+document and `capability-registry.md` actually say is implemented, not just against "did it
+load."
+
+**When a case's Machines span multiple files sharing one Workspace/Application** (a common
+pattern once an Application has multiple Machines, one file per Machine), exactly one of
+those files needs to declare `workspace:`/`application:` as full objects
+(`{id, name, workspace: ws_id}`); the others may reference the Application as a bare id
+string (`application: app_foo`) instead of repeating the full declaration. Nothing enforces
+that *some* file in the group declares it fully — if none do, the Application is simply
+never created and every Machine referencing it by bare string dangles.
+
+---
+
 ## Stable Identity
 
 Every metadata element has a stable `id`.

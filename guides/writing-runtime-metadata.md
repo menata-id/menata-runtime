@@ -636,6 +636,77 @@ Gunakan `ON CONFLICT (id) DO NOTHING` agar seed aman dijalankan ulang.
 
 ---
 
+## Yang Bikin Loader Gagal vs Yang Diam-diam Tidak Jalan
+
+Ditemukan langsung (2026-07-12) saat mengonversi 50 file contoh `.yaml` yang sebelumnya
+belum pernah benar-benar dimuat ke runtime — beberapa cara gagal yang tidak kelihatan cuma
+dari baca grammar-nya saja. Berlaku sama baik metadata-nya ditulis manusia maupun AI.
+
+**Satu Machine yang salah bikin SELURUH server gagal boot, bukan cuma Machine itu.**
+`Loader.LoadAll` memuat seluruh pohon setiap Workspace dalam satu pass; satu
+field/event/constraint/permission yang tidak valid di mana pun membatalkan seluruh proses
+boot (`os.Exit(1)` di `cmd/server/main.go`) — tidak ada partial load, tidak ada karantina
+per-Machine. Kesalahan metadata di satu Application yang bahkan tidak sedang Anda kerjakan
+bisa mematikan seluruh runtime untuk semua workspace lain juga.
+
+**`value` di `constraint.expression`, `constraint.condition`, atau `event.condition` HARUS
+string, walau kelihatannya angka.** `value: 100` (angka YAML/JSON) bikin loader crash
+(`cannot unmarshal number into Go struct field ConstraintExpression.value of type string`)
+— tulis `value: "100"`. Ini gagal fatal saat load, bukan diam-diam tidak jalan.
+
+**Cuma empat operator constraint/condition yang benar-benar jalan**: `required`, `equals`,
+`not_equals`, `after` (dan `after` cuma terhadap literal `"today"`). `before`,
+`greater_than`, `less_than`, `greater_than_or_equal`, `unique`, atau bentuk
+majemuk/agregat (`aggregate: sum`, `conditions:` jamak alih-alih `condition:` tunggal)
+**bukan error — cuma diam-diam tidak pernah aktif** (default case `constraint.Eval`
+mengembalikan `true`, artinya "terpenuhi", untuk operator apa pun yang tidak dikenali).
+Constraint atau guard event yang pakai salah satu ini kelihatan terdeklarasi benar, dimuat
+tanpa keluhan, lalu sama sekali tidak pernah melakukan apa-apa. Kalau butuh salah satu ini,
+artinya belum didukung — jangan ditulis seolah-olah didukung; sebutkan gap-nya saja (lihat
+baris CAP-C10/CAP-A09/CAP-C12 di `capability-registry.md`).
+
+**`set_field.value` cuma mendukung literal string, atau salah satu dari tiga token
+dinamis**: `today`, `now`, `current_user`. Selain itu — pemanggilan fungsi
+(`raise_one_level(priority)`, `sla_offset(priority)`), aritmatika field
+(`reopen_count + 1`), interpolasi template (`{{ this.field }}`), pembacaan
+`previous(field)`, target dinamis `role:X` — **sama sekali tidak dievaluasi**. Nilainya
+ditulis apa adanya ke record, verbatim, data yang diam-diam salah, bukan error.
+
+**`create_record` terdeklarasi sebagai tipe action tapi belum ada implementasinya** —
+`Executor.Persist` cuma log dan tidak melakukan apa-apa lagi (CAP-A06, ❌). Metadata yang
+menyebutnya tetap dimuat dan jalan tanpa error; cuma tidak pernah benar-benar membuat
+record yang dimaksud.
+
+**`target_machine` field `reference` harus Machine id asli yang benar-benar ada di load yang
+sama** — termasuk target reserved/pseudo seperti `"$identity"` (flavor (b) CAP-F13 yang
+belum diimplementasikan, target identitas bawaan) dianggap dangling dan gagal load, blast
+radius sama seperti di atas. Kalau maksudnya "orang yang sedang login," itu `type: user`
+(CAP-F05), bukan `reference` dengan target karangan.
+
+**`permissions.owner_field` harus menunjuk Field yang dideklarasikan `type: user`** di
+Machine yang sama (CAP-P02/CAP-F05, ditegakkan saat load sejak 2026-07-12) — menunjuk ke
+field `text` atau tipe lain bikin load gagal. Hilangkan `owner_field` sama sekali untuk
+gating berbasis role saja kalau memang tidak ada Field yang benar-benar mewakili "orang
+spesifik yang harus bertindak."
+
+**Key YAML/JSON yang tidak dikenali diam-diam diabaikan, bukan ditolak.** Decoding JSON
+bawaan Go mengabaikan field yang tidak dideklarasikan struct-nya — blok `views.filter`
+(CAP-V09, belum diimplementasikan) tidak error, cuma hilang tanpa jejak. Tidak adanya error
+saat load BUKAN konfirmasi bahwa semua yang ditulis dipahami runtime; selalu silang-cek ke
+dokumen ini dan `capability-registry.md` soal apa yang benar-benar sudah diimplementasikan,
+bukan cuma "apakah tadi berhasil dimuat."
+
+**Kalau Machine satu case tersebar di beberapa file yang berbagi satu Workspace/Application**
+(pola umum begitu satu Application punya banyak Machine, satu file per Machine), tepat satu
+dari file-file itu harus mendeklarasikan `workspace:`/`application:` sebagai objek penuh
+(`{id, name, workspace: ws_id}`); file lain boleh mereferensikan Application-nya cukup
+sebagai string id (`application: app_foo`) tanpa mengulang deklarasi penuh. Tidak ada yang
+menegakkan bahwa *ada* file dalam grup itu yang mendeklarasikannya penuh — kalau tidak ada
+sama sekali, Application-nya tidak pernah benar-benar dibuat dan setiap Machine yang
+mereferensikannya lewat string jadi dangling.
+
+---
+
 ## Checklist Sebelum Menjalankan Seed
 
 - [ ] Semua ID mengikuti konvensi prefix
@@ -654,6 +725,11 @@ Gunakan `ON CONFLICT (id) DO NOTHING` agar seed aman dijalankan ulang.
 - [ ] Event yang cuma boleh dipicu dari state tertentu punya `condition` (CAP-E06) — jangan andalkan disiplin pengguna
 - [ ] Kalau pakai `aggregate_status`, machine child-nya punya field `Sequence`/`Decision`/`Approver` (nama persis, case-insensitive) kalau memang butuh gating sequential (CAP-A07)
 - [ ] Kalau pakai workflow sequential/aggregate, parent machine-nya punya `config` (`approval_mode_field`, `steps_machine`, `steps_parent_field`) — lihat §Machine `config`
+- [ ] Setiap `value` di `expression`/`condition` ditulis sebagai string (`"100"`, bukan `100`) — angka mentah bikin loader crash
+- [ ] Operator di `constraint`/`condition` cuma salah satu dari: `required`, `equals`, `not_equals`, `after` — selain itu diam-diam tidak pernah aktif, bukan error
+- [ ] `set_field.value` cuma literal atau `today`/`now`/`current_user` — bukan pemanggilan fungsi, aritmatika, atau template
+- [ ] `owner_field` di Permissions menunjuk Field yang `type: user` — bukan `text` atau tipe lain
+- [ ] Kalau case-nya tersebar di beberapa file berbagi satu Application, tepat satu file mendeklarasikan `workspace:`/`application:` penuh
 
 ---
 

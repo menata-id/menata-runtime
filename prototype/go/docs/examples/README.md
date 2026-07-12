@@ -673,3 +673,37 @@ Case 3 defines the next layer of runtime capability needed to handle real-world 
 3. Translate to `seeds/00N_<name>.sql` for the parts that are supported.
 4. `psql $DATABASE_URL -f seeds/00N_<name>.sql`
 5. Restart the server.
+
+---
+
+## Bulk loadability check (2026-07-12)
+
+This directory has grown to 56 `.yaml` files (Cases 1–21, Study 16/17's Extended
+Portfolio) but only 6 have ever been hand-translated into a `seeds/00N_*.sql` and
+actually run: `design-request`, `leave-request`, `hr-employee`, `approval-document`,
+`approval-step`, `complaint`. The other 50 were metadata-only design artifacts — written,
+reviewed on paper, annotated `[SUPPORTED]`/`[NOT YET]`/`[PARTIAL]` where the authors did
+that work, but never actually loaded by `internal/metadata.Loader` or exercised by a
+running server. A direct question ("apakah sudah dites untuk semua example yang ada
+metadatanya?") surfaced this gap plainly.
+
+**Verified 2026-07-12**, in an isolated Postgres schema (`test_examples`, dropped after —
+never touched the shared dev=prod database or committed a seed file): every `[SUPPORTED]`
+construct in all 50 previously-untested `.yaml` files loads cleanly through the real
+`Loader.LoadAll` (dangling-reference and `owner_field` type validation included) and
+renders correctly over HTTP — List/NewForm smoke-tested for all 48 resulting Machines
+(zero 500s), Create tested end-to-end on a representative few, and a `type: user` field's
+picker (`fld_apt_doctor`, Hospital Appointment — CAP-F05) confirmed rendering real
+options against an account it had never been exercised against before.
+
+This was a bulk *loadability* check via an ad hoc YAML→SQL converter (skipping every
+construct already annotated or known `[NOT YET]` — aggregate conditions, schedule
+triggers, `create_record`, unsupported constraint operators, CAP-F13 flavor (b)'s
+reserved `$identity` target, etc.), not a curated `seeds/00N_*.sql` addition or a
+conformance-test-level proof for each case — none of the 50 generated seed files were
+kept or committed. No genuine runtime bugs surfaced this pass (contrast the CAP-X02/
+CAP-F05 work earlier the same day, which did find real bugs this same discipline
+caught) — the loader's strictness and every capability's documented boundary held up
+exactly as designed under bulk load. Promoting any of these 50 to a real, hand-curated
+seed (with the same care `seeds/005_complaint.sql`'s own header shows) remains future
+work, only worth doing once a specific case is actually being implemented, not preemptively.

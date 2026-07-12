@@ -999,6 +999,32 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > reached production. 60/60 conformance passing, verified on an isolated port and live at
 > `aksi.menata.id`.
 
+> **Status update (2026-07-12, same day) — bulk loadability check on the 50 previously-
+> untested example `.yaml` files:** a direct question ("apakah sudah dites untuk semua
+> example yang ada metadatanya?") surfaced that only 6 of `docs/examples/`'s 56 `.yaml`
+> files had ever actually been translated into a `seeds/00N_*.sql` and run — the other 50
+> (Study 16/17's Extended Portfolio, Cases 5–21) were paper-reviewed metadata that had
+> never touched `internal/metadata.Loader` or a running server. Verified in an isolated
+> Postgres schema (created and dropped without touching the shared database or committing
+> any seed file — see `prototype/go/docs/examples/README.md`'s own entry for the full
+> account): every `[SUPPORTED]` construct across all 50 loads cleanly and renders correctly
+> over HTTP (48 Machines, zero 500s). No genuine runtime bugs found this pass — unlike
+> earlier the same day, this one just confirmed the loader's strictness and every
+> capability's documented boundary hold up under volume.
+>
+> **The verification tooling itself found real documentation gaps**, since writing a YAML→
+> SQL converter meant discovering several load-time failure modes the metadata-authoring
+> guides had never written down: a `constraint`/`condition` value must be a JSON string
+> even when it looks numeric (a raw number crashes the loader); only 4 operators are
+> actually implemented, everything else silently never fires rather than erroring;
+> `set_field.value` only accepts a literal or one of 3 dynamic tokens, anything else (a
+> function call, field arithmetic, template interpolation) gets written as literal text,
+> silently wrong; `create_record` is declared but is a no-op; one bad Machine anywhere
+> fails the *entire* server's boot, not just that Machine. Written up as a new section in
+> `runtime-metadata-schema.md` and `guides/writing-runtime-metadata.md` (Indonesian) —
+> explicitly framed for both human and AI metadata authors, since none of these are
+> discoverable from the grammar alone.
+
 ---
 
 # Principles
