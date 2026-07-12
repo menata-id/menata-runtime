@@ -71,6 +71,8 @@ export `DATABASE_URL` (same value as the server's `.env`) — it's skipped other
 | T39 | CAP-P05 | a role with no permission row at all on a machine is denied List — deny-by-default, not implicitly allowed (negative case) |
 | T40 | CAP-P05 | same reasoning, denied Create (negative case) |
 | T41 | CAP-P05 | same reasoning, denied the Edit form (negative case) |
+| T42 | CAP-R04 | `record_events.performed_by` carries the real acting role/identity, not NULL (DB inspection, same T19 exception) |
+| T43 | CAP-I04 | one request's correlation_id is shared across every `record_events` row it produces, even across a cross-record cascade (DB inspection) |
 
 ---
 

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
 	"menata.id/runtime/internal/constraint"
 	"menata.id/runtime/internal/executor"
@@ -96,8 +97,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if role == "" {
 		role = "Requester"
 	}
+	identity := r.FormValue("identity")
 	http.SetCookie(w, &http.Cookie{Name: "menata_role", Value: role, Path: "/"})
-	http.SetCookie(w, &http.Cookie{Name: "menata_identity", Value: r.FormValue("identity"), Path: "/"})
+	http.SetCookie(w, &http.Cookie{Name: "menata_identity", Value: identity, Path: "/"})
+	// Session/role-switch events (ASVS V7.1 — authentication decisions),
+	// even though this prototype's "login" has no password to fail against.
+	slog.Info("role switch", "correlation_id", middleware.GetReqID(r.Context()), "role", role, "identity", identity)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
@@ -111,7 +116,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	// CAP-P05 — deny-by-default: no permission row for this role on this
 	// machine means no read access, not implicitly allowed.
-	if !h.guard.CanRead(machine, h.role(r)) {
+	if role := h.role(r); !h.guard.CanRead(machine, role) {
+		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
@@ -181,6 +187,7 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 	}
 	role := h.role(r)
 	if !h.guard.CanCreate(machine, role) {
+		h.logPermissionDenied(r.Context(), "create", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
@@ -197,7 +204,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if !h.guard.CanCreate(machine, h.role(r)) {
+	if role := h.role(r); !h.guard.CanCreate(machine, role) {
+		h.logPermissionDenied(r.Context(), "create", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
@@ -238,6 +246,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if len(violations) > 0 {
 		role := h.role(r)
+		h.logRuleViolation(r.Context(), "create", machineID, "", role, h.identity(r), strings.Join(violations, "; "))
 		if err := ui.Form(role, machine, "", h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
@@ -266,6 +275,7 @@ func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 	}
 	role := h.role(r)
 	if !h.guard.CanEdit(machine, role) {
+		h.logPermissionDenied(r.Context(), "edit", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
@@ -292,7 +302,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if !h.guard.CanEdit(machine, h.role(r)) {
+	if role := h.role(r); !h.guard.CanEdit(machine, role) {
+		h.logPermissionDenied(r.Context(), "edit", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
@@ -332,6 +343,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	if len(violations) > 0 {
 		role := h.role(r)
+		h.logRuleViolation(r.Context(), "update", machineID, "", role, h.identity(r), strings.Join(violations, "; "))
 		if err := ui.Form(role, machine, recordID, h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
@@ -355,7 +367,8 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if !h.guard.CanRead(machine, h.role(r)) {
+	if role := h.role(r); !h.guard.CanRead(machine, role) {
+		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
@@ -417,6 +430,7 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 	// run until after the record fetch above (unlike role-only permission,
 	// which didn't need it).
 	if !h.guard.CanTrigger(machine, role, identity, eventID, rec.Data) {
+		h.logPermissionDenied(r.Context(), "trigger", machineID, eventID, role, identity)
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
@@ -424,6 +438,7 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 	if err := h.triggerEvent(r.Context(), machine, event, rec, role, identity); err != nil {
 		var rv *ruleViolation
 		if errors.As(err, &rv) {
+			h.logRuleViolation(r.Context(), "trigger", machineID, eventID, role, identity, rv.Error())
 			http.Error(w, rv.Error(), http.StatusBadRequest)
 		} else {
 			http.Error(w, "event failed", http.StatusInternalServerError)
@@ -440,6 +455,50 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 type ruleViolation struct{ msg string }
 
 func (e *ruleViolation) Error() string { return e.msg }
+
+// logPermissionDenied records an access-control failure as a distinct,
+// security-relevant log line (OWASP ASVS V7.2 — "all failed access control
+// decisions must be logged"), not just the routine access-log entry chi's
+// middleware.Logger already writes for the resulting 403 response.
+// correlation_id is the same request id CAP-R04's record_events rows carry
+// (executor.Persist), so a probing pattern (many denials across roles in one
+// session) and any successful mutation from the same request can be
+// correlated. eventID is empty for non-event actions (read/create/edit).
+// workspace/application (006-runtime-model.md's hierarchy) are resolved
+// here, not passed in, so every call site stays a one-liner.
+func (h *Handler) logPermissionDenied(ctx context.Context, action, machineID, eventID, role, identity string) {
+	workspaceID, appID := h.interp.ScopeFor(machineID)
+	slog.Warn("permission denied",
+		"correlation_id", middleware.GetReqID(ctx),
+		"workspace", workspaceID,
+		"application", appID,
+		"action", action,
+		"machine", machineID,
+		"event", eventID,
+		"role", role,
+		"identity", identity,
+	)
+}
+
+// logRuleViolation records a rejected write (CAP-C01..C11 constraints, or
+// CAP-E06's state guard) as a distinct log line — ASVS V7.1's "all input
+// validation failures" — separate from logPermissionDenied's access-control
+// failures: this is a request that *was* permitted but rejected on the
+// data/state it carried.
+func (h *Handler) logRuleViolation(ctx context.Context, action, machineID, eventID, role, identity, reason string) {
+	workspaceID, appID := h.interp.ScopeFor(machineID)
+	slog.Warn("rule violation",
+		"correlation_id", middleware.GetReqID(ctx),
+		"workspace", workspaceID,
+		"application", appID,
+		"action", action,
+		"machine", machineID,
+		"event", eventID,
+		"role", role,
+		"identity", identity,
+		"reason", reason,
+	)
+}
 
 // triggerEvent is the single path every event trigger runs through, whether
 // from an HTTP button (TriggerEvent) or fired internally by another event's
@@ -472,7 +531,7 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 		return &ruleViolation{strings.Join(violations, " ")}
 	}
 
-	if err := h.exec.Persist(ctx, event, rec, newData, machine.Name); err != nil {
+	if err := h.exec.Persist(ctx, event, rec, newData, machine.Name, actorRole, actorIdentity); err != nil {
 		return err
 	}
 

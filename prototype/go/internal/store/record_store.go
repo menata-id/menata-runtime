@@ -117,13 +117,22 @@ func (s *RecordStore) Update(ctx context.Context, id string, data map[string]any
 	return err
 }
 
-func (s *RecordStore) LogEvent(ctx context.Context, recordID, eventID string, snapshot map[string]any) error {
+// LogEvent appends one row to the append-only record_events audit trail
+// (CAP-R04, enforced append-only at the DB level, migrations/007 REVOKEs
+// UPDATE/DELETE/TRUNCATE from this role). performedBy is the acting
+// identity (falling back to role, same convention as CAP-A02's
+// current_user), correlationID is the request-scoped id (CAP-I04, chi's
+// middleware.RequestID) shared by every row one HTTP request produces, even
+// across a cascade (CAP-A08/CAP-E05 firing an event on another record).
+// Either may be empty (e.g. a request with no request-id middleware in a
+// test harness) -- stored as SQL NULL, not an empty string.
+func (s *RecordStore) LogEvent(ctx context.Context, recordID, eventID, performedBy, correlationID string, snapshot map[string]any) error {
 	snapshotJSON, err := json.Marshal(snapshot)
 	if err != nil {
 		return fmt.Errorf("marshal snapshot: %w", err)
 	}
 	_, err = s.db.Exec(ctx,
-		`INSERT INTO record_events (record_id, event_id, snapshot) VALUES ($1, $2, $3)`,
-		recordID, eventID, string(snapshotJSON))
+		`INSERT INTO record_events (record_id, event_id, performed_by, correlation_id, snapshot) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), $5)`,
+		recordID, eventID, performedBy, correlationID, string(snapshotJSON))
 	return err
 }

@@ -392,6 +392,32 @@ CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Cookie: menata_role=Employee" 
 [ "$CODE" = "403" ]
 check T41 "CAP-P05" "role with no permission row on a machine is denied the Edit form (got $CODE)" $?
 
+# --- CAP-R04 (audit log actor attribution) + CAP-I04 (correlation trace) ---
+# DB inspection, same documented exception as T19 -- these prove a DB-level
+# fact (record_events columns) an HTTP black-box test can't observe.
+
+if [ -n "$DATABASE_URL" ]; then
+    # T42 -- performed_by carries the real acting identity (Manager, from
+    # T12's Approve on $REC_ID), not NULL and not the literal role string
+    # where identity was actually set.
+    PERFORMED_BY=$(psql "$DATABASE_URL" -tAc \
+        "SELECT performed_by FROM record_events WHERE record_id = '$REC_ID' AND event_id = 'evt_lr_approve' LIMIT 1")
+    [ "$PERFORMED_BY" = "Manager" ]
+    check T42 "CAP-R04" "record_events.performed_by carries the real acting role/identity (got '$PERFORMED_BY')" $?
+
+    # T43 -- one HTTP request's correlation_id is shared across every
+    # record_events row it produces, even across a cascade: AS2's Approve
+    # (T24, Carol) triggers aggregate_status, which fires evt_ad_approve on
+    # a DIFFERENT record (AD_SEQ_ID) -- both rows must carry the same id.
+    CIDS=$(psql "$DATABASE_URL" -tAc \
+        "SELECT DISTINCT correlation_id FROM record_events WHERE (record_id = '$AS2_ID' AND event_id = 'evt_as_approve') OR (record_id = '$AD_SEQ_ID' AND event_id = 'evt_ad_approve')")
+    [ "$(echo "$CIDS" | grep -c .)" = "1" ] && [ -n "$CIDS" ]
+    check T43 "CAP-I04" "one correlation_id shared across a same-request cross-record cascade" $?
+else
+    printf 'SKIP  T42  %-22s %s\n' "CAP-R04" "DATABASE_URL not set -- DB inspection unavailable"
+    printf 'SKIP  T43  %-22s %s\n' "CAP-I04" "DATABASE_URL not set -- DB inspection unavailable"
+fi
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

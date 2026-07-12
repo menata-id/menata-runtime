@@ -53,6 +53,12 @@ func main() {
 	h := handler.New(interp, records, notifications)
 
 	r := chi.NewRouter()
+	// RequestID before Logger: gives every access log line a request id, and
+	// makes it readable via middleware.GetReqID(ctx) anywhere downstream —
+	// CAP-I04's correlation_id for record_events (executor.Persist) and every
+	// explicit security-event log line (permission denials, rule violations)
+	// reuse this same id, not a separately generated one.
+	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 

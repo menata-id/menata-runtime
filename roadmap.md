@@ -482,6 +482,38 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 >
 > Prio 7 (CAP-E02, CAP-A09, CAP-X05 — time-driven events + conditional actions + metadata
 > validation) is next up.
+>
+> **Status update (2026-07-12) — audit logging, out of Prio-number sequence:** a direct
+> question about this deployment's logging ("is the current log good enough, and what's
+> world-class practice for a metadata-driven runtime specifically") surfaced a real gap
+> against `nfr-standards.md`'s own stated STRIDE countermeasures — not part of Prio 6/7,
+> pulled forward because the gap was found, not scheduled. **CAP-R04 fixed**:
+> `record_events.performed_by` had existed since Case 1 but was never actually populated
+> (always NULL) — a dead `UUID REFERENCES users(id)` FK, since this prototype's real
+> identity model (CAP-P02's cookies) was never backed by the `users` table. migrations/007
+> retypes it to `TEXT` and wires `actorLabel(role, identity)` through `Executor.Persist`.
+> Also newly enforced, and empirically verified: append-only at the DB level (`REVOKE
+> UPDATE, DELETE, TRUNCATE ... FROM menata_runtime_app`) — an UPDATE/DELETE attempt as the
+> app role now genuinely fails with `permission denied`, not just application discipline.
+> **CAP-I04 partially implemented** (correlation-id half, pulled forward from Prio 10):
+> chi's `middleware.RequestID` generates one id per request; `Executor.Persist` reads it
+> via `ctx` and writes it to every `record_events` row a request produces, including across
+> a cascade (CAP-A08/CAP-E05 reuse the same `ctx`, so no extra plumbing was needed) — T43
+> proves an Approve Step's cascade-triggered parent Approve shares one id with the step's
+> own event row, even though they're different records. **New**: every permission denial
+> and rule violation is now an explicit, distinguishable `slog.Warn` line (not just the
+> resulting 403/400 status code buried in a routine access-log entry) — prompted by a
+> direct follow-up question connecting this to the Workspace/Application/Machine hierarchy
+> (`006-runtime-model.md`) and `nfr-standards.md`'s "Cross-tenant reach" threat: these lines
+> also carry `workspace`/`application` scope (`Interpreter.ScopeFor`), not just `machine`,
+> even though CAP-X06 (workspace isolation/RLS) isn't enforced yet and only one workspace
+> exists today — the log schema doesn't need retrofitting once it is. Conformance T42–T43,
+> full suite 44/44. Deliberately **not** done in this pass (named, not silently skipped):
+> JSON-formatted structured logs (chi's `middleware.Logger` access-log line and `slog`'s
+> app-level lines are still two differently-formatted text outputs, now correlated by id
+> but not unified in format); `record_events` retention/partitioning (Study 8 scale
+> concern, not relevant at this prototype's size); no UI to view the audit trail (CAP-R04's
+> pre-existing, unchanged scope note).
 
 ---
 

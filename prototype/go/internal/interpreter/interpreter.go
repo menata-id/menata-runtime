@@ -37,6 +37,27 @@ func (i *Interpreter) GetMachine(id string) (*model.Machine, bool) {
 	return m, ok
 }
 
+// ScopeFor resolves the Workspace/Application a Machine belongs to
+// (Workspace > Application > Machine, 006-runtime-model.md — "Workspace
+// isolation should always be maintained"). Needed on every security-relevant
+// log line, not just the machine id: this prototype has only one workspace
+// ("ws_default") today, CAP-X06 (workspace isolation/RLS) isn't enforced yet
+// either, but the log schema should already carry the scope this
+// architecture is constitutionally organized around (nfr-standards.md's
+// "Cross-tenant reach" STRIDE threat) rather than retrofitting it once
+// CAP-X06 lands and a second workspace actually exists.
+func (i *Interpreter) ScopeFor(machineID string) (workspaceID, applicationID string) {
+	m, ok := i.machines[machineID]
+	if !ok {
+		return "", ""
+	}
+	app, ok := i.apps[m.ApplicationID]
+	if !ok {
+		return "", m.ApplicationID
+	}
+	return app.WorkspaceID, app.ID
+}
+
 func (i *Interpreter) AllMachines() []*model.Machine {
 	out := make([]*model.Machine, 0, len(i.machines))
 	for _, m := range i.machines {

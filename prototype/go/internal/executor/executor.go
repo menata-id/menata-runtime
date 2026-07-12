@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/go-chi/chi/v5/middleware"
+
 	"menata.id/runtime/internal/model"
 	"menata.id/runtime/internal/store"
 )
@@ -56,13 +58,22 @@ func resolveValue(value, actorRole, actorIdentity string) string {
 	case "now":
 		return time.Now().Format(time.RFC3339)
 	case "current_user":
-		if actorIdentity != "" {
-			return actorIdentity
-		}
-		return actorRole
+		return actorLabel(actorRole, actorIdentity)
 	default:
 		return value
 	}
+}
+
+// actorLabel is the one place "who did this" resolves to a single string —
+// identity when set (CAP-P02's real, distinct-from-role identity), falling
+// back to role otherwise (internal "System"-triggered events pass both as
+// "System"). Used both for CAP-A02's current_user and for CAP-R04's
+// record_events.performed_by attribution, so the two stay consistent.
+func actorLabel(actorRole, actorIdentity string) string {
+	if actorIdentity != "" {
+		return actorIdentity
+	}
+	return actorRole
 }
 
 // Persist saves newData (already validated by the caller — CAP-C09) as the
@@ -70,7 +81,16 @@ func resolveValue(value, actorRole, actorIdentity string) string {
 // logs the event with the pre-event data as its snapshot. machineName is
 // only used for a notification's message text — Executor still doesn't touch
 // the Interpreter, this is just a display string the caller already has.
-func (e *Executor) Persist(ctx context.Context, event *model.Event, record *store.Record, newData map[string]any, machineName string) error {
+//
+// actorRole/actorIdentity attribute the audit row (CAP-R04's performed_by,
+// via actorLabel — same resolution CAP-A02's current_user uses). The
+// correlation id (CAP-I04) comes from ctx, not a param: chi's
+// middleware.RequestID sets one per HTTP request, and because every internal
+// cascade (CAP-A08 aggregate_status, CAP-E05 trigger_event) reuses the same
+// ctx as the request that triggered it, every record_events row one request
+// produces — even across different records — shares one id for free, no
+// extra plumbing needed.
+func (e *Executor) Persist(ctx context.Context, event *model.Event, record *store.Record, newData map[string]any, machineName, actorRole, actorIdentity string) error {
 	snapshot := record.Data
 
 	for _, action := range event.Actions {
@@ -87,7 +107,7 @@ func (e *Executor) Persist(ctx context.Context, event *model.Event, record *stor
 	if err := e.records.Update(ctx, record.ID, newData); err != nil {
 		return err
 	}
-	return e.records.LogEvent(ctx, record.ID, event.ID, snapshot)
+	return e.records.LogEvent(ctx, record.ID, event.ID, actorLabel(actorRole, actorIdentity), middleware.GetReqID(ctx), snapshot)
 }
 
 // doNotify implements CAP-A03 (static `role` recipient) and CAP-A04 (dynamic
