@@ -62,9 +62,21 @@ func (h *Handler) auth(r *http.Request) *store.Auth {
 }
 
 // identity (CAP-P02): the acting person's name, distinct from role — used
-// for CAP-P02's owner-gated events and CAP-A04's identity-targeted notify.
+// for audit/log lines and CAP-A02's current_user (human-readable contexts).
+// Never used for an ownership *comparison* — see identityID for that.
 func (h *Handler) identity(r *http.Request) string {
 	return h.auth(r).User.Name
+}
+
+// identityID (CAP-F05/CAP-P02): the acting person's account id, distinct
+// from identity's display name — the value CAP-P02's owner_field ownership
+// check (Guard.CanTrigger, Interpreter.PermittedEventsForRecord) compares
+// against, since a `user`-typed Field now stores a real user id, not a
+// hand-typed name. Keeping this separate from identity (Name) matters:
+// identity stays human-readable for audit trails and notifications: only
+// the ownership *comparison* itself needs the id.
+func (h *Handler) identityID(r *http.Request) string {
+	return h.auth(r).User.ID
 }
 
 // workspace (CAP-X06): which Workspace this session is authenticated into --
@@ -451,6 +463,10 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 					val = label
 					link = "/" + target + "/" + refID
 				}
+			} else if cols[j].Type == model.FieldTypeUser && val != "" {
+				if label, err := h.userLabel(r.Context(), val); err == nil && label != "" {
+					val = label
+				}
 			}
 			cells[j] = ui.ListCell{
 				Value:         val,
@@ -552,6 +568,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	violations = append(violations, refViolations...)
+	userViolations, err := h.userReferenceViolations(r.Context(), machine, data)
+	if err != nil {
+		http.Error(w, "failed to validate references", http.StatusInternalServerError)
+		return
+	}
+	violations = append(violations, userViolations...)
 
 	if len(violations) > 0 {
 		role := h.roleForApp(r, applicationID)
@@ -669,6 +691,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	violations = append(violations, refViolations...)
+	userViolations, err := h.userReferenceViolations(r.Context(), machine, data)
+	if err != nil {
+		http.Error(w, "failed to validate references", http.StatusInternalServerError)
+		return
+	}
+	violations = append(violations, userViolations...)
 
 	if len(violations) > 0 {
 		role := h.roleForApp(r, applicationID)
@@ -731,13 +759,17 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 				val = label
 				link = "/" + target + "/" + refID
 			}
+		} else if f.Type == model.FieldTypeUser && val != "" {
+			if label, err := h.userLabel(r.Context(), val); err == nil && label != "" {
+				val = label
+			}
 		}
 		fields = append(fields, ui.DetailField{Name: f.Name, Value: val, Link: link})
 	}
 
-	role, identity := h.roleForApp(r, applicationID), h.identity(r)
+	role := h.roleForApp(r, applicationID)
 	childLists := h.childLists(r.Context(), machine, recordID)
-	permittedEvents := h.interp.PermittedEventsForRecord(machineID, role, identity, rec.Data)
+	permittedEvents := h.interp.PermittedEventsForRecord(machineID, role, h.identityID(r), rec.Data)
 	a := h.auth(r)
 	page := ui.Detail(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
@@ -777,8 +809,10 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 	role, identity := h.roleForApp(r, applicationID), h.identity(r)
 	// CAP-P02 — ownership check needs the record's own data, so this can't
 	// run until after the record fetch above (unlike role-only permission,
-	// which didn't need it).
-	if !h.guard.CanTrigger(machine, role, identity, eventID, rec.Data) {
+	// which didn't need it). Compared by id (CAP-F05), not by identity's
+	// display name -- triggerEvent below still gets the human-readable
+	// identity, for audit attribution and CAP-A02's current_user.
+	if !h.guard.CanTrigger(machine, role, h.identityID(r), eventID, rec.Data) {
 		h.logPermissionDenied(r.Context(), "trigger", machineID, eventID, role, identity)
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
@@ -925,8 +959,11 @@ func (h *Handler) buildFormFields(ctx context.Context, machine *model.Machine, v
 			}
 		}
 		var opts []ui.ReferenceOption
-		if f.Type == model.FieldTypeReference {
+		switch f.Type {
+		case model.FieldTypeReference:
 			opts = h.referenceOptions(ctx, f.Options.TargetMachine)
+		case model.FieldTypeUser:
+			opts = h.userFieldOptions(ctx, machine.ApplicationID)
 		}
 		fields = append(fields, ui.FormField{Field: f, Value: val, Options: opts})
 	}
@@ -1059,6 +1096,66 @@ func (h *Handler) referenceViolations(ctx context.Context, machine *model.Machin
 				targetName = target.Name
 			}
 			out = append(out, fmt.Sprintf("%s does not reference an existing %s record.", f.Name, targetName))
+		}
+	}
+	return out, nil
+}
+
+// userFieldOptions (CAP-F05) is a `user` field's picker candidate pool --
+// scoped to people who hold any role in the field's own Machine's
+// Application (UserStore.ListForApplicationRole), the CAP-O01-derived
+// query-time filter this capability's own design settled on rather than a
+// new metadata concept (see benchmarks/007-user-role-management-survey.md).
+func (h *Handler) userFieldOptions(ctx context.Context, applicationID string) []ui.ReferenceOption {
+	users, err := h.users.ListForApplicationRole(ctx, applicationID)
+	if err != nil {
+		slog.Error("list user field options", "application", applicationID, "error", err)
+		return nil
+	}
+	opts := make([]ui.ReferenceOption, 0, len(users))
+	for _, u := range users {
+		opts = append(opts, ui.ReferenceOption{ID: u.ID, Label: u.Name})
+	}
+	return opts
+}
+
+// userLabel (CAP-F05) resolves one user id's display name, for rendering an
+// already-set `user` field value (detail/list views) -- the person-field
+// counterpart to referenceLabel. Unlike a reference field, there's no
+// profile page to link to in this prototype, so callers render plain text,
+// never a link.
+func (h *Handler) userLabel(ctx context.Context, userID string) (string, error) {
+	u, err := h.users.GetByID(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	return u.Name, nil
+}
+
+// userReferenceViolations (CAP-F05) enforces referential integrity for
+// `user`-typed fields, the exact same tier and shape as referenceViolations
+// (CAP-F13) -- a required-field-style violation, not a 500, when a value
+// doesn't resolve to a real account.
+func (h *Handler) userReferenceViolations(ctx context.Context, machine *model.Machine, data map[string]any) ([]string, error) {
+	var out []string
+	for _, f := range machine.Fields {
+		if f.Type != model.FieldTypeUser {
+			continue
+		}
+		v, ok := data[f.ID]
+		if !ok {
+			continue
+		}
+		userID, _ := v.(string)
+		if userID == "" {
+			continue
+		}
+		exists, err := h.users.Exists(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			out = append(out, fmt.Sprintf("%s does not reference an existing user.", f.Name))
 		}
 	}
 	return out, nil

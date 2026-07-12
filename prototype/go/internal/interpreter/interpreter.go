@@ -201,10 +201,12 @@ func (i *Interpreter) PermittedEvents(machineID, role string) []*model.Event {
 
 // PermittedEventsForRecord is PermittedEvents narrowed by CAP-P02 ownership:
 // an event gated by a Permission with an OwnerField is only included if
-// recordData's value for that field matches identity — so a Detail page never
-// offers an Approve/Reject button for a Step that isn't actually assigned to
-// the viewer, even though the POST was already blocked either way.
-func (i *Interpreter) PermittedEventsForRecord(machineID, role, identity string, recordData map[string]any) []*model.Event {
+// recordData's value for that field matches identityID — so a Detail page
+// never offers an Approve/Reject button for a Step that isn't actually
+// assigned to the viewer, even though the POST was already blocked either
+// way. identityID is the acting user's account id (CAP-F05, same
+// ID-not-name comparison Guard.CanTrigger makes), not their display name.
+func (i *Interpreter) PermittedEventsForRecord(machineID, role, identityID string, recordData map[string]any) []*model.Event {
 	m, ok := i.machines[machineID]
 	if !ok {
 		return nil
@@ -215,7 +217,7 @@ func (i *Interpreter) PermittedEventsForRecord(machineID, role, identity string,
 			continue
 		}
 		for _, eid := range perm.Events {
-			if perm.OwnerField == "" || fmt.Sprintf("%v", recordData[perm.OwnerField]) == identity {
+			if perm.OwnerField == "" || fmt.Sprintf("%v", recordData[perm.OwnerField]) == identityID {
 				allowed[eid] = true
 			}
 		}

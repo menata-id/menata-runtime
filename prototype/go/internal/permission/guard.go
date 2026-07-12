@@ -8,11 +8,18 @@ import (
 
 type Guard struct{}
 
-// CanTrigger returns true if the given role/identity is allowed to trigger
+// CanTrigger returns true if the given role/identityID is allowed to trigger
 // eventID on the machine. CAP-P02: when a matching Permission row declares an
-// OwnerField, the role alone isn't enough — identity must also equal
-// recordData's value for that field (direct allocation, not just role class).
-func (g *Guard) CanTrigger(machine *model.Machine, role, identity, eventID string, recordData map[string]any) bool {
+// OwnerField, the role alone isn't enough — identityID must also equal
+// recordData's value for that field (direct allocation, not just role
+// class). CAP-F05 (2026-07-12): identityID is the acting user's account id
+// (store.Auth.User.ID), not their display name — the loader guarantees
+// OwnerField, when set, names a `user`-typed Field (see metadata/loader.go's
+// validateReferences), which stores a real user id, so this is an ID-to-ID
+// comparison, matching how every reference-style field is compared
+// elsewhere. Never compare against a display name here: names are mutable
+// and not guaranteed unique, exactly the failure mode this exists to avoid.
+func (g *Guard) CanTrigger(machine *model.Machine, role, identityID, eventID string, recordData map[string]any) bool {
 	for _, perm := range machine.Permissions {
 		if perm.Role != role {
 			continue
@@ -24,7 +31,7 @@ func (g *Guard) CanTrigger(machine *model.Machine, role, identity, eventID strin
 			if perm.OwnerField == "" {
 				return true
 			}
-			return fmt.Sprintf("%v", recordData[perm.OwnerField]) == identity
+			return fmt.Sprintf("%v", recordData[perm.OwnerField]) == identityID
 		}
 	}
 	return false

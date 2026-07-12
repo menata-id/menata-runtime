@@ -21,6 +21,17 @@
 -- Priority raise_one_level() step is omitted entirely rather than faked.
 -- Both stay [NOT YET], unchanged from complaint.yaml.
 --
+-- fld_cmp_assigned_to is `value_list` (Agent/Supervisor), not `user`
+-- (CAP-F05, fixed 2026-07-12): "escalate to whoever holds the Supervisor
+-- role" is a queue/team assignment, not a reference to one specific person
+-- -- exactly the ServiceNow assigned_to-vs-assignment_group /
+-- Camunda assignee-vs-candidateGroups distinction every platform surveyed
+-- keeps as two different mechanisms, never one field that sometimes holds a
+-- person and sometimes holds a role name (see
+-- benchmarks/007-user-role-management-survey.md). A real per-person
+-- escalation target would use the existing `notify: {role: ...}` action's
+-- role-broadcast pattern, not this field.
+--
 -- Delegate, Resolve, Close, Reopen, the Customer role, and every other
 -- field/event/constraint/view in complaint.yaml are deliberately unseeded —
 -- this is not a full Case 7 implementation. Safe to run multiple times
@@ -42,8 +53,13 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO fields (id, machine_id, name, type, position, required, options) VALUES
     ('fld_cmp_complainant_name', 'mch_complaint', 'Complainant Name', 'text',       0, true,  '{}'),
     ('fld_cmp_status',           'mch_complaint', 'Status',           'value_list', 1, false, '{"values":["New","Triaged","Investigating"]}'),
-    ('fld_cmp_assigned_to',      'mch_complaint', 'Assigned To',      'user',       2, false, '{}')
+    ('fld_cmp_assigned_to',      'mch_complaint', 'Assigned To',      'value_list', 2, false, '{"values":["Agent","Supervisor"]}')
 ON CONFLICT (id) DO NOTHING;
+-- Scoped fix for a database that already ran the INSERT above before this
+-- field was reclassified from `user` to `value_list` (ON CONFLICT DO
+-- NOTHING skips it there) -- see the header note.
+UPDATE fields SET type = 'value_list', options = '{"values":["Agent","Supervisor"]}'
+    WHERE id = 'fld_cmp_assigned_to' AND type = 'user';
 
 -- Events
 -- evt_cmp_triage/evt_cmp_add_investigation_note: complaint.yaml's own

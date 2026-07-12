@@ -102,6 +102,21 @@ get_body() { # <url> <jar> -> echoes response body
     curl -s -b "$2" "$1"
 }
 
+# user_option_id <form_url> <jar> <display_name> -> echoes the real user id
+# backing a `user` field's picker option whose visible text is exactly
+# display_name (CAP-F05 -- these fields now store a real users.id, not a
+# hand-typed name; scraped from the rendered <option value="ID">Name</option>
+# rather than a new DATABASE_URL dependency, keeping this suite's HTTP
+# black-box principle -- see conformance/README.md).
+user_option_id() {
+    local url="$1" jar="$2" name="$3"
+    curl -s -b "$jar" "$url" \
+        | grep -oE "value=\"[a-f0-9-]+\">$name</option>" \
+        | head -1 \
+        | grep -oE '"[a-f0-9-]+"' \
+        | tr -d '"'
+}
+
 echo "Menata Runtime Conformance Suite"
 echo "Target: $BASE_URL"
 echo "--------------------------------------------------------------------"
@@ -124,6 +139,23 @@ FRANK=$(session_for hr@example.com password)        # HR (app_hr), workspace Adm
 GRACE=$(session_for agent@example.com password)     # Agent (app_customer_service)
 HENRY=$(session_for supervisor@example.com password) # Supervisor (app_customer_service)
 IVAN=$(session_for staff@example.com password)      # Staff (app_ops), workspace Admin (ws_acme)
+
+# Real user ids (CAP-F05) for the four genuine person-reference fields
+# (fld_requester, fld_lr_employee, fld_ad_submitted_by, fld_as_approver) --
+# these fields now store a real users.id, not a hand-typed name; resolved
+# once here via user_option_id and reused throughout, rather than at every
+# call site. ALICE_ID is scraped from mch_approval_document's own picker
+# (fld_ad_submitted_by), not mch_design_request's -- fld_requester isn't in
+# Design Request's own FormView fields (vw_request_form never exposed it, a
+# pre-existing gap unrelated to CAP-F05), so no picker for it renders on
+# /mch_design_request/new to scrape; a user id is application-scoped by
+# role, not by which page it was read from, so the same id resolves either
+# way -- Create still accepts and validates fld_requester from raw POST
+# data even though no form control renders it.
+ALICE_ID=$(user_option_id "$BASE_URL/mch_approval_document/new" "$ALICE" "Alice")
+DAVE_ID=$(user_option_id "$BASE_URL/mch_leave_request/new" "$DAVE" "Dave")
+BOB_ID=$(user_option_id "$BASE_URL/mch_approval_step/new" "$ALICE" "Bob")
+CAROL_ID=$(user_option_id "$BASE_URL/mch_approval_step/new" "$ALICE" "Carol")
 
 # T01 — CAP-X01 multi-application, multi-machine, now observed through
 # CAP-O03: the workspace home lists Applications (role-aware), not a flat
@@ -155,18 +187,18 @@ check T05 "CAP-C02" "empty submit rejected: date-future violation" $?
 # T06 — CAP-C03+C04 conditional constraint fires (Banner without attachment).
 # Alice (Requester) is Design Request's real submitting role (CAP-P05:
 # Create needs CanCreate).
-DR_DATA_BANNER="fld_requester=ConformanceBot&fld_design_type=Banner+2%3A1&fld_due_date=2030-01-01&fld_title=Conformance+T06&fld_description=Test"
+DR_DATA_BANNER="fld_requester=$ALICE_ID&fld_design_type=Banner+2%3A1&fld_due_date=2030-01-01&fld_title=Conformance+T06&fld_description=Test"
 post_body_contains "$BASE_URL/mch_design_request" "$DR_DATA_BANNER" "Attachment is required" "$ALICE"
 check T06 "CAP-C03,CAP-C04" "conditional constraint fires when condition true" $?
 
 # T07 — CAP-C04 conditional constraint silent when condition false (Poster)
-DR_DATA_POSTER="fld_requester=ConformanceBot&fld_design_type=Poster&fld_due_date=2030-01-01&fld_title=Conformance+T07&fld_description=Test"
+DR_DATA_POSTER="fld_requester=$ALICE_ID&fld_design_type=Poster&fld_due_date=2030-01-01&fld_title=Conformance+T07&fld_description=Test"
 CODE=$(post_status "$BASE_URL/mch_design_request" "$DR_DATA_POSTER" "$ALICE")
 [ "$CODE" = "303" ]
 check T07 "CAP-C04" "conditional constraint silent when condition false (got $CODE)" $?
 
 # T08 — CAP-R01 create record with default status
-LR_DATA="fld_lr_employee=ConformanceBot&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=Conformance+run"
+LR_DATA="fld_lr_employee=$DAVE_ID&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=Conformance+run"
 DETAIL_URL=$(post_redirect "$BASE_URL/mch_leave_request" "$LR_DATA" "$DAVE")
 [ -n "$DETAIL_URL" ] && body_contains "$DETAIL_URL" "Draft" "$DAVE"
 check T08 "CAP-R01" "valid create redirects to detail with default status Draft" $?
@@ -221,7 +253,7 @@ check T16 "CAP-F13" "dangling reference value rejected, not silently accepted" $
 # --- CAP-E06 (state-conditional event availability) ---
 
 # T17 — Approve rejected while a record is still Draft (never Submitted)
-DRAFT_DATA="fld_lr_employee=ConformanceBot&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=T17"
+DRAFT_DATA="fld_lr_employee=$DAVE_ID&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=T17"
 DRAFT_URL=$(post_redirect "$BASE_URL/mch_leave_request" "$DRAFT_DATA" "$DAVE")
 DRAFT_ID="${DRAFT_URL##*/}"
 CODE=$(post_status "$BASE_URL/mch_leave_request/$DRAFT_ID/events/evt_lr_approve" "" "$EVE")
@@ -240,7 +272,7 @@ check T18 "CAP-E06" "Reject rejected on an already-Approved record (got $CODE) -
 # the already-declared "Start Date must be after today" constraint must block
 # Approve too, not just Create. See header note re: psql use here.
 if [ -n "$DATABASE_URL" ]; then
-    C09_DATA="fld_lr_employee=ConformanceBot&fld_lr_leave_type=Sick+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=T19"
+    C09_DATA="fld_lr_employee=$DAVE_ID&fld_lr_leave_type=Sick+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=T19"
     C09_URL=$(post_redirect "$BASE_URL/mch_leave_request" "$C09_DATA" "$DAVE")
     C09_ID="${C09_URL##*/}"
     post_status "$BASE_URL/mch_leave_request/$C09_ID/events/evt_lr_submit" "" "$DAVE" >/dev/null
@@ -277,13 +309,13 @@ check T21 "CAP-V06" "manager's detail page lists its direct report via reverse r
 # Sequential-mode document with two steps (Bob seq 1, Carol seq 2). Alice
 # (Submitter) creates both the Document and its Steps (CAP-P05:
 # perm_ad_submitter_steps).
-AD_SEQ_DATA="fld_ad_title=T22+Policy&fld_ad_document_type=Policy&fld_ad_file=policy.pdf&fld_ad_submitted_by=Alice&fld_ad_approval_mode=Sequential"
+AD_SEQ_DATA="fld_ad_title=T22+Policy&fld_ad_document_type=Policy&fld_ad_file=policy.pdf&fld_ad_submitted_by=$ALICE_ID&fld_ad_approval_mode=Sequential"
 AD_SEQ_URL=$(post_redirect "$BASE_URL/mch_approval_document" "$AD_SEQ_DATA" "$ALICE")
 AD_SEQ_ID="${AD_SEQ_URL##*/}"
 post_status "$BASE_URL/mch_approval_document/$AD_SEQ_ID/events/evt_ad_submit" "" "$ALICE" >/dev/null
-AS1_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_SEQ_ID&fld_as_approver=Bob&fld_as_sequence=1" "$ALICE")
+AS1_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_SEQ_ID&fld_as_approver=$BOB_ID&fld_as_sequence=1" "$ALICE")
 AS1_ID="${AS1_URL##*/}"
-AS2_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_SEQ_ID&fld_as_approver=Carol&fld_as_sequence=2" "$ALICE")
+AS2_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_SEQ_ID&fld_as_approver=$CAROL_ID&fld_as_sequence=2" "$ALICE")
 AS2_ID="${AS2_URL##*/}"
 
 # T22 — CAP-A07 hard block: approving Step 2 before Step 1 is rejected.
@@ -308,13 +340,13 @@ check T24 "CAP-A08" "Document auto-transitions to Approved once every Step is Ap
 
 # T25 — Parallel-mode document: no sequential gating (approve Step 2 before
 # Step 1 succeeds, unlike T22's Sequential-mode document)
-AD_PAR_DATA="fld_ad_title=T25+Contract&fld_ad_document_type=Contract&fld_ad_file=contract.pdf&fld_ad_submitted_by=Alice&fld_ad_approval_mode=Parallel"
+AD_PAR_DATA="fld_ad_title=T25+Contract&fld_ad_document_type=Contract&fld_ad_file=contract.pdf&fld_ad_submitted_by=$ALICE_ID&fld_ad_approval_mode=Parallel"
 AD_PAR_URL=$(post_redirect "$BASE_URL/mch_approval_document" "$AD_PAR_DATA" "$ALICE")
 AD_PAR_ID="${AD_PAR_URL##*/}"
 post_status "$BASE_URL/mch_approval_document/$AD_PAR_ID/events/evt_ad_submit" "" "$ALICE" >/dev/null
-PS1_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_PAR_ID&fld_as_approver=Bob&fld_as_sequence=1&fld_as_notes=T26+rejection+note" "$ALICE")
+PS1_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_PAR_ID&fld_as_approver=$BOB_ID&fld_as_sequence=1&fld_as_notes=T26+rejection+note" "$ALICE")
 PS1_ID="${PS1_URL##*/}"
-PS2_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_PAR_ID&fld_as_approver=Carol&fld_as_sequence=2" "$ALICE")
+PS2_URL=$(post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$AD_PAR_ID&fld_as_approver=$CAROL_ID&fld_as_sequence=2" "$ALICE")
 PS2_ID="${PS2_URL##*/}"
 CODE=$(post_status "$BASE_URL/mch_approval_step/$PS2_ID/events/evt_as_approve" "" "$CAROL")
 [ "$CODE" = "303" ]
@@ -359,20 +391,23 @@ check T38 "CAP-E05" "Run SLA Check while Investigating chains into Escalate on t
 # Reuses $REC_ID (Leave Request, Approved by T12) and $MGR_ID/$REPORT_URL
 # (Employee, CAP-F13 references established by T14/T15).
 
-# T27 — edit form pre-fills the record's current values
-body_contains "$BASE_URL/mch_leave_request/$REC_ID/edit" 'value="ConformanceBot"' "$DAVE"
+# T27 — edit form pre-fills the record's current values -- a `user` field's
+# picker (CAP-F05) pre-selects the record's own value, the same proof a
+# plain text input's value="..." attribute gave before that field started
+# storing a real user id instead of a hand-typed name.
+body_contains "$BASE_URL/mch_leave_request/$REC_ID/edit" "selected>Dave</option>" "$DAVE"
 check T27 "CAP-R02" "edit form pre-fills existing field values" $?
 
 # T28 — valid update persists the change and leaves fields the form doesn't
 # expose (Status, still Approved from T12) untouched
-LR_UPDATE_DATA="fld_lr_employee=ConformanceBot&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=T28+updated+reason"
+LR_UPDATE_DATA="fld_lr_employee=$DAVE_ID&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=T28+updated+reason"
 CODE=$(post_status "$BASE_URL/mch_leave_request/$REC_ID" "$LR_UPDATE_DATA" "$DAVE")
 [ "$CODE" = "303" ] && body_contains "$DETAIL_URL" "T28 updated reason" "$DAVE" \
   && body_contains "$DETAIL_URL" "Approved" "$DAVE"
 check T28 "CAP-R02" "valid update persists changed field, preserves Status outside the form (got $CODE)" $?
 
 # T29 — update re-validates Constraints, same as Create (required violation)
-LR_BAD_DATA="fld_lr_employee=ConformanceBot&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason="
+LR_BAD_DATA="fld_lr_employee=$DAVE_ID&fld_lr_leave_type=Annual+Leave&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason="
 post_body_contains "$BASE_URL/mch_leave_request/$REC_ID" "$LR_BAD_DATA" "Reason is required." "$DAVE"
 check T29 "CAP-R02,CAP-C09" "update rejected on required-field violation, same as Create" $?
 

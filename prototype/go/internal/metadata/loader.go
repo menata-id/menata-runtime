@@ -51,6 +51,14 @@ func (l *Loader) LoadAll(ctx context.Context) ([]*model.Workspace, error) {
 // Unlike a runtime surprise (a broken picker, a 500 on first use), a dangling
 // reference is reported explicitly at load time — "Unknown = explicit"
 // (capability-lifecycle.md §4 rule 3).
+//
+// Also enforces CAP-F05/CAP-P02's own version of the same discipline: a
+// `permissions.owner_field` names a Field expected to hold a real person's
+// account id (Guard.CanTrigger compares it against the acting user's id,
+// internal/permission/guard.go) — that only means anything if the named
+// Field is actually type `user`. Pointing owner_field at, say, a `text`
+// field would silently never match anyone; caught here instead of
+// discovered as "nobody can ever trigger this event."
 func validateReferences(workspaces []*model.Workspace) error {
 	known := make(map[string]bool)
 	for _, ws := range workspaces {
@@ -75,6 +83,25 @@ func validateReferences(workspaces []*model.Workspace) error {
 					if !known[target] {
 						return fmt.Errorf("field %s (%s) on machine %s: dangling reference — target_machine %q does not exist",
 							f.ID, f.Name, m.ID, target)
+					}
+				}
+
+				fieldByID := make(map[string]*model.Field, len(m.Fields))
+				for _, f := range m.Fields {
+					fieldByID[f.ID] = f
+				}
+				for _, p := range m.Permissions {
+					if p.OwnerField == "" {
+						continue
+					}
+					f, ok := fieldByID[p.OwnerField]
+					if !ok {
+						return fmt.Errorf("permission %s on machine %s: owner_field %q does not name a Field on this machine",
+							p.ID, m.ID, p.OwnerField)
+					}
+					if f.Type != model.FieldTypeUser {
+						return fmt.Errorf("permission %s on machine %s: owner_field %q must be type \"user\", got %q",
+							p.ID, m.ID, p.OwnerField, f.Type)
 					}
 				}
 			}

@@ -58,17 +58,24 @@ func (s *NotificationStore) Create(ctx context.Context, recipient, message, mach
 
 // recipientMatch is the WHERE clause shared by ListForRecipient/UnreadCount/
 // MarkRead: a notification belongs to a reader if its recipient is their own
-// identity (name), OR its recipient is a role string that matches one of
-// their user_application_roles rows *for that notification's own
-// Application* (CAP-O01 -- a role broadcast to "Manager" must only reach
-// people who are actually "Manager" in the Application that fired it, not
-// everyone who happens to hold "Manager" anywhere). $1 = identity, $2 = userID.
+// identity name, OR their own user id (CAP-F05 -- a `notify:
+// {recipient_field: ...}` targeting a `user`-typed Field stores that
+// person's id as the resolved recipient, not their name, since Executor has
+// no access to UserStore to resolve id -> name itself; matching both here
+// keeps notifications.recipient's two possible identity shapes both
+// reachable without touching Executor), OR its recipient is a role string
+// that matches one of their user_application_roles rows *for that
+// notification's own Application* (CAP-O01 -- a role broadcast to "Manager"
+// must only reach people who are actually "Manager" in the Application that
+// fired it, not everyone who happens to hold "Manager" anywhere).
+// $1 = identity name, $2 = userID.
 const recipientMatch = `(
 	n.recipient = $1
+	OR n.recipient = $2::text
 	OR EXISTS (
 		SELECT 1 FROM machines m
 		JOIN user_application_roles uar ON uar.application_id = m.application_id
-		WHERE m.id = n.machine_id AND uar.role = n.recipient AND uar.user_id = $2
+		WHERE m.id = n.machine_id AND uar.role = n.recipient AND uar.user_id = $2::uuid
 	)
 )`
 

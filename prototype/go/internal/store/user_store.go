@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -61,6 +62,26 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*User, error)
 	return u, nil
 }
 
+// Exists reports whether id names a real user -- CAP-F05's referential
+// integrity check for `user`-typed fields, the same tier as CAP-F13's
+// RecordStore.Exists (a required-field violation, not a 500). Pre-validates
+// UUID syntax in Go before querying, same discipline RecordStore.Exists
+// established: under CAP-X06's RLS, a Postgres-level error (22P02 on a
+// malformed UUID) poisons the rest of that request's shared transaction,
+// so a hand-typed non-UUID value must never reach Postgres at all.
+func (s *UserStore) Exists(ctx context.Context, id string) (bool, error) {
+	if (&pgtype.UUID{}).Scan(id) != nil {
+		return false, nil
+	}
+	var exists bool
+	err := s.db(ctx).QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)`, id).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check user exists: %w", err)
+	}
+	return exists, nil
+}
+
 func (s *UserStore) GetByID(ctx context.Context, id string) (*User, error) {
 	u := &User{}
 	err := s.db(ctx).QueryRow(ctx,
@@ -92,6 +113,38 @@ func (s *UserStore) ApplicationRoles(ctx context.Context, userID string) (map[st
 			return nil, err
 		}
 		out[appID] = role
+	}
+	return out, rows.Err()
+}
+
+// ListForApplicationRole returns every user holding ANY role in applicationID
+// (a row in user_application_roles) -- the candidate pool for a `user`
+// field's picker (CAP-F05), scoped by CAP-O01's own role model rather than
+// listing every workspace user unfiltered. A prototype-honest heuristic, not
+// maximally role-precise (doesn't filter to one specific role, e.g. only
+// "Approver") -- the same query-time-filter, no-new-metadata-concept
+// discipline CAP-O01's picker/admin page already established.
+func (s *UserStore) ListForApplicationRole(ctx context.Context, applicationID string) ([]*User, error) {
+	rows, err := s.db(ctx).Query(ctx,
+		`SELECT u.id, u.workspace_id, u.name, u.email, u.password_hash, u.workspace_role, u.created_at
+		 FROM users u
+		 WHERE EXISTS (
+		     SELECT 1 FROM user_application_roles uar
+		     WHERE uar.user_id = u.id AND uar.application_id = $1
+		 )
+		 ORDER BY u.name`, applicationID)
+	if err != nil {
+		return nil, fmt.Errorf("list users for application role: %w", err)
+	}
+	defer rows.Close()
+
+	var out []*User
+	for rows.Next() {
+		u := &User{}
+		if err := rows.Scan(&u.ID, &u.WorkspaceID, &u.Name, &u.Email, &u.PasswordHash, &u.WorkspaceRole, &u.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, u)
 	}
 	return out, rows.Err()
 }

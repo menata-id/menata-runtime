@@ -31,7 +31,10 @@ templ StatusBadge(status string) {
 }
 
 // FieldInput renders the correct input element for a field type.
-// refOptions is only used for FieldTypeReference — the picker's choices.
+// refOptions is used for FieldTypeReference's and FieldTypeUser's picker
+// choices (CAP-F05 — a `user` field is reference-sugar over the workspace's
+// own users, same picker shape, options sourced from UserStore instead of
+// RecordStore by the caller).
 templ FieldInput(f *model.Field, value string, refOptions []ReferenceOption) {
 	<div class="space-y-1.5">
 		<label for={ f.ID } class="block text-sm font-medium text-slate-700">
@@ -41,7 +44,7 @@ templ FieldInput(f *model.Field, value string, refOptions []ReferenceOption) {
 			}
 		</label>
 		switch f.Type {
-		case model.FieldTypeReference:
+		case model.FieldTypeReference, model.FieldTypeUser:
 			<select
 				id={ f.ID }
 				name={ f.ID }

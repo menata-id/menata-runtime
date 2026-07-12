@@ -933,6 +933,74 @@ This entry is the record of the correction, following the same discipline Study 
 
 ---
 
+# Phase 7 — User & Role Management Benchmark (triggered by CAP-F05 implementation)
+
+## Study 18 — User & Role Management Survey ✅ done (2026-07-12)
+
+Triggered by starting CAP-F05 (`type: user` field, real reference-sugar over CAP-O01) — a
+direct maintainer question asking for world-class practice from comparable platforms before
+implementing, plus a review of the workspace/Application role model now that CAP-O01 exists.
+Ten platforms surveyed (ServiceNow, Frappe/ERPNext, Salesforce, Camunda, Jira, Slack, Google
+Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
+
+**Deliverables:**
+- [x] `benchmarks/007-user-role-management-survey.md`
+
+**Headline findings:**
+- **Storage convention confirmed**: every platform surveyed stores a "person" field as a
+  stable ID, never a display name — validates the CAP-F05 implementation direction and
+  surfaces a real bug: CAP-P02's `owner_field` ownership check currently compares a display
+  **Name** string, not an ID.
+- **Person vs. role/queue assignee — kept as separate mechanisms everywhere** (ServiceNow
+  `assigned_to` vs `assignment_group`; Camunda `assignee` vs `candidateGroups`; Frappe/Jira
+  keep assignee strictly personal). This caught a real category-error bug in this runtime's
+  own seed data: `mch_complaint`'s `fld_cmp_assigned_to` (declared `type: user`) is set by a
+  system action to the literal string `"Supervisor"` — a role name wearing a person field's
+  clothes. Salesforce's polymorphic `OwnerId` (User-or-Queue) is the one counter-example, and
+  practitioners treat its prefix-branching as a cost to route around, not a pattern to copy.
+- **Workspace/Application two-tier role model validated against Salesforce's Profile +
+  Permission Set split** (closest real precedent) and GitHub/AWS/Azure's per-scope role
+  binding — the design holds up. **One structural gap named, not silently missing**: every
+  platform surveyed interposes a Group/Team between users and role assignment; this runtime
+  doesn't. Registered as **CAP-O07** (❌), explicitly deferred — real but not worth building
+  at current scale (see the survey's own recommendation).
+- Registry: 103 → 104 capabilities (CAP-O07 new).
+
+> **Status update (2026-07-12, same day) — CAP-F05 (`type: user` field) implemented,
+> informed directly by Study 18:** `type: user` went from a declared-but-inert field type
+> (rendered as free text, no validation) to real reference-sugar over CAP-O01's `users` table
+> — a picker (`internal/ui/components.templ`), scoped to people holding a role in the field's
+> own Application (`UserStore.ListForApplicationRole`), referential integrity enforced at
+> Create/Update (`userReferenceViolations`, same tier as CAP-F13's), storing a real user id
+> per Study 18's own top finding.
+>
+> **Two ripples were required by the storage change itself, not optional bundling**: CAP-P02's
+> `owner_field` ownership check (`Guard.CanTrigger`) now compares by user id instead of display
+> name — the exact fragility Study 18 flagged, and it would have simply stopped matching the
+> moment `fld_as_approver` started storing an id instead of hand-typed text; CAP-A04's
+> `recipient_field` notify keeps reaching the right person by widening
+> `NotificationStore.recipientMatch`'s identity match to accept either name or id, rather than
+> teaching `Executor` to resolve ids (it deliberately has no `UserStore` access — the read side
+> absorbs this instead, see `CLAUDE.md`'s Executor/Handler boundary).
+>
+> **A real bug Study 18 caught in existing seed data, fixed in the same pass**:
+> `mch_complaint.fld_cmp_assigned_to` was `type: user` but a system action wrote the literal
+> role name `"Supervisor"` into it — reclassified to `value_list`, matching every platform
+> surveyed's separation of "assign to a person" from "assign to a role/queue."
+>
+> **Mechanical cost**: every conformance test submitting a hand-typed name into one of the
+> four real `user` fields needed a real seeded account's id instead — resolved via a new
+> `user_option_id` helper that scrapes the id from the rendered picker (HTTP black-box,
+> no new `DATABASE_URL` dependency), not a rewrite of test logic itself. **One real bug found
+> during isolated-port verification, unrelated to the design itself**: the new
+> `NotificationStore.recipientMatch` clause hit a Postgres type-inference conflict (`uuid =
+> text`, SQLSTATE 42883) — the same bound parameter used against both a `uuid` column and a
+> `text` column in one query needs an explicit cast on each side; fixed before this ever
+> reached production. 60/60 conformance passing, verified on an isolated port and live at
+> `aksi.menata.id`.
+
+---
+
 # Principles
 
 - **The map before the territory** — benchmark catalogs predict gaps before cases find them.
