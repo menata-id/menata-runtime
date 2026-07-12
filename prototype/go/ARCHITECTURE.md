@@ -229,13 +229,11 @@ Running applications remain stable during reload failures.
 
 This prototype intentionally simplifies some runtime concepts.
 
-- Single workspace only
 - No background job scheduler (events are request- or same-request-cascade-triggered only —
   CAP-E05's `trigger_event` fires another event from within the same request, but nothing fires
   on a timer; CAP-E02 time-driven events remain unimplemented)
 - No external integrations
 - No API exposure
-- No real authentication (CAP-X02) — a role/identity cookie pair, not a session
 
 These limitations exist to keep the prototype focused on validating the core interpretation model.
 

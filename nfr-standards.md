@@ -7,7 +7,7 @@
 > as Definition-of-Done gates when each capability is implemented
 > (`capability-lifecycle.md` §3b).
 >
-> Status: v0.4 — partially implemented, real deployment | Created: 2026-07-04 | §2.1 refined 2026-07-05 (Study 15 sixth-pass: image/compression dual-path enforcement) | §2.5 refined 2026-07-10 (CAP-P07 public access breaks the identity-scoping premise — Case 13) | §0 Spoofing/Repudiation/Tampering/Information-Disclosure rows partly closed 2026-07-12 (CAP-P05, CAP-R04, CAP-I04, partial CAP-X02) — see `prototype/go/docs/decisions/005-deployment-status.md` for the itemized status, this document remains the standard those items were checked against
+> Status: v0.5 — partially implemented, real deployment | Created: 2026-07-04 | §2.1 refined 2026-07-05 (Study 15 sixth-pass: image/compression dual-path enforcement) | §2.5 refined 2026-07-10 (CAP-P07 public access breaks the identity-scoping premise — Case 13) | §0 Spoofing/Repudiation/Tampering/Information-Disclosure rows partly closed 2026-07-12 (CAP-P05, CAP-R04, CAP-I04) | §0 Spoofing row closed further 2026-07-12, same day (CAP-X02 real authentication + CSRF, CAP-O01 workspace identity/role registry, both now ✅) — see `prototype/go/docs/decisions/005-deployment-status.md` for the itemized status, this document remains the standard those items were checked against
 
 **External standards used as yardsticks:**
 
@@ -36,7 +36,7 @@ Consequences that shape every area below:
 
 | Threat | Runtime exposure | Countermeasure class |
 |--------|-----------------|---------------------|
-| Spoofing | Prototype cookie role (accepted for PoC); production needs real authn | ASVS V2/V3 session management (CAP-X02) |
+| Spoofing | Closed 2026-07-12 — real password + session auth (CAP-X02), CSRF protection, two-tier role assignment (CAP-O01) replace the old self-declared cookie | ASVS V2/V3 session management (CAP-X02) — implemented; password reset/lockout/MFA remain deliberately deferred, no case yet |
 | Tampering | Direct record/metadata mutation bypassing engines | Single write path through engines; DB-level immutability (CAP-R07); append-only event log |
 | Repudiation | Actions without actor attribution | `record_events` must always carry actor + correlation_id (CAP-I04) |
 | Information disclosure | Everything readable by everyone today (CAP-P05 gap); search/list leaks | Deny-by-default reads; RLS; permission-trimmed queries |

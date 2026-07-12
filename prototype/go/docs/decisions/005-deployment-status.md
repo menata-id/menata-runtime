@@ -19,9 +19,10 @@ real parts of that standard shipped to `aksi.menata.id`:
   append-only enforcement (`REVOKE UPDATE, DELETE, TRUNCATE`), the §0 Tampering/Repudiation
   countermeasures.
 - **CAP-I04** — correlation-id tracing across a request, including cross-record cascades.
-- **CAP-X02 (partial)** — every permission denial, rule violation, and role switch is now an
-  explicit, distinguishable security-event log line (ASVS V7), though real authentication
-  itself is still open (below).
+- **CAP-X02 (partial at the time this ADR was first written)** — every permission denial, rule
+  violation, and role switch was already an explicit, distinguishable security-event log line
+  (ASVS V7); real authentication itself was still open. **Closed later the same day** — see
+  the status update at the end of this ADR.
 
 A governance document asserting "nothing implemented, accepted risk" while the linked
 production domain has already had NFR-gated capabilities deployed to it is not a passive
@@ -44,16 +45,19 @@ not blanket-exempt. Specifically:
 | Deny-by-default access | CAP-P05 | conformance T39–T41, T44–T45 |
 | Audit trail (actor + append-only) | CAP-R04 | conformance T42 |
 | Correlation tracing | CAP-I04 | conformance T43 |
-| Security-event logging | CAP-X02 (partial) | manual verification, `handler.go`'s `logPermissionDenied`/`logRuleViolation` |
+| Security-event logging | CAP-X02 | manual verification, `handler.go`'s `logPermissionDenied`/`logRuleViolation` |
+| Real authentication (password + session + CSRF) | CAP-X02 | conformance T53–T56 |
+| Workspace-scoped identity & role assignment | CAP-O01 | conformance T57–T59 |
 | Workspace isolation | CAP-X06 | this session, see below |
 
 **Still explicitly open — accepted risk, eyes open, not silence:**
-- **CAP-X02, the rest of it** — real authentication remains unimplemented. See that row in
-  `capability-registry.md` for the specific gaps tracked; this ADR names it as the single
-  largest open item rather than leaving it implied by a registry row alone, without
-  restating the mechanics here.
-- **CAP-O01** — the workspace identity/role registry doesn't exist yet; see that row in
-  `capability-registry.md`.
+- **Password reset/rotation, account lockout after repeated failed logins, MFA** — none of the
+  three has a case forcing it yet; see CAP-X02's row in `capability-registry.md` for the exact
+  "deferred, not done here" note.
+- **Admin management of an Application's own metadata** — CAP-O01's `/admin/users` covers
+  "manage user access"; the other workspace-Admin concern (Application metadata) is a
+  reserved authorization boundary, not built — no metadata-editing UI exists anywhere in this
+  prototype to gate yet.
 - Retention/partitioning, lazy per-workspace metadata loading, per-workspace concurrency
   fairness (CAP-X11 and neighbors) — real scale concerns, not correctness/security ones,
   deferred until workspace/record counts make them relevant (see
@@ -66,5 +70,17 @@ not blanket-exempt. Specifically:
 - Future NFR-relevant work should update the table above, the same append-only discipline
   `roadmap.md`'s dated status blocks already use — this table is a live status, not a
   one-time snapshot.
-- CAP-X02's remaining gap (real authentication) is the single largest open item this ADR
-  surfaces plainly rather than leaving implied by a capability registry row alone.
+
+## Status update (2026-07-12, later the same day) — CAP-X02 and CAP-O01 closed
+
+This ADR's own "single largest open item" is resolved: real authentication (bcrypt password
+verification, server-side sessions with sliding expiry, CSRF protection on every
+state-changing request — implemented in this same pass, not deferred) and the workspace
+identity/role registry (a two-tier model: workspace-wide Admin/Member, plus a role per
+`(user, application)` pair, resolved fresh per request with no manual "switch role" step) both
+shipped and are live at `aksi.menata.id`. See `roadmap.md`'s 2026-07-12 CAP-X02/CAP-O01 status
+entry and `capability-registry.md`'s rows for the full account, including what was found along
+the way (a seed account's bcrypt hash that never actually matched its claimed password,
+invisible until real password verification existed to catch it) and what remains deliberately
+open (the narrower items above — password reset, lockout, MFA, Application-metadata
+management — none large enough to warrant its own ADR).

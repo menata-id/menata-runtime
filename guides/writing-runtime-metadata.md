@@ -490,7 +490,10 @@ INSERT INTO permissions (id, machine_id, role, events) VALUES
         ARRAY['evt_lr_approve','evt_lr_reject']);
 ```
 
-Nilai `role` di sini harus **persis sama** dengan cookie `menata_role` yang dikirim client. Case-sensitive.
+Nilai `role` di sini harus **persis sama** dengan role yang di-assign ke user lewat
+`/admin/users` (CAP-O01, `user_application_roles`) untuk Application tempat Machine ini berada
+— bukan lagi cookie yang dikirim client sendiri (CAP-X02, cookie `menata_role` sudah tidak
+ada). Case-sensitive.
 
 **Kepemilikan record (`owner_field`) dan akses CRUD (`can_read`/`can_create`/`can_edit`)**
 
