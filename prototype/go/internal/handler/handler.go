@@ -441,10 +441,67 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		cols = append(cols, def)
 	}
 
-	records, err := h.records.List(r.Context(), machineID)
+	sortField, sortDir := "", ""
+	if view != nil && view.Config.ManualOrder {
+		// CAP-V14 wins over DefaultSort when both are declared on the same
+		// View -- manual order only means anything if it's what's actually
+		// shown.
+		sortField = store.SortOrderField
+	} else if view != nil && view.Config.DefaultSort != nil {
+		sortField, sortDir = view.Config.DefaultSort.Field, view.Config.DefaultSort.Direction
+	}
+	records, err := h.records.List(r.Context(), machineID, sortField, sortDir)
 	if err != nil {
 		http.Error(w, "failed to load records", http.StatusInternalServerError)
 		return
+	}
+
+	// CAP-V05/V09: a list View's declarative filter, AND-combined, reusing
+	// constraint.Eval's own expression grammar. $current_user (CAP-V05) is
+	// resolved to the acting identity's id here, request-time, before Eval
+	// ever sees it -- Eval itself has no notion of "who's asking."
+	if view != nil && len(view.Config.Filter) > 0 {
+		identityID := h.identityID(r)
+		kept := records[:0]
+		for _, rec := range records {
+			match := true
+			for _, fc := range view.Config.Filter {
+				val := fc.Value
+				if val == "$current_user" {
+					val = identityID
+				}
+				if !constraint.Eval(model.ConstraintExpression{Field: fc.Field, Operator: fc.Operator, Value: val}, rec.Data) {
+					match = false
+					break
+				}
+			}
+			if match {
+				kept = append(kept, rec)
+			}
+		}
+		records = kept
+	}
+
+	// CAP-V08: free-text search across this View's visible columns, ?q=.
+	// Substring, case-insensitive, HTTP black-box (a plain GET query param,
+	// no JS) -- matches this prototype's no-SPA-framework posture.
+	searchQuery := strings.TrimSpace(r.URL.Query().Get("q"))
+	if searchQuery != "" {
+		q := strings.ToLower(searchQuery)
+		kept := records[:0]
+		for _, rec := range records {
+			match := false
+			for _, id := range colIDs {
+				if v, ok := rec.Data[id]; ok && strings.Contains(strings.ToLower(fmt.Sprintf("%v", v)), q) {
+					match = true
+					break
+				}
+			}
+			if match {
+				kept = append(kept, rec)
+			}
+		}
+		records = kept
 	}
 
 	rows := make([]ui.ListRow, 0, len(records))
@@ -477,10 +534,260 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, ui.ListRow{ID: rec.ID, Cells: cells})
 	}
 
+	manualOrder := view != nil && view.Config.ManualOrder
 	a := h.auth(r)
-	page := ui.List(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.PermittedEvents(machineID, role), h.unreadCount(r.Context(), a))
+	page := ui.List(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), searchQuery, manualOrder)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render list", "error", err)
+	}
+}
+
+// MoveRecord (CAP-V14) reorders recordID up or down among its siblings on
+// machineID's manual-order list View. CanEdit-gated -- reordering changes
+// something about the record's presentation, the same permission tier as
+// changing one of its fields, not a separate concept.
+func (h *Handler) MoveRecord(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	recordID := chi.URLParam(r, "recordID")
+	direction := chi.URLParam(r, "direction")
+	machine, ok := h.interp.GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanEdit(machine, role) {
+		h.logPermissionDenied(r.Context(), "edit", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	if err := h.records.Move(r.Context(), machineID, recordID, direction); err != nil {
+		http.Error(w, "failed to move record", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/"+machineID, http.StatusSeeOther)
+}
+
+// Report renders a CAP-V13 aggregate report View -- grouped SUMs computed
+// at render time from ANOTHER Machine's own records (view.Config.Report),
+// not this Machine's. Read access is checked against the SOURCE machine
+// (the data being aggregated), same reasoning as CAP-V06's reverse-lookup
+// child lists reading the child Machine's own records.
+func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	machine, ok := h.interp.GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanRead(machine, role) {
+		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	view := h.interp.ReportView(machineID)
+	if view == nil || view.Config.Report == nil {
+		http.NotFound(w, r)
+		return
+	}
+	rc := view.Config.Report
+
+	srcFieldByID := map[string]*model.Field{}
+	if src, ok := h.interp.GetMachine(rc.Machine); ok {
+		srcFieldByID = fieldIndex(src)
+	}
+	sumLabels := make([]string, len(rc.SumFields))
+	for i, f := range rc.SumFields {
+		sumLabels[i] = f
+		if sf, ok := srcFieldByID[f]; ok {
+			sumLabels[i] = sf.Name
+		}
+	}
+
+	groups, err := h.records.SumFieldsGroupedBy(r.Context(), rc.Machine, rc.GroupField, rc.SumFields)
+	if err != nil {
+		http.Error(w, "failed to load report", http.StatusInternalServerError)
+		return
+	}
+	rows := make([]ui.ReportRow, len(groups))
+	for i, g := range groups {
+		sums := make([]string, len(rc.SumFields))
+		for j, f := range rc.SumFields {
+			sums[j] = fmt.Sprintf("%.2f", g.Sums[f])
+		}
+		rows[i] = ui.ReportRow{Group: g.Group, Sums: sums}
+	}
+
+	a := h.auth(r)
+	page := ui.Report(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, sumLabels, rows, h.unreadCount(r.Context(), a))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render report", "error", err)
+	}
+}
+
+// calendarTimeline backs both Calendar and Timeline (CAP-V07) -- same
+// grouped-by-date_field rendering, only the View lookup differs.
+func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view *model.View) {
+	machineID := chi.URLParam(r, "machineID")
+	machine, ok := h.interp.GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanRead(machine, role) {
+		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	if view == nil {
+		http.NotFound(w, r)
+		return
+	}
+	fieldByID := fieldIndex(machine)
+	colIDs := view.Config.Columns
+	cols := make([]ui.ColumnDef, 0, len(colIDs))
+	for _, id := range colIDs {
+		def := ui.ColumnDef{ID: id, Name: id}
+		if f, ok := fieldByID[id]; ok {
+			def.Name = f.Name
+			def.Type = f.Type
+		}
+		cols = append(cols, def)
+	}
+
+	records, err := h.records.List(r.Context(), machineID, view.Config.DateField, "asc")
+	if err != nil {
+		http.Error(w, "failed to load records", http.StatusInternalServerError)
+		return
+	}
+
+	var groups []ui.CalendarGroup
+	var cur string
+	var curRows []ui.ListRow
+	flush := func() {
+		if curRows != nil {
+			groups = append(groups, ui.CalendarGroup{Date: cur, Rows: curRows})
+		}
+	}
+	first := true
+	for _, rec := range records {
+		date := fmt.Sprintf("%v", rec.Data[view.Config.DateField])
+		if date == "<nil>" {
+			date = ""
+		}
+		if first || date != cur {
+			flush()
+			cur = date
+			curRows = nil
+			first = false
+		}
+		cells := make([]ui.ListCell, len(colIDs))
+		for j, id := range colIDs {
+			val := ""
+			if v, ok := rec.Data[id]; ok {
+				val = fmt.Sprintf("%v", v)
+			}
+			cells[j] = ui.ListCell{Value: val, IsStatusBadge: cols[j].Type == model.FieldTypeValueList}
+		}
+		curRows = append(curRows, ui.ListRow{ID: rec.ID, Cells: cells})
+	}
+	flush()
+
+	a := h.auth(r)
+	page := ui.CalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, groups, h.unreadCount(r.Context(), a))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render calendar/timeline", "error", err)
+	}
+}
+
+// Calendar renders a CAP-V07 calendar View: records grouped by date_field.
+func (h *Handler) Calendar(w http.ResponseWriter, r *http.Request) {
+	h.calendarTimeline(w, r, h.interp.CalendarView(chi.URLParam(r, "machineID")))
+}
+
+// Timeline renders a CAP-V07 timeline View: the same grouping, read
+// chronologically.
+func (h *Handler) Timeline(w http.ResponseWriter, r *http.Request) {
+	h.calendarTimeline(w, r, h.interp.TimelineView(chi.URLParam(r, "machineID")))
+}
+
+// Dashboard renders a CAP-V10 composed dashboard View -- one tile per
+// declared Section, each possibly a DIFFERENT Machine than the one the
+// dashboard View itself is declared on (the actual point of "composed").
+// Each section's own read permission is checked independently -- a role
+// that can't read a given section's Machine just doesn't get that tile,
+// rather than the whole dashboard 403ing.
+func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	machine, ok := h.interp.GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanRead(machine, role) {
+		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	view := h.interp.DashboardView(machineID)
+	if view == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	tiles := make([]ui.DashboardTile, 0, len(view.Config.Sections))
+	for _, sec := range view.Config.Sections {
+		secMachine, ok := h.interp.GetMachine(sec.Machine)
+		if !ok {
+			continue
+		}
+		_, secAppID := h.interp.ScopeFor(sec.Machine)
+		secRole := h.roleForApp(r, secAppID)
+		if !h.guard.CanRead(secMachine, secRole) {
+			continue
+		}
+		counts, err := h.records.CountGroupedBy(r.Context(), sec.Machine, sec.GroupField)
+		if err != nil {
+			http.Error(w, "failed to load dashboard", http.StatusInternalServerError)
+			return
+		}
+		tile := ui.DashboardTile{Title: sec.Title, MachineID: sec.Machine}
+		for _, c := range counts {
+			tile.Total += c.Count
+			if sec.GroupField != "" {
+				tile.Breakdown = append(tile.Breakdown, ui.DashboardBreakdown{Label: c.Group, Count: c.Count})
+			}
+		}
+		tiles = append(tiles, tile)
+	}
+
+	a := h.auth(r)
+	page := ui.Dashboard(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), view.Name, tiles, h.unreadCount(r.Context(), a))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render dashboard", "error", err)
 	}
 }
 
@@ -507,6 +814,17 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a := h.auth(r)
+
+	// CAP-V12: a FormView declaring Steps renders as a multi-step wizard
+	// instead of the single Form -- step 0, no carried-forward values yet.
+	if fv := h.interp.FormView(machine.ID); fv != nil && len(fv.Config.Steps) > 0 {
+		page := ui.WizardForm(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, 0, len(fv.Config.Steps), h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[0], nil), nil, nil, h.unreadCount(r.Context(), a))
+		if err := page.Render(r.Context(), w); err != nil {
+			slog.Error("render wizard form", "error", err)
+		}
+		return
+	}
+
 	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, nil), nil, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render form", "error", err)
@@ -538,15 +856,54 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	fv := h.interp.FormView(machine.ID)
+
+	// CAP-V12: an intermediate wizard-step submission renders the NEXT step
+	// instead of creating anything -- only the final step's POST falls
+	// through to the ordinary Create logic below. No session state: every
+	// prior step's value travels forward as a hidden input on each step's
+	// page, so by the final POST every field is present in r.Form exactly
+	// like a single-step form's would be.
+	if fv != nil && len(fv.Config.Steps) > 0 {
+		step, convErr := strconv.Atoi(r.FormValue("wizard_step"))
+		if convErr != nil || step < 0 || step >= len(fv.Config.Steps) {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		if step+1 < len(fv.Config.Steps) {
+			var carried []ui.HiddenField
+			for i := 0; i <= step; i++ {
+				for _, id := range fv.Config.Steps[i] {
+					if v := r.FormValue(id); v != "" {
+						carried = append(carried, ui.HiddenField{Name: id, Value: v})
+					}
+				}
+			}
+			a := h.auth(r)
+			page := ui.WizardForm(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, step+1, len(fv.Config.Steps),
+				h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[step+1], nil), carried, nil, h.unreadCount(r.Context(), a))
+			if err := page.Render(r.Context(), w); err != nil {
+				slog.Error("render wizard form", "error", err)
+			}
+			return
+		}
+		// Final step -- fall through; every field (this step's and every
+		// earlier one's, carried as hidden inputs) is in r.Form already.
+	}
 
 	// Any value_list field the Create form doesn't expose (Status, Decision, ...)
 	// starts at its first declared value — the same "first value = initial
 	// state" convention guides/writing-menata.md teaches .menata authors,
 	// generalized from what was previously a "status"-named-field-only rule.
 	formFieldIDs := map[string]bool{}
-	if fv := h.interp.FormView(machine.ID); fv != nil {
+	if fv != nil {
 		for _, id := range fv.Config.Fields {
 			formFieldIDs[id] = true
+		}
+		for _, step := range fv.Config.Steps {
+			for _, id := range step {
+				formFieldIDs[id] = true
+			}
 		}
 	}
 	data := make(map[string]any)
@@ -587,7 +944,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	// anything (parent or child) is written.
 	var childLines *model.ChildLinesConfig
 	var childRowsData []map[string]any
-	if fv := h.interp.FormView(machine.ID); fv != nil {
+	if fv != nil {
 		childLines = fv.Config.ChildLines
 	}
 	if childLines != nil {
@@ -604,6 +961,27 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		role := h.roleForApp(r, applicationID)
 		h.logRuleViolation(r.Context(), "create", machineID, "", role, h.identity(r), strings.Join(violations, "; "))
 		a := h.auth(r)
+		// CAP-V12: a violation on the wizard's final step re-renders that
+		// same last step (with everything typed so far preserved), not the
+		// plain single-step Form -- a wizard View's own Fields is empty
+		// (Steps replaces it), so ui.Form would otherwise render nothing.
+		if fv != nil && len(fv.Config.Steps) > 0 {
+			last := len(fv.Config.Steps) - 1
+			var carried []ui.HiddenField
+			for i := 0; i < last; i++ {
+				for _, id := range fv.Config.Steps[i] {
+					if v, ok := data[id]; ok {
+						carried = append(carried, ui.HiddenField{Name: id, Value: fmt.Sprintf("%v", v)})
+					}
+				}
+			}
+			page := ui.WizardForm(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, last, len(fv.Config.Steps),
+				h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[last], data), carried, violations, h.unreadCount(r.Context(), a))
+			if err := page.Render(r.Context(), w); err != nil {
+				slog.Error("render wizard form (violations)", "error", err)
+			}
+			return
+		}
 		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
@@ -984,13 +1362,18 @@ func fieldIndex(m *model.Machine) map[string]*model.Field {
 }
 
 func (h *Handler) buildFormFields(ctx context.Context, machine *model.Machine, vals map[string]any) []ui.FormField {
-	view := h.interp.FormView(machine.ID)
-	fieldByID := fieldIndex(machine)
-
 	var fieldIDs []string
-	if view != nil {
+	if view := h.interp.FormView(machine.ID); view != nil {
 		fieldIDs = view.Config.Fields
 	}
+	return h.buildFormFieldsFor(ctx, machine, fieldIDs, vals)
+}
+
+// buildFormFieldsFor is buildFormFields narrowed to an explicit fieldIDs
+// subset -- CAP-V12's own use, one step's worth of fields at a time, rather
+// than a FormView's whole declared set.
+func (h *Handler) buildFormFieldsFor(ctx context.Context, machine *model.Machine, fieldIDs []string, vals map[string]any) []ui.FormField {
+	fieldByID := fieldIndex(machine)
 
 	fields := make([]ui.FormField, 0, len(fieldIDs))
 	for _, id := range fieldIDs {
@@ -1169,7 +1552,7 @@ func (h *Handler) childLists(ctx context.Context, machine *model.Machine, record
 			if f.Type != model.FieldTypeReference || f.Options.TargetMachine != machine.ID {
 				continue
 			}
-			records, err := h.records.List(ctx, m.ID)
+			records, err := h.records.List(ctx, m.ID, "", "")
 			if err != nil {
 				slog.Error("list child records", "machine", m.ID, "error", err)
 				continue
@@ -1196,7 +1579,7 @@ func (h *Handler) childLists(ctx context.Context, machine *model.Machine, record
 }
 
 func (h *Handler) referenceOptions(ctx context.Context, targetMachineID string) []ui.ReferenceOption {
-	records, err := h.records.List(ctx, targetMachineID)
+	records, err := h.records.List(ctx, targetMachineID, "", "")
 	if err != nil {
 		slog.Error("list reference options", "target_machine", targetMachineID, "error", err)
 		return nil
@@ -1515,7 +1898,7 @@ func (h *Handler) sequentialGuardViolation(ctx context.Context, machine *model.M
 	}
 	mySeq := toFloat(rec.Data[seqField.ID])
 
-	siblings, err := h.records.List(ctx, machine.ID)
+	siblings, err := h.records.List(ctx, machine.ID, "", "")
 	if err != nil {
 		return ""
 	}
@@ -1588,7 +1971,7 @@ func (h *Handler) doActivateNext(ctx context.Context, machine *model.Machine, pa
 	}
 	mySeq := toFloat(data[seqField.ID])
 
-	siblings, err := h.records.List(ctx, machine.ID)
+	siblings, err := h.records.List(ctx, machine.ID, "", "")
 	if err != nil {
 		return
 	}
@@ -1679,7 +2062,7 @@ func (h *Handler) doAggregateStatus(ctx context.Context, machine *model.Machine,
 	if decisionField == nil {
 		return
 	}
-	siblings, err := h.records.List(ctx, machine.ID)
+	siblings, err := h.records.List(ctx, machine.ID, "", "")
 	if err != nil {
 		return
 	}

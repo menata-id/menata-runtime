@@ -88,6 +88,13 @@ func validateOperators(workspaces []*model.Workspace) error {
 						return fmt.Errorf("event %s's aggregate_condition on machine %s: unrecognized operator %q", e.ID, m.ID, ac.Operator)
 					}
 				}
+				for _, v := range m.Views {
+					for _, fc := range v.Config.Filter {
+						if !model.SupportedOperators[fc.Operator] {
+							return fmt.Errorf("view %s's filter on machine %s: unrecognized operator %q", v.ID, m.ID, fc.Operator)
+						}
+					}
+				}
 			}
 		}
 	}
@@ -181,6 +188,92 @@ func validateReferences(workspaces []*model.Workspace) error {
 					if parentField.Type != model.FieldTypeReference || parentField.Options.TargetMachine != m.ID {
 						return fmt.Errorf("view %s on machine %s: child_lines.parent_field %q must be a reference field targeting %s, got type %q targeting %q",
 							v.ID, m.ID, cl.ParentField, m.ID, parentField.Type, parentField.Options.TargetMachine)
+					}
+				}
+
+				// CAP-V04/V05/V09: a list view's default_sort.field and every
+				// filter condition's field must name a real Field on this
+				// machine -- same "Unknown = explicit" discipline as
+				// child_lines above, so a typo'd field id fails at load time
+				// instead of silently sorting/filtering on nothing.
+				// "created_at"/"updated_at" are exempt -- real columns every
+				// record has, not a JSONB Field (store.RecordStore.List's
+				// own reserved-name handling).
+				for _, v := range m.Views {
+					if ds := v.Config.DefaultSort; ds != nil && ds.Field != "" && ds.Field != "created_at" && ds.Field != "updated_at" {
+						if _, ok := fieldByID[ds.Field]; !ok {
+							return fmt.Errorf("view %s on machine %s: default_sort.field %q does not name a Field on this machine", v.ID, m.ID, ds.Field)
+						}
+					}
+					for _, fc := range v.Config.Filter {
+						if _, ok := fieldByID[fc.Field]; !ok {
+							return fmt.Errorf("view %s on machine %s: filter field %q does not name a Field on this machine", v.ID, m.ID, fc.Field)
+						}
+					}
+
+					// CAP-V07: calendar/timeline's date_field is one of
+					// THIS machine's own Fields (the records being
+					// plotted), not another machine's.
+					if v.Config.DateField != "" {
+						if _, ok := fieldByID[v.Config.DateField]; !ok {
+							return fmt.Errorf("view %s on machine %s: date_field %q does not name a Field on this machine", v.ID, m.ID, v.Config.DateField)
+						}
+					}
+
+					// CAP-V12: every wizard step's field ids must be real
+					// Fields on this machine -- same discipline as Fields
+					// itself already gets nowhere else, but Steps is new.
+					for si, step := range v.Config.Steps {
+						for _, fid := range step {
+							if _, ok := fieldByID[fid]; !ok {
+								return fmt.Errorf("view %s on machine %s: steps[%d] field %q does not name a Field on this machine", v.ID, m.ID, si, fid)
+							}
+						}
+					}
+
+					// CAP-V13: a report view aggregates ANOTHER machine's
+					// records -- group_field and every sum_field must name
+					// real Fields on THAT machine, not this one.
+					if rc := v.Config.Report; rc != nil {
+						src, ok := machineByID[rc.Machine]
+						if !ok {
+							return fmt.Errorf("view %s on machine %s: report.machine %q does not exist", v.ID, m.ID, rc.Machine)
+						}
+						srcFields := make(map[string]bool, len(src.Fields))
+						for _, sf := range src.Fields {
+							srcFields[sf.ID] = true
+						}
+						if !srcFields[rc.GroupField] {
+							return fmt.Errorf("view %s on machine %s: report.group_field %q does not name a Field on machine %s", v.ID, m.ID, rc.GroupField, rc.Machine)
+						}
+						for _, sf := range rc.SumFields {
+							if !srcFields[sf] {
+								return fmt.Errorf("view %s on machine %s: report.sum_fields %q does not name a Field on machine %s", v.ID, m.ID, sf, rc.Machine)
+							}
+						}
+					}
+
+					// CAP-V10: each dashboard section's machine must exist,
+					// and its group_field (if any) must be a real Field on
+					// THAT section's own machine.
+					for si, sec := range v.Config.Sections {
+						src, ok := machineByID[sec.Machine]
+						if !ok {
+							return fmt.Errorf("view %s on machine %s: sections[%d].machine %q does not exist", v.ID, m.ID, si, sec.Machine)
+						}
+						if sec.GroupField == "" {
+							continue
+						}
+						found := false
+						for _, sf := range src.Fields {
+							if sf.ID == sec.GroupField {
+								found = true
+								break
+							}
+						}
+						if !found {
+							return fmt.Errorf("view %s on machine %s: sections[%d].group_field %q does not name a Field on machine %s", v.ID, m.ID, si, sec.GroupField, sec.Machine)
+						}
 					}
 				}
 			}

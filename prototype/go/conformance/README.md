@@ -20,8 +20,9 @@ BASE_URL=https://aksi.menata.id ./conformance/run.sh
 
 Exit code 0 = all pass. Non-zero = at least one capability regressed.
 
-**Prerequisites:** server running, seeds `001`–`007` applied (Cases 1, 2, 18, 3, 7, the
-`ws_acme` isolation fixture, and CAP-X02/CAP-O01's real accounts). For T19/T42/T43/T52, also
+**Prerequisites:** server running, seeds `001`–`010` applied (Cases 1, 2, 18, 3, 7, the
+`ws_acme` isolation fixture, CAP-X02/CAP-O01's real accounts, and the Journal Entry/Action
+Lab/Views Lab proof machines T60 onward depend on). For T19/T42/T43/T52, also
 export `DATABASE_URL` (same value as the server's `.env`) — they're skipped otherwise. T52
 additionally skips (not fails) until `migrations/009_workspace_isolation_rls.sql` (CAP-X06's
 RLS cutover, deliberately not part of `make migrate-up` — see that migration's own header) has
@@ -115,6 +116,16 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T71 | CAP-A09 | a conditional action's `if` does NOT run when its condition is false (negative case) |
 | T72 | CAP-A14 | an aggregate-conditioned trigger is rejected while the cross-record SUM is still under threshold (negative case) |
 | T73 | CAP-A14 | an aggregate-conditioned trigger succeeds once the SUM crosses the threshold, and its own action fires |
+| T74 | CAP-V04, CAP-V05, CAP-V09 | "My Overdue Tasks" shows a Task assigned to the viewer AND overdue, sorted soonest-due-first |
+| T75 | CAP-V05, CAP-V09 | a Task assigned to the same viewer but not yet due is excluded (negative case) |
+| T76 | CAP-V08 | `?q=` search matches one record's column, case-insensitive, and excludes an unrelated record |
+| T77 | CAP-V07 | calendar view renders records grouped by their own `date_field` |
+| T78 | CAP-V07 | timeline view renders (same grouping, read chronologically) |
+| T79 | CAP-V10 | a dashboard composes sections sourcing two different Machines in one View |
+| T80 | CAP-V13 | a report view groups records by `group_field` and sums each declared `sum_field` |
+| T81 | CAP-V12 | a wizard's step 1 submission advances to step 2, carrying step 1's values forward as hidden inputs |
+| T82 | CAP-V12 | a wizard's final step creates one record combining every step's fields |
+| T83 | CAP-V14 | moving a record up swaps its position with its immediate predecessor |
 
 ---
 

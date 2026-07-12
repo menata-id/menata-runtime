@@ -106,6 +106,38 @@ type AdminUserRow struct {
 	AppRoles      map[string]string
 }
 
+// ReportRow (CAP-V13) is one grouped row of an aggregate report View --
+// Group is the report's group_field value, Sums is one formatted total per
+// declared sum_field, in the same order as the View's own columns.
+type ReportRow struct {
+	Group string
+	Sums  []string
+}
+
+// CalendarGroup (CAP-V07) buckets a Machine's records by their date_field's
+// own value (e.g. every Task due "2026-07-14") -- a server-rendered grouped
+// list, not a JS month-grid widget, matching this prototype's no-SPA
+// posture (same call ChildLinesConfig's own doc comment makes).
+type CalendarGroup struct {
+	Date string
+	Rows []ListRow
+}
+
+// DashboardTile (CAP-V10) is one section of a composed dashboard View --
+// Total is the section's overall record count, Breakdown is populated only
+// when the section declared a group_field (count per distinct value).
+type DashboardTile struct {
+	Title      string
+	MachineID  string
+	Total      int
+	Breakdown  []DashboardBreakdown
+}
+
+type DashboardBreakdown struct {
+	Label string
+	Count int
+}
+
 // NotificationItem is one row on the Notifications page (CAP-A10). Link is
 // empty when the triggering record can't be resolved (shouldn't normally
 // happen, but a Notification row outlives the record it points to being

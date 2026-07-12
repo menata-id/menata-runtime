@@ -243,6 +243,27 @@ func (i *Interpreter) DetailView(machineID string) *model.View {
 	return i.viewOfType(machineID, model.ViewTypeDetail)
 }
 
+// ReportView/CalendarView/TimelineView/DashboardView (CAP-V13/V07/V10) --
+// same "first View of this Type" lookup as DefaultListView/FormView/
+// DetailView above; a Machine declaring more than one View of the same
+// auxiliary type is a case this prototype doesn't need yet (same posture as
+// DefaultListView already takes for "list").
+func (i *Interpreter) ReportView(machineID string) *model.View {
+	return i.viewOfType(machineID, model.ViewTypeReport)
+}
+
+func (i *Interpreter) CalendarView(machineID string) *model.View {
+	return i.viewOfType(machineID, model.ViewTypeCalendar)
+}
+
+func (i *Interpreter) TimelineView(machineID string) *model.View {
+	return i.viewOfType(machineID, model.ViewTypeTimeline)
+}
+
+func (i *Interpreter) DashboardView(machineID string) *model.View {
+	return i.viewOfType(machineID, model.ViewTypeDashboard)
+}
+
 func (i *Interpreter) viewOfType(machineID string, t model.ViewType) *model.View {
 	m, ok := i.machines[machineID]
 	if !ok {

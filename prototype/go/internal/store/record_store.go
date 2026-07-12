@@ -3,9 +3,12 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -55,11 +58,50 @@ func (s *RecordStore) SumField(ctx context.Context, machineID, aggregateField, s
 	return sum, nil
 }
 
-func (s *RecordStore) List(ctx context.Context, machineID string) ([]*Record, error) {
+// SortOrderField (CAP-V14) is the sentinel sortField value meaning "the
+// free-standing sort_order column (migrations/011), not a JSONB data
+// field" -- passed by handler.List when a View declares manual_order.
+const SortOrderField = "$sort_order"
+
+// List returns machineID's records, newest first by default. sortField
+// (CAP-V04, a list View's declared default_sort.field -- validated at load
+// time to name a real Field, metadata/loader.go) overrides that with
+// `data->>sortField`, sortDirection "desc" (default) or "asc". sortField ==
+// SortOrderField (CAP-V14) sorts by the plain sort_order column instead of
+// into JSONB. Pass "" for both to keep the original created_at DESC
+// behavior -- most callers (child lists, sibling lookups) want that, not a
+// View's own sort.
+func (s *RecordStore) List(ctx context.Context, machineID, sortField, sortDirection string) ([]*Record, error) {
+	orderBy := "created_at DESC"
+	args := []any{machineID}
+	switch {
+	case sortField == SortOrderField:
+		dir := "ASC"
+		if sortDirection == "desc" {
+			dir = "DESC"
+		}
+		orderBy = "sort_order " + dir
+	case sortField == "created_at" || sortField == "updated_at":
+		// Reserved names (CAP-V04): a real column, not a JSONB data field --
+		// metadata/loader.go's validateReferences exempts these from the
+		// "must name a real Field" check for exactly this reason.
+		dir := "DESC"
+		if sortDirection == "asc" {
+			dir = "ASC"
+		}
+		orderBy = sortField + " " + dir
+	case sortField != "":
+		dir := "DESC"
+		if sortDirection == "asc" {
+			dir = "ASC"
+		}
+		orderBy = fmt.Sprintf(`data->>$2 %s NULLS LAST, created_at DESC`, dir)
+		args = append(args, sortField)
+	}
 	rows, err := s.db(ctx).Query(ctx,
-		`SELECT id, machine_id, data, created_at, updated_at
-		 FROM records WHERE machine_id = $1 ORDER BY created_at DESC`,
-		machineID)
+		fmt.Sprintf(`SELECT id, machine_id, data, created_at, updated_at
+		 FROM records WHERE machine_id = $1 ORDER BY %s`, orderBy),
+		args...)
 	if err != nil {
 		return nil, fmt.Errorf("list records: %w", err)
 	}
@@ -207,4 +249,135 @@ func (s *RecordStore) LogEvent(ctx context.Context, recordID, eventID, performed
 		`INSERT INTO record_events (record_id, event_id, performed_by, correlation_id, workspace_id, snapshot) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), $5, $6)`,
 		recordID, eventID, performedBy, correlationID, workspaceID, string(snapshotJSON))
 	return err
+}
+
+// Move (CAP-V14) swaps recordID's sort_order with its immediate neighbor in
+// the given direction ("up" = swap with the previous row, "down" = the
+// next), a plain value swap rather than a renumbering pass -- sort_order is
+// a DOUBLE PRECISION exactly so two records can always trade places without
+// touching any other row. A no-op (not an error) at either edge -- moving
+// the first row up, or the last row down, has nothing to swap with.
+func (s *RecordStore) Move(ctx context.Context, machineID, recordID, direction string) error {
+	var curOrder float64
+	if err := s.db(ctx).QueryRow(ctx,
+		`SELECT sort_order FROM records WHERE id = $1 AND machine_id = $2`,
+		recordID, machineID).Scan(&curOrder); err != nil {
+		return fmt.Errorf("move record: %w", err)
+	}
+
+	cmp, ord := "<", "DESC"
+	if direction == "down" {
+		cmp, ord = ">", "ASC"
+	}
+	var neighborID string
+	var neighborOrder float64
+	query := fmt.Sprintf(
+		`SELECT id, sort_order FROM records WHERE machine_id = $1 AND sort_order %s $2 ORDER BY sort_order %s LIMIT 1`,
+		cmp, ord)
+	err := s.db(ctx).QueryRow(ctx, query, machineID, curOrder).Scan(&neighborID, &neighborOrder)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("move record: find neighbor: %w", err)
+	}
+
+	if _, err := s.db(ctx).Exec(ctx, `UPDATE records SET sort_order = $1 WHERE id = $2`, neighborOrder, recordID); err != nil {
+		return fmt.Errorf("move record: %w", err)
+	}
+	if _, err := s.db(ctx).Exec(ctx, `UPDATE records SET sort_order = $1 WHERE id = $2`, curOrder, neighborID); err != nil {
+		return fmt.Errorf("move record: %w", err)
+	}
+	return nil
+}
+
+// GroupSum is one row of a CAP-V13 report: a group label (a report View's
+// group_field value) and the SUM of each declared sum_field across every
+// record in that group.
+type GroupSum struct {
+	Group string
+	Sums  map[string]float64
+}
+
+// SumFieldsGroupedBy (CAP-V13) computes a report View's aggregate: groups
+// every record on machineID by groupField's own value, summing each of
+// sumFields (numeric fields; non-numeric/missing values coerce to 0, same
+// COALESCE posture as SumField). Computed at render time from existing
+// records -- nothing about a report is itself stored.
+func (s *RecordStore) SumFieldsGroupedBy(ctx context.Context, machineID, groupField string, sumFields []string) ([]GroupSum, error) {
+	selects := []string{"data->>$2 AS grp"}
+	args := []any{machineID, groupField}
+	for _, f := range sumFields {
+		args = append(args, f)
+		selects = append(selects, fmt.Sprintf(
+			`COALESCE(SUM((data->>$%d)::numeric) FILTER (WHERE data->>$%d ~ '^-?[0-9]+(\.[0-9]+)?$'), 0)`,
+			len(args), len(args)))
+	}
+	query := fmt.Sprintf(`SELECT %s FROM records WHERE machine_id = $1 GROUP BY grp ORDER BY grp`, strings.Join(selects, ", "))
+
+	rows, err := s.db(ctx).Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("sum fields grouped by: %w", err)
+	}
+	defer rows.Close()
+
+	var out []GroupSum
+	for rows.Next() {
+		scanArgs := make([]any, 0, len(sumFields)+1)
+		var grp *string
+		scanArgs = append(scanArgs, &grp)
+		sums := make([]float64, len(sumFields))
+		for i := range sumFields {
+			scanArgs = append(scanArgs, &sums[i])
+		}
+		if err := rows.Scan(scanArgs...); err != nil {
+			return nil, err
+		}
+		gs := GroupSum{Sums: make(map[string]float64, len(sumFields))}
+		if grp != nil {
+			gs.Group = *grp
+		}
+		for i, f := range sumFields {
+			gs.Sums[f] = sums[i]
+		}
+		out = append(out, gs)
+	}
+	return out, rows.Err()
+}
+
+// GroupCount is one row of a CAP-V10 dashboard section: a group label (a
+// section's group_field value, or "" when the section has none) and how
+// many records on that Machine have it.
+type GroupCount struct {
+	Group string
+	Count int
+}
+
+// CountGroupedBy (CAP-V10) counts machineID's records, grouped by
+// groupField's value ("" groupField counts everything as one group -- a
+// dashboard section with no breakdown, just a total).
+func (s *RecordStore) CountGroupedBy(ctx context.Context, machineID, groupField string) ([]GroupCount, error) {
+	var query string
+	args := []any{machineID}
+	if groupField == "" {
+		query = `SELECT '' AS grp, COUNT(*) FROM records WHERE machine_id = $1 GROUP BY grp`
+	} else {
+		query = `SELECT COALESCE(data->>$2, '') AS grp, COUNT(*) FROM records WHERE machine_id = $1 GROUP BY grp ORDER BY grp`
+		args = append(args, groupField)
+	}
+	rows, err := s.db(ctx).Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("count grouped by: %w", err)
+	}
+	defer rows.Close()
+
+	var out []GroupCount
+	for rows.Next() {
+		var gc GroupCount
+		if err := rows.Scan(&gc.Group, &gc.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, gc)
+	}
+	return out, rows.Err()
 }

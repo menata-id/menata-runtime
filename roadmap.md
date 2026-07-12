@@ -1126,6 +1126,56 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > the same way this session's earlier direct-DB fixes were. Final tally: conformance
 > T60–T73 (14 new across Batches 1–3), 74/74 passing, verified on an isolated port and live
 > at `aksi.menata.id`.
+>
+> **Status update (2026-07-12, same day) — Batch 4: the Views cluster (CAP-V04/V05/V07/
+> V08/V09/V10/V12/V13/V14) now ✅ Supported**, nine capabilities, CAP-V11 deliberately left
+> HOLD (unchanged — evidence-thin per its own note, this batch didn't override that).
+> CAP-V05 turned out to be a special case of CAP-V09, not a separate mechanism: `ViewConfig.
+> Filter` is a list of AND-combined conditions reusing `constraint.Eval`'s own grammar, and
+> `"$current_user"` is just one sentinel `value` that mechanism resolves at request time —
+> proven together as "My Overdue Tasks," combined with CAP-V04's `default_sort` in the same
+> View, the realistic shape all three take in practice rather than three isolated toy cases.
+> `RecordStore.List` gained explicit `sortField`/`sortDirection` params, with `created_at`/
+> `updated_at` as reserved names for the real columns (not a JSONB Field) — CAP-V08 (`?q=`
+> search) is fully generic, needing zero seed changes since it works on any existing list
+> View already.
+>
+> CAP-V07/V10/V13 all followed the same shape: a new real `ViewType` (`calendar`/`timeline`/
+> `report`/`dashboard`), server-rendered (grouped lists / grouped sums / count tiles), no JS
+> widget — deliberately matching CAP-F16's own "no-SPA-framework posture" call. CAP-V13
+> (report) closed a real cross-batch dependency: it's proven as a genuine Trial Balance over
+> CAP-F16's Journal Entry Line, exactly the case that capability's own note said would need
+> it. CAP-V12 (wizard) needed the most new mechanism: a `form` View's `Steps [][]string`
+> replaces `Fields`, and every earlier step's values travel forward as hidden inputs on each
+> step's page — no server-side session state at all, the browser carries the state, the same
+> stateless-request posture this whole runtime already has. CAP-V14 (manual ordering) turned
+> out simpler than its own registry note anticipated: a `sort_order DOUBLE PRECISION` column
+> lets two records swap places with a plain value swap, no CAP-A15-shaped sibling-renumbering
+> batch needed.
+>
+> **A real production migration gap, caught applying it, not in testing**: `migrations/
+> 011_manual_ordering.sql`'s backfill `UPDATE` used no `app.workspace_id`, and production
+> already had CAP-X06's RLS cutover (`migrations/009`) live — `FORCE ROW LEVEL SECURITY`
+> made that `UPDATE` silently match zero rows (fails closed, exactly as designed), leaving
+> `sort_order` NULL for every existing record and the following `SET NOT NULL` step failing.
+> The isolated-schema rehearsal didn't catch it because that schema never had `migrations/
+> 009` applied (matching a fresh install's own migration order, where 009 is deliberately
+> not part of `make migrate-up`) — a gap between "rehearsed on an isolated copy" and "this
+> specific production database's own history" that a fresh schema can't fully rehearse.
+> Fixed with a per-workspace backfill (`SET LOCAL app.workspace_id` before each workspace's
+> `UPDATE`, the same GUC the request-scoped transaction middleware already sets), authorized
+> directly the same way this session's earlier direct-DB fixes were; the migration file
+> itself was then rewritten to loop over every workspace unconditionally, so it's correct
+> whether or not RLS is already live on the target database, not just patched for this one
+> deploy.
+>
+> Nine new machines/views' worth of proof in `seeds/010_views_lab.sql` (Views Lab's Task/
+> Backlog Item/Onboarding Request, plus new auxiliary views on Batch 2/3's existing Journal
+> Entry Line/Task/Project — a report/calendar/dashboard is only interesting over data that
+> already looks like a real case, not a machine invented just to hold one). Conformance
+> T74–T83 added (74 existing + 10 new = 84 total, T52 no longer skipped since production's
+> own RLS is confirmed live), verified on an isolated port against both a schema-isolated
+> copy and production's real data, then live at `aksi.menata.id`.
 
 ---
 

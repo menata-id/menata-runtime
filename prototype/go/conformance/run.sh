@@ -141,6 +141,7 @@ HENRY=$(session_for supervisor@example.com password) # Supervisor (app_customer_
 IVAN=$(session_for staff@example.com password)      # Staff (app_ops), workspace Admin (ws_acme)
 IVY=$(session_for accountant@example.com password)  # Accountant (app_accounting)
 PAM=$(session_for pm@example.com password)          # PM (app_action_lab)
+VERA=$(session_for vera@example.com password)       # Member (app_views_lab)
 
 # Real user ids (CAP-F05) for the four genuine person-reference fields
 # (fld_requester, fld_lr_employee, fld_ad_submitted_by, fld_as_approver) --
@@ -766,6 +767,88 @@ PE2_ID="${PE2_URL##*/}"
 CODE=$(post_status "$BASE_URL/mch_al_point_entry/$PE2_ID/events/evt_pe_award" "" "$PAM")
 [ "$CODE" = "303" ] && body_contains "$BASE_URL/mch_al_badge" "Conformance Member $$" "$PAM"
 check T73 "CAP-A14" "aggregate-conditioned trigger succeeds once SUM crosses the threshold, action creates the Badge (got $CODE)" $?
+
+# --- Batch 4: Views (2026-07-12) ---
+# seeds/010_views_lab.sql. V11 (channel-independent rendering) stays
+# excluded -- capability-registry.md HOLDs it at Proposed pending a second
+# independent source, unaffected by this batch.
+
+VERA_ID=$(user_option_id "$BASE_URL/mch_vl_task/new" "$VERA" "Vera")
+
+# T74 -- CAP-V04/V05/V09 combined: "My Overdue Tasks" only shows a Task
+# that is BOTH assigned to the viewer ($current_user, CAP-V05) AND overdue
+# (a plain declarative clause, CAP-V09) -- sorted soonest-due-first
+# (default_sort, CAP-V04).
+post_redirect "$BASE_URL/mch_vl_task" "fld_vlt_title=Vera+Overdue+$$&fld_vlt_assignee=$VERA_ID&fld_vlt_due=2020-01-01" "$VERA" >/dev/null
+body_contains "$BASE_URL/mch_vl_task" "Vera Overdue $$" "$VERA"
+check T74 "CAP-V04,CAP-V05,CAP-V09" "my-records filter shows a Task assigned to me and overdue" $?
+
+# T75 -- negative: a Task assigned to the SAME viewer but NOT overdue is
+# excluded -- proves the filter's clauses are both actually enforced, not
+# just "any Task of mine."
+post_redirect "$BASE_URL/mch_vl_task" "fld_vlt_title=Vera+Future+$$&fld_vlt_assignee=$VERA_ID&fld_vlt_due=2099-01-01" "$VERA" >/dev/null
+! body_contains "$BASE_URL/mch_vl_task" "Vera Future $$" "$VERA"
+check T75 "CAP-V05,CAP-V09" "a not-yet-due Task of mine is excluded from My Overdue Tasks" $?
+
+# T76 -- CAP-V08: free-text search (?q=) matches a substring of a visible
+# column, case-insensitively; a differently-named record is excluded from
+# the same result.
+post_redirect "$BASE_URL/mch_al_project" "fld_alp_name=SearchTarget$$" "$PAM" >/dev/null
+post_redirect "$BASE_URL/mch_al_project" "fld_alp_name=Unrelated$$" "$PAM" >/dev/null
+SEARCH_BODY=$(get_body "$BASE_URL/mch_al_project?q=searchtarget$$" "$PAM")
+echo "$SEARCH_BODY" | grep -q "SearchTarget$$" && ! echo "$SEARCH_BODY" | grep -q "Unrelated$$"
+check T76 "CAP-V08" "?q= search matches one record's column, excludes an unrelated one" $?
+
+# T77 -- CAP-V07: calendar view groups Action Lab Tasks by their own
+# date_field (Follow Up Date).
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$PAM" "$BASE_URL/mch_al_task/calendar")
+[ "$CODE" = "200" ] && body_contains "$BASE_URL/mch_al_task/calendar" "Task Calendar" "$PAM"
+check T77 "CAP-V07" "calendar view renders records grouped by date_field (got $CODE)" $?
+
+# T78 -- CAP-V07: timeline view is the same grouping, read chronologically.
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$PAM" "$BASE_URL/mch_al_task/timeline")
+[ "$CODE" = "200" ]
+check T78 "CAP-V07" "timeline view renders (got $CODE)" $?
+
+# T79 -- CAP-V10: a dashboard composes sections from TWO different
+# Machines (Task, Project) in one View.
+DASH_BODY=$(get_body "$BASE_URL/mch_al_project/dashboard" "$PAM")
+echo "$DASH_BODY" | grep -q "Tasks by Stage" && echo "$DASH_BODY" | grep -q "Projects"
+check T79 "CAP-V10" "dashboard composes sections from more than one Machine" $?
+
+# T80 -- CAP-V13: a report View sums Journal Entry Line's Debit/Credit,
+# grouped by Account -- a per-run-unique Account name so the SUM is exactly
+# this entry's own amount, not an accumulation across repeated suite runs.
+JE_RPT_DATA="fld_je_date=2026-07-12&fld_je_memo=Conformance+T80&child_0_fld_jel_account=ConfAcct$$&child_0_fld_jel_debit=42"
+post_redirect "$BASE_URL/mch_journal_entry" "$JE_RPT_DATA" "$IVY" >/dev/null
+body_contains "$BASE_URL/mch_journal_entry_line/report" "ConfAcct$$" "$IVY" && \
+    body_contains "$BASE_URL/mch_journal_entry_line/report" "42.00" "$IVY"
+check T80 "CAP-V13" "report groups records by group_field, sums each declared sum_field" $?
+
+# T81 -- CAP-V12: a multi-step wizard's final POST carries every earlier
+# step's value forward (as hidden inputs) and creates one record from all
+# of them combined, not just the last step's own fields.
+WIZ_CSRF=$(csrf_for "$VERA")
+STEP2_BODY=$(curl -s -b "$VERA" -X POST "$BASE_URL/mch_vl_onboarding" \
+    -d "csrf_token=$WIZ_CSRF&wizard_step=0&fld_vlo_name=Wendy+Wizard+$$&fld_vlo_email=wendy$$@example.com")
+echo "$STEP2_BODY" | grep -q 'Step 2 of 2' && echo "$STEP2_BODY" | grep -q "wendy$$@example.com"
+check T81 "CAP-V12" "step 1 submission advances to step 2, carrying step 1's values forward" $?
+ONB_URL=$(curl -s -o /dev/null -w '%{redirect_url}' -b "$VERA" -X POST "$BASE_URL/mch_vl_onboarding" \
+    -d "csrf_token=$WIZ_CSRF&wizard_step=1&fld_vlo_name=Wendy+Wizard+$$&fld_vlo_email=wendy$$@example.com&fld_vlo_team=Engineering&fld_vlo_start=2026-08-01")
+body_contains "$ONB_URL" "Wendy Wizard $$" "$VERA" && body_contains "$ONB_URL" "Engineering" "$VERA"
+check T82 "CAP-V12" "final step creates one record combining every step's fields" $?
+
+# T83 -- CAP-V14: moving a record up swaps its position with its immediate
+# predecessor in a manual-order list.
+B1_URL=$(post_redirect "$BASE_URL/mch_vl_backlog" "fld_vlb_title=Item+A+$$" "$VERA")
+sleep 1
+B2_URL=$(post_redirect "$BASE_URL/mch_vl_backlog" "fld_vlb_title=Item+B+$$" "$VERA")
+B2_ID="${B2_URL##*/}"
+BEFORE=$(get_body "$BASE_URL/mch_vl_backlog" "$VERA" | grep -o "Item [AB] $$" | head -1)
+post_status "$BASE_URL/mch_vl_backlog/$B2_ID/move/up" "" "$VERA" >/dev/null
+AFTER=$(get_body "$BASE_URL/mch_vl_backlog" "$VERA" | grep -o "Item [AB] $$" | head -1)
+[ "$BEFORE" = "Item A $$" ] && [ "$AFTER" = "Item B $$" ]
+check T83 "CAP-V14" "moving a record up swaps it with its predecessor (before=$BEFORE, after=$AFTER)" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

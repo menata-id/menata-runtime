@@ -218,14 +218,61 @@ const (
 	ViewTypeDashboard ViewType = "dashboard"
 	ViewTypeCalendar  ViewType = "calendar"
 	ViewTypeTimeline  ViewType = "timeline"
+	ViewTypeReport    ViewType = "report" // CAP-V13: grouped aggregate (e.g. Trial Balance)
 )
 
 // ViewConfig holds view-specific presentation configuration.
 type ViewConfig struct {
-	Fields      []string          `json:"fields,omitempty"`       // form: ordered field ids
-	Columns     []string          `json:"columns,omitempty"`      // list: visible column field ids
-	DefaultSort *SortConfig       `json:"default_sort,omitempty"` // list: initial sort
-	ChildLines  *ChildLinesConfig `json:"child_lines,omitempty"`  // form: CAP-F16 embedded child rows
+	Fields      []string           `json:"fields,omitempty"`       // form: ordered field ids
+	Columns     []string           `json:"columns,omitempty"`      // list/calendar/timeline: visible column field ids
+	DefaultSort *SortConfig        `json:"default_sort,omitempty"` // list: initial sort
+	ChildLines  *ChildLinesConfig  `json:"child_lines,omitempty"`  // form: CAP-F16 embedded child rows
+	Filter      []FilterCondition  `json:"filter,omitempty"`       // list: CAP-V09 declarative row filter, CAP-V05 "my records" via $current_user
+	DateField   string             `json:"date_field,omitempty"`   // calendar/timeline: CAP-V07, the date field grouped/ordered on
+	Report      *ReportConfig      `json:"report,omitempty"`       // report: CAP-V13
+	Sections    []DashboardSection `json:"sections,omitempty"`     // dashboard: CAP-V10 composed multi-machine summary
+	Steps       [][]string         `json:"steps,omitempty"`        // form: CAP-V12 multi-step wizard -- each entry is a Fields subset shown one step at a time; unset means single-step (existing behavior)
+	ManualOrder bool               `json:"manual_order,omitempty"` // list: CAP-V14 -- sort by the free-standing sort_order column (migrations/011) and render Up/Down controls, instead of DefaultSort/created_at
+}
+
+// ReportConfig (CAP-V13) declares a "report" View as a grouped aggregate
+// over ANOTHER Machine's records -- e.g. a Trial Balance grouping Journal
+// Entry Line by Account, summing Debit/Credit -- rather than a new
+// data-modeling concept: the report is computed at render time from
+// existing records, nothing is stored. Machine/GroupField/SumFields are
+// validated at load time to name a real Machine and real Fields on it
+// (metadata/loader.go), same "Unknown = explicit" discipline as
+// ChildLinesConfig.
+type ReportConfig struct {
+	Machine    string   `json:"machine"`     // source Machine to aggregate
+	GroupField string   `json:"group_field"` // field whose value becomes the report's row grouping
+	SumFields  []string `json:"sum_fields"`  // numeric fields summed per group
+}
+
+// DashboardSection (CAP-V10) is one tile of a composed dashboard View --
+// a record count for Machine, optionally broken down by GroupField (a
+// value_list field, e.g. count of Tasks per Stage). Multiple sections
+// across DIFFERENT Machines compose one dashboard, the actual point of
+// CAP-V10 versus a single Machine's own list/report view.
+type DashboardSection struct {
+	Title      string `json:"title"`
+	Machine    string `json:"machine"`
+	GroupField string `json:"group_field,omitempty"`
+}
+
+// FilterCondition (CAP-V09) is one AND-combined row filter on a list View --
+// "Overdue Tasks" (field: fld_due, operator: before, value: today) or "My
+// Records" (field: fld_owner, operator: equals, value: $current_user).
+// Reuses constraint.Eval's own expression shape and operator set (CAP-X05's
+// SupportedOperators) rather than inventing a second condition grammar --
+// same reasoning as Event.Condition already sharing it. $current_user
+// (CAP-V05) is a sentinel Value resolved to the acting identity's user id at
+// request time, by the caller, before Eval ever sees it -- Eval itself has
+// no notion of "who's asking."
+type FilterCondition struct {
+	Field    string `json:"field"`
+	Operator string `json:"operator"`
+	Value    string `json:"value,omitempty"`
 }
 
 // ChildLinesConfig (CAP-F16) declares that a form view also authors N rows

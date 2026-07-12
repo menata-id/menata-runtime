@@ -1,0 +1,59 @@
+package ui
+
+import "menata.id/runtime/internal/model"
+
+// CalendarTimeline (CAP-V07) renders records grouped and ordered by their
+// declared date_field -- "Calendar" groups by exact date, "Timeline" is the
+// same grouped-list shape read chronologically top to bottom; both are the
+// same rendering, only the heading and empty-state copy differ, so one
+// templ backs both rather than duplicating the table markup.
+templ CalendarTimeline(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, groups []CalendarGroup, unreadCount int) {
+	@Page(viewName, identity, csrfToken, isAdmin, unreadCount) {
+		<div class="mb-4">
+			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
+		</div>
+		if len(groups) == 0 {
+			<div class="rounded-lg border border-slate-200 bg-white py-16 text-center text-sm text-slate-400 shadow-sm">
+				No dated records yet.
+			</div>
+		} else {
+			<div class="space-y-6">
+				for _, group := range groups {
+					<div>
+						<h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+							if group.Date == "" {
+								No Date
+							} else {
+								{ group.Date }
+							}
+						</h2>
+						<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+							<table class="w-full text-sm">
+								<tbody class="divide-y divide-slate-100">
+									for _, row := range group.Rows {
+										<tr class="hover:bg-slate-50">
+											for _, cell := range row.Cells {
+												<td class="px-4 py-3 text-slate-700">
+													if cell.IsStatusBadge && cell.Value != "" {
+														@StatusBadge(cell.Value)
+													} else if cell.Value != "" {
+														{ cell.Value }
+													} else {
+														<span class="text-slate-300">—</span>
+													}
+												</td>
+											}
+											<td class="px-4 py-3 text-right">
+												<a href={ templ.SafeURL("/" + machine.ID + "/" + row.ID) } class="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline">View →</a>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				}
+			</div>
+		}
+	}
+}
