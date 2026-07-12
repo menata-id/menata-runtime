@@ -7,7 +7,7 @@
 > as Definition-of-Done gates when each capability is implemented
 > (`capability-lifecycle.md` §3b).
 >
-> Status: v0.3 — study only, no implementation | Created: 2026-07-04 | §2.1 refined 2026-07-05 (Study 15 sixth-pass: image/compression dual-path enforcement) | §2.5 refined 2026-07-10 (CAP-P07 public access breaks the identity-scoping premise — Case 13)
+> Status: v0.4 — partially implemented, real deployment | Created: 2026-07-04 | §2.1 refined 2026-07-05 (Study 15 sixth-pass: image/compression dual-path enforcement) | §2.5 refined 2026-07-10 (CAP-P07 public access breaks the identity-scoping premise — Case 13) | §0 Spoofing/Repudiation/Tampering/Information-Disclosure rows partly closed 2026-07-12 (CAP-P05, CAP-R04, CAP-I04, partial CAP-X02) — see `prototype/go/docs/decisions/005-deployment-status.md` for the itemized status, this document remains the standard those items were checked against
 
 **External standards used as yardsticks:**
 
@@ -129,7 +129,7 @@ Rule: a synchronous request path may not contain a P4 operation — slow work is
 
 This document is the **standard**; `capability-lifecycle.md` §3b makes it a **gate**: a capability cannot pass Incubating → Supported until its area's NFR profile is either satisfied (with evidence: test, fitness function, or measurement) or explicitly waived with reason in the registry row.
 
-Study-only note: nothing in this document is implemented yet. The prototype at `aksi.menata.id` is a PoC and intentionally exempt (accepted risk, recorded in §0 Spoofing row).
+Status note (updated 2026-07-12): this document is the standard capabilities are checked against as they implement NFR gates — no longer "nothing implemented yet." `aksi.menata.id` is no longer blanket PoC-exempt; see `prototype/go/docs/decisions/005-deployment-status.md` for exactly what's covered and what remains accepted risk.
 
 ---
 

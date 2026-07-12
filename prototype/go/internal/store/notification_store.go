@@ -13,6 +13,9 @@ import (
 // `notify: {role: ...}`, or a resolved field value for a dynamic
 // `notify: {recipient_field: ...}` -- matched against a session's role
 // cookie, the same identity-is-role caveat CAP-A02's current_user carries.
+// CAP-X06 (2026-07-12): recipient alone was workspace-blind -- a "Manager"
+// in one workspace could see a "Manager" in another's notifications; RLS on
+// workspace_id closes this as a byproduct, not a separate fix.
 type Notification struct {
 	ID        string
 	Recipient string
@@ -24,17 +27,25 @@ type Notification struct {
 }
 
 type NotificationStore struct {
-	db *pgxpool.Pool
+	pool *pgxpool.Pool
 }
 
-func NewNotificationStore(db *pgxpool.Pool) *NotificationStore {
-	return &NotificationStore{db: db}
+func NewNotificationStore(pool *pgxpool.Pool) *NotificationStore {
+	return &NotificationStore{pool: pool}
 }
 
-func (s *NotificationStore) Create(ctx context.Context, recipient, message, machineID, recordID string) error {
-	_, err := s.db.Exec(ctx,
-		`INSERT INTO notifications (recipient, message, machine_id, record_id) VALUES ($1, $2, $3, NULLIF($4, '')::uuid)`,
-		recipient, message, machineID, recordID)
+// db returns the request-scoped transaction when one is attached to ctx --
+// see RecordStore.db's doc comment, same convention.
+func (s *NotificationStore) db(ctx context.Context) querier {
+	return dbFromContext(ctx, s.pool)
+}
+
+// Create inserts a Notification. workspaceID (CAP-X06) is resolved by the
+// caller the same way RecordStore.Create's is.
+func (s *NotificationStore) Create(ctx context.Context, recipient, message, machineID, recordID, workspaceID string) error {
+	_, err := s.db(ctx).Exec(ctx,
+		`INSERT INTO notifications (recipient, message, machine_id, record_id, workspace_id) VALUES ($1, $2, $3, NULLIF($4, '')::uuid, $5)`,
+		recipient, message, machineID, recordID, workspaceID)
 	if err != nil {
 		return fmt.Errorf("create notification: %w", err)
 	}
@@ -42,7 +53,7 @@ func (s *NotificationStore) Create(ctx context.Context, recipient, message, mach
 }
 
 func (s *NotificationStore) ListForRecipient(ctx context.Context, recipient string) ([]*Notification, error) {
-	rows, err := s.db.Query(ctx,
+	rows, err := s.db(ctx).Query(ctx,
 		`SELECT id, recipient, message, COALESCE(machine_id, ''), COALESCE(record_id::text, ''), created_at, read_at
 		 FROM notifications WHERE recipient = $1 ORDER BY created_at DESC LIMIT 50`,
 		recipient)
@@ -64,7 +75,7 @@ func (s *NotificationStore) ListForRecipient(ctx context.Context, recipient stri
 
 func (s *NotificationStore) UnreadCount(ctx context.Context, recipient string) (int, error) {
 	var count int
-	err := s.db.QueryRow(ctx,
+	err := s.db(ctx).QueryRow(ctx,
 		`SELECT COUNT(*) FROM notifications WHERE recipient = $1 AND read_at IS NULL`,
 		recipient).Scan(&count)
 	if err != nil {
@@ -78,7 +89,7 @@ func (s *NotificationStore) UnreadCount(ctx context.Context, recipient string) (
 // recipient string", so this check is what keeps one role from marking
 // another role's notifications read.
 func (s *NotificationStore) MarkRead(ctx context.Context, id, recipient string) error {
-	_, err := s.db.Exec(ctx,
+	_, err := s.db(ctx).Exec(ctx,
 		`UPDATE notifications SET read_at = NOW() WHERE id = $1 AND recipient = $2 AND read_at IS NULL`,
 		id, recipient)
 	if err != nil {

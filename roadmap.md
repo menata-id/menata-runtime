@@ -572,6 +572,52 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > `capability-registry.md`'s "Tracked but Not Yet Studied" section — a real "we looked, no
 > case supports this yet" is a documented decision, not silence, and not the same as never
 > having checked.
+>
+> **Status update (2026-07-12, same day) — ADR-005 (deployment status) + CAP-X06
+> (multi-workspace via RLS), pulled forward from Prio 8:** two decisions from a single
+> follow-up question — "this stage doesn't really look like a prototype anymore, what's
+> world-class practice here?"
+>
+> **ADR-005**: `nfr-standards.md`'s header claimed "study only, no implementation" and
+> `aksi.menata.id` "PoC and intentionally exempt (accepted risk)" — both false after this
+> session's own work (CAP-P05, CAP-R04, CAP-I04, partial CAP-X02). A new
+> `docs/decisions/005-deployment-status.md` reaffirms the real status: an itemized table of
+> what's now genuinely NFR-covered vs. what remains open, accepted risk with eyes open
+> (real authentication chief among them). `nfr-standards.md`'s header corrected to point at
+> it instead of asserting a stale blanket claim.
+>
+> **CAP-X06**: chose the full ADR-003 tenancy core (PostgreSQL RLS) over a smaller
+> app-layer-only first cut. `migrations/008` (schema, safe to run any time) adds
+> `workspace_id` to `records`/`record_events`/`notifications`; `migrations/009` (the RLS
+> enforcement flip) is deliberately **not** part of `make migrate-up` — applying it before
+> the consuming application code exists makes every query against those tables return zero
+> rows immediately (RLS fails closed), which the auto-mode classifier itself caught and
+> blocked on the first attempt, correctly, before any code existed to set the GUC. Built the
+> full stack first (`cmd/server/main.go`'s `workspaceTx` middleware — one transaction per
+> request, `SET LOCAL app.workspace_id` via `set_config`, since a plain `SET` on a pooled
+> connection leaks into the next unrelated request; `Interpreter.ApplicationsForWorkspace`/
+> reused `ScopeFor` as an independent app-layer guard; a `menata_workspace` cookie and login
+> selector alongside role/identity; a second, deliberately minimal `ws_acme` workspace
+> purely to make isolation provable at all), verified it end-to-end on an isolated port
+> against the *same* shared database with RLS still off (safe — old production code doesn't
+> know the column exists), *then* cut over: stop, apply `009`, restart with the new binary,
+> in one tight window.
+>
+> **Found and fixed during that cutover verification, not before**: `RecordStore.Exists`'s
+> established "catch Postgres's 22P02 on a malformed UUID, treat as false" pattern — safe
+> when every query ran in its own implicit transaction — poisons the *rest* of that
+> transaction once queries started sharing one per request. Conformance passed at 53/53
+> only after fixing it (validate UUID syntax in Go before querying, never reaching Postgres
+> with the bad value at all) and confirming zero unexpected errors in the live log.
+> Conformance T49–T52 (T52 the RLS probe itself, matching Study 8's own stated pass
+> threshold — zero cross-workspace rows under a deliberately-wrong `app.workspace_id`).
+> Deployed and verified live at `aksi.menata.id`; the workspace selector is visible at
+> `/login` today.
+>
+> Explicitly out of scope, named not silently dropped (`docs/decisions/003-tenancy-and-
+> indexing.md`'s updated status line): `PARTITION BY HASH`, CAP-X11 (lazy per-workspace
+> loading, `LISTEN/NOTIFY`), per-workspace concurrency fairness, RLS on metadata tables —
+> real scale concerns at a much larger workspace count, not correctness/security ones here.
 
 ---
 

@@ -1,6 +1,6 @@
 package ui
 
-templ LoginPage(currentRole, currentIdentity string, roleGroups []RoleGroup, unreadCount int) {
+templ LoginPage(currentRole, currentIdentity, currentWorkspace string, workspaces []Card, roleGroups []RoleGroup, unreadCount int) {
 	@Page("Switch role", currentRole, unreadCount) {
 		<div class="mx-auto max-w-sm">
 			<div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
@@ -9,6 +9,22 @@ templ LoginPage(currentRole, currentIdentity string, roleGroups []RoleGroup, unr
 					Prototype: choose which role to act as. No password required.
 				</p>
 				<form method="POST" action="/login" class="mt-5 space-y-4">
+					<div class="space-y-1.5">
+						<label for="workspace" class="block text-sm font-medium text-slate-700">Workspace</label>
+						<select
+							id="workspace"
+							name="workspace"
+							class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+						>
+							for _, ws := range workspaces {
+								<option value={ ws.ID } selected?={ currentWorkspace == ws.ID }>{ ws.Name }</option>
+							}
+						</select>
+						<p class="text-xs text-slate-400">
+							Switching workspace changes which roles/applications are available below —
+							save, then revisit this page to pick a role from the new workspace.
+						</p>
+					</div>
 					<div class="space-y-1.5">
 						<label for="role" class="block text-sm font-medium text-slate-700">Role</label>
 						<select

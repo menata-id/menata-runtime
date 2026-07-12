@@ -1,6 +1,13 @@
 # ADR-003: Tenancy and Indexing Strategy
 
-**Status:** Accepted (for the next runtime iteration)
+**Status:** Point 1 (tenancy core — RLS + `workspace_id`) **Implemented** 2026-07-12 (CAP-X06,
+conformance T49–T52) — see `capability-registry.md`'s CAP-X06 row for what was built
+(`migrations/008`/`009`, `cmd/server/main.go`'s `workspaceTx` middleware) and its explicit
+out-of-scope list. Points 1's `PARTITION BY HASH`, and points 2–4 (indexing hardening beyond
+what already existed, lazy per-workspace loading + `LISTEN/NOTIFY` / CAP-X11, concurrency
+fairness) remain **Accepted, not yet implemented** — genuine scale concerns at a much larger
+workspace/record count than this prototype has, deliberately deferred rather than bundled into
+the correctness/security core.
 **Date:** 2026-07-04
 **Source study:** `runtime/benchmarks/004-scale-architecture-study.md` (Study 8)
 

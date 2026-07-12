@@ -205,8 +205,14 @@ if [ -n "$DATABASE_URL" ]; then
     C09_URL=$(post_redirect "$BASE_URL/mch_leave_request" "$C09_DATA" "menata_role=Employee")
     C09_ID="${C09_URL##*/}"
     post_status "$BASE_URL/mch_leave_request/$C09_ID/events/evt_lr_submit" "" "menata_role=Employee" >/dev/null
+    # CAP-X06: RLS is live (migrations/009) -- a raw psql connection has no
+    # app.workspace_id set, so this UPDATE would match zero rows (fail
+    # closed) without setting it first, same statement/transaction (multiple
+    # ;-separated statements in one -c invocation share Postgres's implicit
+    # per-message transaction, so set_config's is_local=true still applies).
     psql "$DATABASE_URL" -q -c \
-        "UPDATE records SET data = jsonb_set(data, '{fld_lr_start_date}', '\"2020-01-01\"') WHERE id = '$C09_ID'" \
+        "SELECT set_config('app.workspace_id', 'ws_default', true);
+         UPDATE records SET data = jsonb_set(data, '{fld_lr_start_date}', '\"2020-01-01\"') WHERE id = '$C09_ID'" \
         >/dev/null 2>&1
     post_body_contains "$BASE_URL/mch_leave_request/$C09_ID/events/evt_lr_approve" "" "Start Date must be after today" "menata_role=Manager"
     check T19 "CAP-C09" "Approve blocked by a Constraint the event trigger re-checks, not just Create" $?
@@ -403,8 +409,18 @@ if [ -n "$DATABASE_URL" ]; then
     # T42 -- performed_by carries the real acting identity (Manager, from
     # T12's Approve on $REC_ID), not NULL and not the literal role string
     # where identity was actually set.
-    PERFORMED_BY=$(psql "$DATABASE_URL" -tAc \
-        "SELECT performed_by FROM record_events WHERE record_id = '$REC_ID' AND event_id = 'evt_lr_approve' LIMIT 1")
+    # CAP-X06: RLS is live -- a raw psql connection has no app.workspace_id
+    # set by default and fails closed (same reasoning as T19's fix above).
+    # A DO block sets it as its own top-level statement, sharing the same
+    # implicit per-message transaction as the SELECT that follows (so
+    # is_local=true still applies) -- a FROM-clause subquery was tried first
+    # but is unreliable: the planner is free to choose a join order that
+    # evaluates the RLS-filtered scan before the subquery's side effect
+    # fires. -q suppresses the DO block's own "DO" completion tag so -tAc's
+    # capture is just the real query's output.
+    PERFORMED_BY=$(psql "$DATABASE_URL" -q -tAc \
+        "DO \$\$ BEGIN PERFORM set_config('app.workspace_id', 'ws_default', true); END \$\$;
+         SELECT performed_by FROM record_events WHERE record_id = '$REC_ID' AND event_id = 'evt_lr_approve' LIMIT 1")
     [ "$PERFORMED_BY" = "Manager" ]
     check T42 "CAP-R04" "record_events.performed_by carries the real acting role/identity (got '$PERFORMED_BY')" $?
 
@@ -412,8 +428,10 @@ if [ -n "$DATABASE_URL" ]; then
     # record_events row it produces, even across a cascade: AS2's Approve
     # (T24, Carol) triggers aggregate_status, which fires evt_ad_approve on
     # a DIFFERENT record (AD_SEQ_ID) -- both rows must carry the same id.
-    CIDS=$(psql "$DATABASE_URL" -tAc \
-        "SELECT DISTINCT correlation_id FROM record_events WHERE (record_id = '$AS2_ID' AND event_id = 'evt_as_approve') OR (record_id = '$AD_SEQ_ID' AND event_id = 'evt_ad_approve')")
+    CIDS=$(psql "$DATABASE_URL" -q -tAc \
+        "DO \$\$ BEGIN PERFORM set_config('app.workspace_id', 'ws_default', true); END \$\$;
+         SELECT DISTINCT correlation_id FROM record_events
+         WHERE (record_id = '$AS2_ID' AND event_id = 'evt_as_approve') OR (record_id = '$AD_SEQ_ID' AND event_id = 'evt_ad_approve')")
     [ "$(echo "$CIDS" | grep -c .)" = "1" ] && [ -n "$CIDS" ]
     check T43 "CAP-I04" "one correlation_id shared across a same-request cross-record cascade" $?
 else
@@ -454,6 +472,50 @@ check T47 "CAP-O03" "Requester (no access anywhere in HR) never sees the HR appl
 body_contains "$BASE_URL/apps/app_hr" "Leave Request" "menata_role=Manager" \
   && ! body_contains "$BASE_URL/apps/app_hr" 'href="/mch_employee"' "menata_role=Manager"
 check T48 "CAP-O03" "within an Application, only individually-readable Machines are listed" $?
+
+# --- CAP-X06 (workspace isolation) -- requires seeds/006_second_workspace.sql ---
+# ws_acme (Operations/Task) is a deliberately separate Workspace from every
+# other case's ws_default, existing purely to prove isolation.
+
+# T49 -- negative: a ws_default-scoped session given a direct URL to
+# ws_acme's Machine is denied -- app-layer guard (Interpreter.ScopeFor),
+# independent of RLS at the DB layer.
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Cookie: menata_role=Staff" "$BASE_URL/mch_task")
+[ "$CODE" = "404" ]
+check T49 "CAP-X06" "ws_default session denied direct access to another workspace's Machine (got $CODE)" $?
+
+# T50 -- same, for the Application route
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Cookie: menata_role=Staff" "$BASE_URL/apps/app_ops")
+[ "$CODE" = "404" ]
+check T50 "CAP-X06" "ws_default session denied direct access to another workspace's Application (got $CODE)" $?
+
+# T51 -- positive: switching to ws_acme (menata_workspace cookie) grants
+# access to its own Machine, end to end (create + trigger event).
+TASK_URL=$(post_redirect "$BASE_URL/mch_task" "fld_task_title=Conformance+Task" "menata_workspace=ws_acme; menata_role=Staff")
+TASK_ID="${TASK_URL##*/}"
+CODE=$(post_status "$BASE_URL/mch_task/$TASK_ID/events/evt_task_complete" "" "menata_workspace=ws_acme; menata_role=Staff")
+[ "$CODE" = "303" ] && body_contains "$TASK_URL" "Done" "menata_workspace=ws_acme; menata_role=Staff"
+check T51 "CAP-X06" "switching workspace grants access to its own Machine end to end (got $CODE)" $?
+
+if [ -n "$DATABASE_URL" ]; then
+    # T52 -- RLS probe (Study 8's own stated pass threshold: "zero
+    # cross-workspace rows under RLS probe -- deliberately query with wrong
+    # app.workspace_id"). Only meaningful after migrations/009's cutover;
+    # skips cleanly before that (RLS not yet enabled -- see that migration's
+    # header for why it's applied separately, not as part of migrate-up).
+    RLS_ENABLED=$(psql "$DATABASE_URL" -tAc "SELECT relrowsecurity FROM pg_class WHERE relname = 'records'")
+    if [ "$RLS_ENABLED" = "t" ]; then
+        LEAKED=$(psql "$DATABASE_URL" -q -tAc "
+            DO \$\$ BEGIN PERFORM set_config('app.workspace_id', 'ws_default', true); END \$\$;
+            SELECT COUNT(*) FROM records WHERE id = '$TASK_ID';")
+        [ "$LEAKED" = "0" ]
+        check T52 "CAP-X06" "RLS probe: ws_acme's own record invisible under app.workspace_id=ws_default (got count=$LEAKED)" $?
+    else
+        printf 'SKIP  T52  %-22s %s\n' "CAP-X06" "RLS not yet enabled (migrations/009 applied only at cutover)"
+    fi
+else
+    printf 'SKIP  T52  %-22s %s\n' "CAP-X06" "DATABASE_URL not set -- DB inspection unavailable"
+fi
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

@@ -64,15 +64,29 @@ func (i *Interpreter) GetApplication(id string) (*model.Application, bool) {
 	return app, ok
 }
 
-// AllApplications returns every Application across every Workspace, sorted
-// by name for a stable order (CAP-O03 — Application, not Machine, is this
-// prototype's actual top-level display unit; see the workspace home it
-// backs in handler.Apps).
-func (i *Interpreter) AllApplications() []*model.Application {
+// ApplicationsForWorkspace returns one Workspace's own Applications, sorted
+// by name (CAP-O03 — Application, not Machine, is this prototype's actual
+// top-level display unit; see the workspace home it backs in handler.Apps).
+// CAP-X06: scoped to one workspace, not every workspace across the whole
+// in-memory model — the app-layer half of workspace isolation, alongside
+// RLS at the database layer (migrations/009).
+func (i *Interpreter) ApplicationsForWorkspace(workspaceID string) []*model.Application {
 	out := make([]*model.Application, 0, len(i.apps))
 	for _, app := range i.apps {
-		out = append(out, app)
+		if app.WorkspaceID == workspaceID {
+			out = append(out, app)
+		}
 	}
+	sort.Slice(out, func(a, b int) bool { return out[a].Name < out[b].Name })
+	return out
+}
+
+// AllWorkspaces returns every Workspace, sorted by name — populates the
+// login page's workspace selector (CAP-X06), the same dropdown pattern
+// AllRoles already established for roles.
+func (i *Interpreter) AllWorkspaces() []*model.Workspace {
+	out := make([]*model.Workspace, len(i.workspaces))
+	copy(out, i.workspaces)
 	sort.Slice(out, func(a, b int) bool { return out[a].Name < out[b].Name })
 	return out
 }
@@ -107,19 +121,24 @@ type RoleGroup struct {
 	Roles   []string
 }
 
-// AllRoles returns every distinct business role declared across all
-// machines' Permissions, grouped by the application each machine belongs to,
-// application/role name sorted for a stable order. "System" is excluded —
-// it's the internal actor system-triggered events run as (CAP-A08/CAP-E05),
-// never a role a human logs in as. Used to populate the login page's role
-// dropdown so it can't go stale the way a hardcoded list already had —
-// Case 1's original Requester/Designer options never grew as later cases
-// added Employee, Manager, HR, Submitter, Approver, Agent, Supervisor.
-func (i *Interpreter) AllRoles() []RoleGroup {
+// AllRoles returns every distinct business role declared across one
+// Workspace's machines' Permissions, grouped by the application each
+// machine belongs to, application/role name sorted for a stable order.
+// "System" is excluded — it's the internal actor system-triggered events
+// run as (CAP-A08/CAP-E05), never a role a human logs in as. Used to
+// populate the login page's role dropdown so it can't go stale the way a
+// hardcoded list already had — Case 1's original Requester/Designer options
+// never grew as later cases added Employee, Manager, HR, Submitter,
+// Approver, Agent, Supervisor. CAP-X06: scoped to one workspace, same
+// reasoning as ApplicationsForWorkspace — a role dropdown showing another
+// workspace's roles would be confusing even though it's not itself a
+// security boundary (permission checks are always per-machine, already
+// workspace-scoped by construction).
+func (i *Interpreter) AllRoles(workspaceID string) []RoleGroup {
 	byApp := make(map[string]map[string]bool)
 	for _, m := range i.machines {
 		app, ok := i.apps[m.ApplicationID]
-		if !ok {
+		if !ok || app.WorkspaceID != workspaceID {
 			continue
 		}
 		for _, perm := range m.Permissions {

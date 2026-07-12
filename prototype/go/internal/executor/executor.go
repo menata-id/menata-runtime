@@ -90,13 +90,13 @@ func actorLabel(actorRole, actorIdentity string) string {
 // ctx as the request that triggered it, every record_events row one request
 // produces — even across different records — shares one id for free, no
 // extra plumbing needed.
-func (e *Executor) Persist(ctx context.Context, event *model.Event, record *store.Record, newData map[string]any, machineName, actorRole, actorIdentity string) error {
+func (e *Executor) Persist(ctx context.Context, event *model.Event, record *store.Record, newData map[string]any, machineName, actorRole, actorIdentity, workspaceID string) error {
 	snapshot := record.Data
 
 	for _, action := range event.Actions {
 		switch action.Type {
 		case model.ActionNotify:
-			e.doNotify(ctx, action, event, record, newData, machineName)
+			e.doNotify(ctx, action, event, record, newData, machineName, workspaceID)
 
 		case model.ActionCreateRecord:
 			slog.Info("create_record action (prototype: not yet implemented)",
@@ -107,7 +107,7 @@ func (e *Executor) Persist(ctx context.Context, event *model.Event, record *stor
 	if err := e.records.Update(ctx, record.ID, newData); err != nil {
 		return err
 	}
-	return e.records.LogEvent(ctx, record.ID, event.ID, actorLabel(actorRole, actorIdentity), middleware.GetReqID(ctx), snapshot)
+	return e.records.LogEvent(ctx, record.ID, event.ID, actorLabel(actorRole, actorIdentity), middleware.GetReqID(ctx), workspaceID, snapshot)
 }
 
 // doNotify implements CAP-A03 (static `role` recipient) and CAP-A04 (dynamic
@@ -117,7 +117,7 @@ func (e *Executor) Persist(ctx context.Context, event *model.Event, record *stor
 // most existing metadata declares). CAP-A10 in-app delivery: the resolved
 // recipient is written as a real Notification row a matching role-cookie
 // session can list and mark read, not just logged.
-func (e *Executor) doNotify(ctx context.Context, action *model.EventAction, event *model.Event, record *store.Record, newData map[string]any, machineName string) {
+func (e *Executor) doNotify(ctx context.Context, action *model.EventAction, event *model.Event, record *store.Record, newData map[string]any, machineName, workspaceID string) {
 	role, _ := action.Params["role"].(string)
 	recipientFieldID, _ := action.Params["recipient_field"].(string)
 
@@ -139,7 +139,7 @@ func (e *Executor) doNotify(ctx context.Context, action *model.EventAction, even
 		return
 	}
 	message := fmt.Sprintf("%s: %s", machineName, event.Name)
-	if err := e.notifications.Create(ctx, recipient, message, record.MachineID, record.ID); err != nil {
+	if err := e.notifications.Create(ctx, recipient, message, record.MachineID, record.ID, workspaceID); err != nil {
 		slog.Error("create notification", "event", event.ID, "recipient", recipient, "error", err)
 	}
 }

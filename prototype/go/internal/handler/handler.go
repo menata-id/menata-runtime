@@ -61,6 +61,23 @@ func (h *Handler) identity(r *http.Request) string {
 	return c.Value
 }
 
+// workspace (CAP-X06): which Workspace this session is scoped to. Defaults
+// to "ws_default" so every session/test predating workspace-awareness keeps
+// working unchanged. This is the app-layer half of the same value
+// cmd/server/main.go's workspaceTx middleware already resolved to set
+// app.workspace_id (RLS) on this request's transaction — kept as two
+// independent reads of the same cookie rather than threading one value
+// through, since the two layers (RLS at the DB, this guard at the app) are
+// deliberately independent defenses, not one relying on the other having
+// already run correctly.
+func (h *Handler) workspace(r *http.Request) string {
+	c, err := r.Cookie("menata_workspace")
+	if err != nil || c.Value == "" {
+		return "ws_default"
+	}
+	return c.Value
+}
+
 // Apps — workspace home (CAP-O03): Applications, not Machines, are this
 // runtime's actual top-level display unit (006-runtime-model.md's
 // Workspace > Application > Machine hierarchy) — matches every real
@@ -73,7 +90,7 @@ func (h *Handler) identity(r *http.Request) string {
 // role sees an empty grid, not an error.
 func (h *Handler) Apps(w http.ResponseWriter, r *http.Request) {
 	role := h.role(r)
-	apps := h.interp.AllApplications()
+	apps := h.interp.ApplicationsForWorkspace(h.workspace(r))
 	cards := make([]ui.Card, 0, len(apps))
 	for _, app := range apps {
 		machines := h.interp.MachinesForApplication(app.ID)
@@ -105,7 +122,10 @@ func (h *Handler) Apps(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) AppMachines(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "applicationID")
 	app, ok := h.interp.GetApplication(appID)
-	if !ok {
+	if !ok || app.WorkspaceID != h.workspace(r) {
+		// CAP-X06: an Application from another Workspace 404s exactly like
+		// one that doesn't exist at all -- not a 403, which would confirm
+		// to a prober that the ID is real, just in the wrong workspace.
 		http.NotFound(w, r)
 		return
 	}
@@ -130,18 +150,24 @@ func (h *Handler) AppMachines(w http.ResponseWriter, r *http.Request) {
 
 // LoginForm — role selection page.
 func (h *Handler) LoginForm(w http.ResponseWriter, r *http.Request) {
-	interpGroups := h.interp.AllRoles()
+	workspace := h.workspace(r)
+	interpGroups := h.interp.AllRoles(workspace)
 	roleGroups := make([]ui.RoleGroup, 0, len(interpGroups))
 	for _, g := range interpGroups {
 		roleGroups = append(roleGroups, ui.RoleGroup{AppName: g.AppName, Roles: g.Roles})
 	}
+	interpWorkspaces := h.interp.AllWorkspaces()
+	workspaces := make([]ui.Card, 0, len(interpWorkspaces))
+	for _, ws := range interpWorkspaces {
+		workspaces = append(workspaces, ui.Card{ID: ws.ID, Name: ws.Name})
+	}
 	role := h.role(r)
-	if err := ui.LoginPage(role, h.identity(r), roleGroups, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
+	if err := ui.LoginPage(role, h.identity(r), workspace, workspaces, roleGroups, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
 		slog.Error("render login", "error", err)
 	}
 }
 
-// Login — set role and identity cookies.
+// Login — set workspace, role, and identity cookies.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	role := r.FormValue("role")
@@ -149,11 +175,16 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		role = "Requester"
 	}
 	identity := r.FormValue("identity")
+	workspace := r.FormValue("workspace")
+	if workspace == "" {
+		workspace = "ws_default"
+	}
 	http.SetCookie(w, &http.Cookie{Name: "menata_role", Value: role, Path: "/"})
 	http.SetCookie(w, &http.Cookie{Name: "menata_identity", Value: identity, Path: "/"})
+	http.SetCookie(w, &http.Cookie{Name: "menata_workspace", Value: workspace, Path: "/"})
 	// Session/role-switch events (ASVS V7.1 — authentication decisions),
 	// even though this prototype's "login" has no password to fail against.
-	slog.Info("role switch", "correlation_id", middleware.GetReqID(r.Context()), "role", role, "identity", identity)
+	slog.Info("role switch", "correlation_id", middleware.GetReqID(r.Context()), "workspace", workspace, "role", role, "identity", identity)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
@@ -162,6 +193,13 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	machine, ok := h.interp.GetMachine(machineID)
 	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+		// CAP-X06: a Machine from another Workspace 404s exactly like one
+		// that doesn't exist at all -- app-layer guard alongside RLS
+		// (migrations/009), not instead of it.
 		http.NotFound(w, r)
 		return
 	}
@@ -236,6 +274,13 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+		// CAP-X06: a Machine from another Workspace 404s exactly like one
+		// that doesn't exist at all -- app-layer guard alongside RLS
+		// (migrations/009), not instead of it.
+		http.NotFound(w, r)
+		return
+	}
 	role := h.role(r)
 	if !h.guard.CanCreate(machine, role) {
 		h.logPermissionDenied(r.Context(), "create", machineID, "", role, h.identity(r))
@@ -252,6 +297,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	machine, ok := h.interp.GetMachine(machineID)
 	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+		// CAP-X06: a Machine from another Workspace 404s exactly like one
+		// that doesn't exist at all -- app-layer guard alongside RLS
+		// (migrations/009), not instead of it.
 		http.NotFound(w, r)
 		return
 	}
@@ -304,7 +356,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rec, err := h.records.Create(r.Context(), machineID, data)
+	workspaceID, _ := h.interp.ScopeFor(machineID)
+	rec, err := h.records.Create(r.Context(), machineID, workspaceID, data)
 	if err != nil {
 		http.Error(w, "failed to create record", http.StatusInternalServerError)
 		return
@@ -321,6 +374,13 @@ func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 	recordID := chi.URLParam(r, "recordID")
 	machine, ok := h.interp.GetMachine(machineID)
 	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+		// CAP-X06: a Machine from another Workspace 404s exactly like one
+		// that doesn't exist at all -- app-layer guard alongside RLS
+		// (migrations/009), not instead of it.
 		http.NotFound(w, r)
 		return
 	}
@@ -350,6 +410,13 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	recordID := chi.URLParam(r, "recordID")
 	machine, ok := h.interp.GetMachine(machineID)
 	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+		// CAP-X06: a Machine from another Workspace 404s exactly like one
+		// that doesn't exist at all -- app-layer guard alongside RLS
+		// (migrations/009), not instead of it.
 		http.NotFound(w, r)
 		return
 	}
@@ -418,6 +485,13 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+		// CAP-X06: a Machine from another Workspace 404s exactly like one
+		// that doesn't exist at all -- app-layer guard alongside RLS
+		// (migrations/009), not instead of it.
+		http.NotFound(w, r)
+		return
+	}
 	if role := h.role(r); !h.guard.CanRead(machine, role) {
 		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
@@ -463,6 +537,13 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 
 	machine, ok := h.interp.GetMachine(machineID)
 	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+		// CAP-X06: a Machine from another Workspace 404s exactly like one
+		// that doesn't exist at all -- app-layer guard alongside RLS
+		// (migrations/009), not instead of it.
 		http.NotFound(w, r)
 		return
 	}
@@ -582,7 +663,8 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 		return &ruleViolation{strings.Join(violations, " ")}
 	}
 
-	if err := h.exec.Persist(ctx, event, rec, newData, machine.Name, actorRole, actorIdentity); err != nil {
+	workspaceID, _ := h.interp.ScopeFor(machine.ID)
+	if err := h.exec.Persist(ctx, event, rec, newData, machine.Name, actorRole, actorIdentity, workspaceID); err != nil {
 		return err
 	}
 

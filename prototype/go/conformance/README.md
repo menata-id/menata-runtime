@@ -20,8 +20,11 @@ BASE_URL=https://aksi.menata.id ./conformance/run.sh
 
 Exit code 0 = all pass. Non-zero = at least one capability regressed.
 
-**Prerequisites:** server running, seeds `001`–`004` applied (Cases 1, 2, 18, 3). For T19, also
-export `DATABASE_URL` (same value as the server's `.env`) — it's skipped otherwise.
+**Prerequisites:** server running, seeds `001`–`006` applied (Cases 1, 2, 18, 3, 7, and the
+`ws_acme` isolation fixture). For T19/T42/T43/T52, also export `DATABASE_URL` (same value as
+the server's `.env`) — they're skipped otherwise. T52 additionally skips (not fails) until
+`migrations/009_workspace_isolation_rls.sql` (CAP-X06's RLS cutover, deliberately not part of
+`make migrate-up` — see that migration's own header) has actually been applied.
 
 ---
 
@@ -78,6 +81,10 @@ export `DATABASE_URL` (same value as the server's `.env`) — it's skipped other
 | T46 | CAP-O03 | drilling into an Application (`GET /apps/{id}`) lists its own Machines |
 | T47 | CAP-O03 | role-aware: an Application with zero readable Machines never shows its card on the workspace home (negative case) |
 | T48 | CAP-O03 | within a visible Application, only individually-readable Machines are listed, not all of them |
+| T49 | CAP-X06 | a `ws_default` session is denied (404) direct access to another workspace's Machine — app-layer guard (negative case) |
+| T50 | CAP-X06 | same, for the Application route (negative case) |
+| T51 | CAP-X06 | switching workspace (`menata_workspace` cookie) grants access to its own Machine end to end (create + trigger event) |
+| T52 | CAP-X06 | RLS probe: a record known to belong to `ws_acme` is invisible when `app.workspace_id` is set to `ws_default` — proves RLS itself, not just the app-layer guard (DB inspection, same T19 exception) |
 
 ---
 
