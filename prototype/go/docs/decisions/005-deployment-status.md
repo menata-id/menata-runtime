@@ -48,13 +48,12 @@ not blanket-exempt. Specifically:
 | Workspace isolation | CAP-X06 | this session, see below |
 
 **Still explicitly open — accepted risk, eyes open, not silence:**
-- **CAP-X02, the rest of it** — no real authentication. `menata_role`/`menata_identity` are
-  unauthenticated, self-declared cookies; no password, no session fixation/rotation defense,
-  no CSRF tokens on state-changing requests. Anyone who can reach the domain can claim any
-  role and any identity.
-- **CAP-O01** — role strings are workspace-blind; "Manager" in one workspace and "Manager" in
-  another are not distinguished by any identity registry, only by which machines' permission
-  rows happen to name that string.
+- **CAP-X02, the rest of it** — real authentication remains unimplemented. See that row in
+  `capability-registry.md` for the specific gaps tracked; this ADR names it as the single
+  largest open item rather than leaving it implied by a registry row alone, without
+  restating the mechanics here.
+- **CAP-O01** — the workspace identity/role registry doesn't exist yet; see that row in
+  `capability-registry.md`.
 - Retention/partitioning, lazy per-workspace metadata loading, per-workspace concurrency
   fairness (CAP-X11 and neighbors) — real scale concerns, not correctness/security ones,
   deferred until workspace/record counts make them relevant (see
