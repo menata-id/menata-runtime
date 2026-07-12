@@ -159,10 +159,31 @@ machine:
     steps_parent_field: fld_as_document           # which field on the child references back
 ```
 
-This is the only `config` shape defined so far — it exists to let CAP-A07 (`activate_next`) and
-CAP-A08 (`aggregate_status`) resolve a workflow's shape without hardcoding Machine/Field ids in the
-runtime. A future capability needing its own machine-level setting adds a new key here, not a new
-migration column.
+This was the only `config` shape for a while — CAP-A07 (`activate_next`) / CAP-A08
+(`aggregate_status`) resolving a workflow's shape without hardcoding Machine/Field ids. Every
+new machine-level setting since keeps following the same rule: a new key here, never a new
+migration column. As of 2026-07-12:
+
+| Key | Used by | Meaning |
+|-----|---------|---------|
+| `approval_mode_field`, `steps_machine`, `steps_parent_field` | CAP-A07, CAP-A08 | workflow shape, see above |
+| `webhook_secret` | CAP-E04 | the credential an inbound `POST /webhooks/...` must present in `X-Webhook-Secret` for this Machine |
+| `master_data` (`"true"`) | CAP-O02 | flags this Machine as canonical/cross-app-referenced — blocks Archive while any other record, on any Machine, still references it |
+| `immutable_field`, `immutable_values` (comma-separated) | CAP-R07 | once this Field's value is one of `immutable_values` (e.g. a Journal Entry's Status = "Posted"), the record rejects both Update and Archive |
+| `scratch_field`, `scratch_values` (comma-separated) | CAP-R08 | a record created with this Field already set to one of `scratch_values` (e.g. a Cart's Status = "Building") skips normally-blocking Constraints until it transitions out — an in-progress/draft state exempt from validation |
+| `sod_reference_field`, `sod_requester_field` | CAP-P03 | Segregation of Duties, declared on the CHILD/deciding Machine (e.g. Approval Step): `sod_reference_field` names this Machine's own `reference` field pointing at its parent (e.g. Approval Document); `sod_requester_field` names the `user`-typed field on that PARENT Machine holding who submitted it. The acting identity may not equal that value — the submitter of a record can't also decide it, even when they otherwise hold the deciding role |
+
+```yaml
+machine:
+  id: mch_int_payment
+  config:
+    webhook_secret: "demo-webhook-secret-2026"
+
+machine:
+  id: mch_wsx_employee
+  config:
+    master_data: "true"
+```
 
 ---
 
@@ -185,7 +206,7 @@ migration column.
 | `reference` | Reference to another Machine | Department, Project | `target_machine` — mandatory |
 | `child_table` | Line items owned by a parent record (header-detail document) | Journal Entry Lines, Unit Conversions | `target_machine` — mandatory (points at the child Machine's schema) |
 
-**`child_table` (CAP-F16, ❌ not yet implemented)** is not a primitive either — its rows are ordinary
+**`child_table` (CAP-F16, ✅ implemented 2026-07-12)** is not a primitive either — its rows are ordinary
 records of a target Machine, scoped to one parent. See `capability-registry.md` (CAP-F16) for the
 reporting-independence distinction (some child Machines, e.g. Journal Entry Line, must stay
 independently queryable across parents for aggregate reports; others, e.g. Item Unit Conversion,
@@ -268,6 +289,119 @@ A second, narrower guard exists purpose-built for sequential workflows (CAP-A07)
 expressed as a flat `condition`, so it isn't a metadata key at all, just built-in behavior triggered
 by declaring `aggregate_status` on an event.
 
+A third guard, `aggregate_condition` (CAP-A14, ✅ implemented 2026-07-12), gates an Event on a
+computed SUM across sibling records — "may only be triggered once this Member's total points
+reach 100," not just a check on the triggering record's own fields:
+
+```yaml
+- id: evt_pe_award
+  name: Award
+  aggregate_condition:
+    aggregate_field: fld_alpe_points   # numeric field summed
+    scope_field: fld_alpe_member       # sibling records sharing this record's own value here are included in the sum
+    operator: greater_than_or_equal
+    value: "100"
+  actions:
+    - create_record: { target_machine: mch_al_badge, fields: { member: fld_alpe_member } }
+```
+
+`machine` (optional, defaults to the Event's own Machine — the common case, summing a field
+across other records of the same Machine) may name a different Machine to sum over instead.
+
+---
+
+## Event Sources — `schedule` and Webhooks (CAP-E02/E03/E04, 2026-07-12)
+
+Every event covered above is triggered by a person (an HTTP POST) or by another event
+(`aggregate_status`/CAP-I01). Two more trigger sources exist, both real background mechanisms,
+not simulations:
+
+**Time-driven (CAP-E02)** — `schedule: { time: "HH:MM" }` fires the event on the first
+scheduler tick (`cmd/server/main.go`'s `runScheduler`, a real `time.Ticker` once a minute) at
+or after that time of day, once per record per day (de-duplicated via the existing
+`record_events` audit table, no new tracking table).
+
+**Date-driven (CAP-E03)** — `schedule: { date_field: fld_due, offset_days: -1 }` fires when
+*today* equals that record's own date field plus `offset_days` — a per-record trigger point,
+not "every record with this field." `time` and `date_field` are mutually exclusive; the
+scheduler picks CAP-E02 vs. CAP-E03 behavior by which key is present.
+
+```yaml
+- id: evt_esr_remind
+  name: Remind
+  schedule: { time: "00:00" }          # CAP-E02 — any hour satisfies "00:00"
+  actions:
+    - set_field: { field: fld_reminded, value: "Yes" }
+
+- id: evt_est_due_soon
+  name: Due Soon
+  schedule: { date_field: fld_est_due, offset_days: -1 }   # CAP-E03 — fires 1 day before fld_est_due
+  actions:
+    - set_field: { field: fld_notified, value: "Yes" }
+```
+
+**External (CAP-E04)** — any event can also be triggered by an inbound webhook, no metadata
+key required on the event itself; it's a per-Machine credential in `config` (see below) plus a
+fixed route, `POST /webhooks/{machine_id}/{record_id}/{event_id}` with header
+`X-Webhook-Secret: <the configured secret>`. No session, no CSRF token — this is the one
+trigger path that deliberately bypasses both (external systems have no browser session). A
+webhook may also stamp payload fields directly onto the record via InputFields (see below) —
+`"input:<field>"` resolves from the POST body, not a form.
+
+---
+
+## Event Schema Declaration (CAP-I02, 2026-07-12)
+
+An event may declare `category`, `schema_version`, and `deprecated_message` — metadata *about*
+the event's own contract, consumed by CAP-I01 Subscriptions below and by the Detail page (a
+deprecated event still fires, for backward compatibility, but shows a "Deprecated" badge and
+logs a warning).
+
+```yaml
+- id: evt_into_legacy_notify
+  name: Legacy Notify
+  category: notification
+  schema_version: 1
+  deprecated_message: "Use evt_into_placed instead"
+  actions:
+    - set_field: { field: fld_into_notified, value: "Yes" }
+```
+
+---
+
+## Cross-Machine Event Subscriptions (CAP-I01/I03, 2026-07-12)
+
+A Subscription lets a Machine react to an event published on a **completely different**
+Machine, without that publisher ever naming its subscribers — the publisher's own metadata
+stays unaware Order Placed feeds an Audit Log and a Points Ledger; each subscriber declares its
+own interest instead (Pattern C). This is a separate top-level element, a sibling of
+`machine:`, not nested under either the publisher or the subscriber Machine:
+
+```yaml
+event_subscription:
+  id: sub_audit_on_order_placed
+  publisher_event: evt_into_placed        # the Event id this reacts to, anywhere in the workspace
+  subscriber_machine: mch_int_audit_log   # the Machine a new record is created on
+  fields:
+    subject: fld_into_customer            # same create_record-style field mapping
+    amount: fld_into_total
+  contract:                               # CAP-I03, optional — same shape as event.condition
+    field: fld_into_total
+    operator: greater_than
+    value: "100"
+  on_violation: skip                      # only "skip" exists today — the action just doesn't fire
+```
+
+Dispatch runs immediately after the publisher event's own write commits (same call site as
+`activate_next`/`aggregate_status`), so a Subscription's own failure can never roll back the
+publisher, and multiple Subscriptions on the same publisher Event are independent of each
+other. `contract` (optional): when present, the Subscription's action only fires if the
+publisher's resulting data satisfies it — same `field`/`operator`/`value` shape as a
+Constraint's `condition`, same operator-implementation caveats noted above. Any number of
+Subscriptions, from any number of unrelated publisher Events, may target the same subscriber
+Machine (CAP-I05) — accumulating contributions from independent sources into one shared record
+set is a usage pattern of this mechanism, not a separate one.
+
 ---
 
 ## Event Actions
@@ -276,11 +410,17 @@ Actions describe what the runtime should do when an event occurs.
 
 | Action | Description | Example |
 |--------|-------------|---------|
-| `set_field` | Set a field to a value — literal, or a dynamic token (`today`, `now`, `current_user`, CAP-A02) | Set Status = Submitted; Set Approved Date = today |
-| `notify` | Send a notification to a role | Notify Manager |
-| `create_record` | Create a record in another machine | Create Audit Log |
+| `set_field` | Set a field to a value — literal, a dynamic token (`today`, `now`, `current_user`, CAP-A02), date arithmetic (`"today + 7 Days"`, CAP-A11), or an `"input:<field>"` inline-input reference (CAP-P04) | Set Status = Submitted; Set Approved Date = today |
+| `notify` | Send a notification — to a static `role`, or dynamically to the person named by another field's value (`recipient_field`, CAP-A04) | Notify Manager; notify whoever `fld_ad_submitted_by` names |
+| `create_record` | ✅ CAP-A06 — create a record on another Machine, copying/mapping fields from the source | Create Audit Log |
+| `cross_set_field` | ✅ CAP-A13 — update a field on a **different**, already-existing record, reached via a `reference` field on this record | Marking a Ticket Resolved also sets its linked Asset's Status |
+| `batch_generate` | ✅ CAP-A15 — create N records from one action; N comes from a field's value or a literal | Splitting a Purchase Request into N Purchase Order lines |
 | `activate_next` | CAP-A07 — in a Sequential-mode workflow, notify the next still-undecided sibling once this one is decided | Approving Step 1 notifies Step 2's approver |
 | `aggregate_status` | CAP-A08 — roll a decided record's siblings up to their shared parent: cascade the parent to a "some rejected" event immediately, or to an "all approved" event only once every sibling has decided the same way | All Steps Approved → Document Approved |
+
+Any of the above may be wrapped in `if: { field, operator, value }` (CAP-A09, ✅) to run only
+conditionally within an event that has several actions — distinct from the event-level
+`condition` (a guard on whether the event may fire at all).
 
 Actions are realized by the runtime.
 
@@ -299,6 +439,18 @@ actions:
   - set_field: { field: fld_approved_date, value: today }
   - set_field: { field: fld_approved_by, value: current_user }
 ```
+
+### `notify` — static role or dynamic recipient (CAP-A03/CAP-A04)
+
+```yaml
+- notify: { role: Manager }                          # CAP-A03 — every account holding this role in the Application
+- notify: { recipient_field: fld_ad_submitted_by }    # CAP-A04 — the specific person named by this field's value on the record
+```
+
+`recipient_field` wins when both are present. In-app delivery only (CAP-A10) — no email/SMS
+exists in this prototype; every notification lands in the recipient's own `/notifications`
+inbox, whose per-user "immediate"/"digest" presentation is a runtime feature (CAP-O05), not a
+metadata concept — nothing to declare here for that part.
 
 ### `activate_next` (CAP-A07)
 
@@ -339,6 +491,24 @@ decision. The parent event is fired through the exact same trigger path an HTTP-
 uses — its own `condition` (CAP-E06) and Constraints (CAP-C09) still apply, so a system-triggered
 rollup can never skip a check a user-triggered transition would have to pass. The acting role
 recorded for this internally-fired event is `System`.
+
+### Event `input_fields` — trigger-time inline input (CAP-P04)
+
+An Event may declare `input_fields: [ fld_x, ... ]` — Field ids collected fresh at trigger
+time (rendered as an inline picker/input alongside the trigger button, not read from the
+record's own current data) and made available to that event's own actions via
+`set_field.value: "input:<field_id>"`. This is how a delegation-style reassignment works: the
+Detail page's trigger form submits a fresh value the same request the event fires, rather than
+requiring a separate Update first.
+
+```yaml
+- id: evt_plea_delegate
+  name: Delegate
+  input_fields: [ fld_plea_approver ]        # rendered as a picker next to the "Delegate" button
+  actions:
+    - set_field: { field: fld_plea_approver, value: "input:fld_plea_approver" }
+    - set_field: { field: fld_plea_delegated_by, value: current_user }
+```
 
 ---
 
@@ -405,7 +575,29 @@ permissions:
     can_read: true
     can_create: true
     can_edit: false               # each defaults to true if omitted
+
+  - role: Staff                   # CAP-P06 — field-level visibility
+    events: []
+    can_read: true
+    hidden_fields: [ fld_salary ] # excluded from List/Detail/Form for this role, still present for a role without this key
+
+  - role: Visitor                 # CAP-P07 — anonymous (no session) access
+    events: []
+    can_read: true                # GET only; POST is always rejected for an unauthenticated request regardless of this grant
 ```
+
+**`hidden_fields`** (optional, CAP-P06): field ids this role's Permission row excludes from
+List, Detail, and Form rendering entirely — not merely read-only, invisible. A different
+role's own Permission row on the same Machine (with no `hidden_fields`, or a different list)
+sees that field normally; visibility is per-role, not per-Machine.
+
+**`Visitor`** (CAP-P07) is not a reserved keyword — it's an ordinary role name. What makes it
+"anonymous access" is simply that unauthenticated requests are resolved as role `Visitor` (no
+session/no account needed), so a Permission row declaring `role: Visitor` with `can_read: true`
+is what actually grants public read access to a Machine. A Machine with no `Visitor` Permission
+row denies anonymous requests, same deny-by-default rule as any other role. Anonymous requests
+can never write, regardless of what a `Visitor` row declares — `can_create`/`can_edit` are only
+ever consulted for authenticated requests.
 
 - **`owner_field`** (optional, a Field id on the same Machine): when set, the
   listed `events` require the acting identity to equal that field's value on
@@ -463,13 +655,60 @@ views:
 
 | Type | Description |
 |------|-------------|
-| `form` | Input surface for creating or updating a record |
-| `list` | Table or card presentation of multiple records |
-| `detail` | Full presentation of a single record |
-| `dashboard` | Summary and metrics presentation |
-| `calendar` | Date-based presentation |
-| `timeline` | Chronological presentation |
-| `aggregate_report` | Group-by / rollup presentation over many records (Trial Balance, Leaderboard) — requires `group_by` + `aggregates`; CAP-V13, ❌ not yet implemented |
+| `form` | Input surface for creating or updating a record. `child_lines` (CAP-F16) embeds N rows of a child Machine; `steps` (CAP-V12) splits fields into a multi-step wizard |
+| `list` | Table or card presentation of multiple records. `filter` (CAP-V09/V05), `manual_order` (CAP-V14), and free-text search (`?q=`, CAP-V08, no config — always available) all apply here |
+| `detail` | Full presentation of a single record. Reverse-reference sub-lists (CAP-V06 — every record on another Machine whose `reference` field points back at this one) render automatically, no config |
+| `dashboard` | ✅ CAP-V10 — composes summary tiles from `sections`, each independently naming its own source Machine (may span several different Machines, the actual point of this view type vs. a single Machine's own `list`/`report`) |
+| `calendar` | ✅ CAP-V07 — records grouped by `date_field`'s own value, server-rendered (no JS month-grid widget, matching this prototype's no-SPA posture) |
+| `timeline` | ✅ CAP-V07 — records ordered chronologically by `date_field` |
+| `report` | ✅ CAP-V13 (metadata type name is `report`, not `aggregate_report`) — group-by/rollup over ANOTHER Machine's records (Trial Balance, Leaderboard-shaped), computed at render time, nothing stored; requires `report: { machine, group_field, sum_fields }` |
+
+### View `config` per type
+
+```yaml
+- id: vw_list_overdue
+  name: My Overdue Tasks
+  type: list
+  columns: [ fld_title, fld_due ]
+  filter:                                    # CAP-V09 — AND-combined row filter, same expression
+    - { field: fld_owner, operator: equals, value: "$current_user" }   # CAP-V05 — sentinel, resolves to the acting identity at request time
+    - { field: fld_due, operator: after, value: today }
+
+- id: vw_list_manual
+  name: Priority Order
+  type: list
+  columns: [ fld_title ]
+  manual_order: true                         # CAP-V14 — Up/Down controls, sorts by a free-standing sort_order column instead of default_sort/created_at
+
+- id: vw_calendar
+  name: Task Calendar
+  type: calendar
+  columns: [ fld_title ]
+  date_field: fld_due                        # CAP-V07 — required for calendar/timeline
+
+- id: vw_dashboard
+  name: Ops Overview
+  type: dashboard
+  sections:                                  # CAP-V10 — each section is an independent Machine
+    - { title: "Open Tasks", machine: mch_task, group_field: fld_stage }
+    - { title: "Projects", machine: mch_project }
+
+- id: vw_wizard
+  name: New Request (3 steps)
+  type: form
+  steps:                                     # CAP-V12 — each entry is a Fields subset shown one step at a time
+    - [ fld_title, fld_description ]
+    - [ fld_amount, fld_category ]
+    - [ fld_approver ]
+
+- id: vw_trial_balance
+  name: Trial Balance
+  type: report
+  report:                                    # CAP-V13
+    machine: mch_journal_entry_line
+    group_field: fld_jel_account
+    sum_fields: [ fld_jel_debit, fld_jel_credit ]
+```
 
 ---
 
@@ -493,26 +732,68 @@ loader (`cannot unmarshal number into Go struct field ConstraintExpression.value
 string`) — write `value: "100"`. This is one of the load-time-fatal mistakes above, not a
 silent no-op.
 
-**Only four constraint/condition operators are implemented**: `required`, `equals`,
-`not_equals`, `after` (and `after` only against the literal value `"today"`). `before`,
-`greater_than`, `less_than`, `greater_than_or_equal`, `unique`, and any compound/aggregate
-shape (`aggregate: sum`, a plural `conditions:` list instead of singular `condition:`) are
-**not errors — they silently never fire** (`constraint.Eval`'s default case returns `true`,
-meaning "satisfied," for any operator it doesn't recognize). A constraint or event guard
-written with one of these looks correctly declared, loads without complaint, and then simply
-never does anything. If you need one of these, it isn't supported yet — don't write it as if
-it were; name the gap instead (see `capability-registry.md`'s CAP-C10/CAP-A09/CAP-C12 rows).
+**Operators implemented as of 2026-07-12 (Batch 1)**: `required`, `equals`, `not_equals`,
+`after` (literal `"today"` only), `greater_than`, `less_than` (CAP-C05), plus **cross-field
+comparison** — `value` may name another Field id instead of a literal, e.g. `{ field:
+fld_end_date, operator: after, value: fld_start_date }` compares two fields on the same record
+(CAP-C07). **Composite uniqueness** (CAP-C12) is a different shape entirely, not an operator on
+a single Constraint — see `constraints.unique_together` below. Still **not implemented, still
+silently never fire** (same "unrecognized operator defaults to satisfied" behavior as before):
+`greater_than_or_equal`, `less_than_or_equal`, `unique` as a plain field-level operator (use
+`unique_together` instead), and any aggregate shape (`aggregate: sum`) or plural `conditions:`
+list. Don't write these as if they worked — name the gap instead (`capability-registry.md`'s
+CAP-C10 row).
 
-**`set_field.value` supports exactly a literal string, or one of three dynamic tokens**:
-`today`, `now`, `current_user`. Anything else — a function call (`raise_one_level(priority)`,
-`sla_offset(priority)`), field arithmetic (`reopen_count + 1`), template interpolation
-(`{{ this.field }}`), a `previous(field)` read, a `role:X` dynamic target — is **not
-evaluated at all**. It gets written to the record as that literal text, verbatim, silently
-wrong data, not an error. None of these expression forms exist in the runtime today.
+```yaml
+constraints:
+  - id: cst_end_after_start
+    rule: End Date must be after Start Date.
+    expression: { field: fld_end_date, operator: after, value: fld_start_date }
 
-**`create_record` is declared as an action type but has no implementation** — `Executor.
-Persist` logs it and does nothing else (CAP-A06, ❌). Metadata naming it loads and runs
-without error; it just never creates the record it names.
+  - id: cst_line_seq_unique
+    rule: Sequence must be unique within a Journal Entry.
+    unique_together: [ fld_jel_entry, fld_jel_sequence ]   # CAP-C12 — a distinct shape from `expression`, no `operator`
+```
+
+**`set_field.value` supports a literal string, three dynamic tokens (`today`, `now`,
+`current_user`, CAP-A02), an `"input:<field_id>"` reference (CAP-P04, see InputFields below),
+and — as of 2026-07-12 (Batch 3) — date arithmetic on `today`/`now`/a date-typed field**:
+`` "<base> + N <unit>" `` / `` "<base> - N <unit>" `` where `<base>` is `today`, `now`, or a
+Field id, and `<unit>` is one of `Day`/`Days`, `Week`/`Weeks`, `Month`/`Months`, `Year`/`Years`,
+or `Business Day`/`Business Days` (CAP-A11; the `Business Day` variant additionally skips
+weekends and the acting Workspace's own declared holidays — CAP-O06, `workspace_holidays`).
+
+```yaml
+actions:
+  - set_field: { field: fld_due_date, value: "today + 7 Days" }
+  - set_field: { field: fld_target_date, value: "today + 5 Business Days" }
+  - set_field: { field: fld_follow_up, value: "fld_completed_at + 1 Month" }
+  - set_field: { field: fld_stage, value: "next" }     # CAP-A12 — advances a value_list field to its next declared option (its own `values` order); does NOT wrap around past the last value
+```
+
+Still **not evaluated at all, silently wrong data**: a function call
+(`raise_one_level(priority)`, `sla_offset(priority)`), non-date field arithmetic
+(`reopen_count + 1`), template interpolation (`{{ this.field }}`), a `previous(field)` read.
+None of these expression forms exist in the runtime today.
+
+**`create_record` is implemented (CAP-A06, ✅, 2026-07-12)** — creates a real record on
+another Machine, copying/mapping fields from the source record.
+
+```yaml
+- create_record:
+    target_machine: mch_audit_log
+    fields:
+      subject: fld_title          # copy the source record's fld_title into target's `subject`
+      status: "Logged"            # or a literal
+```
+
+Two more action types exist beyond the original four-row table (see Event Actions above,
+already updated): `cross_set_field` (CAP-A13, updates a field on a **different**, already-
+existing record reached via a `reference` field) and `batch_generate` (CAP-A15, creates N
+records from one action, count driven by a field or a literal). Any action may be wrapped in
+`if: { field, operator, value }` (CAP-A09) to run only when that condition is true against the
+record's data *after* the event's other `set_field`s would apply — a per-action guard, distinct
+from the event-level `condition` above.
 
 **A `reference` field's `target_machine` must be a real Machine id already present in the
 same load** — including reserved/pseudo targets like `"$identity"` (CAP-F13's still-
@@ -526,11 +807,14 @@ any other type fails the load. Omit `owner_field` entirely for role-only gating 
 Field on the Machine genuinely represents "the specific person who must act."
 
 **Unrecognized YAML/JSON keys are silently dropped, not rejected.** Go's default JSON
-decoding ignores fields a struct doesn't declare — a `views.filter` block (CAP-V09, not
-implemented) doesn't error, it just vanishes with no trace. The absence of a load error is
-not confirmation that everything you wrote was understood; cross-check against what this
-document and `capability-registry.md` actually say is implemented, not just against "did it
-load."
+decoding ignores fields a struct doesn't declare — any key not named in `ViewConfig`/
+`EventAction.Params`/etc. (`internal/model/model.go`) doesn't error, it just vanishes with no
+trace. `views.filter` (CAP-V09), `views.steps` (CAP-V12), and every other config key documented
+above IS implemented as of the batches noted next to each — this specific stale warning (a
+`filter` block being silently dropped) no longer applies to `filter` itself, but the underlying
+risk is general: the absence of a load error is never confirmation that everything you wrote
+was understood. Cross-check against what this document and `capability-registry.md` actually
+say is implemented (its ✅/⚠️/❌ column), not just against "did it load."
 
 **When a case's Machines span multiple files sharing one Workspace/Application** (a common
 pattern once an Application has multiple Machines, one file per Machine), exactly one of

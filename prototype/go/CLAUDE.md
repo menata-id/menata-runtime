@@ -52,6 +52,23 @@ for anything a user did "wrong" (wrong state, failed constraint). `TriggerEvent`
 `errors.As` to pick the HTTP status. Follow this if you add a new rejection path — don't collapse
 both into one status code.
 
+**Two more real trigger sources exist besides an HTTP POST, both wired into the exact same
+`triggerEvent` path — no separate code path skips its guards.** `cmd/server/main.go`'s
+`runScheduler` is a real `time.Ticker` (once a minute) that walks every workspace once per tick
+and fires any Event whose `schedule` (CAP-E02 `time`, CAP-E03 `date_field`+`offset_days`) is
+due, de-duplicated per record per day via the existing `record_events` audit table (no new
+tracking table). `POST /webhooks/{machine}/{record}/{event}` (CAP-E04) is the external trigger
+— exempted from `sessionAuth`/`csrfProtect` (an external system has no browser session) but
+gated by its own credential instead, `Machine.Config["webhook_secret"]` checked against an
+`X-Webhook-Secret` header. If you add a third trigger source, route it through `triggerEvent`
+the same way — never re-implement its guards inline at the new call site.
+
+**Cross-machine reaction without the publisher knowing its subscribers (CAP-I01) dispatches
+from the same post-commit site CAP-A07/A08/E05's own workflow actions already use.** A
+Subscription's own failure can't roll back the publisher (it only ever runs after `Persist`
+succeeds), and independent Subscriptions on the same publisher Event don't affect each other —
+this fell out of reusing the existing call site rather than needing new isolation logic.
+
 **`Executor.Simulate` / `Executor.Persist` split exists for CAP-C09.** `Simulate` computes an
 event's resulting data without writing anything; the caller (`triggerEvent`) validates that result
 against every declared Constraint *before* calling `Persist`. Never call `Persist` without having
@@ -117,7 +134,11 @@ are never the right place to make a change either way.
 To verify a capability manually before trusting the conformance suite alone: `curl` the actual
 running server. Every capability implemented so far in this codebase (CAP-F13, CAP-E06, CAP-C09,
 CAP-A02, CAP-V06, CAP-A07, CAP-A08, CAP-X03, CAP-R02, CAP-A03, CAP-A04, CAP-A10, CAP-P02, CAP-E05,
-CAP-P05, CAP-R04, CAP-I04, CAP-O03, CAP-X02, CAP-O01) was manually exercised end-to-end against a
+CAP-P05, CAP-R04, CAP-I04, CAP-O03, CAP-X02, CAP-O01, CAP-C05, CAP-C07, CAP-C12, CAP-X05, CAP-F16,
+CAP-A06, CAP-A09, CAP-A11, CAP-A12, CAP-A13, CAP-A14, CAP-A15, CAP-V05, CAP-V07, CAP-V08, CAP-V09,
+CAP-V10, CAP-V11, CAP-V12, CAP-V14, CAP-R03, CAP-R05, CAP-R06, CAP-R07, CAP-R08, CAP-P03, CAP-P04,
+CAP-P06, CAP-P07, CAP-E02, CAP-E03, CAP-E04, CAP-I01, CAP-I02, CAP-I03, CAP-I05, CAP-O02, CAP-O04,
+CAP-O05, CAP-O06) was manually exercised end-to-end against a
 real Postgres instance before its conformance test was written, and manual testing caught real bugs (a `Create`
 default-value rule hardcoded to fields named "Status" that silently broke Approval Step's
 "Decision" field; a conformance-helper missing a cookie parameter that made a test pass for the
@@ -127,6 +148,23 @@ against a `uuid` column with no cast, which would have crashed every single `not
 seed account's bcrypt password hash that never actually matched the password it claimed to,
 invisible for months because nothing verified `password_hash` before CAP-X02 existed) that
 reading the code alone would not have surfaced.
+
+**An isolated-schema test server that outlives its schema fails every request, and looks like a
+data bug if you don't check for it first.** The safe way to try a new migration/seed against
+this shared production database without risking `aksi.menata.id` is `CREATE SCHEMA test_batchN`,
+apply migrations/seeds with `?options=-csearch_path%3Dtest_batchN` appended to `DATABASE_URL`,
+and run a throwaway server on a different `PORT` (e.g. 4099) against it — fully reversible via
+`DROP SCHEMA test_batchN CASCADE` when done. The gotcha: if you forget to kill that throwaway
+server's process before `DROP SCHEMA`, or before starting a *second* throwaway server on the
+same port for the next verification pass (e.g. re-testing against real production data with a
+plain `DATABASE_URL`, no schema override), the OLD process can still be squatting on the port —
+a new `nohup ... &` silently fails to bind (port already in use) while `curl .../health` keeps
+returning 200 from the *old* process the whole time. Once its schema is dropped, every query
+against it fails to find any table/row, so login and everything downstream returns 401/empty —
+which looks exactly like corrupted seed data, not a leftover process. Check `ss -ltnp | grep
+:<port>` and confirm the PID's `DATABASE_URL` (via `ps eww -p <pid> | grep DATABASE_URL`)
+actually matches what you just exported, before trusting a health check on a port you've reused
+across more than one verification pass in the same session.
 
 **A seed/permission data change needs a server restart to take effect, same as a code change.**
 The Interpreter loads every Machine's Permissions (and everything else) into memory once at boot

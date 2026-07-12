@@ -105,8 +105,17 @@ INSERT INTO machines (id, application_id, name) VALUES
 
 Kosong (`NULL`) untuk hampir semua Machine. Isi hanya kalau ada mekanisme runtime yang butuh tahu
 sesuatu tentang Machine ini sendiri — bukan Field, bukan Constraint, murni "cara Machine ini
-berperilaku" (CAP-X03). Sejauh ini satu-satunya pemakai: workflow sequential/aggregate (CAP-A07/A08,
-lihat §Events dan Actions di bawah):
+berperilaku" (CAP-X03). Setiap kapabilitas baru yang butuh setelan level-Machine menambah kunci
+baru di sini, bukan kolom migrasi baru. Kunci yang ada per 2026-07-12:
+
+| Kunci | Dipakai oleh | Arti |
+|-------|--------------|------|
+| `approval_mode_field`, `steps_machine`, `steps_parent_field` | CAP-A07, CAP-A08 | bentuk workflow sequential/aggregate, lihat §Events dan Actions |
+| `webhook_secret` | CAP-E04 | kredensial yang harus dibawa `POST /webhooks/...` di header `X-Webhook-Secret` |
+| `master_data` (`"true"`) | CAP-O02 | menandai Machine ini kanonis/dirujuk lintas-Application — Archive diblokir selama masih ada record LAIN, di Machine mana pun, yang merujuknya |
+| `immutable_field`, `immutable_values` (dipisah koma) | CAP-R07 | begitu Field ini bernilai salah satu `immutable_values`, record menolak Update maupun Archive |
+| `scratch_field`, `scratch_values` (dipisah koma) | CAP-R08 | record yang dibuat dengan Field ini sudah bernilai salah satu `scratch_values` melewati Constraint yang normalnya memblokir, sampai keluar dari state itu |
+| `sod_reference_field`, `sod_requester_field` | CAP-P03 | Segregation of Duties di Machine anak/pemutus: `sod_reference_field` = field `reference` ke parent; `sod_requester_field` = field `type: user` di parent yang menyimpan siapa pengaju — identity yang login tidak boleh sama dengan nilai itu |
 
 ```sql
 UPDATE machines SET config = '{
@@ -114,6 +123,8 @@ UPDATE machines SET config = '{
   "steps_machine": "mch_approval_step",
   "steps_parent_field": "fld_as_document"
 }' WHERE id = 'mch_approval_document';
+
+UPDATE machines SET config = '{"master_data": "true"}' WHERE id = 'mch_wsx_employee';
 ```
 
 Kalau Machine Anda tidak butuh ini, jangan diisi — bukan bagian wajib.
@@ -192,7 +203,7 @@ INSERT INTO fields (id, machine_id, name, type, position, required, options) VAL
 > ⚠️ **Key yang benar untuk `reference` adalah `target_machine`, bukan `machine`.** Konsisten dengan
 > contoh nyata di `prototype/go/docs/examples/approval-step.yaml` (`Document` field, `mch_approval_document`).
 
-#### `child_table` (CAP-F16, ❌ belum diimplementasikan) — pilihan storage, bukan pemetaan tipe field
+#### `child_table` (CAP-F16, ✅ diimplementasikan 2026-07-12) — pilihan storage, bukan pemetaan tipe field
 
 Di `.menata`, "satu Journal Entry punya banyak Journal Entry Line" tidak pernah dituliskan sebagai
 Field khusus — itu Object biasa (`Journal Entry Line`) dengan satu Field yang merujuk balik ke
@@ -220,7 +231,7 @@ terpisah hanya karena runtime belum punya target-nya:
 | Tipe | Target reference-nya | Status target |
 |------|----------------------|----------------|
 | `user` | Identitas platform (siapa penggunanya) | CAP-O01 (identity & role registry) sudah ✅ — `users`/`user_application_roles` — tapi `type: user` belum dimigrasikan untuk menunjuk ke situ sebagai target `reference`; masih dirender sebagai teks bebas (CAP-F05 ⚠️) |
-| `money` | Currency (kode + kurs) | Menunggu CAP-O02 (master data designation) |
+| `money` | Currency (kode + kurs) | CAP-O02 (master data designation) sudah ✅ (2026-07-12), tapi Currency sendiri sebagai target `reference` yang nyata masih menunggu CAP-F17 (multi-currency money) — belum diimplementasikan |
 | `file` | Entitas File/Document terkelola runtime | Belum ada — CAP-F06 masih ⚠️ partial |
 
 Detail lengkap pohon keputusan + kalibrasi: `runtime/benchmarks/005-field-modeling-decision-framework.md`.
@@ -228,8 +239,12 @@ Detail lengkap pohon keputusan + kalibrasi: `runtime/benchmarks/005-field-modeli
 **Wajib untuk `type: money`:** sertakan `currency` di `options` (contoh: `{"currency":"IDR"}`), atau
 `currency_field` kalau nilainya bisa beda per record (referensi ke field lain di machine yang sama).
 Metadata `type: money` **tanpa** salah satu dari keduanya dianggap tidak lengkap — sama seperti
-`value_list` tanpa `values` atau `reference` tanpa `target_machine`. Ini dicegah CAP-X05 (metadata
-validation before load) begitu diimplementasikan; untuk saat ini pastikan manual saat menulis seed.
+`value_list` tanpa `values` atau `reference` tanpa `target_machine`. **CAP-X05 (metadata
+validation before load) sudah ✅ diimplementasikan (2026-07-12)** — server menolak boot untuk
+operator constraint/condition yang tidak dikenal, dan untuk `owner_field` yang tidak menunjuk ke
+Field `type: user`. Yang **belum** tercakup: validasi companion-field `money` (`currency`/
+`currency_field`) — masih menunggu implementasi nyata `money` sebagai reference sugar (CAP-F17),
+jadi untuk saat ini tetap pastikan manual saat menulis seed.
 
 #### Field `required`
 
@@ -316,19 +331,37 @@ dipicu dari state mana pun.
 | Di .menata | `type` di DB | `params` |
 |------------|-------------|---------|
 | `Status <Nilai>` | `set_field` | `{"field":"fld_*_status","value":"<Nilai>"}` |
-| `Notify <Role>` | `notify` | `{"role":"<Role>"}` |
+| `Notify <Role>` | `notify` | `{"role":"<Role>"}` — atau `{"recipient_field":"fld_*"}` untuk penerima dinamis (CAP-A04, ✅) |
 | `Record <Nama>` | `record` | `{"name":"<Nama>"}` |
+| — | `create_record` | `{"target_machine":"mch_*","fields":{"<field_target>":"fld_source"}}` — CAP-A06, ✅ diimplementasikan 2026-07-12, membuat record baru di Machine lain |
+| — | `cross_set_field` | mengubah field di record **lain** yang sudah ada, dijangkau lewat field `reference` — CAP-A13, ✅ |
+| — | `batch_generate` | membuat N record sekaligus dari satu action, N dari field atau literal — CAP-A15, ✅ |
 | — (lihat §Machine `config`) | `activate_next` | `{"mode_field":"fld_*_approval_mode"}` — CAP-A07 |
 | — (lihat §Machine `config`) | `aggregate_status` | `{"parent_field":"fld_*_document","parent_event_if_all_approved":"evt_*","parent_event_if_any_rejected":"evt_*"}` — CAP-A08 |
 
+Setiap action bisa dibungkus `if: {field, operator, value}` (CAP-A09, ✅) supaya hanya jalan kalau
+kondisi itu benar — beda dari `condition` di level Event (yang menentukan boleh-tidaknya Event
+dipicu sama sekali).
+
 `position` di `event_actions` menentukan urutan eksekusi dalam satu Event. Dimulai dari 0.
 
-#### `set_field` dengan nilai dinamis (CAP-A02)
+#### `set_field` dengan nilai dinamis (CAP-A02, CAP-A11, CAP-A12, CAP-P04)
 
 `value: today`, `value: now`, dan `value: current_user` di-resolve saat Event benar-benar dipicu,
 bukan disimpan sebagai teks literal "today"/"now"/"current_user". `current_user` di-resolve ke
 identitas sungguhan orang yang sedang bertindak (CAP-X02 — nama akun yang sudah terautentikasi,
 bukan sekadar string role).
+
+Sejak 2026-07-12 (Batch 3), `value` juga mendukung **aritmetika tanggal**: `"today + 7 Days"`,
+`"today - 3 Days"`, `"fld_completed_at + 1 Month"` — basis-nya `today`/`now`/id Field bertipe
+`date`, unit-nya `Day(s)`/`Week(s)`/`Month(s)`/`Year(s)`/`Business Day(s)` (CAP-A11). Varian
+`Business Day(s)` juga melewati akhir pekan **dan** hari libur yang dideklarasikan Workspace-nya
+(`workspace_holidays`, CAP-O06). `value: "next"` (CAP-A12) memajukan field `value_list` ke opsi
+berikutnya sesuai urutan `values`-nya sendiri (tidak berputar balik setelah opsi terakhir).
+`value: "input:<field_id>"` (CAP-P04) membaca dari input yang dikumpulkan segar saat Event
+dipicu (lihat `input_fields` pada Event, bukan dari data record yang sudah ada) — pola ini
+dipakai untuk delegasi/reassignment (form trigger mengirim nilai baru dalam satu request yang
+sama dengan Event-nya).
 
 #### `activate_next` + `aggregate_status` — workflow sequential/aggregate (CAP-A07, CAP-A08)
 
@@ -439,16 +472,34 @@ INSERT INTO constraints (id, machine_id, rule, expression, condition, position) 
      2);
 ```
 
-#### Operator yang didukung runtime (prototype saat ini)
+#### Operator yang didukung runtime (per 2026-07-12, Batch 1)
 
 | Kalimat di .menata | `operator` | `value` | Keterangan |
 |--------------------|-----------|---------|-----------|
 | `<Field> is required.` | `required` | — | Field tidak boleh kosong |
 | `<Field> must be after today.` | `after` | `"today"` | Tanggal harus setelah hari ini |
+| `<Field> must be after <Field2>.` | `after` | id Field lain | Perbandingan antar-field pada record yang sama — CAP-C07, ✅ |
+| `<Field> must be greater than <N>.` | `greater_than` | nilai string | CAP-C05, ✅ |
+| `<Field> must be less than <N>.` | `less_than` | nilai string | CAP-C05, ✅ |
 | `<Field> = <Nilai>` *(di `if`)* | `equals` | nilai string | Untuk condition |
 | `<Field> ≠ <Nilai>` *(di `if`)* | `not_equals` | nilai string | Untuk condition |
 
-Constraint dengan kalimat lain (misal "Amount must be greater than zero") valid sebagai Business Knowledge di `.menata`, tapi belum diimplementasikan di runtime prototype. Tetap tuliskan di `.menata` — operator baru ditambahkan ke runtime tanpa mengubah `.menata`.
+**Keunikan komposit** (CAP-C12, ✅) bukan operator, bentuknya beda — pakai kolom
+`unique_together` (array id Field), bukan `expression`:
+
+```sql
+-- 'unique_together' berisi array field id, bukan {field, operator, value}
+INSERT INTO constraints (id, machine_id, rule, unique_together, position) VALUES
+    ('cst_jel_seq_unique', 'mch_journal_entry_line', 'Sequence must be unique within an Entry.',
+     '["fld_jel_entry","fld_jel_sequence"]', 3);
+```
+
+Operator lain (misal "Amount must be at least zero" → `greater_than_or_equal`) valid sebagai
+Business Knowledge di `.menata`, tapi masih belum diimplementasikan di runtime prototype —
+**tidak error saat load, cuma diam-diam tidak pernah gagal** (`constraint.Eval` default-nya
+menganggap "terpenuhi" untuk operator yang tidak dikenal). Tetap tuliskan di `.menata` — operator
+baru ditambahkan ke runtime tanpa mengubah `.menata`, tapi jangan asumsikan sudah jalan di
+runtime hanya karena loadnya tidak error.
 
 `condition` = `NULL` untuk constraint tanpa kondisi.
 
@@ -513,6 +564,15 @@ permissions:
     can_read: true
     can_create: true
     can_edit: false                # masing-masing default true kalau tidak ditulis
+
+  - role: Staff                    # CAP-P06, ✅ 2026-07-12 — visibilitas per-field
+    events: []
+    can_read: true
+    hidden_fields: [ fld_salary ]  # field ini hilang total dari List/Detail/Form untuk role ini
+
+  - role: Visitor                  # CAP-P07, ✅ 2026-07-12 — akses anonim (tanpa login)
+    events: []
+    can_read: true                 # hanya GET; POST selalu ditolak untuk request tanpa sesi apa pun
 ```
 
 - `owner_field` (opsional, id Field di Machine yang sama): kalau diisi, `events`
@@ -523,6 +583,16 @@ permissions:
   dipicu. **Deny-by-default per Machine** — role yang sama sekali tidak punya
   baris Permission di suatu Machine otomatis tidak punya akses baca/buat/ubah
   sama sekali, bukan diizinkan diam-diam seperti sebelumnya.
+- `hidden_fields` (opsional, array id Field, CAP-P06): field yang dikecualikan dari
+  List/Detail/Form untuk role ini — bukan cuma read-only, benar-benar tidak muncul.
+  Role lain di Machine yang sama tanpa `hidden_fields` (atau daftar berbeda) tetap
+  melihatnya seperti biasa; ini pengaturan per-role, bukan per-Machine.
+- `Visitor` (CAP-P07) bukan kata kunci khusus — itu nama role biasa. Yang membuatnya
+  "akses anonim" murni karena request tanpa sesi login di-resolve sebagai role
+  `Visitor` — jadi baris Permission dengan `role: Visitor` dan `can_read: true` itulah
+  yang benar-benar memberi akses baca publik. Machine tanpa baris `Visitor` menolak
+  request anonim, sama seperti role lain (deny-by-default). Request anonim tidak
+  pernah bisa menulis, berapa pun `can_create`/`can_edit` yang dideklarasikan.
 
 **Siapa yang benar-benar memegang suatu `role` adalah urusan CAP-O01, bukan file ini.** `role`
 di sini cuma **mendeklarasikan kosakatanya** — nama role apa saja yang ada dan masing-masing
@@ -604,15 +674,22 @@ INSERT INTO views (id, machine_id, name, type, position, config) VALUES
     ('vw_lr_detail', 'mch_leave_request', 'Leave Request Detail', 'detail', 3, '{}');
 ```
 
-#### View `config` per tipe
+#### View `config` per tipe (per 2026-07-12)
 
 | Tipe View | Kunci di `config` | Keterangan |
 |-----------|------------------|-----------|
-| `form` | `fields` | Array field ID yang tampil di form, berurutan |
-| `list` | `columns`, `default_sort` | Kolom tabel; sort opsional |
-| `detail` | — | `{}` — runtime menampilkan semua field |
+| `form` | `fields`, `child_lines` (CAP-F16 ✅), `steps` (CAP-V12 ✅) | Array field id yang tampil di form, berurutan. `child_lines` menyisipkan N baris Machine anak sekaligus dalam satu submit (dokumen header-detail). `steps` memecah `fields` jadi beberapa langkah wizard, tiap entry array-nya satu langkah |
+| `list` | `columns`, `default_sort`, `filter` (CAP-V09/V05 ✅), `manual_order` (CAP-V14 ✅) | Kolom tabel; sort opsional. `filter` = daftar kondisi AND, bentuknya sama dengan `constraint.expression` (`$current_user` = sentinel "record milik saya", CAP-V05). `manual_order: true` mengaktifkan tombol Up/Down, urut berdasar kolom `sort_order`, bukan `default_sort` |
+| `detail` | — | `{}` — runtime menampilkan semua field. Sub-list reverse-reference (CAP-V06 ✅ — record Machine lain yang field `reference`-nya menunjuk balik ke record ini) otomatis muncul, tanpa config |
+| `calendar`, `timeline` | `columns`, `date_field` (CAP-V07 ✅) | Record dikelompokkan/diurutkan berdasar `date_field` |
+| `dashboard` | `sections` (CAP-V10 ✅) | Array `{title, machine, group_field?}` — tiap section bisa dari Machine berbeda-beda, itu inti CAP-V10 dibanding `list`/`report` biasa yang cuma satu Machine |
+| `report` | `report: {machine, group_field, sum_fields}` (CAP-V13 ✅) | Rollup/group-by atas record Machine LAIN, dihitung saat render, tidak disimpan (mis. Trial Balance) |
+
+Pencarian bebas teks (`?q=`, CAP-V08 ✅) selalu tersedia di `list` tanpa config apa pun.
 
 Field Status **tidak perlu** dimasukkan ke `config.fields` pada view Form — Status diset oleh Events, bukan oleh user input.
+
+Contoh lengkap tiap bentuk `config` (worked examples): `runtime-metadata-schema.md` §"View `config` per type".
 
 ---
 
@@ -654,28 +731,41 @@ string, walau kelihatannya angka.** `value: 100` (angka YAML/JSON) bikin loader 
 (`cannot unmarshal number into Go struct field ConstraintExpression.value of type string`)
 — tulis `value: "100"`. Ini gagal fatal saat load, bukan diam-diam tidak jalan.
 
-**Cuma empat operator constraint/condition yang benar-benar jalan**: `required`, `equals`,
-`not_equals`, `after` (dan `after` cuma terhadap literal `"today"`). `before`,
-`greater_than`, `less_than`, `greater_than_or_equal`, `unique`, atau bentuk
-majemuk/agregat (`aggregate: sum`, `conditions:` jamak alih-alih `condition:` tunggal)
-**bukan error — cuma diam-diam tidak pernah aktif** (default case `constraint.Eval`
-mengembalikan `true`, artinya "terpenuhi", untuk operator apa pun yang tidak dikenali).
-Constraint atau guard event yang pakai salah satu ini kelihatan terdeklarasi benar, dimuat
-tanpa keluhan, lalu sama sekali tidak pernah melakukan apa-apa. Kalau butuh salah satu ini,
-artinya belum didukung — jangan ditulis seolah-olah didukung; sebutkan gap-nya saja (lihat
-baris CAP-C10/CAP-A09/CAP-C12 di `capability-registry.md`).
+**Operator yang jalan per 2026-07-12 (Batch 1)**: `required`, `equals`, `not_equals`, `after`
+(literal `"today"` saja), `greater_than`, `less_than` (CAP-C05), plus **perbandingan
+antar-field** — `value` boleh berisi id Field lain, bukan literal, mis. `{field: fld_end_date,
+operator: after, value: fld_start_date}` (CAP-C07). **Keunikan komposit** (CAP-C12) bentuknya
+beda sama sekali, bukan operator pada satu Constraint — lihat `unique_together` di §Constraints
+atas. Masih **belum didukung, masih diam-diam tidak pernah aktif** (default case
+`constraint.Eval` tetap mengembalikan `true` untuk operator tak dikenal): `greater_than_or_equal`,
+`less_than_or_equal`, `unique` sebagai operator field-level biasa (pakai `unique_together`),
+dan bentuk agregat (`aggregate: sum`) atau `conditions:` jamak. Jangan ditulis seolah-olah
+jalan — sebutkan gap-nya saja (baris CAP-C10 di `capability-registry.md`).
 
-**`set_field.value` cuma mendukung literal string, atau salah satu dari tiga token
-dinamis**: `today`, `now`, `current_user`. Selain itu — pemanggilan fungsi
-(`raise_one_level(priority)`, `sla_offset(priority)`), aritmatika field
-(`reopen_count + 1`), interpolasi template (`{{ this.field }}`), pembacaan
-`previous(field)`, target dinamis `role:X` — **sama sekali tidak dievaluasi**. Nilainya
-ditulis apa adanya ke record, verbatim, data yang diam-diam salah, bukan error.
+**`set_field.value` mendukung literal string, tiga token dinamis (`today`, `now`,
+`current_user`, CAP-A02), referensi `"input:<field_id>"` (CAP-P04), dan — per 2026-07-12
+(Batch 3) — aritmetika tanggal**: `"<basis> + N <unit>"` / `"<basis> - N <unit>"`, basis-nya
+`today`/`now`/id Field, unit-nya `Day(s)`/`Week(s)`/`Month(s)`/`Year(s)`/`Business Day(s)`
+(CAP-A11; varian `Business Day(s)` juga melewati akhir pekan dan hari libur Workspace,
+CAP-O06). `value: "next"` (CAP-A12) memajukan field `value_list` ke opsi berikutnya. Selain
+itu — pemanggilan fungsi (`raise_one_level(priority)`, `sla_offset(priority)`), aritmatika
+field non-tanggal (`reopen_count + 1`), interpolasi template (`{{ this.field }}`), pembacaan
+`previous(field)` — **sama sekali tidak dievaluasi**. Nilainya ditulis apa adanya ke record,
+verbatim, data yang diam-diam salah, bukan error.
 
-**`create_record` terdeklarasi sebagai tipe action tapi belum ada implementasinya** —
-`Executor.Persist` cuma log dan tidak melakukan apa-apa lagi (CAP-A06, ❌). Metadata yang
-menyebutnya tetap dimuat dan jalan tanpa error; cuma tidak pernah benar-benar membuat
-record yang dimaksud.
+**`create_record` sudah diimplementasikan (CAP-A06, ✅, 2026-07-12)** — membuat record
+sungguhan di Machine lain, memetakan/menyalin field dari record sumber. Dua tipe action lain
+di luar tabel awal juga sudah ada: `cross_set_field` (CAP-A13, mengubah field di record LAIN
+yang sudah ada, dijangkau lewat field `reference`) dan `batch_generate` (CAP-A15, membuat N
+record dari satu action). Action apa pun boleh dibungkus `if: {field, operator, value}`
+(CAP-A09) supaya kondisional dalam satu Event yang punya beberapa action.
+
+**Sumber trigger Event bukan cuma HTTP POST dan Event lain.** `schedule: {time: "HH:MM"}`
+(CAP-E02) atau `schedule: {date_field, offset_days}` (CAP-E03) membuat Event dipicu otomatis
+oleh scheduler background (real, `time.Ticker` sekali semenit, bukan simulasi) — dua kunci ini
+saling eksklusif. Webhook eksternal (CAP-E04) tidak butuh kunci di Event sama sekali; Machine-
+nya yang deklarasikan `config.webhook_secret`, lalu `POST /webhooks/{machine}/{record}/{event}`
+dengan header `X-Webhook-Secret` yang cocok memicunya — tanpa sesi login, tanpa CSRF.
 
 **`target_machine` field `reference` harus Machine id asli yang benar-benar ada di load yang
 sama** — termasuk target reserved/pseudo seperti `"$identity"` (flavor (b) CAP-F13 yang
