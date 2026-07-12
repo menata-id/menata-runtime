@@ -507,7 +507,7 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a := h.auth(r)
-	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, nil), nil, h.unreadCount(r.Context(), a))
+	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, nil), nil, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render form", "error", err)
 	}
@@ -581,11 +581,30 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	violations = append(violations, uniqueViolations...)
 
+	// CAP-F16: a form with embedded child rows validates them together with
+	// the parent -- one combined violations list, so a bad child row blocks
+	// the whole submission exactly like a bad parent field would, before
+	// anything (parent or child) is written.
+	var childLines *model.ChildLinesConfig
+	var childRowsData []map[string]any
+	if fv := h.interp.FormView(machine.ID); fv != nil {
+		childLines = fv.Config.ChildLines
+	}
+	if childLines != nil {
+		rows, rowViolations, err := h.validateChildRows(r.Context(), r, childLines)
+		if err != nil {
+			http.Error(w, "failed to validate child rows", http.StatusInternalServerError)
+			return
+		}
+		childRowsData = rows
+		violations = append(violations, rowViolations...)
+	}
+
 	if len(violations) > 0 {
 		role := h.roleForApp(r, applicationID)
 		h.logRuleViolation(r.Context(), "create", machineID, "", role, h.identity(r), strings.Join(violations, "; "))
 		a := h.auth(r)
-		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a))
+		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
@@ -596,6 +615,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "failed to create record", http.StatusInternalServerError)
 		return
+	}
+	if childLines != nil {
+		if err := h.insertChildRows(r.Context(), childLines, workspaceID, childRowsData, rec.ID); err != nil {
+			http.Error(w, "failed to create child rows", http.StatusInternalServerError)
+			return
+		}
 	}
 	http.Redirect(w, r, "/"+machineID+"/"+rec.ID, http.StatusSeeOther)
 }
@@ -632,7 +657,7 @@ func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a := h.auth(r)
-	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil, h.unreadCount(r.Context(), a))
+	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil, h.unreadCount(r.Context(), a), nil)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render edit form", "error", err)
 	}
@@ -714,7 +739,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		role := h.roleForApp(r, applicationID)
 		h.logRuleViolation(r.Context(), "update", machineID, "", role, h.identity(r), strings.Join(violations, "; "))
 		a := h.auth(r)
-		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a))
+		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), nil)
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
@@ -977,9 +1002,151 @@ func (h *Handler) buildFormFields(ctx context.Context, machine *model.Machine, v
 		case model.FieldTypeUser:
 			opts = h.userFieldOptions(ctx, machine.ApplicationID)
 		}
-		fields = append(fields, ui.FormField{Field: f, Value: val, Options: opts})
+		fields = append(fields, ui.FormField{Field: f, Name: f.ID, Value: val, Options: opts})
 	}
 	return fields
+}
+
+// childRowName (CAP-F16) builds a repeated child-line row's indexed HTML
+// input name -- "child_0_fld_x", "child_1_fld_x", ... -- so a fixed-slot
+// row-editor's fields don't collide with each other or the parent form's
+// own field names. parseChildRows below is this function's exact inverse.
+func childRowName(row int, fieldID string) string {
+	return fmt.Sprintf("child_%d_%s", row, fieldID)
+}
+
+// buildChildLinesData (CAP-F16) builds a form's embedded child-Machine row
+// editor, if the FormView declares one -- MaxRows blank row slots (or
+// MaxRows pre-filled from existingRows on... no: CREATE-time only, see
+// ChildLinesConfig's own doc comment for why edit doesn't use this).
+// existingRows is nil at Create; kept as a param so a future edit-time
+// extension has an obvious seam, not because anything passes it non-nil today.
+func (h *Handler) buildChildLinesData(ctx context.Context, machine *model.Machine) *ui.ChildLinesData {
+	view := h.interp.FormView(machine.ID)
+	if view == nil || view.Config.ChildLines == nil {
+		return nil
+	}
+	cl := view.Config.ChildLines
+	childMachine, ok := h.interp.GetMachine(cl.Machine)
+	if !ok {
+		return nil
+	}
+	fieldByID := fieldIndex(childMachine)
+	maxRows := cl.MaxRows
+	if maxRows <= 0 {
+		maxRows = 10
+	}
+
+	rows := make([][]ui.FormField, maxRows)
+	for i := 0; i < maxRows; i++ {
+		row := make([]ui.FormField, 0, len(cl.Fields))
+		for _, fid := range cl.Fields {
+			f, ok := fieldByID[fid]
+			if !ok || fid == cl.ParentField {
+				continue
+			}
+			var opts []ui.ReferenceOption
+			switch f.Type {
+			case model.FieldTypeReference:
+				opts = h.referenceOptions(ctx, f.Options.TargetMachine)
+			case model.FieldTypeUser:
+				opts = h.userFieldOptions(ctx, childMachine.ApplicationID)
+			}
+			row = append(row, ui.FormField{Field: f, Name: childRowName(i, fid), Options: opts})
+		}
+		rows[i] = row
+	}
+	return &ui.ChildLinesData{Title: childMachine.Name, Rows: rows}
+}
+
+// validateChildRows (CAP-F16) reads every non-empty row the fixed-slot
+// child row editor submitted and validates each against the child
+// Machine's own Constraints (CAP-C01..C12, the same rules a direct Create
+// on that Machine would run) -- except any constraint on ParentField
+// itself, which deliberately isn't set yet here (the parent record this
+// row will reference doesn't exist until AFTER the parent insert that
+// follows a clean validation pass -- see Create's own two-phase call to
+// this then insertChildRows). A row is "empty" (silently skipped, not an
+// error) when every one of its fields was left blank -- matches the UI's
+// own "leave a row blank to skip it" hint. Returned data never has
+// ParentField set; insertChildRows adds it once the parent's real id exists.
+func (h *Handler) validateChildRows(ctx context.Context, r *http.Request, cl *model.ChildLinesConfig) ([]map[string]any, []string, error) {
+	childMachine, ok := h.interp.GetMachine(cl.Machine)
+	if !ok {
+		return nil, nil, fmt.Errorf("child_lines.machine %q not found", cl.Machine)
+	}
+	maxRows := cl.MaxRows
+	if maxRows <= 0 {
+		maxRows = 10
+	}
+
+	var rowsData []map[string]any
+	var violations []string
+	for i := 0; i < maxRows; i++ {
+		data := make(map[string]any)
+		anySet := false
+		for _, fid := range cl.Fields {
+			if fid == cl.ParentField {
+				continue
+			}
+			v := r.FormValue(childRowName(i, fid))
+			if v != "" {
+				data[fid] = v
+				anySet = true
+			}
+		}
+		if !anySet {
+			continue
+		}
+
+		var rowViolations []string
+		for _, c := range childMachine.Constraints {
+			if c.Expression.Field == cl.ParentField || c.Expression.Operator == "unique" {
+				// ParentField's own constraints (e.g. "required") don't
+				// apply yet -- it isn't set until insertChildRows. Uniqueness
+				// needs the database (handler.uniquenessViolations below),
+				// not constraint.Eval, same as everywhere else this
+				// distinction is made.
+				continue
+			}
+			if c.Condition != nil && !constraint.Eval(*c.Condition, data) {
+				continue
+			}
+			if !constraint.Eval(c.Expression, data) {
+				rowViolations = append(rowViolations, c.Rule)
+			}
+		}
+		refViolations, err := h.referenceViolations(ctx, childMachine, data)
+		if err != nil {
+			return nil, nil, err
+		}
+		rowViolations = append(rowViolations, refViolations...)
+		userViolations, err := h.userReferenceViolations(ctx, childMachine, data)
+		if err != nil {
+			return nil, nil, err
+		}
+		rowViolations = append(rowViolations, userViolations...)
+		for _, v := range rowViolations {
+			violations = append(violations, fmt.Sprintf("%s, row %d: %s", childMachine.Name, i+1, v))
+		}
+		rowsData = append(rowsData, data)
+	}
+	return rowsData, violations, nil
+}
+
+// insertChildRows (CAP-F16) writes every validated child row from
+// validateChildRows, stamping ParentField with the just-created parent's
+// real id on each -- called only after that parent insert has succeeded,
+// so every row's back-reference is valid by construction, never a
+// dangling one validateChildRows would have had to reject.
+func (h *Handler) insertChildRows(ctx context.Context, cl *model.ChildLinesConfig, workspaceID string, rowsData []map[string]any, parentID string) error {
+	for _, data := range rowsData {
+		data[cl.ParentField] = parentID
+		if _, err := h.records.Create(ctx, cl.Machine, workspaceID, data); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // childLists finds every Machine with a `reference` field pointing at

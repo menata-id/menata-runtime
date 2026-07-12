@@ -35,9 +35,13 @@ templ StatusBadge(status string) {
 // choices (CAP-F05 — a `user` field is reference-sugar over the workspace's
 // own users, same picker shape, options sourced from UserStore instead of
 // RecordStore by the caller).
-templ FieldInput(f *model.Field, value string, refOptions []ReferenceOption) {
+// name is the HTML input's id/name -- normally f.ID, but CAP-F16's embedded
+// child-line rows pass an indexed name (e.g. "child_0_fld_x") instead, so
+// the same rendering logic serves both a Machine's own form fields and a
+// repeated child row's fields.
+templ FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption) {
 	<div class="space-y-1.5">
-		<label for={ f.ID } class="block text-sm font-medium text-slate-700">
+		<label for={ name } class="block text-sm font-medium text-slate-700">
 			{ f.Name }
 			if f.Required {
 				<span class="text-red-500 ml-0.5">*</span>
@@ -46,8 +50,8 @@ templ FieldInput(f *model.Field, value string, refOptions []ReferenceOption) {
 		switch f.Type {
 		case model.FieldTypeReference, model.FieldTypeUser:
 			<select
-				id={ f.ID }
-				name={ f.ID }
+				id={ name }
+				name={ name }
 				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
 			>
 				<option value="">— select —</option>
@@ -57,15 +61,15 @@ templ FieldInput(f *model.Field, value string, refOptions []ReferenceOption) {
 			</select>
 		case model.FieldTypeRichText:
 			<textarea
-				id={ f.ID }
-				name={ f.ID }
+				id={ name }
+				name={ name }
 				rows="3"
 				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
 			>{ value }</textarea>
 		case model.FieldTypeValueList:
 			<select
-				id={ f.ID }
-				name={ f.ID }
+				id={ name }
+				name={ name }
 				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
 			>
 				<option value="">— select —</option>
@@ -76,26 +80,44 @@ templ FieldInput(f *model.Field, value string, refOptions []ReferenceOption) {
 		case model.FieldTypeDate:
 			<input
 				type="date"
-				id={ f.ID }
-				name={ f.ID }
+				id={ name }
+				name={ name }
 				value={ value }
 				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
 			/>
 		case model.FieldTypeFile:
 			<input
 				type="file"
-				id={ f.ID }
-				name={ f.ID }
+				id={ name }
+				name={ name }
 				class="block w-full text-sm text-slate-600 file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
 			/>
 		default:
 			<input
 				type="text"
-				id={ f.ID }
-				name={ f.ID }
+				id={ name }
+				name={ name }
 				value={ value }
 				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
 			/>
 		}
+	</div>
+}
+
+// ChildLinesSection (CAP-F16) renders a fixed set of repeatable row blocks
+// for a form's embedded child Machine -- Journal Entry Lines inside the
+// Journal Entry form, submitted and validated atomically with the parent.
+// Empty rows are simply ignored by the handler on submit, not rejected.
+templ ChildLinesSection(title string, rows [][]FormField) {
+	<div class="mt-2 space-y-3 border-t border-slate-100 pt-5">
+		<h2 class="text-sm font-semibold text-slate-700">{ title }</h2>
+		for _, row := range rows {
+			<div class="grid grid-cols-1 gap-3 rounded-md border border-slate-200 p-3 sm:grid-cols-2">
+				for _, ff := range row {
+					@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options)
+				}
+			</div>
+		}
+		<p class="text-xs text-slate-400">Leave a row blank to skip it.</p>
 	</div>
 }

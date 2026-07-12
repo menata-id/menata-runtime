@@ -139,6 +139,7 @@ FRANK=$(session_for hr@example.com password)        # HR (app_hr), workspace Adm
 GRACE=$(session_for agent@example.com password)     # Agent (app_customer_service)
 HENRY=$(session_for supervisor@example.com password) # Supervisor (app_customer_service)
 IVAN=$(session_for staff@example.com password)      # Staff (app_ops), workspace Admin (ws_acme)
+IVY=$(session_for accountant@example.com password)  # Accountant (app_accounting)
 
 # Real user ids (CAP-F05) for the four genuine person-reference fields
 # (fld_requester, fld_lr_employee, fld_ad_submitted_by, fld_as_approver) --
@@ -669,6 +670,24 @@ check T61 "CAP-C05" "greater_than rejects a non-positive Sequence" $?
 AS_DUPSEQ_DATA="fld_as_document=$AD_SEQ_ID&fld_as_approver=$CAROL_ID&fld_as_sequence=1"
 post_body_contains "$BASE_URL/mch_approval_step" "$AS_DUPSEQ_DATA" "already has a Step at that Sequence" "$ALICE"
 check T62 "CAP-C12" "composite uniqueness rejects a duplicate (document, sequence) pair" $?
+
+# --- CAP-F16 (line items / child table inside a record) ---
+
+# T63 -- positive: a Journal Entry and both its Lines are created atomically
+# from one form submission (child_N_<field> indexed rows), not N+1 separate
+# Create trips -- the child sub-list (CAP-V06) then shows both on the
+# parent's own detail page.
+JE_DATA="fld_je_date=2026-07-12&fld_je_memo=Conformance+T63&child_0_fld_jel_account=Office+Expense&child_0_fld_jel_debit=100&child_1_fld_jel_account=Cash&child_1_fld_jel_credit=100"
+JE_URL=$(post_redirect "$BASE_URL/mch_journal_entry" "$JE_DATA" "$IVY")
+[ -n "$JE_URL" ] && body_contains "$JE_URL" "Office Expense" "$IVY" && body_contains "$JE_URL" "Cash" "$IVY"
+check T63 "CAP-F16" "Journal Entry and both Lines created atomically from one submission" $?
+
+# T64 -- negative: an invalid child row (Account required, left blank)
+# blocks the WHOLE submission -- no orphan parent, matching this
+# capability's own "atomic-with-parent" promise, not just a UI convenience.
+JE_BAD_DATA="fld_je_date=2026-07-12&fld_je_memo=Conformance+T64&child_0_fld_jel_debit=50"
+post_body_contains "$BASE_URL/mch_journal_entry" "$JE_BAD_DATA" "Journal Entry Line, row 1: Account is required" "$IVY"
+check T64 "CAP-F16" "an invalid child row blocks the whole atomic create, not just that row" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

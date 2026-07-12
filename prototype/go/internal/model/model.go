@@ -197,9 +197,27 @@ const (
 
 // ViewConfig holds view-specific presentation configuration.
 type ViewConfig struct {
-	Fields      []string    `json:"fields,omitempty"`       // form: ordered field ids
-	Columns     []string    `json:"columns,omitempty"`      // list: visible column field ids
-	DefaultSort *SortConfig `json:"default_sort,omitempty"` // list: initial sort
+	Fields      []string          `json:"fields,omitempty"`       // form: ordered field ids
+	Columns     []string          `json:"columns,omitempty"`      // list: visible column field ids
+	DefaultSort *SortConfig       `json:"default_sort,omitempty"` // list: initial sort
+	ChildLines  *ChildLinesConfig `json:"child_lines,omitempty"`  // form: CAP-F16 embedded child rows
+}
+
+// ChildLinesConfig (CAP-F16) declares that a form view also authors N rows
+// of a child Machine atomically with the parent -- Journal Entry + its
+// Lines as one document, not the parent record followed by N separate
+// Create-record trips to the child Machine. Deliberately a fixed-slot,
+// server-rendered design (MaxRows blank row slots, empty ones ignored on
+// submit) rather than JS-driven dynamic add/remove -- matches this
+// prototype's no-SPA-framework posture (HTMX only). CREATE-time only: an
+// existing child row is still edited via its own Machine's ordinary
+// CAP-R02 edit form, the same way Approval Step rows already are -- a
+// deliberate, named scope boundary, not an oversight.
+type ChildLinesConfig struct {
+	Machine     string   `json:"machine"`      // child Machine id
+	ParentField string   `json:"parent_field"` // the child's own `reference` field pointing back at this parent
+	Fields      []string `json:"fields"`       // child fields exposed per row, in order
+	MaxRows     int      `json:"max_rows"`     // fixed number of row slots rendered; 0 defaults to 10
 }
 
 // SortConfig defines the default sort order for a list view.

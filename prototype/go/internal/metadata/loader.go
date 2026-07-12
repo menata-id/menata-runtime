@@ -106,10 +106,12 @@ func validateOperators(workspaces []*model.Workspace) error {
 // discovered as "nobody can ever trigger this event."
 func validateReferences(workspaces []*model.Workspace) error {
 	known := make(map[string]bool)
+	machineByID := make(map[string]*model.Machine)
 	for _, ws := range workspaces {
 		for _, app := range ws.Applications {
 			for _, m := range app.Machines {
 				known[m.ID] = true
+				machineByID[m.ID] = m
 			}
 		}
 	}
@@ -147,6 +149,35 @@ func validateReferences(workspaces []*model.Workspace) error {
 					if f.Type != model.FieldTypeUser {
 						return fmt.Errorf("permission %s on machine %s: owner_field %q must be type \"user\", got %q",
 							p.ID, m.ID, p.OwnerField, f.Type)
+					}
+				}
+
+				// CAP-F16: a form view's child_lines must name a real child
+				// Machine with a real `reference` field pointing back at
+				// this parent -- same "Unknown = explicit" discipline.
+				for _, v := range m.Views {
+					cl := v.Config.ChildLines
+					if cl == nil {
+						continue
+					}
+					child, ok := machineByID[cl.Machine]
+					if !ok {
+						return fmt.Errorf("view %s on machine %s: child_lines.machine %q does not exist", v.ID, m.ID, cl.Machine)
+					}
+					var parentField *model.Field
+					for _, cf := range child.Fields {
+						if cf.ID == cl.ParentField {
+							parentField = cf
+							break
+						}
+					}
+					if parentField == nil {
+						return fmt.Errorf("view %s on machine %s: child_lines.parent_field %q does not name a Field on machine %s",
+							v.ID, m.ID, cl.ParentField, cl.Machine)
+					}
+					if parentField.Type != model.FieldTypeReference || parentField.Options.TargetMachine != m.ID {
+						return fmt.Errorf("view %s on machine %s: child_lines.parent_field %q must be a reference field targeting %s, got type %q targeting %q",
+							v.ID, m.ID, cl.ParentField, m.ID, parentField.Type, parentField.Options.TargetMachine)
 					}
 				}
 			}

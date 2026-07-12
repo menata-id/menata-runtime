@@ -44,8 +44,18 @@ type ReferenceOption struct {
 // Options is only populated for `reference` fields (the picker's choices).
 type FormField struct {
 	Field   *model.Field
+	Name    string // HTML input name/id -- Field.ID normally, or CAP-F16's indexed child-row name
 	Value   string
 	Options []ReferenceOption
+}
+
+// ChildLinesData (CAP-F16) is a form's embedded child-Machine row editor --
+// Title is the child Machine's display name, Rows is one []FormField per
+// fixed row slot (config.ChildLinesConfig.MaxRows of them), each field's
+// Name already indexed (e.g. "child_0_fld_x") by the handler.
+type ChildLinesData struct {
+	Title string
+	Rows  [][]FormField
 }
 
 // DetailField is a resolved name-value pair for the detail view.

@@ -1051,6 +1051,23 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > remaining structural gap, and a prerequisite several later batches (CAP-C10, F17, F19,
 > V13) depend on.
 
+> **Status update (2026-07-12, same day) — Batch 2: CAP-F16 (line items / child table)
+> now ✅ Supported**, the single biggest remaining structural gap per Study 6's own
+> accounting benchmark. A form View gains `config.child_lines`: a fixed-slot,
+> server-rendered row editor for a child Machine that already has an ordinary
+> `reference` field back to its parent — no JS-driven dynamic add/remove, matching this
+> prototype's no-SPA posture. The actual capability is atomicity, not the UI: every child
+> row validates (Constraints, referential integrity, minus its own not-yet-existing
+> parent-reference field) *before* anything writes; parent inserts only once every row is
+> clean, then each child stamped with the parent's real id — a bad row rejects the whole
+> submission, no orphan parent. CAP-V06's existing child sub-list picks the new rows up
+> for free. Proof: new `seeds/008_journal_entry.sql` — Journal Entry + Journal Entry Line,
+> the exact case this capability was named for. Editing an existing child row still uses
+> its own ordinary edit form (Create-time atomic authoring only, named as scope, not
+> silently dropped). Conformance T63–T64, 65/65 passing, verified on an isolated port and
+> live at `aksi.menata.id`. Next: Batch 3, the Actions cluster (CAP-A06/A09/A11/A12/A13/
+> A14/A15).
+
 ---
 
 # Principles

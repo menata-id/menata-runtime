@@ -52,6 +52,7 @@ seed:
 	psql "$(DB_URL)" -f seeds/005_complaint.sql
 	psql "$(DB_URL)" -f seeds/006_second_workspace.sql
 	psql "$(DB_URL)" -f seeds/007_authentication.sql
+	psql "$(DB_URL)" -f seeds/008_journal_entry.sql
 
 # The real test suite (there are no Go unit tests in this codebase -- every
 # capability's proof is here, per capability-registry.md's Proof column).
