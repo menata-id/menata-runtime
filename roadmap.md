@@ -528,6 +528,21 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > manual-only checks `prototype/go/CLAUDE.md` already documents). Still open (unchanged):
 > `record_events` retention/partitioning (Study 8 scale concern); no UI to view the audit
 > trail (CAP-R04's pre-existing scope note).
+>
+> **Status update (2026-07-12, same day) — a real gap the new logging found within
+> minutes of existing:** asked "from the log data that now exists, what needs attention,"
+> three `permission denied` lines all showed the same shape — role `Approver`, identity
+> `Bob`, denied `read` on `mch_approval_document`. Cross-checked against the database:
+> correct read, real gap — CAP-P05's initial grants (Prio 6) only covered the
+> event-triggering direction each role needed (Submitter↔Document, Approver↔Step) and
+> missed that an Approver also needs to *read* the Document their Step belongs to, for
+> context (document type, attached file, ...) before deciding. Fixed the same way
+> `perm_ad_submitter_steps` fixed the reverse-direction gap: a new `perm_ad_approver_read`
+> row (`seeds/004_approval.sql`), read-only. Conformance T44–T45, full suite 46/46.
+> Deployed and verified live at `aksi.menata.id`. This is the first concrete instance of
+> this session's audit-logging work doing its actual job — not just passing its own
+> conformance tests, but surfacing a real, unrelated permission gap from production traffic
+> within the first few log lines that existed.
 
 ---
 

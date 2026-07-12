@@ -73,6 +73,8 @@ export `DATABASE_URL` (same value as the server's `.env`) — it's skipped other
 | T41 | CAP-P05 | same reasoning, denied the Edit form (negative case) |
 | T42 | CAP-R04 | `record_events.performed_by` carries the real acting role/identity, not NULL (DB inspection, same T19 exception) |
 | T43 | CAP-I04 | one request's correlation_id is shared across every `record_events` row it produces, even across a cross-record cascade (DB inspection) |
+| T44 | CAP-P05 | Approver can read Approval Document — needed for context on the Step they're deciding, surfaced by production log data |
+| T45 | CAP-P05 | Approver still denied Create on Approval Document — read-only, not full access (negative case) |
 
 ---
 

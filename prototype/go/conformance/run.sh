@@ -418,6 +418,19 @@ else
     printf 'SKIP  T43  %-22s %s\n' "CAP-I04" "DATABASE_URL not set -- DB inspection unavailable"
 fi
 
+# --- CAP-P05 follow-up fix: Approver could decide a Step but never read the
+# Document it belongs to (surfaced by production log data, not a case) ---
+
+# T44 -- Approver can now read Approval Document (perm_ad_approver_read)
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -H "Cookie: menata_role=Approver; menata_identity=Bob" "$BASE_URL/mch_approval_document")
+[ "$CODE" = "200" ]
+check T44 "CAP-P05" "Approver can read Approval Document, needed for context on the Step they're deciding (got $CODE)" $?
+
+# T45 -- negative: still can't create/edit Documents, read-only
+CODE=$(post_status "$BASE_URL/mch_approval_document" "fld_ad_title=T45" "menata_role=Approver; menata_identity=Bob")
+[ "$CODE" = "403" ]
+check T45 "CAP-P05" "Approver still denied Create on Approval Document -- read-only, not full access (got $CODE)" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

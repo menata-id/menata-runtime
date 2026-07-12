@@ -125,17 +125,27 @@ ON CONFLICT (id) DO NOTHING;
 -- enough. perm_ad_submitter_steps (CAP-P05): the Submitter organizes their
 -- document's approval chain, so they need CRUD access to Approval Step too,
 -- not just Document -- no events of their own, read/create only.
+-- perm_ad_approver_read: the reverse direction of perm_ad_submitter_steps --
+-- an Approver deciding a Step needs to read the Document it belongs to for
+-- context (document type, attached file, ...), not just the Step itself.
+-- Read-only: Approvers don't create or edit Documents, only Submitter/System
+-- do (can_create/can_edit forced false below -- the column default is true).
+-- Machine-level, like every other role's read access in this prototype --
+-- "only Documents this Approver actually has a Step in" would be
+-- record-level read scoping, a capability that doesn't exist yet.
 INSERT INTO permissions (id, machine_id, role, events, owner_field) VALUES
     ('perm_ad_submitter', 'mch_approval_document', 'Submitter', ARRAY['evt_ad_submit','evt_ad_withdraw'], NULL),
     ('perm_ad_system',    'mch_approval_document', 'System',    ARRAY['evt_ad_approve','evt_ad_reject'], NULL),
     ('perm_as_approver',  'mch_approval_step',     'Approver',  ARRAY['evt_as_approve','evt_as_reject'], 'fld_as_approver'),
-    ('perm_ad_submitter_steps', 'mch_approval_step', 'Submitter', ARRAY[]::TEXT[], NULL)
+    ('perm_ad_submitter_steps', 'mch_approval_step', 'Submitter', ARRAY[]::TEXT[], NULL),
+    ('perm_ad_approver_read', 'mch_approval_document', 'Approver', ARRAY[]::TEXT[], NULL)
 ON CONFLICT (id) DO NOTHING;
 
 -- Scoped fixes for databases that already ran the INSERT above before
 -- owner_field/can_create existed (ON CONFLICT DO NOTHING skips them there).
 UPDATE permissions SET owner_field = 'fld_as_approver' WHERE id = 'perm_as_approver' AND owner_field IS NULL;
 UPDATE permissions SET can_create = true, can_read = true WHERE id = 'perm_ad_submitter_steps';
+UPDATE permissions SET can_create = false, can_edit = false WHERE id = 'perm_ad_approver_read';
 
 -- Views
 INSERT INTO views (id, machine_id, name, type, position, config) VALUES
