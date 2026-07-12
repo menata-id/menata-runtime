@@ -381,10 +381,10 @@ own interest instead (Pattern C). This is a separate top-level element, a siblin
 event_subscription:
   id: sub_audit_on_order_placed
   publisher_event: evt_into_placed        # the Event id this reacts to, anywhere in the workspace
-  subscriber_machine: mch_int_audit_log   # the Machine a new record is created on
+  machine: mch_int_audit_log              # the Machine a new record is created on
   fields:
-    subject: fld_into_customer            # same create_record-style field mapping
-    amount: fld_into_total
+    subject: "field:fld_into_customer"    # same create_record-style field mapping -- "field:<id>" copies, anything else is literal/dynamic
+    amount: "field:fld_into_total"
   contract:                               # CAP-I03, optional — same shape as event.condition
     field: fld_into_total
     operator: greater_than
@@ -781,19 +781,33 @@ another Machine, copying/mapping fields from the source record.
 
 ```yaml
 - create_record:
-    target_machine: mch_audit_log
+    machine: mch_audit_log
     fields:
-      subject: fld_title          # copy the source record's fld_title into target's `subject`
-      status: "Logged"            # or a literal
+      subject: "field:fld_title"   # "field:<id>" copies the source record's own field value
+      status: "Logged"             # anything else is a literal or a dynamic token/date-arithmetic expression (same set as set_field.value, minus CAP-A12 "next")
 ```
 
 Two more action types exist beyond the original four-row table (see Event Actions above,
-already updated): `cross_set_field` (CAP-A13, updates a field on a **different**, already-
-existing record reached via a `reference` field) and `batch_generate` (CAP-A15, creates N
-records from one action, count driven by a field or a literal). Any action may be wrapped in
-`if: { field, operator, value }` (CAP-A09) to run only when that condition is true against the
-record's data *after* the event's other `set_field`s would apply — a per-action guard, distinct
-from the event-level `condition` above.
+already updated):
+
+```yaml
+- cross_set_field:            # CAP-A13 -- updates a field on a DIFFERENT, already-existing record
+    record_field: fld_ticket_asset   # a `reference` field ON THIS record naming which other record to update
+    field: fld_asset_status           # the field to change, on that OTHER record
+    value: Retired
+
+- batch_generate:              # CAP-A15 -- creates N records from one action
+    machine: mch_purchase_order_line
+    count: 3                          # or a literal read from `fields` at runtime -- see CAP-A15 in capability-registry.md for the field-driven count case
+    fields:
+      description: "field:fld_pr_description"
+    offset_field: fld_pol_due_date    # optional -- each generated record's copy of this field is offset by `i * 1 <offset_unit>`
+    offset_unit: "Days"
+```
+
+Any action may be wrapped in `if: { field, operator, value }` (CAP-A09) to run only when that
+condition is true against the record's data *after* the event's other `set_field`s would apply
+— a per-action guard, distinct from the event-level `condition` above.
 
 **A `reference` field's `target_machine` must be a real Machine id already present in the
 same load** — including reserved/pseudo targets like `"$identity"` (CAP-F13's still-

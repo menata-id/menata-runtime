@@ -333,7 +333,7 @@ dipicu dari state mana pun.
 | `Status <Nilai>` | `set_field` | `{"field":"fld_*_status","value":"<Nilai>"}` |
 | `Notify <Role>` | `notify` | `{"role":"<Role>"}` — atau `{"recipient_field":"fld_*"}` untuk penerima dinamis (CAP-A04, ✅) |
 | `Record <Nama>` | `record` | `{"name":"<Nama>"}` |
-| — | `create_record` | `{"target_machine":"mch_*","fields":{"<field_target>":"fld_source"}}` — CAP-A06, ✅ diimplementasikan 2026-07-12, membuat record baru di Machine lain |
+| — | `create_record` | `{"machine":"mch_*","fields":{"<field_target>":"field:<fld_source>"}}` — CAP-A06, ✅ diimplementasikan 2026-07-12, membuat record baru di Machine lain. **Key-nya `machine`, BUKAN `target_machine`** (itu cuma dipakai field type `reference`) — dan nilai di `fields` butuh prefix `"field:"` untuk menyalin dari record sumber, kalau tidak dianggap literal |
 | — | `cross_set_field` | mengubah field di record **lain** yang sudah ada, dijangkau lewat field `reference` — CAP-A13, ✅ |
 | — | `batch_generate` | membuat N record sekaligus dari satu action, N dari field atau literal — CAP-A15, ✅ |
 | — (lihat §Machine `config`) | `activate_next` | `{"mode_field":"fld_*_approval_mode"}` — CAP-A07 |
