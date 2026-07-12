@@ -1,28 +1,45 @@
 package ui
 
 import "fmt"
+import "net/url"
 import "menata.id/runtime/internal/model"
 
-templ List(identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, searchQuery string, manualOrder bool) {
+templ List(identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions) {
 	@Page(machine.Name, identity, csrfToken, isAdmin, unreadCount) {
 		<div class="mb-4 flex items-center gap-3">
-			<h1 class="flex-1 text-xl font-semibold text-slate-900">{ machine.Name }</h1>
+			<h1 class="flex-1 text-xl font-semibold text-slate-900">
+				{ machine.Name }
+				if opts.Archived {
+					<span class="ml-2 text-sm font-normal text-slate-400">(Archived)</span>
+				}
+			</h1>
+			if opts.CanDelete {
+				if opts.Archived {
+					<a href={ templ.SafeURL("/" + machine.ID) } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">← Back to list</a>
+				} else {
+					<a href={ templ.SafeURL("/" + machine.ID + "?archived=1") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">View Archive</a>
+				}
+			}
 			<form method="get" action={ templ.SafeURL("/" + machine.ID) } class="flex items-center">
 				<input
 					type="search"
 					name="q"
-					value={ searchQuery }
+					value={ opts.SearchQuery }
 					placeholder="Search..."
 					class="w-48 rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 				/>
 			</form>
-			<a
-				href={ templ.SafeURL("/" + machine.ID + "/new") }
-				class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
-			>
-				<span>+</span>
-				<span>New</span>
-			</a>
+			if !opts.Archived {
+				<a href={ templ.SafeURL("/" + machine.ID + "/export.csv") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">Export</a>
+				<a href={ templ.SafeURL("/" + machine.ID + "/import") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">Import</a>
+				<a
+					href={ templ.SafeURL("/" + machine.ID + "/new") }
+					class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+				>
+					<span>+</span>
+					<span>New</span>
+				</a>
+			}
 		</div>
 		<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
 			<table class="w-full text-sm">
@@ -33,7 +50,10 @@ templ List(identity, csrfToken string, isAdmin bool, machine *model.Machine, col
 								{ col.Name }
 							</th>
 						}
-						if manualOrder {
+						if opts.ManualOrder {
+							<th class="w-px px-4 py-3"></th>
+						}
+						if opts.CanDelete {
 							<th class="w-px px-4 py-3"></th>
 						}
 						<th class="w-px px-4 py-3"></th>
@@ -43,7 +63,11 @@ templ List(identity, csrfToken string, isAdmin bool, machine *model.Machine, col
 					<tbody>
 						<tr>
 							<td colspan={ fmt.Sprintf("%d", len(columns)+1) } class="py-16 text-center text-sm text-slate-400">
-								No records yet. Create the first one.
+								if opts.Archived {
+									Nothing archived.
+								} else {
+									No records yet. Create the first one.
+								}
 							</td>
 						</tr>
 					</tbody>
@@ -64,7 +88,7 @@ templ List(identity, csrfToken string, isAdmin bool, machine *model.Machine, col
 										}
 									</td>
 								}
-								if manualOrder {
+								if opts.ManualOrder {
 									<td class="whitespace-nowrap px-4 py-3">
 										<form method="post" action={ templ.SafeURL("/" + machine.ID + "/" + row.ID + "/move/up") } class="inline">
 											@CSRFField(csrfToken)
@@ -74,6 +98,21 @@ templ List(identity, csrfToken string, isAdmin bool, machine *model.Machine, col
 											@CSRFField(csrfToken)
 											<button type="submit" class="text-xs text-slate-500 hover:text-slate-800" aria-label="Move down">↓</button>
 										</form>
+									</td>
+								}
+								if opts.CanDelete {
+									<td class="whitespace-nowrap px-4 py-3">
+										if opts.Archived {
+											<form method="post" action={ templ.SafeURL("/" + machine.ID + "/" + row.ID + "/restore") } class="inline">
+												@CSRFField(csrfToken)
+												<button type="submit" class="text-xs text-slate-500 hover:text-slate-800">Restore</button>
+											</form>
+										} else {
+											<form method="post" action={ templ.SafeURL("/" + machine.ID + "/" + row.ID + "/archive") } class="inline">
+												@CSRFField(csrfToken)
+												<button type="submit" class="text-xs text-slate-500 hover:text-red-600">Archive</button>
+											</form>
+										}
 									</td>
 								}
 								<td class="px-4 py-3">
@@ -88,5 +127,31 @@ templ List(identity, csrfToken string, isAdmin bool, machine *model.Machine, col
 				}
 			</table>
 		</div>
+		if opts.TotalPages > 1 {
+			<div class="mt-4 flex items-center justify-center gap-4 text-sm text-slate-500">
+				if opts.Page > 1 {
+					<a href={ templ.SafeURL(pageLink(machine.ID, opts, opts.Page-1)) } class="hover:text-slate-800">← Prev</a>
+				} else {
+					<span class="text-slate-300">← Prev</span>
+				}
+				<span>Page { fmt.Sprintf("%d", opts.Page) } of { fmt.Sprintf("%d", opts.TotalPages) }</span>
+				if opts.Page < opts.TotalPages {
+					<a href={ templ.SafeURL(pageLink(machine.ID, opts, opts.Page+1)) } class="hover:text-slate-800">Next →</a>
+				} else {
+					<span class="text-slate-300">Next →</span>
+				}
+			</div>
+		}
 	}
+}
+
+func pageLink(machineID string, opts ListViewOptions, page int) string {
+	link := "/" + machineID + "?page=" + fmt.Sprintf("%d", page)
+	if opts.SearchQuery != "" {
+		link += "&q=" + url.QueryEscape(opts.SearchQuery)
+	}
+	if opts.Archived {
+		link += "&archived=1"
+	}
+	return link
 }

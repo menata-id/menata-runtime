@@ -1176,6 +1176,54 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > T74–T83 added (74 existing + 10 new = 84 total, T52 no longer skipped since production's
 > own RLS is confirmed live), verified on an isolated port against both a schema-isolated
 > copy and production's real data, then live at `aksi.menata.id`.
+>
+> **Status update (2026-07-12, same day) — Batch 5: the Record Lifecycle cluster
+> (CAP-R03/R05/R06/R07/R08) now ✅ Supported**, five capabilities, CAP-R04 (audit log)
+> already shipped earlier and untouched here. CAP-R03 (archive) is a soft delete
+> (`records.deleted_at`) with its own `can_delete` Permission column defaulting `false` —
+> unlike `can_read`/`can_create`/`can_edit`'s historical blanket `true`, deletion earns an
+> explicit opt-in. CAP-R07/R08 turned out to be two ends of one mechanism, not two: both are
+> a `Machine.Config` field/values pair (CAP-X03's existing generic settings, no new migration
+> column) — `immutable_field` freezes Update/Archive once a value_list Field reaches a
+> declared value, `scratch_field` does the opposite, exempting Constraints until the record
+> leaves a declared value. CAP-R08's own "commit point" needed no new code at all: CAP-C09's
+> existing trigger-time re-validation already re-enforces every Constraint the instant an
+> event moves a record out of scratch state — the exact mechanism this capability's own
+> registry note anticipated needing, already built for a different reason two batches ago.
+>
+> **CAP-R05 (pagination) caught a real regression in its own review, not in a fresh test**:
+> slicing a list into 25-row pages silently broke an older conformance test (T70) that
+> scraped a whole Machine's list body expecting every record on it — invisible on a fresh
+> schema, only surfaced once a long-lived Machine this suite reuses run after run finally
+> crossed 25 records. Fixed with a `count_all_pages` test helper that sums across every page
+> instead of assuming page 1 has everything — the kind of gap that specifically needs
+> production's own accumulated history to find, which is exactly why this batch's
+> verification step includes running the full suite against production data on an isolated
+> port before deploying, not just a fresh schema.
+>
+> **A second, unrelated production data issue surfaced by the same full-suite run**: Bob's
+> `app_approval` role had drifted to "Submitter" instead of the seed's own declared
+> "Approver" at some point before this session, breaking T22-T26/T43/T45 (the whole
+> Sequential/Parallel Approval workflow cluster) in a way that had nothing to do with this
+> batch's code. `seeds/007_authentication.sql` is explicitly designed to be idempotent for
+> exactly this (`ON CONFLICT (user_id, application_id) DO UPDATE SET role = EXCLUDED.role`);
+> re-running it fixed the role without touching anything else. Authorized directly, the same
+> as this session's earlier direct-DB fixes.
+>
+> **CAP-R06 (CSV import) found a real, previously-invisible bug in shared middleware**:
+> `cmd/server/main.go`'s CSRF check called `r.ParseForm()` before reading `csrf_token` via
+> `r.FormValue` — harmless for every request this codebase had ever sent, but `ParseForm` on
+> a `multipart/form-data` request still sets `r.Form` (to the query string alone), which
+> makes `FormValue` skip its own multipart-aware re-parse afterward. CSV upload is the first
+> multipart request this codebase has ever made, so the bug had no way to surface before now.
+> Fixed by branching the parse on Content-Type.
+>
+> One new seed file (`seeds/011_record_lifecycle_lab.sql`, four Machines: Ticket, Document,
+> Ledger Entry, Cart) — deliberately metadata-only, no seeded `records` rows, matching every
+> prior seed file's own convention (no natural key to guard a re-run). Conformance T84–T92
+> added (84 existing + 9 new... plus T70's fix = 93 total), verified on an isolated port
+> against both a fresh schema and production's real data (twice, catching both regressions
+> above), then live at `aksi.menata.id`.
 
 ---
 

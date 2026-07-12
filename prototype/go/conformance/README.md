@@ -126,6 +126,15 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T81 | CAP-V12 | a wizard's step 1 submission advances to step 2, carrying step 1's values forward as hidden inputs |
 | T82 | CAP-V12 | a wizard's final step creates one record combining every step's fields |
 | T83 | CAP-V14 | moving a record up swaps its position with its immediate predecessor |
+| T84 | CAP-R03 | an archived record leaves the live list and is reachable via `?archived=1` |
+| T85 | CAP-R03 | restoring an archived record returns it to the live list |
+| T86 | CAP-R05 | a list with more than 25 records paginates, page indicator reflects it |
+| T87 | CAP-R06 | CSV export includes a real record's own field values |
+| T88 | CAP-R06 | CSV import creates a valid row and reports a specific per-row failure for an invalid one, in the same file |
+| T89 | CAP-R07 | a Draft (not yet immutable) record can still be edited |
+| T90 | CAP-R07 | a Posted (immutable) record rejects both Update and Archive — every mutation path, not just events (negative case) |
+| T91 | CAP-R08 | a record created directly into its declared scratch state skips normally-blocking Constraints |
+| T92 | CAP-R08 | the same incomplete scratch record rejects the event that would commit it out of scratch state, then succeeds once fixed |
 
 ---
 

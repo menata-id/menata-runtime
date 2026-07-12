@@ -196,6 +196,7 @@ type Permission struct {
 	CanRead    bool
 	CanCreate  bool
 	CanEdit    bool
+	CanDelete  bool // CAP-R03 -- defaults false at the DB level, unlike the other three
 }
 
 // View describes how a Machine's data is presented.

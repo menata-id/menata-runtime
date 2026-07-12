@@ -19,6 +19,7 @@ type Record struct {
 	Data      map[string]any
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	DeletedAt *time.Time // CAP-R03 -- non-nil means archived (soft-deleted)
 }
 
 type RecordStore struct {
@@ -98,15 +99,38 @@ func (s *RecordStore) List(ctx context.Context, machineID, sortField, sortDirect
 		orderBy = fmt.Sprintf(`data->>$2 %s NULLS LAST, created_at DESC`, dir)
 		args = append(args, sortField)
 	}
+	// CAP-R03: archived records are excluded everywhere List is used --
+	// child lists, sibling lookups, reference pickers, and the main list
+	// view all agree an archived record isn't a live candidate for any of
+	// those. ListArchived below is the one explicit exception (viewing the
+	// archive itself).
 	rows, err := s.db(ctx).Query(ctx,
 		fmt.Sprintf(`SELECT id, machine_id, data, created_at, updated_at
-		 FROM records WHERE machine_id = $1 ORDER BY %s`, orderBy),
+		 FROM records WHERE machine_id = $1 AND deleted_at IS NULL ORDER BY %s`, orderBy),
 		args...)
 	if err != nil {
 		return nil, fmt.Errorf("list records: %w", err)
 	}
 	defer rows.Close()
+	return scanRecords(rows)
+}
 
+// ListArchived (CAP-R03) is List's mirror image -- only archived records,
+// newest-archived first, for the one View that needs to show the archive
+// itself so a soft-deleted record can be found and restored.
+func (s *RecordStore) ListArchived(ctx context.Context, machineID string) ([]*Record, error) {
+	rows, err := s.db(ctx).Query(ctx,
+		`SELECT id, machine_id, data, created_at, updated_at
+		 FROM records WHERE machine_id = $1 AND deleted_at IS NOT NULL ORDER BY deleted_at DESC`,
+		machineID)
+	if err != nil {
+		return nil, fmt.Errorf("list archived records: %w", err)
+	}
+	defer rows.Close()
+	return scanRecords(rows)
+}
+
+func scanRecords(rows pgx.Rows) ([]*Record, error) {
 	var out []*Record
 	for rows.Next() {
 		r := &Record{}
@@ -126,8 +150,8 @@ func (s *RecordStore) Get(ctx context.Context, id string) (*Record, error) {
 	r := &Record{}
 	var dataJSON []byte
 	err := s.db(ctx).QueryRow(ctx,
-		`SELECT id, machine_id, data, created_at, updated_at FROM records WHERE id = $1`,
-		id).Scan(&r.ID, &r.MachineID, &dataJSON, &r.CreatedAt, &r.UpdatedAt)
+		`SELECT id, machine_id, data, created_at, updated_at, deleted_at FROM records WHERE id = $1`,
+		id).Scan(&r.ID, &r.MachineID, &dataJSON, &r.CreatedAt, &r.UpdatedAt, &r.DeletedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get record %s: %w", id, err)
 	}
@@ -135,6 +159,19 @@ func (s *RecordStore) Get(ctx context.Context, id string) (*Record, error) {
 		return nil, fmt.Errorf("parse data: %w", err)
 	}
 	return r, nil
+}
+
+// Archive/Restore (CAP-R03): a soft delete, not a hard DELETE -- consistent
+// with CAP-R04's append-only record_events audit trail, which would be
+// left pointing at nothing by a real delete.
+func (s *RecordStore) Archive(ctx context.Context, id string) error {
+	_, err := s.db(ctx).Exec(ctx, `UPDATE records SET deleted_at = NOW() WHERE id = $1`, id)
+	return err
+}
+
+func (s *RecordStore) Restore(ctx context.Context, id string) error {
+	_, err := s.db(ctx).Exec(ctx, `UPDATE records SET deleted_at = NULL WHERE id = $1`, id)
+	return err
 }
 
 // Create inserts a new record. workspaceID (CAP-X06, resolved by the caller

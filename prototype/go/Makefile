@@ -32,6 +32,7 @@ migrate-up:
 	psql "$(DB_URL)" -f migrations/008_workspace_isolation_schema.sql
 	psql "$(DB_URL)" -f migrations/010_authentication.sql
 	psql "$(DB_URL)" -f migrations/011_manual_ordering.sql
+	psql "$(DB_URL)" -f migrations/012_record_lifecycle.sql
 
 # CAP-X06 enforcement flip -- deliberately NOT part of migrate-up. Apply only
 # at final cutover, in the same deploy window as restarting with the binary
@@ -56,6 +57,7 @@ seed:
 	psql "$(DB_URL)" -f seeds/008_journal_entry.sql
 	psql "$(DB_URL)" -f seeds/009_action_lab.sql
 	psql "$(DB_URL)" -f seeds/010_views_lab.sql
+	psql "$(DB_URL)" -f seeds/011_record_lifecycle_lab.sql
 
 # The real test suite (there are no Go unit tests in this codebase -- every
 # capability's proof is here, per capability-registry.md's Proof column).

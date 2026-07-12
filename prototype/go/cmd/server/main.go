@@ -301,7 +301,21 @@ func csrfProtect(next http.Handler) http.Handler {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
-		if err := r.ParseForm(); err != nil {
+		// CAP-R06: a multipart/form-data POST (CSV upload) needs
+		// ParseMultipartForm, not ParseForm -- ParseForm only reads the
+		// body for application/x-www-form-urlencoded, but it still sets
+		// r.Form (to the query string alone), and FormValue skips its own
+		// parse step once r.Form is already non-nil -- so calling plain
+		// ParseForm first would silently make csrf_token unreadable on any
+		// multipart POST from here on. ParseMultipartForm itself errors on
+		// a non-multipart request, so this has to branch on Content-Type,
+		// not just always call the multipart-aware parser.
+		if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+			if err := r.ParseMultipartForm(32 << 20); err != nil {
+				http.Error(w, "bad request", http.StatusBadRequest)
+				return
+			}
+		} else if err := r.ParseForm(); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}

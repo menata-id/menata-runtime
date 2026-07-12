@@ -519,7 +519,7 @@ func (l *Loader) loadConstraints(ctx context.Context, machineID string) ([]*mode
 
 func (l *Loader) loadPermissions(ctx context.Context, machineID string) ([]*model.Permission, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, machine_id, role, events, owner_field, can_read, can_create, can_edit
+		`SELECT id, machine_id, role, events, owner_field, can_read, can_create, can_edit, can_delete
 		 FROM permissions WHERE machine_id = $1`,
 		machineID)
 	if err != nil {
@@ -531,7 +531,7 @@ func (l *Loader) loadPermissions(ctx context.Context, machineID string) ([]*mode
 	for rows.Next() {
 		p := &model.Permission{}
 		var ownerField *string
-		if err := rows.Scan(&p.ID, &p.MachineID, &p.Role, &p.Events, &ownerField, &p.CanRead, &p.CanCreate, &p.CanEdit); err != nil {
+		if err := rows.Scan(&p.ID, &p.MachineID, &p.Role, &p.Events, &ownerField, &p.CanRead, &p.CanCreate, &p.CanEdit, &p.CanDelete); err != nil {
 			return nil, err
 		}
 		if ownerField != nil {

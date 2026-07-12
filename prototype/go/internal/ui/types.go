@@ -138,6 +138,29 @@ type DashboardBreakdown struct {
 	Count int
 }
 
+// ListViewOptions bundles the list View's non-column behaviors (CAP-R03
+// archive/restore, CAP-R05 pagination, CAP-V08 search, CAP-V14 manual
+// order) into one param instead of a growing, easy-to-misorder positional
+// bool/int list on List itself.
+type ListViewOptions struct {
+	SearchQuery string
+	ManualOrder bool // CAP-V14
+	Archived    bool // CAP-R03: true = viewing the archive itself, not the live list
+	CanDelete   bool // CAP-R03: render Archive/Restore controls at all
+	Page        int  // CAP-R05, 1-indexed
+	TotalPages  int  // CAP-R05
+}
+
+// ImportRowResult (CAP-R06) is one CSV row's outcome -- Message is either
+// the violation text (Success == false) or the newly created record's id
+// (Success == true), since each row is created independently and one bad
+// row doesn't block the rest of the file.
+type ImportRowResult struct {
+	Row     int
+	Success bool
+	Message string
+}
+
 // NotificationItem is one row on the Notifications page (CAP-A10). Link is
 // empty when the triggering record can't be resolved (shouldn't normally
 // happen, but a Notification row outlives the record it points to being

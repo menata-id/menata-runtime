@@ -66,3 +66,16 @@ func (g *Guard) CanEdit(machine *model.Machine, role string) bool {
 	}
 	return false
 }
+
+// CanDelete (CAP-R03) -- same deny-by-default CRUD tier as the other three,
+// but the underlying Permission column defaults to false, not true
+// (migrations/012): archiving is materially more dangerous than editing
+// and deserves an explicit opt-in per Permission row.
+func (g *Guard) CanDelete(machine *model.Machine, role string) bool {
+	for _, perm := range machine.Permissions {
+		if perm.Role == role && perm.CanDelete {
+			return true
+		}
+	}
+	return false
+}

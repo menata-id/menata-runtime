@@ -102,6 +102,28 @@ get_body() { # <url> <jar> -> echoes response body
     curl -s -b "$2" "$1"
 }
 
+# count_all_pages <url> <needle> <jar> -> echoes total occurrences of
+# needle across EVERY page of a CAP-R05 paginated list, not just the
+# default first page -- a plain get_body|grep only sees page 1, which
+# silently undercounts (and makes a before/after delta wrong) once a
+# Machine this suite reuses across many runs accumulates more than one
+# page's worth of records. Reads "Page 1 of N" off the first response to
+# learn N, then fetches 2..N.
+count_all_pages() {
+    local url="$1" needle="$2" jar="$3"
+    local first total pages count
+    first=$(curl -s -b "$jar" "$url?page=1")
+    count=$(echo "$first" | grep -o "$needle" | wc -l)
+    pages=$(echo "$first" | grep -oE 'Page [0-9]+ of [0-9]+' | grep -oE '[0-9]+$')
+    pages=${pages:-1}
+    local p=2
+    while [ "$p" -le "$pages" ]; do
+        count=$((count + $(curl -s -b "$jar" "$url?page=$p" | grep -o "$needle" | wc -l)))
+        p=$((p + 1))
+    done
+    echo "$count"
+}
+
 # user_option_id <form_url> <jar> <display_name> -> echoes the real user id
 # backing a `user` field's picker option whose visible text is exactly
 # display_name (CAP-F05 -- these fields now store a real users.id, not a
@@ -142,6 +164,7 @@ IVAN=$(session_for staff@example.com password)      # Staff (app_ops), workspace
 IVY=$(session_for accountant@example.com password)  # Accountant (app_accounting)
 PAM=$(session_for pm@example.com password)          # PM (app_action_lab)
 VERA=$(session_for vera@example.com password)       # Member (app_views_lab)
+REX=$(session_for rex@example.com password)         # Member (app_record_lifecycle)
 
 # Real user ids (CAP-F05) for the four genuine person-reference fields
 # (fld_requester, fld_lr_employee, fld_ad_submitted_by, fld_as_approver) --
@@ -697,7 +720,7 @@ AL_PROJ_URL=$(post_redirect "$BASE_URL/mch_al_project" "fld_alp_name=Conformance
 AL_PROJ_ID="${AL_PROJ_URL##*/}"
 AL_TASK_URL=$(post_redirect "$BASE_URL/mch_al_task" "fld_alt_title=Ship+the+thing&fld_alt_priority=Urgent&fld_alt_stage=Todo&fld_alt_project=$AL_PROJ_ID" "$PAM")
 AL_TASK_ID="${AL_TASK_URL##*/}"
-AL_TASKS_BEFORE=$(get_body "$BASE_URL/mch_al_task" "$PAM" | grep -o "Follow-up" | wc -l)
+AL_TASKS_BEFORE=$(count_all_pages "$BASE_URL/mch_al_task" "Follow-up" "$PAM")
 post_status "$BASE_URL/mch_al_task/$AL_TASK_ID/events/evt_al_task_complete" "" "$PAM" >/dev/null
 
 # T65 -- CAP-A12: Stage steps to the next declared value_list option (Todo ->
@@ -726,7 +749,7 @@ body_contains "$AL_PROJ_URL" "$(date +%Y-%m-%d)" "$PAM"
 check T69 "CAP-A13" "cross_set_field updates a field on a DIFFERENT record via a reference field" $?
 
 # T70 -- CAP-A15: batch_generate created 2 new Tasks from one action.
-AL_TASKS_AFTER=$(get_body "$BASE_URL/mch_al_task" "$PAM" | grep -o "Follow-up" | wc -l)
+AL_TASKS_AFTER=$(count_all_pages "$BASE_URL/mch_al_task" "Follow-up" "$PAM")
 [ "$((AL_TASKS_AFTER - AL_TASKS_BEFORE))" = "2" ]
 check T70 "CAP-A15" "batch_generate creates N records from one action (got $((AL_TASKS_AFTER - AL_TASKS_BEFORE)), want 2)" $?
 
@@ -849,6 +872,85 @@ post_status "$BASE_URL/mch_vl_backlog/$B2_ID/move/up" "" "$VERA" >/dev/null
 AFTER=$(get_body "$BASE_URL/mch_vl_backlog" "$VERA" | grep -o "Item [AB] $$" | head -1)
 [ "$BEFORE" = "Item A $$" ] && [ "$AFTER" = "Item B $$" ]
 check T83 "CAP-V14" "moving a record up swaps it with its predecessor (before=$BEFORE, after=$AFTER)" $?
+
+# --- Batch 5: Record Lifecycle (2026-07-12) ---
+# seeds/011_record_lifecycle_lab.sql. CAP-R04 (audit log) shipped earlier,
+# not part of this batch.
+
+# T84 -- CAP-R03: an archived record disappears from the live list but is
+# reachable via ?archived=1.
+RLT_URL=$(post_redirect "$BASE_URL/mch_rl_ticket" "fld_rlt_title=Archive+Target+$$" "$REX")
+RLT_ID="${RLT_URL##*/}"
+post_status "$BASE_URL/mch_rl_ticket/$RLT_ID/archive" "" "$REX" >/dev/null
+! body_contains "$BASE_URL/mch_rl_ticket" "Archive Target $$" "$REX" && \
+    body_contains "$BASE_URL/mch_rl_ticket?archived=1" "Archive Target $$" "$REX"
+check T84 "CAP-R03" "an archived record leaves the live list and appears under ?archived=1" $?
+
+# T85 -- CAP-R03: restoring an archived record returns it to the live list.
+post_status "$BASE_URL/mch_rl_ticket/$RLT_ID/restore" "" "$REX" >/dev/null
+body_contains "$BASE_URL/mch_rl_ticket" "Archive Target $$" "$REX"
+check T85 "CAP-R03" "restoring an archived record returns it to the live list" $?
+
+# T86 -- CAP-R05: pagination splits a list into pages of 25 -- creates 26
+# fresh records (guaranteeing a second page exists even on a database this
+# suite has never touched before) and checks the page indicator, not an
+# absolute row count that would drift as this suite re-runs.
+for i in $(seq 1 26); do
+    post_redirect "$BASE_URL/mch_rl_ticket" "fld_rlt_title=Page+Item+$$-$i" "$REX" >/dev/null
+done
+PAGE1=$(get_body "$BASE_URL/mch_rl_ticket?page=1" "$REX")
+echo "$PAGE1" | grep -qE 'Page 1 of [2-9][0-9]*'
+check T86 "CAP-R05" "a list with more than 25 records paginates into multiple pages" $?
+
+# T87 -- CAP-R06: CSV export contains a real record's own field value.
+RLD_URL=$(post_redirect "$BASE_URL/mch_rl_document" "fld_rld_title=Export+Me+$$&fld_rld_amount=42" "$REX")
+body_contains "$BASE_URL/mch_rl_document/export.csv" "Export Me $$,42" "$REX"
+check T87 "CAP-R06" "CSV export includes a real record's field values" $?
+
+# T88 -- CAP-R06: CSV import creates a valid row and reports a specific
+# per-row failure for an invalid one, in the same file -- one bad row
+# doesn't block the rest.
+RLD_CSRF=$(csrf_for "$REX")
+printf 'fld_rld_title,fld_rld_amount\nImport+OK+%s,7\n,9\n' "$$" > "$SESSION_DIR/import_$$.csv"
+IMPORT_BODY=$(curl -s -b "$REX" -F "csrf_token=$RLD_CSRF" -F "file=@$SESSION_DIR/import_$$.csv" \
+    "$BASE_URL/mch_rl_document/import")
+echo "$IMPORT_BODY" | grep -q "1 created, 1 failed" && echo "$IMPORT_BODY" | grep -q "Title is required"
+check T88 "CAP-R06" "CSV import creates the valid row and reports the invalid row's own violation" $?
+
+# T89 -- CAP-R07: a Draft (not yet immutable) Ledger Entry can still be
+# edited normally.
+RLLE_URL=$(post_redirect "$BASE_URL/mch_rl_ledger_entry" "fld_rlle_memo=Rent+$$" "$REX")
+CODE=$(post_status "$RLLE_URL" "fld_rlle_memo=Rent+Updated+$$" "$REX")
+[ "$CODE" = "303" ]
+check T89 "CAP-R07" "a Draft (not yet immutable) record can still be edited (got $CODE)" $?
+
+# T90 -- CAP-R07 negative: once Posted, the SAME record rejects both a
+# direct Update and an Archive -- frozen against every mutation path, not
+# just events.
+RLLE_ID="${RLLE_URL##*/}"
+post_status "$BASE_URL/mch_rl_ledger_entry/$RLLE_ID/events/evt_rlle_post" "" "$REX" >/dev/null
+UPDATE_CODE=$(post_status "$RLLE_URL" "fld_rlle_memo=Sneaky+$$" "$REX")
+ARCHIVE_CODE=$(post_status "$BASE_URL/mch_rl_ledger_entry/$RLLE_ID/archive" "" "$REX")
+[ "$UPDATE_CODE" = "403" ] && [ "$ARCHIVE_CODE" = "403" ]
+check T90 "CAP-R07" "a Posted (immutable) record rejects both Update and Archive (got $UPDATE_CODE/$ARCHIVE_CODE)" $?
+
+# T91 -- CAP-R08: a record created directly into its declared scratch state
+# (Cart) is NOT rejected for missing/invalid fields that would otherwise
+# violate this Machine's own Constraints.
+CART_CODE=$(post_status "$BASE_URL/mch_rl_cart" "" "$REX")
+[ "$CART_CODE" = "303" ]
+check T91 "CAP-R08" "a record created into scratch state skips normally-blocking Constraints (got $CART_CODE)" $?
+
+# T92 -- CAP-R08: the SAME incomplete Cart rejects Checkout (the commit
+# point re-enforces Constraints, CAP-C09's existing mechanism) -- then
+# succeeds once fixed while still in scratch state.
+CART_URL=$(post_redirect "$BASE_URL/mch_rl_cart" "" "$REX")
+CART_ID="${CART_URL##*/}"
+CHECKOUT_BEFORE=$(post_status "$BASE_URL/mch_rl_cart/$CART_ID/events/evt_rlc_checkout" "" "$REX")
+post_status "$CART_URL" "fld_rlc_item=Widget+$$&fld_rlc_quantity=3" "$REX" >/dev/null
+CHECKOUT_AFTER=$(post_status "$BASE_URL/mch_rl_cart/$CART_ID/events/evt_rlc_checkout" "" "$REX")
+[ "$CHECKOUT_BEFORE" = "400" ] && [ "$CHECKOUT_AFTER" = "303" ]
+check T92 "CAP-R08" "checkout on an incomplete Cart is rejected, succeeds once fixed (got $CHECKOUT_BEFORE/$CHECKOUT_AFTER)" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

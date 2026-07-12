@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -441,16 +442,27 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		cols = append(cols, def)
 	}
 
-	sortField, sortDir := "", ""
-	if view != nil && view.Config.ManualOrder {
-		// CAP-V14 wins over DefaultSort when both are declared on the same
-		// View -- manual order only means anything if it's what's actually
-		// shown.
-		sortField = store.SortOrderField
-	} else if view != nil && view.Config.DefaultSort != nil {
-		sortField, sortDir = view.Config.DefaultSort.Field, view.Config.DefaultSort.Direction
+	// CAP-R03: ?archived=1 shows the archive itself (ListArchived) instead
+	// of the live list -- the one place a soft-deleted record can still be
+	// found and restored. Sort/filter/search/pagination below all apply the
+	// same way to either set.
+	archived := r.URL.Query().Get("archived") == "1"
+	var records []*store.Record
+	var err error
+	if archived {
+		records, err = h.records.ListArchived(r.Context(), machineID)
+	} else {
+		sortField, sortDir := "", ""
+		if view != nil && view.Config.ManualOrder {
+			// CAP-V14 wins over DefaultSort when both are declared on the same
+			// View -- manual order only means anything if it's what's actually
+			// shown.
+			sortField = store.SortOrderField
+		} else if view != nil && view.Config.DefaultSort != nil {
+			sortField, sortDir = view.Config.DefaultSort.Field, view.Config.DefaultSort.Direction
+		}
+		records, err = h.records.List(r.Context(), machineID, sortField, sortDir)
 	}
-	records, err := h.records.List(r.Context(), machineID, sortField, sortDir)
 	if err != nil {
 		http.Error(w, "failed to load records", http.StatusInternalServerError)
 		return
@@ -504,6 +516,35 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		records = kept
 	}
 
+	// CAP-R05: pagination applies AFTER filter/search, on the final matching
+	// set, not as a SQL LIMIT/OFFSET before them -- otherwise a filter could
+	// discard most of one SQL page and never see matching rows sitting on
+	// the next one. In-memory slicing costs nothing extra at this
+	// prototype's scale, the same tradeoff CAP-V08/V09's own in-memory
+	// filtering already made.
+	const pageSize = 25
+	pageNum, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if pageNum < 1 {
+		pageNum = 1
+	}
+	totalRecords := len(records)
+	totalPages := (totalRecords + pageSize - 1) / pageSize
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if pageNum > totalPages {
+		pageNum = totalPages
+	}
+	start := (pageNum - 1) * pageSize
+	end := start + pageSize
+	if start > totalRecords {
+		start = totalRecords
+	}
+	if end > totalRecords {
+		end = totalRecords
+	}
+	records = records[start:end]
+
 	rows := make([]ui.ListRow, 0, len(records))
 	for _, rec := range records {
 		cells := make([]ui.ListCell, len(colIDs))
@@ -534,11 +575,77 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, ui.ListRow{ID: rec.ID, Cells: cells})
 	}
 
-	manualOrder := view != nil && view.Config.ManualOrder
+	opts := ui.ListViewOptions{
+		SearchQuery: searchQuery,
+		ManualOrder: view != nil && view.Config.ManualOrder,
+		Archived:    archived,
+		CanDelete:   h.guard.CanDelete(machine, role),
+		Page:        pageNum,
+		TotalPages:  totalPages,
+	}
 	a := h.auth(r)
-	page := ui.List(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), searchQuery, manualOrder)
+	page := ui.List(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render list", "error", err)
+	}
+}
+
+// Archive/Restore (CAP-R03) soft-delete/undelete a record. CanDelete-gated
+// -- a distinct, opt-in permission tier from CanEdit (migrations/012's own
+// note on why can_delete defaults false).
+func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
+	h.setDeleted(w, r, true)
+}
+
+func (h *Handler) Restore(w http.ResponseWriter, r *http.Request) {
+	h.setDeleted(w, r, false)
+}
+
+func (h *Handler) setDeleted(w http.ResponseWriter, r *http.Request, deleted bool) {
+	machineID := chi.URLParam(r, "machineID")
+	recordID := chi.URLParam(r, "recordID")
+	machine, ok := h.interp.GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanDelete(machine, role) {
+		h.logPermissionDenied(r.Context(), "delete", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	// CAP-R07: an immutable record can't be archived either (not restored
+	// -- undeleting isn't a business-data mutation), same gate Update uses
+	// -- "frozen" means frozen against every mutation path, not just field
+	// edits.
+	if deleted {
+		if rec, err := h.records.Get(r.Context(), recordID); err == nil && rec.MachineID == machineID {
+			if reason := h.immutabilityViolation(machine, rec.Data); reason != "" {
+				http.Error(w, reason, http.StatusForbidden)
+				return
+			}
+		}
+	}
+	var err error
+	if deleted {
+		err = h.records.Archive(r.Context(), recordID)
+	} else {
+		err = h.records.Restore(r.Context(), recordID)
+	}
+	if err != nil {
+		http.Error(w, "failed to update record", http.StatusInternalServerError)
+		return
+	}
+	if deleted {
+		http.Redirect(w, r, "/"+machineID, http.StatusSeeOther)
+	} else {
+		http.Redirect(w, r, "/"+machineID+"/"+recordID, http.StatusSeeOther)
 	}
 }
 
@@ -791,6 +898,198 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// csvFieldIDs (CAP-R06) returns the field ids export/import agree on --
+// the FormView's own Fields, the same set Create/Update read from, kept
+// symmetric so an exported CSV re-imports cleanly. Header row uses field
+// ids, not display Names -- unambiguous and machine-inspectable, the same
+// "ids are the interchange format" choice CAP-F05 already made.
+func (h *Handler) csvFieldIDs(machine *model.Machine) []string {
+	if fv := h.interp.FormView(machine.ID); fv != nil {
+		return fv.Config.Fields
+	}
+	return nil
+}
+
+// ExportCSV (CAP-R06) streams every live (non-archived) record on
+// machineID as CSV -- CanRead-gated, same tier as viewing the list itself.
+func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	machine, ok := h.interp.GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanRead(machine, role) {
+		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	records, err := h.records.List(r.Context(), machineID, "", "")
+	if err != nil {
+		http.Error(w, "failed to load records", http.StatusInternalServerError)
+		return
+	}
+	fieldIDs := h.csvFieldIDs(machine)
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+machineID+`.csv"`)
+	cw := csv.NewWriter(w)
+	if err := cw.Write(fieldIDs); err != nil {
+		return
+	}
+	for _, rec := range records {
+		row := make([]string, len(fieldIDs))
+		for i, id := range fieldIDs {
+			if v, ok := rec.Data[id]; ok {
+				row[i] = fmt.Sprintf("%v", v)
+			}
+		}
+		if err := cw.Write(row); err != nil {
+			return
+		}
+	}
+	cw.Flush()
+}
+
+// ImportCSVForm (CAP-R06) renders the CSV upload page.
+func (h *Handler) ImportCSVForm(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	machine, ok := h.interp.GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanCreate(machine, role) {
+		h.logPermissionDenied(r.Context(), "create", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	a := h.auth(r)
+	page := ui.ImportCSV(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, h.csvFieldIDs(machine), nil, h.unreadCount(r.Context(), a))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render import form", "error", err)
+	}
+}
+
+// ImportCSV (CAP-R06) bulk-creates records from an uploaded CSV, one HTTP
+// request. Each row is INDEPENDENT -- unlike CAP-F16's atomic parent+child
+// create, one bad row is reported and skipped, not a reason to reject every
+// other row in the file. Every row goes through the exact same validation
+// pipeline Create uses (Violations, referenceViolations,
+// userReferenceViolations, uniquenessViolations, including CAP-R08's
+// scratch-state exemption) -- CSV import is not a side door around
+// ordinary Create rules. Rows are created one at a time, in file order, so
+// a uniqueness check on row N correctly sees rows already imported earlier
+// in the same file, not just what existed in the database beforehand.
+func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	machine, ok := h.interp.GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanCreate(machine, role) {
+		h.logPermissionDenied(r.Context(), "create", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	if err := r.ParseMultipartForm(5 << 20); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "no file uploaded", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	cr := csv.NewReader(file)
+	header, err := cr.Read()
+	if err != nil {
+		http.Error(w, "empty or malformed CSV", http.StatusBadRequest)
+		return
+	}
+	fieldByID := fieldIndex(machine)
+	headerFields := map[string]bool{}
+	for _, id := range header {
+		headerFields[id] = true
+	}
+
+	var results []ui.ImportRowResult
+	rowNum := 1
+	for {
+		record, err := cr.Read()
+		if err != nil {
+			break
+		}
+		rowNum++
+
+		data := make(map[string]any)
+		for _, f := range machine.Fields {
+			if !headerFields[f.ID] && f.Type == model.FieldTypeValueList && len(f.Options.Values) > 0 {
+				data[f.ID] = f.Options.Values[0]
+			}
+		}
+		for i, id := range header {
+			if i < len(record) && record[i] != "" {
+				if _, ok := fieldByID[id]; ok {
+					data[id] = record[i]
+				}
+			}
+		}
+
+		var violations []string
+		if !h.inScratchState(machine, data) {
+			violations = h.engine.Violations(machine, data)
+		}
+		if refV, err := h.referenceViolations(r.Context(), machine, data); err == nil {
+			violations = append(violations, refV...)
+		}
+		if userV, err := h.userReferenceViolations(r.Context(), machine, data); err == nil {
+			violations = append(violations, userV...)
+		}
+		if uniqueV, err := h.uniquenessViolations(r.Context(), machine, data, ""); err == nil {
+			violations = append(violations, uniqueV...)
+		}
+
+		if len(violations) > 0 {
+			results = append(results, ui.ImportRowResult{Row: rowNum, Success: false, Message: strings.Join(violations, "; ")})
+			continue
+		}
+		rec, err := h.records.Create(r.Context(), machineID, workspaceID, data)
+		if err != nil {
+			results = append(results, ui.ImportRowResult{Row: rowNum, Success: false, Message: "failed to create record"})
+			continue
+		}
+		results = append(results, ui.ImportRowResult{Row: rowNum, Success: true, Message: rec.ID})
+	}
+
+	a := h.auth(r)
+	page := ui.ImportCSV(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, h.csvFieldIDs(machine), results, h.unreadCount(r.Context(), a))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render import results", "error", err)
+	}
+}
+
 // NewForm — form for creating a new record.
 func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
@@ -918,7 +1217,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	violations := h.engine.Violations(machine, data)
+	// CAP-R08: see the matching comment in Update -- a record created
+	// directly into its declared "scratch" state skips business-rule
+	// Constraints too (referential integrity still applies, below).
+	var violations []string
+	if !h.inScratchState(machine, data) {
+		violations = h.engine.Violations(machine, data)
+	}
 	refViolations, err := h.referenceViolations(r.Context(), machine, data)
 	if err != nil {
 		http.Error(w, "failed to validate references", http.StatusInternalServerError)
@@ -1034,6 +1339,13 @@ func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// CAP-R07: an immutable record's edit form isn't even offered -- Update
+	// re-checks the same gate as defense in depth, same "guard the mutation
+	// path, not just the button" reasoning CAP-P05 already uses elsewhere.
+	if reason := h.immutabilityViolation(machine, rec.Data); reason != "" {
+		http.Error(w, reason, http.StatusForbidden)
+		return
+	}
 	a := h.auth(r)
 	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil, h.unreadCount(r.Context(), a), nil)
 	if err := page.Render(r.Context(), w); err != nil {
@@ -1072,6 +1384,13 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// CAP-R07: defense in depth -- EditForm already refuses to render for
+	// an immutable record, but Update is reachable directly (a replayed
+	// form, a hand-crafted POST) without going through that form first.
+	if reason := h.immutabilityViolation(machine, rec.Data); reason != "" {
+		http.Error(w, reason, http.StatusForbidden)
+		return
+	}
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
@@ -1093,7 +1412,16 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	violations := h.engine.Violations(machine, data)
+	// CAP-R08: a record still in its declared "scratch" state (e.g. a Cart
+	// before Checkout) has none of its eventual business-rule Constraints
+	// enforced yet -- CAP-C09's own trigger-time re-validation is the real
+	// commit-point gate, once an event moves it out of that state.
+	// Referential integrity (below) still applies even in scratch state --
+	// a scratch record can be incomplete, not corrupt.
+	var violations []string
+	if !h.inScratchState(machine, data) {
+		violations = h.engine.Violations(machine, data)
+	}
 	refViolations, err := h.referenceViolations(r.Context(), machine, data)
 	if err != nil {
 		http.Error(w, "failed to validate references", http.StatusInternalServerError)
@@ -1730,6 +2058,52 @@ func (h *Handler) userReferenceViolations(ctx context.Context, machine *model.Ma
 		}
 	}
 	return out, nil
+}
+
+// immutabilityViolation (CAP-R07) returns a non-empty rejection reason when
+// machine.Config declares `immutable_field`/`immutable_values` (a
+// comma-separated list, CAP-X03's generic Machine-level settings, not a new
+// migration column) and data's current value for that field is one of
+// them -- "record is frozen once Posted," stronger than CAP-E06 (which only
+// guards Events): this guards direct field edits (Update) and archival
+// (Archive) too, every mutation path, not just the workflow transitions
+// CAP-E06 already covers.
+func (h *Handler) immutabilityViolation(machine *model.Machine, data map[string]any) string {
+	field := machine.Config["immutable_field"]
+	if field == "" {
+		return ""
+	}
+	cur := fmt.Sprintf("%v", data[field])
+	for _, v := range strings.Split(machine.Config["immutable_values"], ",") {
+		if strings.TrimSpace(v) == cur {
+			return fmt.Sprintf("record is immutable while %s is %q", field, cur)
+		}
+	}
+	return ""
+}
+
+// inScratchState (CAP-R08) reports whether data's current value for
+// machine.Config's declared `scratch_field` is one of `scratch_values`
+// (comma-separated) -- a record in this state (e.g. a Cart before
+// Checkout) has none of its eventual business-rule Constraints enforced
+// yet, the opposite end of CAP-R07's spectrum. Referential integrity
+// (referenceViolations/userReferenceViolations/uniquenessViolations) is
+// NOT exempted -- a scratch record can be incomplete, not corrupt. The
+// commit point back into full enforcement needs no new mechanism: CAP-C09's
+// existing trigger-time Violations re-check already applies the moment an
+// event moves the record out of scratch_values.
+func (h *Handler) inScratchState(machine *model.Machine, data map[string]any) bool {
+	field := machine.Config["scratch_field"]
+	if field == "" {
+		return false
+	}
+	cur := fmt.Sprintf("%v", data[field])
+	for _, v := range strings.Split(machine.Config["scratch_values"], ",") {
+		if strings.TrimSpace(v) == cur {
+			return true
+		}
+	}
+	return false
 }
 
 // uniquenessViolations (CAP-C12) enforces `unique` constraints -- single or
