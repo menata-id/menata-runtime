@@ -288,6 +288,23 @@ func (s *RecordStore) LogEvent(ctx context.Context, recordID, eventID, performed
 	return err
 }
 
+// FiredToday (CAP-E02/E03) reports whether eventID already fired on
+// recordID today (server's local date) -- the scheduler's own
+// de-duplication, reusing CAP-R04's existing append-only audit trail
+// instead of a new tracking table. A tick that runs more than once a day,
+// or a date-driven event whose trigger window spans several ticks, must
+// not fire the same record twice.
+func (s *RecordStore) FiredToday(ctx context.Context, recordID, eventID string) (bool, error) {
+	var exists bool
+	err := s.db(ctx).QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM record_events WHERE record_id = $1 AND event_id = $2 AND performed_at::date = CURRENT_DATE)`,
+		recordID, eventID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check fired today: %w", err)
+	}
+	return exists, nil
+}
+
 // Move (CAP-V14) swaps recordID's sort_order with its immediate neighbor in
 // the given direction ("up" = swap with the previous row, "down" = the
 // next), a plain value swap rather than a renumbering pass -- sort_order is

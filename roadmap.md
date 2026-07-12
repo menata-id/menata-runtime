@@ -1273,6 +1273,38 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > clean). Conformance T93–T98 added, T83/T86 repaired (99/99 passing against production,
 > confirmed stable across three consecutive full-suite runs), verified on an isolated port
 > against both a fresh schema and production's real data, then live at `aksi.menata.id`.
+>
+> **Status update (2026-07-12, same day) — Batch 7: the Event Sources cluster (CAP-E02/E03/
+> E04) now ✅ Supported**, the last three ❌ Events-area capabilities. CAP-E02/E03 share one
+> mechanism: a new `events.schedule` column (`migrations/014`), disambiguated by key
+> (`time` vs `date_field`) the same way CAP-A14's own `condition` column already
+> disambiguates aggregate vs ordinary, swept by a real background scheduler
+> (`cmd/server/main.go`'s `runScheduler`) — a `time.Ticker` goroutine independent of any HTTP
+> request, ticking once a minute, each tick opening its own per-workspace transaction (same
+> `SET LOCAL app.workspace_id` shape `workspaceTx` already uses per-request). De-duplication
+> reuses CAP-R04's existing `record_events` audit trail ("has this event already fired on
+> this record today") rather than a new tracking table. This replaces the "manual stand-in
+> for the still-unbuilt daily cron trigger" T38 (CAP-E05) leaned on before today — proven
+> against the real scheduler now, not a simulation of it, at the cost of a real ~65s wait in
+> the conformance suite (T99–T101), accepted deliberately rather than faking a faster test.
+>
+> CAP-E04 (webhook) needed genuinely new middleware surface: `POST /webhooks/{machineID}/
+> {recordID}/{eventID}`, carved out of both `sessionAuth` and `csrfProtect` the same way
+> `/login` already is, authenticated instead by a per-Machine shared secret
+> (`Machine.Config["webhook_secret"]`, no new column) compared via `auth.ConstantTimeEqual`.
+> No role check either — the secret itself is the authorization, the same posture CAP-A08/
+> CAP-E05's internal `"System"`-triggered cascades already take, extended here to a REAL
+> external caller for the first time. The payload composes with CAP-P04's own `InputFields`/
+> `"input:<field>"` mechanism (built for delegation two batches ago) rather than inventing a
+> second "read a value from outside the record" pattern — a payment webhook stamping its own
+> transaction reference is the same shape as a delegator naming who to hand off to.
+>
+> One new seed file (`seeds/013_event_sources_lab.sql`, three Machines: Reminder, Scheduled
+> Task, Payment). Conformance T99–T103 added (104/104 passing, confirmed stable across two
+> consecutive full-suite runs against production), verified on an isolated port against both
+> a fresh schema and production's real data, then live at `aksi.menata.id`. 37 of the 68
+> capabilities named at the start of this push are done (Batches 1–7); Batches 8–10 (CAP-I,
+> CAP-O, CAP-X) and the remaining field types are still open.
 
 ---
 

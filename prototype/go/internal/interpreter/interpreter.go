@@ -96,6 +96,19 @@ func (i *Interpreter) MachinesForApplication(applicationID string) []*model.Mach
 	return out
 }
 
+// AllWorkspaceIDs (CAP-E02/E03) lists every Workspace this Interpreter
+// knows about -- the background scheduler sweeps each one in its own
+// transaction (its own SET LOCAL app.workspace_id), the same per-workspace
+// loop shape migrations/011's own backfill fix already established for
+// "touch every workspace's own records under RLS."
+func (i *Interpreter) AllWorkspaceIDs() []string {
+	out := make([]string, 0, len(i.workspaces))
+	for _, ws := range i.workspaces {
+		out = append(out, ws.ID)
+	}
+	return out
+}
+
 func (i *Interpreter) AllMachines() []*model.Machine {
 	out := make([]*model.Machine, 0, len(i.machines))
 	for _, m := range i.machines {

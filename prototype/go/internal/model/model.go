@@ -93,6 +93,25 @@ type Event struct {
 	Condition          *ConstraintExpression
 	AggregateCondition *AggregateCondition
 	InputFields        []string // CAP-P04: field ids collected fresh at trigger time (a delegation target picker), not read from the record's own data
+	Schedule           *Schedule // CAP-E02/E03: fires without any user action, on a time or date-field trigger
+}
+
+// Schedule (CAP-E02/E03) declares an Event that fires on its own, not from
+// a user action -- exactly one of Time or DateField is set, disambiguated
+// at load time by which key is present in the same way AggregateCondition
+// is distinguished from an ordinary Condition:
+//
+//	{"time": "08:00"}                                    CAP-E02, daily
+//	{"date_field": "fld_due_date", "offset_days": -1}     CAP-E03, relative
+//
+// Both are processed by the same background tick (handler.
+// RunScheduledEvents) and de-duplicated per record via the EXISTING
+// record_events audit table (CAP-R04) -- "has this event already fired on
+// this record today" -- rather than a new tracking table.
+type Schedule struct {
+	Time       string `json:"time,omitempty"`        // CAP-E02: "HH:MM", UTC, fires daily
+	DateField  string `json:"date_field,omitempty"`   // CAP-E03: a date Field on this Event's own Machine
+	OffsetDays int    `json:"offset_days,omitempty"`  // CAP-E03: fires when today == that Field's value + OffsetDays
 }
 
 // EventAction is a single step executed when an Event fires.

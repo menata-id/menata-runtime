@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"menata.id/runtime/internal/model"
@@ -287,6 +288,35 @@ func validateReferences(workspaces []*model.Workspace) error {
 						}
 					}
 				}
+
+				// CAP-E02/E03: exactly one of time/date_field, and
+				// date_field (when set) must name a real `date` Field on
+				// this machine -- a schedule keyed on a nonexistent or
+				// wrong-typed field would silently never fire, the same
+				// "Unknown = explicit" discipline as everywhere else.
+				for _, e := range m.Events {
+					s := e.Schedule
+					if s == nil {
+						continue
+					}
+					if (s.Time == "") == (s.DateField == "") {
+						return fmt.Errorf("event %s on machine %s: schedule must set exactly one of time or date_field", e.ID, m.ID)
+					}
+					if s.Time != "" {
+						if _, err := time.Parse("15:04", s.Time); err != nil {
+							return fmt.Errorf("event %s on machine %s: schedule.time %q is not HH:MM", e.ID, m.ID, s.Time)
+						}
+					}
+					if s.DateField != "" {
+						f, ok := fieldByID[s.DateField]
+						if !ok {
+							return fmt.Errorf("event %s on machine %s: schedule.date_field %q does not name a Field on this machine", e.ID, m.ID, s.DateField)
+						}
+						if f.Type != model.FieldTypeDate {
+							return fmt.Errorf("event %s on machine %s: schedule.date_field %q must be type \"date\", got %q", e.ID, m.ID, s.DateField, f.Type)
+						}
+					}
+				}
 			}
 		}
 	}
@@ -417,7 +447,7 @@ func (l *Loader) loadFields(ctx context.Context, machineID string) ([]*model.Fie
 
 func (l *Loader) loadEvents(ctx context.Context, machineID string) ([]*model.Event, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, machine_id, name, position, condition::text, input_fields FROM events WHERE machine_id = $1 ORDER BY position`,
+		`SELECT id, machine_id, name, position, condition::text, input_fields, schedule::text FROM events WHERE machine_id = $1 ORDER BY position`,
 		machineID)
 	if err != nil {
 		return nil, err
@@ -427,9 +457,15 @@ func (l *Loader) loadEvents(ctx context.Context, machineID string) ([]*model.Eve
 	var events []*model.Event
 	for rows.Next() {
 		e := &model.Event{}
-		var condJSON *string
-		if err := rows.Scan(&e.ID, &e.MachineID, &e.Name, &e.Position, &condJSON, &e.InputFields); err != nil {
+		var condJSON, schedJSON *string
+		if err := rows.Scan(&e.ID, &e.MachineID, &e.Name, &e.Position, &condJSON, &e.InputFields, &schedJSON); err != nil {
 			return nil, err
+		}
+		if schedJSON != nil {
+			e.Schedule = &model.Schedule{}
+			if err := json.Unmarshal([]byte(*schedJSON), e.Schedule); err != nil {
+				return nil, fmt.Errorf("parse schedule for event %s: %w", e.ID, err)
+			}
 		}
 		if condJSON != nil {
 			// CAP-A14: the same `condition` column holds either shape --

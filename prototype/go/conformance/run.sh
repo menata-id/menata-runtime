@@ -169,6 +169,7 @@ NORA=$(session_for nora@example.com password)       # Member (app_permissions_la
 OMAR=$(session_for omar@example.com password)       # Member (app_permissions_lab)
 HANA=$(session_for hana@example.com password)       # HR (app_permissions_lab)
 IRIS=$(session_for iris@example.com password)       # Staff (app_permissions_lab)
+SAM=$(session_for sam@example.com password)         # Member (app_event_sources)
 
 # Real user ids (CAP-F05) for the four genuine person-reference fields
 # (fld_requester, fld_lr_employee, fld_ad_submitted_by, fld_as_approver) --
@@ -1035,6 +1036,64 @@ ANON_OTHER_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/mch_pl_emplo
 ANON_POST_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE_URL/mch_pl_post" -d "fld_plp_title=Hacked")
 [ "$ANON_OTHER_CODE" = "303" ] && [ "$ANON_POST_CODE" = "401" ]
 check T98 "CAP-P07" "anonymous access is still denied for a Machine with no Visitor grant, and for any POST (other=$ANON_OTHER_CODE, post=$ANON_POST_CODE)" $?
+
+# --- Batch 7: Event Sources (2026-07-12) ---
+# seeds/013_event_sources_lab.sql. T99-T101 wait for a real background
+# scheduler tick (cmd/server/main.go's runScheduler, once a minute) rather
+# than a manual stand-in -- CAP-E05's own T38 used one of those for this
+# exact gap before the real thing existed; this batch builds the real
+# thing, so it gets proven against the real thing.
+
+TOMORROW=$(date -d "+1 day" +%Y-%m-%d 2>/dev/null || date -v+1d +%Y-%m-%d)
+FAR_DATE=$(date -d "+5 days" +%Y-%m-%d 2>/dev/null || date -v+5d +%Y-%m-%d)
+
+# Set up all three scheduler-dependent records BEFORE the one shared wait,
+# so this batch pays a single ~65s tick delay, not three.
+REM_URL=$(post_redirect "$BASE_URL/mch_es_reminder" "fld_esr_title=Reminder+$$" "$SAM")
+DUE_SOON_URL=$(post_redirect "$BASE_URL/mch_es_task" "fld_est_title=Due+Soon+$$&fld_est_due=$TOMORROW" "$SAM")
+DUE_FAR_URL=$(post_redirect "$BASE_URL/mch_es_task" "fld_est_title=Due+Far+$$&fld_est_due=$FAR_DATE" "$SAM")
+
+echo "(waiting ~65s for the real background scheduler tick -- CAP-E02/E03)"
+sleep 65
+
+# T99 -- CAP-E02: a time-driven Event ("00:00", satisfied at any hour)
+# fires on the very next scheduler tick after the record exists.
+body_contains "$REM_URL" ">Yes<" "$SAM"
+check T99 "CAP-E02" "a time-driven Event fires on its own, no user action, once the scheduled time is reached" $?
+
+# T100 -- CAP-E03 positive: a Task due TOMORROW hits its own "Due Date - 1
+# Day" trigger point TODAY.
+body_contains "$DUE_SOON_URL" ">Yes<" "$SAM"
+check T100 "CAP-E03" "a date-driven Event fires when today equals the record's own date field plus the declared offset" $?
+
+# T101 -- CAP-E03 negative: a Task due in 5 days is nowhere near its own
+# trigger point yet -- proves the check is per-record, not "any Task with
+# this Event fires."
+! body_contains "$DUE_FAR_URL" ">Yes<" "$SAM"
+check T101 "CAP-E03" "a date-driven Event does NOT fire for a record whose own date field hasn't reached the offset yet" $?
+
+# T102 -- CAP-E04: an external POST with the Machine's own webhook_secret
+# triggers an event with no session and no CSRF token -- and the payload's
+# own field (via InputFields/"input:<field>") is stamped onto the record.
+PAY_URL=$(post_redirect "$BASE_URL/mch_es_payment" "fld_esp_amount=250" "$SAM")
+PAY_ID="${PAY_URL##*/}"
+WEBHOOK_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+    -H "X-Webhook-Secret: demo-webhook-secret-2026" \
+    -d "fld_esp_reference=txn_$$" \
+    "$BASE_URL/webhooks/mch_es_payment/$PAY_ID/evt_esp_confirm")
+[ "$WEBHOOK_CODE" = "200" ] && body_contains "$PAY_URL" "Paid" "$SAM" && body_contains "$PAY_URL" "txn_$$" "$SAM"
+check T102 "CAP-E04" "a webhook with the correct secret triggers an event with no session, stamping its own payload field (got $WEBHOOK_CODE)" $?
+
+# T103 -- CAP-E04 negative: the wrong secret is rejected, and the record is
+# left untouched -- the secret is a real credential, not decorative.
+PAY2_URL=$(post_redirect "$BASE_URL/mch_es_payment" "fld_esp_amount=99" "$SAM")
+PAY2_ID="${PAY2_URL##*/}"
+WRONG_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+    -H "X-Webhook-Secret: wrong-secret" \
+    -d "fld_esp_reference=txn_bad_$$" \
+    "$BASE_URL/webhooks/mch_es_payment/$PAY2_ID/evt_esp_confirm")
+[ "$WRONG_CODE" = "401" ] && ! body_contains "$PAY2_URL" "Paid" "$SAM"
+check T103 "CAP-E04" "a webhook with the wrong secret is rejected, record left untouched (got $WRONG_CODE)" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

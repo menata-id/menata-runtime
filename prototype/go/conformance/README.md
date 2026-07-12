@@ -141,6 +141,11 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T96 | CAP-P06 | a role's hidden field is absent from List and Detail, visible to a role that isn't restricted |
 | T97 | CAP-P07 | an anonymous request (no session) reads a Machine whose Permissions grant role Visitor |
 | T98 | CAP-P07 | anonymous access is still denied for a Machine with no Visitor grant, and for any POST (negative case) |
+| T99 | CAP-E02 | a time-driven Event fires on its own, no user action, once the scheduled time is reached (real background scheduler, ~65s wait) |
+| T100 | CAP-E03 | a date-driven Event fires when today equals the record's own date field plus the declared offset |
+| T101 | CAP-E03 | a date-driven Event does not fire for a record whose own date field hasn't reached the offset yet (negative case) |
+| T102 | CAP-E04 | a webhook with the correct per-Machine secret triggers an event with no session, stamping its own payload field via InputFields |
+| T103 | CAP-E04 | a webhook with the wrong secret is rejected, record left untouched (negative case) |
 
 ---
 
@@ -150,3 +155,4 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 - **Data pollution accepted** — each run creates a few `ConformanceBot` records. Acceptable for the prototype; a future version should use a disposable workspace.
 - **Adding a test:** new ✅ capability → add a `T##` here and in `run.sh`, then set the registry's Proof column to `conformance T##`.
 - **State-guard caveat resolved (2026-07-11)** — CAP-E06 landed; T17/T18 assert rejection of out-of-state transitions, including the exact "Approved record still Rejectable" gap Study 1 found.
+- **T99–T101 wait for a real clock, not a stand-in (2026-07-12)** — CAP-E02/E03's background scheduler ticks once a minute; the suite creates the qualifying records, sleeps ~65s once for all three tests together (not once each), then asserts. Slower than every other test here, deliberately: CAP-E05's own T38 used a manual stand-in for this exact gap before the real scheduler existed — now that it does, it gets proven against the real thing, not a simulation of it.

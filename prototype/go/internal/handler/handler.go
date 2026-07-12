@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -1612,6 +1613,86 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/"+machineID+"/"+recordID, http.StatusSeeOther)
+}
+
+// Webhook (CAP-E04) lets an external system trigger an event directly --
+// no session, no CSRF token (cmd/server/main.go's isPublicPath/
+// csrfProtect both carve this path out), authenticated instead by a
+// per-Machine shared secret (Machine.Config's "webhook_secret", CAP-X03's
+// existing generic settings -- not a new migration column). A Machine that
+// hasn't declared one 404s -- webhooks are opt-in per Machine, not a
+// blanket surface every Machine gets. No role-based Guard.CanTrigger check
+// either: the secret itself is the authorization here, the same posture
+// CAP-A08/CAP-E05's internal "System"-triggered cascades already take
+// (see doAggregateStatus/doTriggerEvent) -- an external caller isn't a
+// person holding a role, there's nothing for CanTrigger's ownership/role
+// check to mean.
+//
+// A payment webhook's own payload can carry values too, the same
+// InputFields/"input:<field>" mechanism CAP-P04 already built for
+// delegation's "who to hand off to" -- JSON body if Content-Type says so
+// (the realistic shape for most real webhook providers), form-encoded
+// otherwise.
+func (h *Handler) Webhook(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	recordID := chi.URLParam(r, "recordID")
+	eventID := chi.URLParam(r, "eventID")
+
+	machine, ok := h.interp.GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	secret := machine.Config["webhook_secret"]
+	if secret == "" {
+		http.NotFound(w, r)
+		return
+	}
+	if !auth.ConstantTimeEqual(r.Header.Get("X-Webhook-Secret"), secret) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	event, ok := h.interp.GetEvent(machineID, eventID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	rec, err := h.records.Get(r.Context(), recordID)
+	if err != nil || rec.MachineID != machineID {
+		http.NotFound(w, r)
+		return
+	}
+
+	var eventInput map[string]string
+	if len(event.InputFields) > 0 {
+		eventInput = make(map[string]string, len(event.InputFields))
+		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+				for _, id := range event.InputFields {
+					if v, ok := body[id]; ok {
+						eventInput[id] = fmt.Sprintf("%v", v)
+					}
+				}
+			}
+		} else if err := r.ParseForm(); err == nil {
+			for _, id := range event.InputFields {
+				eventInput[id] = r.FormValue(id)
+			}
+		}
+	}
+
+	if err := h.triggerEvent(r.Context(), machine, event, rec, "System", "Webhook", "", eventInput); err != nil {
+		var rv *ruleViolation
+		if errors.As(err, &rv) {
+			h.logRuleViolation(r.Context(), "webhook", machineID, eventID, "System", "Webhook", rv.Error())
+			http.Error(w, rv.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, "event failed", http.StatusInternalServerError)
+		}
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // ruleViolation marks a rejection as a business-rule failure (400), as

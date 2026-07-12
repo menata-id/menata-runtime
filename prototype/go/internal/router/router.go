@@ -25,6 +25,7 @@ import (
 //   POST /{machineID}/{recordID}              update record
 //   POST /{machineID}/{recordID}/events/{eventID}  trigger event
 //   POST /notifications/{id}/read             mark one notification read
+//   POST /webhooks/{machineID}/{recordID}/{eventID}  CAP-E04, secret-token authenticated, no session
 func Mount(r chi.Router, h *handler.Handler) {
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("ok"))
@@ -59,4 +60,10 @@ func Mount(r chi.Router, h *handler.Handler) {
 	r.Get("/{machineID}/export.csv", h.ExportCSV)                    // CAP-R06
 	r.Get("/{machineID}/import", h.ImportCSVForm)                    // CAP-R06
 	r.Post("/{machineID}/import", h.ImportCSV)                       // CAP-R06
+
+	// CAP-E04: an external system triggers an event directly, authenticated
+	// by a per-Machine shared secret (Machine.Config's "webhook_secret"),
+	// not a user session -- exempted from sessionAuth/csrfProtect the same
+	// way /login is (cmd/server/main.go's isPublicPath/csrfProtect).
+	r.Post("/webhooks/{machineID}/{recordID}/{eventID}", h.Webhook)
 }

@@ -99,6 +99,14 @@ func main() {
 
 	router.Mount(r, h)
 
+	// CAP-E02/E03: a background tick, independent of any HTTP request, for
+	// Events that fire on their own (a time or a record's own date Field)
+	// rather than a user action. Same per-workspace transaction shape as
+	// workspaceTx (SET LOCAL app.workspace_id per workspace, so RLS applies
+	// exactly like a real request's queries would), just not attached to
+	// one -- there is no request here to scope it to.
+	go runScheduler(context.Background(), pool, interp, h)
+
 	addr := ":" + cfg.Port
 	slog.Info("menata runtime listening", "addr", addr)
 	if err := http.ListenAndServe(addr, r); err != nil {
@@ -176,6 +184,39 @@ func workspaceTx(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 	}
 }
 
+// runScheduler (CAP-E02/E03) ticks once a minute for the life of the
+// process, sweeping every known Workspace's own scheduled Events -- minute
+// granularity so a "daily at 08:00" Event fires within a bounded, short
+// delay of its declared time, not once an hour or once a day by luck of
+// tick alignment. Each workspace gets its own transaction (same SET LOCAL
+// app.workspace_id shape as workspaceTx, just not attached to an HTTP
+// request -- there isn't one here). One workspace's error is logged and
+// skipped, not fatal to the process or to sweeping the other workspaces.
+func runScheduler(ctx context.Context, pool *pgxpool.Pool, interp *interpreter.Interpreter, h *handler.Handler) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		for _, workspaceID := range interp.AllWorkspaceIDs() {
+			func() {
+				tx, err := pool.Begin(ctx)
+				if err != nil {
+					slog.Error("scheduler: begin transaction", "workspace", workspaceID, "error", err)
+					return
+				}
+				defer func() { _ = tx.Rollback(ctx) }()
+				if _, err := tx.Exec(ctx, `SELECT set_config('app.workspace_id', $1, true)`, workspaceID); err != nil {
+					slog.Error("scheduler: set workspace context", "workspace", workspaceID, "error", err)
+					return
+				}
+				h.RunScheduledEvents(store.WithTx(ctx, tx), workspaceID)
+				if err := tx.Commit(ctx); err != nil {
+					slog.Error("scheduler: commit transaction", "workspace", workspaceID, "error", err)
+				}
+			}()
+		}
+	}
+}
+
 // slogAccessLog replaces chi's middleware.Logger (stdlib `log`, plain text)
 // with one that writes through the same slog JSON handler as every other log
 // line in this process, using the same "correlation_id" key
@@ -201,9 +242,15 @@ func slogAccessLog(next http.Handler) http.Handler {
 
 // publicPaths never require a session -- the login page and its own POST
 // (nothing to authenticate against yet), the health check (ops tooling, not
-// a browser session), and static assets (CSS/JS, not per-user).
+// a browser session), static assets (CSS/JS, not per-user), and CAP-E04's
+// webhook endpoint (an external system, authenticated by its own
+// Machine-specific shared secret inside handler.Webhook itself, not a user
+// session at all).
 func isPublicPath(path string) bool {
 	if path == "/login" || path == "/health" {
+		return true
+	}
+	if strings.HasPrefix(path, "/webhooks/") {
 		return true
 	}
 	return strings.HasPrefix(path, "/static/")
@@ -341,7 +388,7 @@ func csrfProtect(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if r.URL.Path == "/login" {
+		if r.URL.Path == "/login" || strings.HasPrefix(r.URL.Path, "/webhooks/") {
 			next.ServeHTTP(w, r)
 			return
 		}
