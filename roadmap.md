@@ -1463,6 +1463,42 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > `aksi.menata.id`, including the real WebP compression pipeline working end-to-end through the
 > production Caddy HTTPS proxy.
 
+> **Status update (2026-07-12, same day) — UI Workflow / Interaction Patterns studied
+> (`benchmarks/008-ui-workflow-interaction-benchmark.md`), six candidates registered, none
+> implemented yet.** Prompted directly (not by a scheduled study) by a question comparing this
+> runtime's own accounting-form UX against QuickBooks/Xero/NetSuite/SAP Business One — first
+> queued as a scoped, accounting-only study in `capability-registry.md`'s "Tracked but Not Yet
+> Studied" section, then run same-day across the FULL 21-case portfolio per a direct follow-up
+> request, rather than staying single-vertical.
+>
+> Method: cluster by interaction pattern, not by case — most of the 21 cases share a UI shape
+> with several others (the same reasoning Cases 16/17 already used to justify "pure composition,
+> no new capability" for themselves). Five clusters cleared `capability-lifecycle.md` §2's
+> five-criterion admission test (real case + independent benchmark, same bar Page/Theme were
+> already held to): live aggregate totals on child-line forms (CAP-V15), typeahead pickers
+> (CAP-V16), kanban cross-column drag (CAP-V14 Tier 2), SLA countdown badges (CAP-V17),
+> resource-grouped calendars (CAP-V18), and cross-record balance previews (CAP-V19). Five more
+> world-class patterns were reviewed and explicitly NOT admitted — infinite-scroll/optimistic
+> feed UI, faceted browse, keystroke-level autosave, SEO/social-share polish, live
+> drag-to-reschedule — each a real pattern somewhere, but none demanded by any actual case in
+> this portfolio, the same standard that already closed Page and Theme.
+>
+> The most interesting finding wasn't a new gap — it was a **correction to two already-✅
+> capabilities**. CAP-V14 (manual ordering) and CAP-V07 (calendar) were each built from a real
+> case (Case 19, Case 20 respectively), but their own first implementation passes delivered less
+> than what those SAME cases' full declarations actually asked for: Case 19 named `Card.Move`
+> (cross-column drag) explicitly, not just `List.Reorder`; Case 20 named "what does Dr. X's
+> Tuesday look like" — a resource dimension, not just a date dimension. Both capabilities' own
+> registry rows previously said "no case forcing it yet" for exactly the gap their own
+> originating case had already named. Both rows are corrected in place, and the missing halves
+> are queued as CAP-V14 Tier 2 / CAP-V18 — extensions of what's already shipped, not fresh
+> mechanisms.
+>
+> Registration only, per this study's own explicit scope (`case-portfolio.md`'s own process:
+> register findings, implement as a separate later step) — none of the six admitted candidates
+> are built yet. Next step, if picked up, is prioritizing them into the Implementation Order
+> table, the same way every other ❌ capability here already waits its turn.
+
 ---
 
 # Principles
