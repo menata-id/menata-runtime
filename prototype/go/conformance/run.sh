@@ -172,6 +172,7 @@ IRIS=$(session_for iris@example.com password)       # Staff (app_permissions_lab
 SAM=$(session_for sam@example.com password)         # Member (app_event_sources)
 THEO=$(session_for theo@example.com password)       # Member (app_integration_lab)
 YARA=$(session_for yara@example.com password)       # Member (app_workspace_lab_hr, app_workspace_lab_ops)
+ZARA=$(session_for zara@example.com password)       # Admin, Member (app_infra_lab)
 
 # Real user ids (CAP-F05) for the four genuine person-reference fields
 # (fld_requester, fld_lr_employee, fld_ad_submitted_by, fld_as_approver) --
@@ -1227,6 +1228,79 @@ WSXT_ID="${WSXT_URL##*/}"
 post_status "$BASE_URL/mch_wsx_task/$WSXT_ID/events/evt_wsxt_schedule" "" "$YARA" >/dev/null
 body_contains "$WSXT_URL" "$EXPECTED_BUSDAY" "$YARA"
 check T115 "CAP-O06" "\"N Business Days\" date arithmetic skips weekends, matching an independent bash reimplementation (expected $EXPECTED_BUSDAY)" $?
+
+# --- Batch 10: Infra (2026-07-12) ---
+# seeds/016_infra_lab.sql. CAP-X04/X09/X10/X11 deliberately deferred, see
+# capability-registry.md's own rows for why.
+
+# T116 -- CAP-X12: an event whose actions span THREE machines (its own
+# set_field, a create_record against a real machine, a create_record
+# against a deliberately dangling one) rolls back as a whole when the last
+# action hits a real foreign-key violation -- not just that one action
+# skipped while the earlier two silently commit.
+ZARA_CSRF=$(csrf_for "$ZARA")
+X12L_URL=$(post_redirect "$BASE_URL/mch_x12_ledger" "fld_x12l_status=Draft" "$ZARA")
+X12L_ID="${X12L_URL##*/}"
+X12_CODE=$(post_status "$BASE_URL/mch_x12_ledger/$X12L_ID/events/evt_x12_commit" "" "$ZARA")
+[ "$X12_CODE" = "500" ] && \
+    body_contains "$X12L_URL" ">Draft<" "$ZARA" && \
+    ! body_contains "$X12L_URL" ">Posted<" "$ZARA" && \
+    ! body_contains "$BASE_URL/mch_x12_entry" "Logged" "$ZARA"
+check T116 "CAP-X12" "a cross-machine action chain rolls back as a whole on a downstream failure -- the record's own field AND an earlier, otherwise-successful create_record both revert (got $X12_CODE)" $?
+
+# T117 -- CAP-X13: an inbound webhook delivered twice with the SAME
+# X-Idempotency-Key only runs the event once -- the second delivery still
+# returns 200 (the duplicate-is-success contract), but doesn't create a
+# second Log record.
+X13S1_URL=$(post_redirect "$BASE_URL/mch_x13_source" "fld_x13s_amount=10" "$ZARA")
+X13S1_ID="${X13S1_URL##*/}"
+DUP1_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "X-Webhook-Secret: infra-lab-secret-2026" -H "X-Idempotency-Key: conf-dup-$$" "$BASE_URL/webhooks/mch_x13_source/$X13S1_ID/evt_x13_log")
+DUP2_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "X-Webhook-Secret: infra-lab-secret-2026" -H "X-Idempotency-Key: conf-dup-$$" "$BASE_URL/webhooks/mch_x13_source/$X13S1_ID/evt_x13_log")
+LOG_COUNT_1=$(get_body "$BASE_URL/api/mch_x13_log" "$ZARA" | grep -o "\"id\"" | wc -l)
+[ "$DUP1_CODE" = "200" ] && [ "$DUP2_CODE" = "200" ]
+check T117 "CAP-X13" "a repeated webhook delivery with the same idempotency key returns success both times but only runs the event once (got $DUP1_CODE/$DUP2_CODE)" $?
+
+# T118 -- CAP-X13 negative: a DIFFERENT idempotency key (a genuinely new
+# delivery) is not suppressed -- proves the claim table is scoped per key,
+# not a blanket "this event already ran once ever" block.
+X13S2_URL=$(post_redirect "$BASE_URL/mch_x13_source" "fld_x13s_amount=20" "$ZARA")
+X13S2_ID="${X13S2_URL##*/}"
+curl -s -o /dev/null -X POST -H "X-Webhook-Secret: infra-lab-secret-2026" -H "X-Idempotency-Key: conf-other-$$" "$BASE_URL/webhooks/mch_x13_source/$X13S2_ID/evt_x13_log"
+LOG_COUNT_2=$(get_body "$BASE_URL/api/mch_x13_log" "$ZARA" | grep -o "\"id\"" | wc -l)
+[ "$LOG_COUNT_2" -eq $((LOG_COUNT_1 + 1)) ]
+check T118 "CAP-X13" "a different idempotency key is a genuinely new delivery, not suppressed (count $LOG_COUNT_1 -> $LOG_COUNT_2)" $?
+
+# T119 -- CAP-X07: the auto-generated JSON API lists and reads a Machine's
+# own records, permission-trimmed and workspace-scoped the same as the HTML
+# routes -- an unauthenticated request is redirected to /login, not served.
+LIST_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$ZARA" "$BASE_URL/api/mch_x13_log")
+FIRST_ID=$(get_body "$BASE_URL/api/mch_x13_log" "$ZARA" | grep -oE '"id":"[a-f0-9-]+"' | head -1 | sed -E 's/.*:"([^"]+)"/\1/')
+GET_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$ZARA" "$BASE_URL/api/mch_x13_log/$FIRST_ID")
+ANON_API_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/api/mch_x13_log")
+[ "$LIST_CODE" = "200" ] && [ "$GET_CODE" = "200" ] && [ "$ANON_API_CODE" = "303" ]
+check T119 "CAP-X07" "the JSON API lists and reads a machine's records for an authenticated session, denies an unauthenticated one (list=$LIST_CODE, get=$GET_CODE, anon=$ANON_API_CODE)" $?
+
+# T120 -- CAP-X07: a JSON POST creates a real record (same validation as
+# the HTML Create path), authenticated via X-CSRF-Token header since a JSON
+# body has no csrf_token form field for the existing synchronizer-token
+# check to read -- and a request with no CSRF at all is still rejected.
+CREATE_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$ZARA" -X POST "$BASE_URL/api/mch_x12_entry" \
+    -H "Content-Type: application/json" -H "X-CSRF-Token: $ZARA_CSRF" \
+    -d "{\"fld_x12e_note\":\"api-created-$$\"}")
+NO_CSRF_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$ZARA" -X POST "$BASE_URL/api/mch_x12_entry" \
+    -H "Content-Type: application/json" -d '{"fld_x12e_note":"should-be-rejected"}')
+[ "$CREATE_CODE" = "201" ] && [ "$NO_CSRF_CODE" = "403" ] && \
+    get_body "$BASE_URL/api/mch_x12_entry" "$ZARA" | grep -q "api-created-$$"
+check T120 "CAP-X07" "a JSON create via X-CSRF-Token header succeeds and is visible in the same API's list; a request with no CSRF token is rejected (create=$CREATE_CODE, no_csrf=$NO_CSRF_CODE)" $?
+
+# T121 -- CAP-X08: an Application's full metadata tree exports as JSON,
+# straight from the same in-memory model the runtime itself interprets --
+# Admin-only, a non-admin role is denied.
+EXPORT_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$ZARA" "$BASE_URL/apps/app_infra_lab/export")
+EXPORT_DENIED_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$YARA" "$BASE_URL/apps/app_infra_lab/export")
+[ "$EXPORT_CODE" = "200" ] && [ "$EXPORT_DENIED_CODE" = "403" ] && \
+    body_contains "$BASE_URL/apps/app_infra_lab/export" "Webhook Source" "$ZARA"
+check T121 "CAP-X08" "an Application's metadata exports as JSON for an Admin; denied for a non-admin role (export=$EXPORT_CODE, denied=$EXPORT_DENIED_CODE)" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

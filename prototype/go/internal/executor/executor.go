@@ -276,6 +276,18 @@ func actorLabel(actorRole, actorIdentity string) string {
 // ctx as the request that triggered it, every record_events row one request
 // produces — even across different records — shares one id for free, no
 // extra plumbing needed.
+// Persist writes an event's resulting data and runs its actions, inside the
+// caller's own request-scoped transaction (store.WithTx, see
+// cmd/server/main.go's workspaceTx) -- CAP-X12: a cross-record action
+// (create_record/cross_set_field/batch_generate) failing partway through
+// must abort the WHOLE event, not just skip that one action, or the
+// transaction still commits the record's own set_field changes plus
+// whichever earlier actions in the loop already succeeded, silently
+// dropping only the failed one. Every do* helper below therefore returns an
+// error instead of just logging one, and this loop stops at the first
+// failure -- the caller's non-2xx response is what makes workspaceTx's
+// deferred Rollback discard everything, restoring true all-or-nothing
+// semantics across every Machine an event's actions touch.
 func (e *Executor) Persist(ctx context.Context, machine *model.Machine, event *model.Event, record *store.Record, newData map[string]any, machineName, actorRole, actorIdentity, workspaceID string, holidays map[string]bool) error {
 	snapshot := record.Data
 
@@ -288,13 +300,19 @@ func (e *Executor) Persist(ctx context.Context, machine *model.Machine, event *m
 			e.doNotify(ctx, action, event, record, newData, machineName, workspaceID)
 
 		case model.ActionCreateRecord:
-			e.doCreateRecord(ctx, action, newData, actorRole, actorIdentity, workspaceID, holidays)
+			if err := e.doCreateRecord(ctx, action, newData, actorRole, actorIdentity, workspaceID, holidays); err != nil {
+				return fmt.Errorf("create_record action: %w", err)
+			}
 
 		case model.ActionCrossSetField:
-			e.doCrossSetField(ctx, action, newData, holidays)
+			if err := e.doCrossSetField(ctx, action, newData, holidays); err != nil {
+				return fmt.Errorf("cross_set_field action: %w", err)
+			}
 
 		case model.ActionBatchGenerate:
-			e.doBatchGenerate(ctx, action, newData, actorRole, actorIdentity, workspaceID, holidays)
+			if err := e.doBatchGenerate(ctx, action, newData, actorRole, actorIdentity, workspaceID, holidays); err != nil {
+				return fmt.Errorf("batch_generate action: %w", err)
+			}
 		}
 	}
 
@@ -366,15 +384,16 @@ func resolveActionFields(raw any, sourceData map[string]any, actorRole, actorIde
 // real HTTP Create) -- a metadata-declared action is trusted input the same
 // way a System-triggered event already is elsewhere in this codebase, not a
 // place to re-derive full CAP-C01..C12 enforcement.
-func (e *Executor) doCreateRecord(ctx context.Context, action *model.EventAction, sourceData map[string]any, actorRole, actorIdentity, workspaceID string, holidays map[string]bool) {
+func (e *Executor) doCreateRecord(ctx context.Context, action *model.EventAction, sourceData map[string]any, actorRole, actorIdentity, workspaceID string, holidays map[string]bool) error {
 	targetMachine, _ := action.Params["machine"].(string)
 	if targetMachine == "" {
-		return
+		return nil
 	}
 	data := resolveActionFields(action.Params["fields"], sourceData, actorRole, actorIdentity, holidays)
 	if _, err := e.records.Create(ctx, targetMachine, workspaceID, data); err != nil {
-		slog.Error("create_record action failed", "target_machine", targetMachine, "error", err)
+		return fmt.Errorf("target machine %s: %w", targetMachine, err)
 	}
+	return nil
 }
 
 // doCrossSetField implements CAP-A13: params {"machine": "...",
@@ -389,21 +408,20 @@ func (e *Executor) doCreateRecord(ctx context.Context, action *model.EventAction
 // different record via the full triggerEvent path when it needs guards to
 // apply; this is the lighter-weight "just set one field" sibling of that,
 // for when a full event trigger on the target would be overkill).
-func (e *Executor) doCrossSetField(ctx context.Context, action *model.EventAction, sourceData map[string]any, holidays map[string]bool) {
+func (e *Executor) doCrossSetField(ctx context.Context, action *model.EventAction, sourceData map[string]any, holidays map[string]bool) error {
 	recordFieldID, _ := action.Params["record_field"].(string)
 	targetField, _ := action.Params["field"].(string)
 	value, _ := action.Params["value"].(string)
 	if recordFieldID == "" || targetField == "" {
-		return
+		return nil
 	}
 	targetID := fmt.Sprintf("%v", sourceData[recordFieldID])
 	if targetID == "" || targetID == "<nil>" {
-		return
+		return nil
 	}
 	targetRecord, err := e.records.Get(ctx, targetID)
 	if err != nil {
-		slog.Error("cross_set_field: target record not found", "record_field", recordFieldID, "target_id", targetID, "error", err)
-		return
+		return fmt.Errorf("target record %s: %w", targetID, err)
 	}
 	newData := make(map[string]any, len(targetRecord.Data))
 	for k, v := range targetRecord.Data {
@@ -411,8 +429,9 @@ func (e *Executor) doCrossSetField(ctx context.Context, action *model.EventActio
 	}
 	newData[targetField] = resolveValue(value, newData, nil, "System", "System", nil, holidays)
 	if err := e.records.Update(ctx, targetID, newData); err != nil {
-		slog.Error("cross_set_field: update failed", "target_id", targetID, "error", err)
+		return fmt.Errorf("target record %s: %w", targetID, err)
 	}
+	return nil
 }
 
 // doBatchGenerate implements CAP-A15: params {"machine": "...", "count": N,
@@ -423,12 +442,12 @@ func (e *Executor) doCrossSetField(ctx context.Context, action *model.EventActio
 // 0..N-1 (composing CAP-A11's date arithmetic, not a separate mechanism) —
 // e.g. N weekly recurrences of a Task, each one week after the last, from a
 // single "create the series" action.
-func (e *Executor) doBatchGenerate(ctx context.Context, action *model.EventAction, sourceData map[string]any, actorRole, actorIdentity, workspaceID string, holidays map[string]bool) {
+func (e *Executor) doBatchGenerate(ctx context.Context, action *model.EventAction, sourceData map[string]any, actorRole, actorIdentity, workspaceID string, holidays map[string]bool) error {
 	targetMachine, _ := action.Params["machine"].(string)
 	countRaw, _ := action.Params["count"].(float64) // JSON numbers decode as float64
 	count := int(countRaw)
 	if targetMachine == "" || count <= 0 {
-		return
+		return nil
 	}
 	offsetField, _ := action.Params["offset_field"].(string)
 	offsetUnit, _ := action.Params["offset_unit"].(string)
@@ -448,7 +467,8 @@ func (e *Executor) doBatchGenerate(ctx context.Context, action *model.EventActio
 			}
 		}
 		if _, err := e.records.Create(ctx, targetMachine, workspaceID, data); err != nil {
-			slog.Error("batch_generate: create failed", "target_machine", targetMachine, "instance", i, "error", err)
+			return fmt.Errorf("target machine %s, instance %d: %w", targetMachine, i, err)
 		}
 	}
+	return nil
 }

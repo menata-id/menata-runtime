@@ -1676,6 +1676,23 @@ func (h *Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// CAP-X13: an idempotency key is opt-in -- a caller retrying the exact
+	// same delivery (network timeout, at-least-once queue redelivery) sends
+	// the same X-Idempotency-Key and gets 200 back without the event firing
+	// a second time. No key at all skips the check entirely (unchanged
+	// behavior for every webhook caller that doesn't supply one).
+	if key := r.Header.Get("X-Idempotency-Key"); key != "" {
+		claimed, err := h.records.ClaimWebhookEvent(r.Context(), machineID, eventID, key)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		if !claimed {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+	}
+
 	var eventInput map[string]string
 	if len(event.InputFields) > 0 {
 		eventInput = make(map[string]string, len(event.InputFields))

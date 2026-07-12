@@ -288,6 +288,24 @@ func (s *RecordStore) LogEvent(ctx context.Context, recordID, eventID, performed
 	return err
 }
 
+// ClaimWebhookEvent (CAP-X13) atomically claims (machineID, eventID,
+// idempotencyKey) via INSERT ... ON CONFLICT DO NOTHING -- returns true if
+// this call made the claim (first delivery, proceed), false if it was
+// already claimed (a retry/duplicate delivery, the caller should return
+// success without re-running the event). Deliberately a single INSERT, not
+// a SELECT-then-INSERT -- a check-then-act pattern races two
+// near-simultaneous retries against each other; ON CONFLICT DO NOTHING is
+// atomic at the database level regardless of how many callers race it.
+func (s *RecordStore) ClaimWebhookEvent(ctx context.Context, machineID, eventID, idempotencyKey string) (bool, error) {
+	tag, err := s.db(ctx).Exec(ctx,
+		`INSERT INTO webhook_claims (machine_id, event_id, idempotency_key) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+		machineID, eventID, idempotencyKey)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
 // FiredToday (CAP-E02/E03) reports whether eventID already fired on
 // recordID today (server's local date) -- the scheduler's own
 // de-duplication, reusing CAP-R04's existing append-only audit trail

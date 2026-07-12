@@ -158,6 +158,12 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T113 | CAP-O04 | search results are permission-trimmed — a role with no access to the Machine finds nothing (negative case) |
 | T114 | CAP-O05 | switching to digest preference groups the same notifications by day |
 | T115 | CAP-O06 | "N Business Days" date arithmetic skips weekends, matching an independent bash reimplementation |
+| T116 | CAP-X12 | a cross-machine action chain rolls back as a whole on a downstream failure |
+| T117 | CAP-X13 | a repeated webhook delivery with the same idempotency key returns success both times but only runs the event once |
+| T118 | CAP-X13 | a different idempotency key is a genuinely new delivery, not suppressed |
+| T119 | CAP-X07 | the JSON API lists and reads a machine's records, permission-trimmed; an unauthenticated request is denied |
+| T120 | CAP-X07 | a JSON create via X-CSRF-Token header succeeds; a request with no CSRF token is rejected |
+| T121 | CAP-X08 | an Application's metadata exports as JSON for an Admin; denied for a non-admin role |
 
 ---
 

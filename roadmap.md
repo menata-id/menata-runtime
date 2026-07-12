@@ -1369,6 +1369,50 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > capabilities named at the start of this push are now done (Batches 1–9); Batch 10 (Infra) and
 > the remaining field types are still open.
 
+> **Status update (2026-07-12, same day) — Batch 10: the Infra cluster, four of eight
+> CAP-X items now ✅ (CAP-X07/X08⚠️/X12/X13), four deliberately deferred with reasoning
+> recorded (CAP-X04/X09/X10/X11)**. This batch's first real judgment call was scope itself:
+> not every CAP-X item was worth building right now. CAP-X04 (live reload) and CAP-X11 (lazy
+> per-workspace loading/cache) both touch the exact same boot-time `Loader.LoadAll` mechanism
+> every capability in Batches 1-9 depends on — rewriting it now for a scale concern this
+> single-process prototype doesn't actually have yet risked regressing the whole push for
+> speculative benefit. CAP-X09 (org-unit scoping) is a new modeling dimension that needs its
+> own design pass, the same rigor Study 15/CAP-O01 got, not a quick addition. CAP-X10 (index
+> management) is premature — nothing here is measurably slow. All four are recorded in
+> `capability-registry.md` as reviewed-and-deferred, not silently skipped.
+>
+> Of the four built: CAP-X12 (cross-record write atomicity) turned out to be a bug fix, not
+> new infrastructure — every HTTP request already ran inside one real Postgres transaction
+> (`workspaceTx`, built earlier for CAP-X06's RLS cutover), so atomicity across Machines was
+> already available for free. The actual gap was that `create_record`/`cross_set_field`/
+> `batch_generate` swallowed their own DB errors instead of returning them, so a downstream
+> failure never produced the 5xx response that transaction's rollback needed to trigger —
+> fixed by propagating the error instead of just logging it. CAP-X13 (webhook idempotency) is
+> a new `webhook_claims` table claimed via a single atomic `INSERT ... ON CONFLICT DO
+> NOTHING`, opt-in per delivery via an `X-Idempotency-Key` header. CAP-X07 (auto-generated
+> JSON API) is `GET/POST /api/{machine}` reusing the exact same permission/CSRF/validation
+> machinery the HTML routes already have — CSRF now also accepted via an `X-CSRF-Token`
+> header, since a JSON body has no `csrf_token` form field. CAP-X08 (metadata export) ships
+> at ⚠️, export only — an Application's full metadata tree as JSON, straight from the
+> in-memory Application Model; import is named as needing its own dedicated pass (the same
+> load-time validation rigor CAP-X05 applies, run transactionally against a package that
+> could otherwise corrupt the shared production database) rather than a rushed addition here.
+>
+> One new migration (`migrations/017_infra_batch10.sql`: `webhook_claims`) and one new seed
+> file (`seeds/016_infra_lab.sql`) proving CAP-X12's rollback with a deliberately dangling
+> `create_record` target machine id (a real Postgres foreign-key violation, not a simulated
+> one) and CAP-X13's dedupe with an action that's visibly different if it fires twice.
+> Conformance T116-T121 added (122/122 passing, confirmed stable across two consecutive
+> full-suite runs against production), verified on an isolated schema against both a fresh
+> install and production's real data, then live at `aksi.menata.id`. This documentation pass
+> also caught and fixed two real errors from the immediately preceding Batches 1-9 doc sync:
+> `create_record`/`event_subscription`'s metadata examples had used `target_machine` (the
+> `reference` field type's own key) instead of the real key, `machine`, and were missing the
+> `"field:"` prefix create_record's field-copy values actually require — both verified
+> against the executor/migration source directly this time, not from memory, and corrected in
+> `runtime-metadata-schema.md`/`guides/writing-runtime-metadata.md` before this batch's own
+> commit.
+
 ---
 
 # Principles

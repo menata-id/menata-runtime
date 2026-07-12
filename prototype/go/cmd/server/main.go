@@ -419,7 +419,16 @@ func csrfProtect(next http.Handler) http.Handler {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
+		// CAP-X07: a JSON API request has no form body for FormValue to read
+		// csrf_token out of -- X-CSRF-Token is the same session token, just
+		// carried as a header instead, for that one content type. Every
+		// existing HTML-form POST is unaffected (FormValue still wins when
+		// both happen to be present, and no existing caller sends the
+		// header).
 		submitted := r.FormValue("csrf_token")
+		if submitted == "" {
+			submitted = r.Header.Get("X-CSRF-Token")
+		}
 		if submitted == "" || !auth.ConstantTimeEqual(submitted, a.CSRFToken) {
 			slog.Warn("csrf token mismatch",
 				"correlation_id", middleware.GetReqID(r.Context()),

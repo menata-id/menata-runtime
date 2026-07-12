@@ -17,6 +17,10 @@ import (
 //   /login                                   email + password login (CAP-X02)
 //   /admin/users                             workspace user/role management (CAP-O01, Admin-only)
 //   /notifications                           in-app notification inbox (CAP-A10)
+//   /apps/{applicationID}/export             Application metadata export, Admin-only (CAP-X08)
+//   GET  /api/{machineID}                    JSON list (CAP-X07)
+//   GET  /api/{machineID}/{recordID}         JSON detail (CAP-X07)
+//   POST /api/{machineID}                    JSON create (CAP-X07)
 //   /{machineID}                             default list view
 //   /{machineID}/new                         new record form
 //   /{machineID}/{recordID}                  record detail
@@ -32,6 +36,7 @@ func Mount(r chi.Router, h *handler.Handler) {
 	})
 	r.Get("/", h.Apps)
 	r.Get("/apps/{applicationID}", h.AppMachines)
+	r.Get("/apps/{applicationID}/export", h.APIExportApplication) // CAP-X08, Admin-only
 
 	r.Get("/login", h.LoginForm)
 	r.Post("/login", h.Login)
@@ -45,6 +50,15 @@ func Mount(r chi.Router, h *handler.Handler) {
 	r.Post("/notifications/preference", h.SetNotificationPreference) // CAP-O05
 
 	r.Get("/search", h.Search) // CAP-O04
+
+	// CAP-X07: auto-generated outbound JSON API, one route family per
+	// Machine, same session+CSRF auth and permission trimming as the HTML
+	// routes below -- see internal/handler/api.go's own top-of-file note
+	// for the deliberate first-pass scope (no child rows, no wizard steps,
+	// no event triggering yet).
+	r.Get("/api/{machineID}", h.APIList)
+	r.Get("/api/{machineID}/{recordID}", h.APIGet)
+	r.Post("/api/{machineID}", h.APICreate)
 
 	r.Get("/{machineID}", h.List)
 	r.Get("/{machineID}/new", h.NewForm)
