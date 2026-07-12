@@ -15,7 +15,7 @@ import templruntime "github.com/a-h/templ/runtime"
 // ("/apps/" for Applications, "/" for a Machine within one). backLink is
 // shown above the heading when set (empty at the workspace home itself,
 // "/" when drilled into one Application).
-func CardGrid(pageTitle, role, heading, subtitle, hrefPrefix, backLink string, cards []Card, unreadCount int) templ.Component {
+func CardGrid(pageTitle, identity, csrfToken string, isAdmin bool, heading, subtitle, hrefPrefix, backLink string, cards []Card, unreadCount int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -162,7 +162,7 @@ func CardGrid(pageTitle, role, heading, subtitle, hrefPrefix, backLink string, c
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page(pageTitle, role, unreadCount).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page(pageTitle, identity, csrfToken, isAdmin, unreadCount).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

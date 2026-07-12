@@ -1,0 +1,67 @@
+package ui
+
+// AdminUsers (CAP-O01) is the workspace Admin's user-management page --
+// change a user's workspace-wide role (Admin/Member) and, per Application,
+// which role (if any) they hold there. One <form> per user, not a single
+// table-wide form -- an HTML <form> can't validly wrap table rows, and this
+// keeps a "Save" mistake scoped to the one row a mis-click happened on.
+// appGroups is Interpreter.AllRoles(workspaceID) -- the implicit role
+// vocabulary for each Application, derived from its own machines'
+// Permissions, not a separately maintained list (CAP-O01's own design
+// choice — see the plan this shipped against).
+templ AdminUsers(identity, csrfToken string, unreadCount int, users []AdminUserRow, appGroups []RoleGroup) {
+	@Page("Manage users", identity, csrfToken, true, unreadCount) {
+		<h1 class="mb-1 text-xl font-semibold text-slate-900">Manage users</h1>
+		<p class="mb-5 text-sm text-slate-500">
+			Workspace role controls access to this page and (reserved, not yet built) Application
+			metadata management. Application role controls what a person can read, create, edit, or
+			trigger within that Application — see each Application's own Machines' Permissions for
+			the role vocabulary offered below.
+		</p>
+		<div class="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+			for _, u := range users {
+				<form
+					method="POST"
+					action={ templ.SafeURL("/admin/users/" + u.ID) }
+					class="flex flex-wrap items-center gap-4 px-5 py-3.5"
+				>
+					@CSRFField(csrfToken)
+					<div class="w-44 shrink-0">
+						<div class="text-sm font-medium text-slate-900">{ u.Name }</div>
+						<div class="text-xs text-slate-400">{ u.Email }</div>
+					</div>
+					<div class="flex items-center gap-1.5">
+						<label class="text-xs text-slate-500">Workspace</label>
+						<select
+							name="workspace_role"
+							class="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+						>
+							<option value="Member" selected?={ u.WorkspaceRole == "Member" }>Member</option>
+							<option value="Admin" selected?={ u.WorkspaceRole == "Admin" }>Admin</option>
+						</select>
+					</div>
+					for _, g := range appGroups {
+						<div class="flex items-center gap-1.5">
+							<label class="text-xs text-slate-500">{ g.AppName }</label>
+							<select
+								name={ "app_role_" + g.AppID }
+								class="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+							>
+								<option value="" selected?={ u.AppRoles[g.AppID] == "" }>— none —</option>
+								for _, role := range g.Roles {
+									<option value={ role } selected?={ u.AppRoles[g.AppID] == role }>{ role }</option>
+								}
+							</select>
+						</div>
+					}
+					<button
+						type="submit"
+						class="ml-auto shrink-0 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 transition-colors"
+					>
+						Save
+					</button>
+				</form>
+			}
+		</div>
+	}
+}

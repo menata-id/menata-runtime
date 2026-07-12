@@ -81,16 +81,6 @@ func (i *Interpreter) ApplicationsForWorkspace(workspaceID string) []*model.Appl
 	return out
 }
 
-// AllWorkspaces returns every Workspace, sorted by name — populates the
-// login page's workspace selector (CAP-X06), the same dropdown pattern
-// AllRoles already established for roles.
-func (i *Interpreter) AllWorkspaces() []*model.Workspace {
-	out := make([]*model.Workspace, len(i.workspaces))
-	copy(out, i.workspaces)
-	sort.Slice(out, func(a, b int) bool { return out[a].Name < out[b].Name })
-	return out
-}
-
 // MachinesForApplication returns an Application's own Machines, sorted by
 // name — the per-application menu CAP-O03's Navigation concept names
 // (006-runtime-model.md: Navigation is an Application-level concern,
@@ -114,28 +104,29 @@ func (i *Interpreter) AllMachines() []*model.Machine {
 	return out
 }
 
-// RoleGroup is one application's set of business roles declared across its
+// RoleGroup is one Application's set of business roles declared across its
 // machines' Permissions.
 type RoleGroup struct {
+	AppID   string
 	AppName string
 	Roles   []string
 }
 
 // AllRoles returns every distinct business role declared across one
-// Workspace's machines' Permissions, grouped by the application each
-// machine belongs to, application/role name sorted for a stable order.
-// "System" is excluded — it's the internal actor system-triggered events
-// run as (CAP-A08/CAP-E05), never a role a human logs in as. Used to
-// populate the login page's role dropdown so it can't go stale the way a
-// hardcoded list already had — Case 1's original Requester/Designer options
-// never grew as later cases added Employee, Manager, HR, Submitter,
-// Approver, Agent, Supervisor. CAP-X06: scoped to one workspace, same
-// reasoning as ApplicationsForWorkspace — a role dropdown showing another
-// workspace's roles would be confusing even though it's not itself a
-// security boundary (permission checks are always per-machine, already
-// workspace-scoped by construction).
+// Workspace's machines' Permissions, grouped by Application, application/role
+// name sorted for a stable order. "System" is excluded — it's the internal
+// actor system-triggered events run as (CAP-A08/CAP-E05), never a role a
+// real person is assigned. CAP-O01: this is the implicit per-Application role
+// vocabulary — the admin page's (/admin/users) role picker for a given
+// Application, sourced from whatever role strings its own machines'
+// Permissions already declare, not a separately maintained list. CAP-X06:
+// scoped to one workspace, same reasoning as ApplicationsForWorkspace.
 func (i *Interpreter) AllRoles(workspaceID string) []RoleGroup {
-	byApp := make(map[string]map[string]bool)
+	type appRoles struct {
+		name  string
+		roles map[string]bool
+	}
+	byApp := make(map[string]*appRoles)
 	for _, m := range i.machines {
 		app, ok := i.apps[m.ApplicationID]
 		if !ok || app.WorkspaceID != workspaceID {
@@ -145,27 +136,28 @@ func (i *Interpreter) AllRoles(workspaceID string) []RoleGroup {
 			if perm.Role == "System" {
 				continue
 			}
-			if byApp[app.Name] == nil {
-				byApp[app.Name] = make(map[string]bool)
+			if byApp[app.ID] == nil {
+				byApp[app.ID] = &appRoles{name: app.Name, roles: make(map[string]bool)}
 			}
-			byApp[app.Name][perm.Role] = true
+			byApp[app.ID].roles[perm.Role] = true
 		}
 	}
 
-	appNames := make([]string, 0, len(byApp))
-	for name := range byApp {
-		appNames = append(appNames, name)
+	appIDs := make([]string, 0, len(byApp))
+	for id := range byApp {
+		appIDs = append(appIDs, id)
 	}
-	sort.Strings(appNames)
+	sort.Slice(appIDs, func(a, b int) bool { return byApp[appIDs[a]].name < byApp[appIDs[b]].name })
 
-	out := make([]RoleGroup, 0, len(appNames))
-	for _, name := range appNames {
-		roles := make([]string, 0, len(byApp[name]))
-		for r := range byApp[name] {
+	out := make([]RoleGroup, 0, len(appIDs))
+	for _, id := range appIDs {
+		ar := byApp[id]
+		roles := make([]string, 0, len(ar.roles))
+		for r := range ar.roles {
 			roles = append(roles, r)
 		}
 		sort.Strings(roles)
-		out = append(out, RoleGroup{AppName: name, Roles: roles})
+		out = append(out, RoleGroup{AppID: id, AppName: ar.name, Roles: roles})
 	}
 	return out
 }

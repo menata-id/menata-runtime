@@ -117,13 +117,15 @@ are never the right place to make a change either way.
 To verify a capability manually before trusting the conformance suite alone: `curl` the actual
 running server. Every capability implemented so far in this codebase (CAP-F13, CAP-E06, CAP-C09,
 CAP-A02, CAP-V06, CAP-A07, CAP-A08, CAP-X03, CAP-R02, CAP-A03, CAP-A04, CAP-A10, CAP-P02, CAP-E05,
-CAP-P05, CAP-R04, CAP-I04, CAP-O03) was manually exercised end-to-end against a real Postgres
-instance before its conformance test was written, and manual testing caught real bugs (a `Create`
+CAP-P05, CAP-R04, CAP-I04, CAP-O03, CAP-X02, CAP-O01) was manually exercised end-to-end against a
+real Postgres instance before its conformance test was written, and manual testing caught real bugs (a `Create`
 default-value rule hardcoded to fields named "Status" that silently broke Approval Step's
 "Decision" field; a conformance-helper missing a cookie parameter that made a test pass for the
 wrong reason; a hand-typed non-UUID reference value crashing `RecordStore.Exists` with an
 unhandled Postgres error instead of a validation message; a `NULLIF($4, '')` parameter bound
-against a `uuid` column with no cast, which would have crashed every single `notify` action) that
+against a `uuid` column with no cast, which would have crashed every single `notify` action; a
+seed account's bcrypt password hash that never actually matched the password it claimed to,
+invisible for months because nothing verified `password_hash` before CAP-X02 existed) that
 reading the code alone would not have surfaced.
 
 **A seed/permission data change needs a server restart to take effect, same as a code change.**

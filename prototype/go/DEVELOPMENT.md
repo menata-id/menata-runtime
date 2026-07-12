@@ -156,6 +156,10 @@ host). On that host specifically:
   or it fails closed — `conformance/run.sh`'s T19/T42/T43/T52 needed this same fix, see their
   comments for the working pattern, including why a naive FROM-clause subquery version of it
   is unreliable).
+- **`SECURE_COOKIES=true` is required in this `.env`** (CAP-X02) — the session cookie's
+  `Secure` attribute must be set once traffic is real HTTPS (via Caddy); the `false` default
+  in `.env.example` is for local `http://localhost` dev only, where a `Secure` cookie would be
+  silently refused by the browser.
 
 ---
 

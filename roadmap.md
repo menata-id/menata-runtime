@@ -619,6 +619,58 @@ evidence (cases + benchmarks) → admission test → registry → definition-of-
 > loading, `LISTEN/NOTIFY`), per-workspace concurrency fairness, RLS on metadata tables —
 > real scale concerns at a much larger workspace count, not correctness/security ones here.
 
+> **Status update (2026-07-12, same day) — CAP-X02 (real authentication) + CAP-O01
+> (workspace identity & role registry), both now ✅ Supported:** ADR-005 had named CAP-X02 —
+> "anyone who can reach the domain can claim any role and any identity" — its single largest
+> open item; CAP-O01 was the dependency CAP-F05/CAP-F06 (`user`/`file` fields) were both
+> waiting on.
+>
+> **The role model turned out more precise than either capability's original one-line
+> description**, refined through three rounds of clarification during planning: role is
+> **two-tier**, not global. A **Workspace role** (`users.workspace_role`, Admin/Member)
+> governs workspace-wide concerns; a separate **Application role** is assigned per
+> `(user, application)` pair (`user_application_roles`, `migrations/010_authentication.sql`)
+> — the same real person can be Admin overall, "Requester" in one Application, and
+> "Submitter" in another, *simultaneously*, resolved fresh per request from whichever
+> Application the URL is in (`internal/handler`'s `roleForApp`) — no manual "switch role"
+> step, unlike the cookie this replaces. Application role vocabulary stays **implicit**
+> (confirmed, not a new metadata concept): whatever role strings an Application's own
+> Machines' `permissions` rows already declare (`Interpreter.AllRoles`).
+>
+> **Sessions**: `internal/auth` (new package) — bcrypt password verify, `crypto/rand`
+> session + CSRF tokens, session id stored as `SHA-256(token)` hex so a leaked DB row alone
+> can't be replayed. Login always mints a brand-new session (fixation defense), 24h sliding
+> expiry. **CSRF implemented in the same pass, not deferred** — the maintainer's explicit
+> call, overriding the default "defer it" recommendation. `workspace_id` (CAP-X06) now comes
+> from the authenticated account, not a client-suppliable cookie — closes a gap where the
+> app-layer guard and RLS could disagree about which workspace a request was actually in.
+>
+> **New**: `GET/POST /admin/users` — a workspace Admin's own page to manage other users'
+> Workspace role and per-Application role assignments (the first real, buildable consequence
+> of "Admin manages user access"; "Admin manages an Application's own metadata" is recorded
+> as a reserved authorization boundary, not built — no metadata-editing UI exists anywhere in
+> this prototype to gate). Login/logout/register-a-user templates rewritten (email+password,
+> no role/identity/workspace dropdowns); every POST form now carries a CSRF field.
+>
+> **The mechanical cost**: every one of the conformance suite's 53 tests fabricated a
+> `menata_role`/`menata_identity`/`menata_workspace` cookie directly — all rewritten to
+> authenticate as a real seeded account (`seeds/007_authentication.sql`, one account per
+> business role introduced across every prior Case) via `session_for`/`csrf_for` helpers;
+> 7 new tests (T53–T59) prove login failure, unauthenticated access, CSRF rejection, and the
+> two-tier model itself (one identity, one session, two different roles in two different
+> Applications, no switch). 60/60 passing. Applying `migrations/010`'s destructive schema
+> change to the shared dev=prod database (outside the agent's own stated isolated-verification
+> plan) was correctly blocked by the auto-mode classifier; the maintainer explicitly
+> authorized direct application after the block explained why.
+>
+> **Found during this pass, unrelated to the model change**: the seed accounts' bcrypt
+> password hash never actually matched the password it claimed to (`"password"`) — invisible
+> under the old cookie-based auth, since `password_hash` was never verified before. Fixed by
+> regenerating and replacing it everywhere (seeds + the live database).
+>
+> **Deferred, not done here** (no case has forced any of the three yet): password
+> reset/rotation, account lockout after repeated failed logins, MFA.
+
 ---
 
 # Phase 3 — NFR Standards (study-only)

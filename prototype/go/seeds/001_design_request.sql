@@ -94,11 +94,13 @@ INSERT INTO views (id, machine_id, name, type, position, config) VALUES
      '{}')
 ON CONFLICT (id) DO NOTHING;
 
--- Seed users for testing
+-- Seed users for testing (CAP-X02: real accounts, no `role` column anymore --
+-- see seeds/007_authentication.sql for these two's per-Application role
+-- assignments, alongside every other case's accounts).
 -- password: 'password' hashed with bcrypt (cost 10)
-INSERT INTO users (workspace_id, name, email, password_hash, role) VALUES
-    ('ws_default', 'Alice Requester', 'alice@example.com',
-     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Requester'),
-    ('ws_default', 'Bob Designer',    'bob@example.com',
-     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Designer')
+INSERT INTO users (workspace_id, name, email, password_hash) VALUES
+    ('ws_default', 'Alice', 'alice@example.com',
+     '$2a$10$moxxOcZzSu3ILTzJlLF2Q.9vxiGNnSXPl7kY1pT3t5o1FoDjqC8aK'),
+    ('ws_default', 'Bob',   'bob@example.com',
+     '$2a$10$moxxOcZzSu3ILTzJlLF2Q.9vxiGNnSXPl7kY1pT3t5o1FoDjqC8aK')
 ON CONFLICT (workspace_id, email) DO NOTHING;

@@ -20,11 +20,20 @@ BASE_URL=https://aksi.menata.id ./conformance/run.sh
 
 Exit code 0 = all pass. Non-zero = at least one capability regressed.
 
-**Prerequisites:** server running, seeds `001`–`006` applied (Cases 1, 2, 18, 3, 7, and the
-`ws_acme` isolation fixture). For T19/T42/T43/T52, also export `DATABASE_URL` (same value as
-the server's `.env`) — they're skipped otherwise. T52 additionally skips (not fails) until
-`migrations/009_workspace_isolation_rls.sql` (CAP-X06's RLS cutover, deliberately not part of
-`make migrate-up` — see that migration's own header) has actually been applied.
+**Prerequisites:** server running, seeds `001`–`007` applied (Cases 1, 2, 18, 3, 7, the
+`ws_acme` isolation fixture, and CAP-X02/CAP-O01's real accounts). For T19/T42/T43/T52, also
+export `DATABASE_URL` (same value as the server's `.env`) — they're skipped otherwise. T52
+additionally skips (not fails) until `migrations/009_workspace_isolation_rls.sql` (CAP-X06's
+RLS cutover, deliberately not part of `make migrate-up` — see that migration's own header) has
+actually been applied.
+
+**CAP-X02 (2026-07-12):** every test now authenticates as a real seeded account
+(`seeds/007_authentication.sql`) instead of fabricating a `menata_role`/`menata_identity`/
+`menata_workspace` cookie — `session_for` logs in once per account (email+password) and caches
+the resulting cookie jar; `csrf_for` scrapes that session's CSRF token once and appends it to
+every POST. Which seeded account plays "the Employee" or "the Approver" for a given test is
+whoever `seeds/007` actually assigned that role to, in that Application (CAP-O01 — role is
+per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block for the map.
 
 ---
 
@@ -74,7 +83,7 @@ the server's `.env`) — they're skipped otherwise. T52 additionally skips (not 
 | T39 | CAP-P05 | a role with no permission row at all on a machine is denied List — deny-by-default, not implicitly allowed (negative case) |
 | T40 | CAP-P05 | same reasoning, denied Create (negative case) |
 | T41 | CAP-P05 | same reasoning, denied the Edit form (negative case) |
-| T42 | CAP-R04 | `record_events.performed_by` carries the real acting role/identity, not NULL (DB inspection, same T19 exception) |
+| T42 | CAP-R04 | `record_events.performed_by` carries the real acting identity (a real account name, CAP-X02), not NULL (DB inspection, same T19 exception) |
 | T43 | CAP-I04 | one request's correlation_id is shared across every `record_events` row it produces, even across a cross-record cascade (DB inspection) |
 | T44 | CAP-P05 | Approver can read Approval Document — needed for context on the Step they're deciding, surfaced by production log data |
 | T45 | CAP-P05 | Approver still denied Create on Approval Document — read-only, not full access (negative case) |
@@ -83,8 +92,15 @@ the server's `.env`) — they're skipped otherwise. T52 additionally skips (not 
 | T48 | CAP-O03 | within a visible Application, only individually-readable Machines are listed, not all of them |
 | T49 | CAP-X06 | a `ws_default` session is denied (404) direct access to another workspace's Machine — app-layer guard (negative case) |
 | T50 | CAP-X06 | same, for the Application route (negative case) |
-| T51 | CAP-X06 | switching workspace (`menata_workspace` cookie) grants access to its own Machine end to end (create + trigger event) |
+| T51 | CAP-X06 | an account whose own workspace is `ws_acme` (CAP-X02: workspace comes from the authenticated account, not a client-suppliable cookie) can use its own Machine end to end (create + trigger event) |
 | T52 | CAP-X06 | RLS probe: a record known to belong to `ws_acme` is invisible when `app.workspace_id` is set to `ws_default` — proves RLS itself, not just the app-layer guard (DB inspection, same T19 exception) |
+| T53 | CAP-X02 | login with the wrong password is rejected (negative case) |
+| T54 | CAP-X02 | an unauthenticated GET is redirected to `/login`, not served or errored |
+| T55 | CAP-X02 | an unauthenticated POST gets 401, not a redirect |
+| T56 | CAP-X02 | an authenticated request with no CSRF token is rejected — the check runs even when the session itself is valid |
+| T57 | CAP-O01 | a non-Admin is denied `/admin/users` (negative case) |
+| T58 | CAP-O01 | a real workspace Admin can reach `/admin/users` |
+| T59 | CAP-O01 | one identity, one session, resolves a different role in each of two Applications with no manual role-switch step — the actual point of the two-tier role model |
 
 ---
 

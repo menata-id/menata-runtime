@@ -7,8 +7,8 @@ package ui
 // ("/apps/" for Applications, "/" for a Machine within one). backLink is
 // shown above the heading when set (empty at the workspace home itself,
 // "/" when drilled into one Application).
-templ CardGrid(pageTitle, role, heading, subtitle, hrefPrefix, backLink string, cards []Card, unreadCount int) {
-	@Page(pageTitle, role, unreadCount) {
+templ CardGrid(pageTitle, identity, csrfToken string, isAdmin bool, heading, subtitle, hrefPrefix, backLink string, cards []Card, unreadCount int) {
+	@Page(pageTitle, identity, csrfToken, isAdmin, unreadCount) {
 		<div class="mb-6">
 			if backLink != "" {
 				<a href={ templ.SafeURL(backLink) } class="text-sm text-slate-400 hover:text-slate-600 transition-colors">← Back</a>

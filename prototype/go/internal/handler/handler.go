@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"menata.id/runtime/internal/auth"
 	"menata.id/runtime/internal/constraint"
 	"menata.id/runtime/internal/executor"
 	"menata.id/runtime/internal/interpreter"
@@ -25,57 +27,73 @@ type Handler struct {
 	interp        *interpreter.Interpreter
 	records       *store.RecordStore
 	notifications *store.NotificationStore
+	sessions      *store.SessionStore
+	users         *store.UserStore
+	secureCookies bool
 	engine        *constraint.Engine
 	guard         *permission.Guard
 	exec          *executor.Executor
 }
 
-func New(interp *interpreter.Interpreter, records *store.RecordStore, notifications *store.NotificationStore) *Handler {
+func New(interp *interpreter.Interpreter, records *store.RecordStore, notifications *store.NotificationStore, sessions *store.SessionStore, users *store.UserStore, secureCookies bool) *Handler {
 	return &Handler{
 		interp:        interp,
 		records:       records,
 		notifications: notifications,
+		sessions:      sessions,
+		users:         users,
+		secureCookies: secureCookies,
 		engine:        &constraint.Engine{},
 		guard:         &permission.Guard{},
 		exec:          executor.New(records, notifications),
 	}
 }
 
-func (h *Handler) role(r *http.Request) string {
-	c, err := r.Cookie("menata_role")
-	if err != nil || c.Value == "" {
-		return "Requester"
-	}
-	return c.Value
+// auth (CAP-X02) is every authenticated route's resolved session --
+// User, CAP-O01's per-Application role map, and the CSRF token to echo back
+// into rendered forms -- attached to ctx by cmd/server/main.go's sessionAuth
+// middleware before any handler wired through router.Mount runs, except
+// LoginForm/Login themselves (the middleware's own exempted paths, which
+// never call this). A nil result here is an unreachable-in-practice
+// programming error, not a case handlers guard against.
+func (h *Handler) auth(r *http.Request) *store.Auth {
+	a, _ := store.AuthFromContext(r.Context())
+	return a
 }
 
-// identity (CAP-P02): the acting person's name, distinct from role. Empty
-// when unset — deliberately fails closed for owner-gated events rather than
-// defaulting to something that might accidentally match a record's owner
-// field.
+// identity (CAP-P02): the acting person's name, distinct from role — used
+// for CAP-P02's owner-gated events and CAP-A04's identity-targeted notify.
 func (h *Handler) identity(r *http.Request) string {
-	c, err := r.Cookie("menata_identity")
-	if err != nil {
-		return ""
-	}
-	return c.Value
+	return h.auth(r).User.Name
 }
 
-// workspace (CAP-X06): which Workspace this session is scoped to. Defaults
-// to "ws_default" so every session/test predating workspace-awareness keeps
-// working unchanged. This is the app-layer half of the same value
-// cmd/server/main.go's workspaceTx middleware already resolved to set
-// app.workspace_id (RLS) on this request's transaction — kept as two
-// independent reads of the same cookie rather than threading one value
-// through, since the two layers (RLS at the DB, this guard at the app) are
-// deliberately independent defenses, not one relying on the other having
-// already run correctly.
+// workspace (CAP-X06): which Workspace this session is authenticated into --
+// the account's own workspace_id, resolved once at login (store.UserStore.
+// GetByEmail), not a client-suppliable cookie.
 func (h *Handler) workspace(r *http.Request) string {
-	c, err := r.Cookie("menata_workspace")
-	if err != nil || c.Value == "" {
-		return "ws_default"
-	}
-	return c.Value
+	return h.auth(r).User.WorkspaceID
+}
+
+// roleForApp (CAP-O01): the acting person's role for one specific
+// Application. Role is no longer a single session-wide value — the same
+// person can be "Requester" in one Application and "Submitter" in another,
+// simultaneously, with no manual role switch — so every call site names
+// which Application it means, usually via Interpreter.ScopeFor(machineID)'s
+// second return value. "" (no user_application_roles assignment for that
+// Application) flows into Guard.CanRead/CanCreate/CanEdit/CanTrigger the
+// same way an absent Permissions row already denies by default.
+func (h *Handler) roleForApp(r *http.Request, applicationID string) string {
+	return h.auth(r).ApplicationRoles[applicationID]
+}
+
+// isWorkspaceAdmin (CAP-O01): the workspace-wide tier, distinct from any
+// Application role — gates /admin/users (managing other users' workspace/
+// Application role assignments) and is reserved, not yet built against, for
+// managing an Application's own metadata (see capability-registry.md's
+// CAP-O01 note — no metadata-editing UI exists anywhere in this prototype
+// to gate).
+func (h *Handler) isWorkspaceAdmin(r *http.Request) bool {
+	return h.auth(r).User.WorkspaceRole == "Admin"
 }
 
 // Apps — workspace home (CAP-O03): Applications, not Machines, are this
@@ -89,10 +107,14 @@ func (h *Handler) workspace(r *http.Request) string {
 // grants, no new metadata concept needed for this first cut. A locked-out
 // role sees an empty grid, not an error.
 func (h *Handler) Apps(w http.ResponseWriter, r *http.Request) {
-	role := h.role(r)
-	apps := h.interp.ApplicationsForWorkspace(h.workspace(r))
+	a := h.auth(r)
+	apps := h.interp.ApplicationsForWorkspace(a.User.WorkspaceID)
 	cards := make([]ui.Card, 0, len(apps))
 	for _, app := range apps {
+		// CAP-O01: role is resolved per-Application here, not once for the
+		// whole page — the same person can see a different set of readable
+		// Applications depending on which role (if any) they hold in each.
+		role := a.ApplicationRoles[app.ID]
 		machines := h.interp.MachinesForApplication(app.ID)
 		readable := 0
 		for _, m := range machines {
@@ -109,7 +131,7 @@ func (h *Handler) Apps(w http.ResponseWriter, r *http.Request) {
 			Description: fmt.Sprintf("%d machine(s)", readable),
 		})
 	}
-	page := ui.CardGrid("Home", role, "Applications", "Select an application to view its machines.", "/apps/", "", cards, h.unreadCount(r.Context(), role))
+	page := ui.CardGrid("Home", a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), "Applications", "Select an application to view its machines.", "/apps/", "", cards, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render apps", "error", err)
 	}
@@ -129,7 +151,8 @@ func (h *Handler) AppMachines(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	role := h.role(r)
+	a := h.auth(r)
+	role := h.roleForApp(r, appID)
 	machines := h.interp.MachinesForApplication(appID)
 	cards := make([]ui.Card, 0, len(machines))
 	for _, m := range machines {
@@ -142,50 +165,226 @@ func (h *Handler) AppMachines(w http.ResponseWriter, r *http.Request) {
 			Description: fmt.Sprintf("%d fields · %d events", len(m.Fields), len(m.Events)),
 		})
 	}
-	page := ui.CardGrid(app.Name, role, app.Name, "Select a machine to view its records.", "/", "/", cards, h.unreadCount(r.Context(), role))
+	page := ui.CardGrid(app.Name, a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), app.Name, "Select a machine to view its records.", "/", "/", cards, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render app machines", "error", err)
 	}
 }
 
-// LoginForm — role selection page.
+// LoginForm — email + password login page (CAP-X02).
 func (h *Handler) LoginForm(w http.ResponseWriter, r *http.Request) {
-	workspace := h.workspace(r)
-	interpGroups := h.interp.AllRoles(workspace)
-	roleGroups := make([]ui.RoleGroup, 0, len(interpGroups))
-	for _, g := range interpGroups {
-		roleGroups = append(roleGroups, ui.RoleGroup{AppName: g.AppName, Roles: g.Roles})
-	}
-	interpWorkspaces := h.interp.AllWorkspaces()
-	workspaces := make([]ui.Card, 0, len(interpWorkspaces))
-	for _, ws := range interpWorkspaces {
-		workspaces = append(workspaces, ui.Card{ID: ws.ID, Name: ws.Name})
-	}
-	role := h.role(r)
-	if err := ui.LoginPage(role, h.identity(r), workspace, workspaces, roleGroups, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
+	if err := ui.LoginPage("").Render(r.Context(), w); err != nil {
 		slog.Error("render login", "error", err)
 	}
 }
 
-// Login — set workspace, role, and identity cookies.
+// Login — verify email/password, then always mint a brand-new session
+// (never reuse or upgrade a pre-login one — session-fixation defense) with a
+// fresh CSRF token, and set the session cookie.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	role := r.FormValue("role")
-	if role == "" {
-		role = "Requester"
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
 	}
-	identity := r.FormValue("identity")
-	workspace := r.FormValue("workspace")
-	if workspace == "" {
-		workspace = "ws_default"
+	email := strings.TrimSpace(r.FormValue("email"))
+	password := r.FormValue("password")
+
+	user, err := h.users.GetByEmail(r.Context(), email)
+	loginFailed := err != nil || !auth.VerifyPassword(user.PasswordHash, password)
+	if loginFailed {
+		// Deliberately the same generic outcome whether the email doesn't
+		// exist or the password is wrong — doesn't confirm to a prober which
+		// one failed (ASVS V2.1-style login-failure hygiene). Still a
+		// security-relevant event to log (ASVS V7.1).
+		slog.Warn("login failed", "correlation_id", middleware.GetReqID(r.Context()), "email", email)
+		w.WriteHeader(http.StatusUnauthorized)
+		if err := ui.LoginPage("Incorrect email or password.").Render(r.Context(), w); err != nil {
+			slog.Error("render login (failed)", "error", err)
+		}
+		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: "menata_role", Value: role, Path: "/"})
-	http.SetCookie(w, &http.Cookie{Name: "menata_identity", Value: identity, Path: "/"})
-	http.SetCookie(w, &http.Cookie{Name: "menata_workspace", Value: workspace, Path: "/"})
-	// Session/role-switch events (ASVS V7.1 — authentication decisions),
-	// even though this prototype's "login" has no password to fail against.
-	slog.Info("role switch", "correlation_id", middleware.GetReqID(r.Context()), "workspace", workspace, "role", role, "identity", identity)
+
+	token, err := auth.NewToken()
+	if err != nil {
+		slog.Error("generate session token", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	csrfToken, err := auth.NewToken()
+	if err != nil {
+		slog.Error("generate csrf token", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	expiresAt := time.Now().Add(auth.SessionTTL)
+	if err := h.sessions.Create(r.Context(), auth.HashSessionToken(token), user.ID, csrfToken, expiresAt); err != nil {
+		slog.Error("create session", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "menata_session",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   h.secureCookies,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  expiresAt,
+	})
+	slog.Info("login", "correlation_id", middleware.GetReqID(r.Context()), "identity", user.Name, "workspace", user.WorkspaceID)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// Logout — delete the session server-side (not just clear the cookie — a
+// stolen pre-logout cookie value must stop working, not just stop being
+// sent by this browser) and clear the cookie.
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	if c, err := r.Cookie("menata_session"); err == nil && c.Value != "" {
+		if err := h.sessions.Delete(r.Context(), auth.HashSessionToken(c.Value)); err != nil {
+			slog.Error("delete session", "error", err)
+		}
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "menata_session",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   h.secureCookies,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+// AdminUsers (CAP-O01) — GET /admin/users: the workspace Admin's user
+// management page. Admin-only, gated on the workspace-wide tier, not any
+// Application role (a workspace could have zero Applications and an Admin
+// would still need this page reachable).
+func (h *Handler) AdminUsers(w http.ResponseWriter, r *http.Request) {
+	if !h.isWorkspaceAdmin(r) {
+		a := h.auth(r)
+		h.logPermissionDenied(r.Context(), "admin_view", "", "", a.User.WorkspaceRole, a.User.Name)
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	a := h.auth(r)
+	rows, err := h.adminUserRows(r.Context(), a.User.WorkspaceID)
+	if err != nil {
+		http.Error(w, "failed to load users", http.StatusInternalServerError)
+		return
+	}
+	appGroups := h.uiRoleGroups(a.User.WorkspaceID)
+	page := ui.AdminUsers(a.User.Name, a.CSRFToken, h.unreadCount(r.Context(), a), rows, appGroups)
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render admin users", "error", err)
+	}
+}
+
+// AdminUpdateUser (CAP-O01) — POST /admin/users/{userID}: saves one user's
+// workspace role and every Application role the page's form submitted.
+// Every submitted app_role_<applicationID> value is validated against that
+// Application's own implicit role vocabulary (Interpreter.AllRoles) before
+// being written — deny-by-default, the same discipline CAP-P05's Permissions
+// already apply, so this page can't be used to assign a role that doesn't
+// actually exist in any Machine's Permissions for that Application.
+func (h *Handler) AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
+	if !h.isWorkspaceAdmin(r) {
+		a := h.auth(r)
+		h.logPermissionDenied(r.Context(), "admin_update", "", "", a.User.WorkspaceRole, a.User.Name)
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	a := h.auth(r)
+	targetID := chi.URLParam(r, "userID")
+	target, err := h.users.GetByID(r.Context(), targetID)
+	if err != nil || target.WorkspaceID != a.User.WorkspaceID {
+		// CAP-X06: a user from another Workspace 404s exactly like one that
+		// doesn't exist at all -- same convention as every other
+		// cross-workspace lookup in this handler.
+		http.NotFound(w, r)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	workspaceRole := r.FormValue("workspace_role")
+	if workspaceRole != "Admin" && workspaceRole != "Member" {
+		workspaceRole = "Member"
+	}
+	if err := h.users.SetWorkspaceRole(r.Context(), target.ID, workspaceRole); err != nil {
+		slog.Error("set workspace role", "error", err)
+		http.Error(w, "failed to save", http.StatusInternalServerError)
+		return
+	}
+
+	for _, g := range h.interp.AllRoles(a.User.WorkspaceID) {
+		submitted := r.FormValue("app_role_" + g.AppID)
+		if submitted == "" {
+			if err := h.users.RemoveApplicationRole(r.Context(), target.ID, g.AppID); err != nil {
+				slog.Error("remove application role", "error", err)
+				http.Error(w, "failed to save", http.StatusInternalServerError)
+				return
+			}
+			continue
+		}
+		valid := false
+		for _, role := range g.Roles {
+			if role == submitted {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			continue // not a role this Application's Permissions actually declare -- ignored, not written.
+		}
+		if err := h.users.SetApplicationRole(r.Context(), target.ID, g.AppID, submitted); err != nil {
+			slog.Error("set application role", "error", err)
+			http.Error(w, "failed to save", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	slog.Info("admin updated user roles",
+		"correlation_id", middleware.GetReqID(r.Context()),
+		"actor", a.User.Name,
+		"target_user", target.Name,
+		"workspace_role", workspaceRole,
+	)
+	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
+func (h *Handler) uiRoleGroups(workspaceID string) []ui.RoleGroup {
+	interpGroups := h.interp.AllRoles(workspaceID)
+	out := make([]ui.RoleGroup, 0, len(interpGroups))
+	for _, g := range interpGroups {
+		out = append(out, ui.RoleGroup{AppID: g.AppID, AppName: g.AppName, Roles: g.Roles})
+	}
+	return out
+}
+
+func (h *Handler) adminUserRows(ctx context.Context, workspaceID string) ([]ui.AdminUserRow, error) {
+	users, err := h.users.ListByWorkspace(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]ui.AdminUserRow, 0, len(users))
+	for _, u := range users {
+		appRoles, err := h.users.ApplicationRoles(ctx, u.ID)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, ui.AdminUserRow{
+			ID:            u.ID,
+			Name:          u.Name,
+			Email:         u.Email,
+			WorkspaceRole: u.WorkspaceRole,
+			AppRoles:      appRoles,
+		})
+	}
+	return rows, nil
 }
 
 // List — list view of records for a machine.
@@ -196,16 +395,18 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
 		// (migrations/009), not instead of it.
 		http.NotFound(w, r)
 		return
 	}
+	role := h.roleForApp(r, applicationID)
 	// CAP-P05 — deny-by-default: no permission row for this role on this
 	// machine means no read access, not implicitly allowed.
-	if role := h.role(r); !h.guard.CanRead(machine, role) {
+	if !h.guard.CanRead(machine, role) {
 		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
@@ -260,8 +461,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, ui.ListRow{ID: rec.ID, Cells: cells})
 	}
 
-	role := h.role(r)
-	if err := ui.List(role, machine, cols, rows, h.interp.PermittedEvents(machineID, role), h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
+	a := h.auth(r)
+	page := ui.List(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.PermittedEvents(machineID, role), h.unreadCount(r.Context(), a))
+	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render list", "error", err)
 	}
 }
@@ -274,20 +476,23 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
 		// (migrations/009), not instead of it.
 		http.NotFound(w, r)
 		return
 	}
-	role := h.role(r)
+	role := h.roleForApp(r, applicationID)
 	if !h.guard.CanCreate(machine, role) {
 		h.logPermissionDenied(r.Context(), "create", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
-	if err := ui.Form(role, machine, "", h.buildFormFields(r.Context(), machine, nil), nil, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
+	a := h.auth(r)
+	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, nil), nil, h.unreadCount(r.Context(), a))
+	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render form", "error", err)
 	}
 }
@@ -300,14 +505,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
 		// (migrations/009), not instead of it.
 		http.NotFound(w, r)
 		return
 	}
-	if role := h.role(r); !h.guard.CanCreate(machine, role) {
+	if role := h.roleForApp(r, applicationID); !h.guard.CanCreate(machine, role) {
 		h.logPermissionDenied(r.Context(), "create", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
@@ -348,15 +554,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	violations = append(violations, refViolations...)
 
 	if len(violations) > 0 {
-		role := h.role(r)
+		role := h.roleForApp(r, applicationID)
 		h.logRuleViolation(r.Context(), "create", machineID, "", role, h.identity(r), strings.Join(violations, "; "))
-		if err := ui.Form(role, machine, "", h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
+		a := h.auth(r)
+		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a))
+		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
 		return
 	}
 
-	workspaceID, _ := h.interp.ScopeFor(machineID)
 	rec, err := h.records.Create(r.Context(), machineID, workspaceID, data)
 	if err != nil {
 		http.Error(w, "failed to create record", http.StatusInternalServerError)
@@ -377,14 +584,15 @@ func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
 		// (migrations/009), not instead of it.
 		http.NotFound(w, r)
 		return
 	}
-	role := h.role(r)
+	role := h.roleForApp(r, applicationID)
 	if !h.guard.CanEdit(machine, role) {
 		h.logPermissionDenied(r.Context(), "edit", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
@@ -395,7 +603,9 @@ func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if err := ui.Form(role, machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
+	a := h.auth(r)
+	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil, h.unreadCount(r.Context(), a))
+	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render edit form", "error", err)
 	}
 }
@@ -413,14 +623,15 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
 		// (migrations/009), not instead of it.
 		http.NotFound(w, r)
 		return
 	}
-	if role := h.role(r); !h.guard.CanEdit(machine, role) {
+	if role := h.roleForApp(r, applicationID); !h.guard.CanEdit(machine, role) {
 		h.logPermissionDenied(r.Context(), "edit", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
@@ -460,9 +671,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	violations = append(violations, refViolations...)
 
 	if len(violations) > 0 {
-		role := h.role(r)
+		role := h.roleForApp(r, applicationID)
 		h.logRuleViolation(r.Context(), "update", machineID, "", role, h.identity(r), strings.Join(violations, "; "))
-		if err := ui.Form(role, machine, recordID, h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
+		a := h.auth(r)
+		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a))
+		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
 		return
@@ -485,14 +698,15 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
 		// (migrations/009), not instead of it.
 		http.NotFound(w, r)
 		return
 	}
-	if role := h.role(r); !h.guard.CanRead(machine, role) {
+	if role := h.roleForApp(r, applicationID); !h.guard.CanRead(machine, role) {
 		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
@@ -521,10 +735,12 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		fields = append(fields, ui.DetailField{Name: f.Name, Value: val, Link: link})
 	}
 
-	role, identity := h.role(r), h.identity(r)
+	role, identity := h.roleForApp(r, applicationID), h.identity(r)
 	childLists := h.childLists(r.Context(), machine, recordID)
 	permittedEvents := h.interp.PermittedEventsForRecord(machineID, role, identity, rec.Data)
-	if err := ui.Detail(role, machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
+	a := h.auth(r)
+	page := ui.Detail(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a))
+	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render detail", "error", err)
 	}
 }
@@ -540,7 +756,8 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if wsID, _ := h.interp.ScopeFor(machineID); wsID != h.workspace(r) {
+	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
 		// (migrations/009), not instead of it.
@@ -557,7 +774,7 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	role, identity := h.role(r), h.identity(r)
+	role, identity := h.roleForApp(r, applicationID), h.identity(r)
 	// CAP-P02 — ownership check needs the record's own data, so this can't
 	// run until after the record fetch above (unlike role-only permission,
 	// which didn't need it).
@@ -1164,8 +1381,12 @@ func findMachineContainingField(interp *interpreter.Interpreter, fieldID string)
 
 // --- CAP-A10 in-app notification inbox ---------------------------------------
 
-func (h *Handler) unreadCount(ctx context.Context, role string) int {
-	n, err := h.notifications.UnreadCount(ctx, role)
+// unreadCount takes the full Auth (not just role) because CAP-O01's
+// recipientMatch needs both the identity name and the user id (to check
+// per-Application role assignments) — see store.NotificationStore's
+// recipientMatch doc comment.
+func (h *Handler) unreadCount(ctx context.Context, a *store.Auth) int {
+	n, err := h.notifications.UnreadCount(ctx, a.User.Name, a.User.ID)
 	if err != nil {
 		slog.Error("count unread notifications", "error", err)
 		return 0
@@ -1175,11 +1396,10 @@ func (h *Handler) unreadCount(ctx context.Context, role string) int {
 
 // Notifications — the current session's in-app notification inbox: every
 // `notify` action (CAP-A03/A04) whose resolved recipient matches this
-// session's role cookie, the same identity-is-role caveat CAP-A02 already
-// carries.
+// person's identity OR one of their per-Application roles (CAP-O01).
 func (h *Handler) Notifications(w http.ResponseWriter, r *http.Request) {
-	role := h.role(r)
-	notifs, err := h.notifications.ListForRecipient(r.Context(), role)
+	a := h.auth(r)
+	notifs, err := h.notifications.ListForRecipient(r.Context(), a.User.Name, a.User.ID)
 	if err != nil {
 		http.Error(w, "failed to load notifications", http.StatusInternalServerError)
 		return
@@ -1198,19 +1418,19 @@ func (h *Handler) Notifications(w http.ResponseWriter, r *http.Request) {
 			When:    n.CreatedAt.Format("2006-01-02 15:04"),
 		}
 	}
-	if err := ui.Notifications(role, items, h.unreadCount(r.Context(), role)).Render(r.Context(), w); err != nil {
+	page := ui.Notifications(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), items, h.unreadCount(r.Context(), a))
+	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render notifications", "error", err)
 	}
 }
 
 // MarkNotificationRead — POST target for a single notification's "Mark read"
-// button. Scoped to the current session's role in the store layer (a role
-// can only mark its own notifications read), the same access-control shape
-// as every other role-gated action in this prototype.
+// button. Scoped to the current session in the store layer (recipientMatch),
+// the same access-control shape as every other identity/role-gated action.
 func (h *Handler) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role := h.role(r)
-	if err := h.notifications.MarkRead(r.Context(), id, role); err != nil {
+	a := h.auth(r)
+	if err := h.notifications.MarkRead(r.Context(), id, a.User.Name, a.User.ID); err != nil {
 		http.Error(w, "failed to mark notification read", http.StatusInternalServerError)
 		return
 	}

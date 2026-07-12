@@ -2,9 +2,10 @@ package ui
 
 // Notifications renders the current session's in-app notification inbox
 // (CAP-A10) -- every `notify` action (CAP-A03/A04) whose resolved recipient
-// matches this session's role cookie.
-templ Notifications(role string, items []NotificationItem, unreadCount int) {
-	@Page("Notifications", role, unreadCount) {
+// matches this session's identity or one of its per-Application roles
+// (CAP-O01, see store.NotificationStore.ListForRecipient).
+templ Notifications(identity, csrfToken string, isAdmin bool, items []NotificationItem, unreadCount int) {
+	@Page("Notifications", identity, csrfToken, isAdmin, unreadCount) {
 		<div class="mx-auto max-w-xl">
 			<h1 class="mb-5 text-xl font-semibold text-slate-900">Notifications</h1>
 			if len(items) == 0 {
@@ -26,6 +27,7 @@ templ Notifications(role string, items []NotificationItem, unreadCount int) {
 								</div>
 								if item.Unread {
 									<form method="POST" action={ templ.SafeURL("/notifications/" + item.ID + "/read") }>
+										@CSRFField(csrfToken)
 										<button
 											type="submit"
 											class="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"

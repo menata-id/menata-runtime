@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -12,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
+	"menata.id/runtime/internal/auth"
 	"menata.id/runtime/internal/config"
 	"menata.id/runtime/internal/db"
 	"menata.id/runtime/internal/handler"
@@ -61,7 +63,9 @@ func main() {
 
 	records := store.NewRecordStore(pool)
 	notifications := store.NewNotificationStore(pool)
-	h := handler.New(interp, records, notifications)
+	sessions := store.NewSessionStore(pool)
+	users := store.NewUserStore(pool)
+	h := handler.New(interp, records, notifications, sessions, users, cfg.SecureCookies)
 
 	r := chi.NewRouter()
 	// RequestID before the access logger: gives every access log line a
@@ -73,6 +77,15 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(slogAccessLog)
 	r.Use(middleware.Recoverer)
+	// CAP-X02: resolves the session and attaches store.Auth to ctx before
+	// anything else runs -- workspaceTx's own workspace_id now comes from
+	// the authenticated User (store.AuthFromContext), not a client-suppliable
+	// cookie, so this must run first.
+	r.Use(sessionAuth(sessions, users))
+	// CAP-X02: CSRF check, after sessionAuth (needs the session's stored
+	// token from ctx) and before workspaceTx (a rejected request shouldn't
+	// pay for opening a transaction).
+	r.Use(csrfProtect)
 	// CAP-X06: after Recoverer, not before -- a panic inside a request must
 	// unwind through this middleware's own deferred rollback first (so the
 	// transaction never leaks un-rolled-back), then reach Recoverer to
@@ -105,12 +118,16 @@ func main() {
 // middleware.Recoverer (which must be registered *before* this middleware
 // -- see main()).
 //
-// The workspace itself is resolved from a menata_workspace cookie, the same
-// convention as h.role/h.identity, defaulting to "ws_default" so every
-// session/test that predates workspace-awareness keeps working unchanged.
-// The resulting tx is attached to the request's context (store.WithTx) --
-// every RecordStore/NotificationStore method already prefers it over the
-// raw pool when present.
+// The workspace itself comes from the authenticated session (store.
+// AuthFromContext's User.WorkspaceID), not a client-suppliable cookie --
+// closes the gap where a request could set app.workspace_id via RLS to one
+// workspace while the app-layer guard checked a role from another (CAP-X02).
+// Requests with no Auth in context (the session middleware's own exempted
+// paths: /login, /health, /static/*) fall back to "ws_default", matching
+// this codebase's pre-workspace-awareness default -- none of those paths
+// touch RLS-scoped tables anyway. The resulting tx is attached to the
+// request's context (store.WithTx) -- every RecordStore/NotificationStore
+// method already prefers it over the raw pool when present.
 //
 // RLS (migrations/009, applied only at final cutover) is what actually
 // makes app.workspace_id matter: without it, this middleware sets a GUC
@@ -120,8 +137,8 @@ func workspaceTx(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			workspaceID := "ws_default"
-			if c, err := r.Cookie("menata_workspace"); err == nil && c.Value != "" {
-				workspaceID = c.Value
+			if a, ok := store.AuthFromContext(r.Context()); ok {
+				workspaceID = a.User.WorkspaceID
 			}
 
 			tx, err := pool.Begin(r.Context())
@@ -178,5 +195,126 @@ func slogAccessLog(next http.Handler) http.Handler {
 			"duration_ms", time.Since(start).Milliseconds(),
 			"remote_addr", r.RemoteAddr,
 		)
+	})
+}
+
+// publicPaths never require a session -- the login page and its own POST
+// (nothing to authenticate against yet), the health check (ops tooling, not
+// a browser session), and static assets (CSS/JS, not per-user).
+func isPublicPath(path string) bool {
+	if path == "/login" || path == "/health" {
+		return true
+	}
+	return strings.HasPrefix(path, "/static/")
+}
+
+// sessionAuth is CAP-X02's core enforcement: resolves the session cookie
+// into a real store.Auth (User + CAP-O01 per-Application role map + CSRF
+// token) and attaches it to ctx, or rejects the request. Runs before
+// workspaceTx (see main()'s registration order) since workspaceTx's own
+// workspace_id now comes from the User this middleware resolves, not a
+// client-suppliable cookie.
+//
+// Unauthenticated: a GET is redirected to /login (a browser navigating
+// somewhere it can't see yet is normal, not an error); anything else
+// (a POST from an expired session, a stale HTMX request) gets a plain 401 --
+// there's no useful page to redirect a form submission to.
+func sessionAuth(sessions *store.SessionStore, users *store.UserStore) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if isPublicPath(r.URL.Path) {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			deny := func() {
+				if r.Method == http.MethodGet {
+					http.Redirect(w, r, "/login", http.StatusSeeOther)
+					return
+				}
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+			}
+
+			c, err := r.Cookie("menata_session")
+			if err != nil || c.Value == "" {
+				deny()
+				return
+			}
+			tokenHash := auth.HashSessionToken(c.Value)
+			sess, err := sessions.Get(r.Context(), tokenHash)
+			if err != nil {
+				deny()
+				return
+			}
+			user, err := users.GetByID(r.Context(), sess.UserID)
+			if err != nil {
+				deny()
+				return
+			}
+			appRoles, err := users.ApplicationRoles(r.Context(), user.ID)
+			if err != nil {
+				slog.Error("load application roles", "correlation_id", middleware.GetReqID(r.Context()), "error", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+
+			// Sliding expiration: an active session never expires mid-use.
+			// Best-effort -- a failed touch doesn't fail the request, it just
+			// means this session expires on its original schedule instead of
+			// being extended.
+			if err := sessions.Touch(r.Context(), tokenHash, time.Now().Add(auth.SessionTTL)); err != nil {
+				slog.Error("touch session", "correlation_id", middleware.GetReqID(r.Context()), "error", err)
+			}
+
+			ctx := store.WithAuth(r.Context(), &store.Auth{
+				User:             user,
+				ApplicationRoles: appRoles,
+				CSRFToken:        sess.CSRFToken,
+			})
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// csrfProtect compares every non-GET request's submitted csrf_token form
+// field against the authenticated session's own stored token
+// (crypto/subtle constant-time compare, via auth.ConstantTimeEqual) --
+// standard synchronizer-token CSRF defense. /login's POST is exempt: no
+// session exists yet to compare against, and login CSRF isn't this
+// prototype's threat model (see the plan's own note on this).
+func csrfProtect(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == "/login" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		a, ok := store.AuthFromContext(r.Context())
+		if !ok {
+			// sessionAuth already rejects an unauthenticated non-GET before
+			// this middleware runs -- reaching here without an Auth means a
+			// path was (mis)configured as public despite accepting a POST.
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		submitted := r.FormValue("csrf_token")
+		if submitted == "" || !auth.ConstantTimeEqual(submitted, a.CSRFToken) {
+			slog.Warn("csrf token mismatch",
+				"correlation_id", middleware.GetReqID(r.Context()),
+				"path", r.URL.Path,
+				"identity", a.User.Name,
+			)
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
 }

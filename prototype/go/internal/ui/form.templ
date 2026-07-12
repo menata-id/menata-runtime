@@ -7,8 +7,8 @@ import "menata.id/runtime/internal/model"
 // separate "edit form" view declared in metadata. recordID == "" selects
 // Create mode (POST /{machine}); a non-empty recordID selects Edit mode
 // (POST /{machine}/{recordID}), matching the router's two POST routes.
-templ Form(role string, machine *model.Machine, recordID string, fields []FormField, errors []string, unreadCount int) {
-	@Page(formTitle(machine, recordID), role, unreadCount) {
+templ Form(identity, csrfToken string, isAdmin bool, machine *model.Machine, recordID string, fields []FormField, errors []string, unreadCount int) {
+	@Page(formTitle(machine, recordID), identity, csrfToken, isAdmin, unreadCount) {
 		<div class="mx-auto max-w-xl">
 			<div class="mb-5 flex items-center gap-3">
 				<a
@@ -29,6 +29,7 @@ templ Form(role string, machine *model.Machine, recordID string, fields []FormFi
 			}
 			<div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
 				<form method="POST" action={ templ.SafeURL(formAction(machine, recordID)) } class="space-y-5">
+					@CSRFField(csrfToken)
 					for _, ff := range fields {
 						@FieldInput(ff.Field, ff.Value, ff.Options)
 					}

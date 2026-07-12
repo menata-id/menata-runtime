@@ -2,6 +2,14 @@ package ui
 
 import "menata.id/runtime/internal/model"
 
+// CSRFField (CAP-X02) is the hidden synchronizer-token field every
+// state-changing form must include -- cmd/server/main.go's csrfProtect
+// middleware rejects any non-GET request whose csrf_token doesn't match the
+// session's own stored token.
+templ CSRFField(token string) {
+	<input type="hidden" name="csrf_token" value={ token }/>
+}
+
 // StatusBadge renders a coloured pill for status values.
 templ StatusBadge(status string) {
 	switch status {

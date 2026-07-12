@@ -219,7 +219,7 @@ terpisah hanya karena runtime belum punya target-nya:
 
 | Tipe | Target reference-nya | Status target |
 |------|----------------------|----------------|
-| `user` | Identitas platform (siapa penggunanya) | Menunggu CAP-O01 (identity & role registry) |
+| `user` | Identitas platform (siapa penggunanya) | CAP-O01 (identity & role registry) sudah ✅ — `users`/`user_application_roles` — tapi `type: user` belum dimigrasikan untuk menunjuk ke situ sebagai target `reference`; masih dirender sebagai teks bebas (CAP-F05 ⚠️) |
 | `money` | Currency (kode + kurs) | Menunggu CAP-O02 (master data designation) |
 | `file` | Entitas File/Document terkelola runtime | Belum ada — CAP-F06 masih ⚠️ partial |
 
@@ -326,9 +326,9 @@ dipicu dari state mana pun.
 #### `set_field` dengan nilai dinamis (CAP-A02)
 
 `value: today`, `value: now`, dan `value: current_user` di-resolve saat Event benar-benar dipicu,
-bukan disimpan sebagai teks literal "today"/"now"/"current_user". `current_user` di-resolve ke role
-yang sedang login (satu-satunya konsep identitas yang ada di prototipe ini hari ini) — jujur, bukan
-orang sungguhan, sampai CAP-O01 (identity & role registry) ada.
+bukan disimpan sebagai teks literal "today"/"now"/"current_user". `current_user` di-resolve ke
+identitas sungguhan orang yang sedang bertindak (CAP-X02 — nama akun yang sudah terautentikasi,
+bukan sekadar string role).
 
 #### `activate_next` + `aggregate_status` — workflow sequential/aggregate (CAP-A07, CAP-A08)
 
@@ -513,13 +513,24 @@ permissions:
 ```
 
 - `owner_field` (opsional, id Field di Machine yang sama): kalau diisi, `events`
-  yang terdaftar butuh **identity** yang login (cookie `menata_identity`, bukan
-  cuma `menata_role`) sama persis dengan nilai field itu di record-nya.
+  yang terdaftar butuh **identity** orang yang login (akun sungguhan, CAP-X02)
+  sama persis dengan nilai field itu di record-nya, bukan cuma cocok role-nya.
 - `can_read`/`can_create`/`can_edit` (opsional, default `true`): akses baca/
   buat/ubah ke record suatu Machine, terpisah dari Event apa saja yang boleh
   dipicu. **Deny-by-default per Machine** — role yang sama sekali tidak punya
   baris Permission di suatu Machine otomatis tidak punya akses baca/buat/ubah
   sama sekali, bukan diizinkan diam-diam seperti sebelumnya.
+
+**Siapa yang benar-benar memegang suatu `role` adalah urusan CAP-O01, bukan file ini.** `role`
+di sini cuma **mendeklarasikan kosakatanya** — nama role apa saja yang ada dan masing-masing
+boleh apa di Machine ini. Orang sungguhan di-assign satu role untuk satu Application secara
+utuh (semua Machine di dalam satu Application berbagi kosakata role yang sama) lewat
+`user_application_roles`, satu baris per pasangan `(user, application)`, diatur lewat halaman
+`/admin/users` — bukan bagian dari Runtime Metadata, dan juga bukan pilihan bebas saat login:
+role tidak lagi dideklarasikan sendiri (CAP-X02), tapi di-assign lebih dulu oleh seorang
+Admin workspace. Orang yang sama bisa pegang role berbeda di Application berbeda pada saat
+bersamaan (mis. "Requester" di sini, "Approver" di sana) tanpa langkah "ganti role" — role-nya
+untuk suatu halaman resolve dari Application mana halaman itu berada.
 
 ---
 

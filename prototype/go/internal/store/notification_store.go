@@ -10,9 +10,13 @@ import (
 
 // Notification is one in-app delivery (CAP-A10) of a `notify` action
 // (CAP-A03/A04). Recipient is a plain string -- a role name for a static
-// `notify: {role: ...}`, or a resolved field value for a dynamic
-// `notify: {recipient_field: ...}` -- matched against a session's role
-// cookie, the same identity-is-role caveat CAP-A02's current_user carries.
+// `notify: {role: ...}`, or a resolved field value (usually an identity
+// name) for a dynamic `notify: {recipient_field: ...}`. CAP-O01
+// (2026-07-12): a role recipient is no longer matched against one
+// session-wide role -- it's matched against the reader's own
+// user_application_roles row for that notification's specific Application
+// (see ListForRecipient's query), since the same person can hold a
+// different role in each Application they have access to.
 // CAP-X06 (2026-07-12): recipient alone was workspace-blind -- a "Manager"
 // in one workspace could see a "Manager" in another's notifications; RLS on
 // workspace_id closes this as a byproduct, not a separate fix.
@@ -52,11 +56,29 @@ func (s *NotificationStore) Create(ctx context.Context, recipient, message, mach
 	return nil
 }
 
-func (s *NotificationStore) ListForRecipient(ctx context.Context, recipient string) ([]*Notification, error) {
+// recipientMatch is the WHERE clause shared by ListForRecipient/UnreadCount/
+// MarkRead: a notification belongs to a reader if its recipient is their own
+// identity (name), OR its recipient is a role string that matches one of
+// their user_application_roles rows *for that notification's own
+// Application* (CAP-O01 -- a role broadcast to "Manager" must only reach
+// people who are actually "Manager" in the Application that fired it, not
+// everyone who happens to hold "Manager" anywhere). $1 = identity, $2 = userID.
+const recipientMatch = `(
+	n.recipient = $1
+	OR EXISTS (
+		SELECT 1 FROM machines m
+		JOIN user_application_roles uar ON uar.application_id = m.application_id
+		WHERE m.id = n.machine_id AND uar.role = n.recipient AND uar.user_id = $2
+	)
+)`
+
+func (s *NotificationStore) ListForRecipient(ctx context.Context, identity, userID string) ([]*Notification, error) {
 	rows, err := s.db(ctx).Query(ctx,
-		`SELECT id, recipient, message, COALESCE(machine_id, ''), COALESCE(record_id::text, ''), created_at, read_at
-		 FROM notifications WHERE recipient = $1 ORDER BY created_at DESC LIMIT 50`,
-		recipient)
+		`SELECT n.id, n.recipient, n.message, COALESCE(n.machine_id, ''), COALESCE(n.record_id::text, ''), n.created_at, n.read_at
+		 FROM notifications n
+		 WHERE `+recipientMatch+`
+		 ORDER BY n.created_at DESC LIMIT 50`,
+		identity, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list notifications: %w", err)
 	}
@@ -73,25 +95,24 @@ func (s *NotificationStore) ListForRecipient(ctx context.Context, recipient stri
 	return out, rows.Err()
 }
 
-func (s *NotificationStore) UnreadCount(ctx context.Context, recipient string) (int, error) {
+func (s *NotificationStore) UnreadCount(ctx context.Context, identity, userID string) (int, error) {
 	var count int
 	err := s.db(ctx).QueryRow(ctx,
-		`SELECT COUNT(*) FROM notifications WHERE recipient = $1 AND read_at IS NULL`,
-		recipient).Scan(&count)
+		`SELECT COUNT(*) FROM notifications n WHERE `+recipientMatch+` AND n.read_at IS NULL`,
+		identity, userID).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count unread notifications: %w", err)
 	}
 	return count, nil
 }
 
-// MarkRead marks a notification read only if it belongs to recipient --
-// this prototype's only access control is "the role cookie matches the
-// recipient string", so this check is what keeps one role from marking
-// another role's notifications read.
-func (s *NotificationStore) MarkRead(ctx context.Context, id, recipient string) error {
+// MarkRead marks a notification read only if it belongs to the reader
+// (recipientMatch) -- what keeps one person from marking another's
+// notifications read.
+func (s *NotificationStore) MarkRead(ctx context.Context, id, identity, userID string) error {
 	_, err := s.db(ctx).Exec(ctx,
-		`UPDATE notifications SET read_at = NOW() WHERE id = $1 AND recipient = $2 AND read_at IS NULL`,
-		id, recipient)
+		`UPDATE notifications n SET read_at = NOW() WHERE n.id = $3 AND `+recipientMatch+` AND n.read_at IS NULL`,
+		identity, userID, id)
 	if err != nil {
 		return fmt.Errorf("mark notification read: %w", err)
 	}

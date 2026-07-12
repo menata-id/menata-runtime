@@ -14,7 +14,8 @@ import (
 // URL scheme:
 //   /                                        workspace home — list of applications (CAP-O03)
 //   /apps/{applicationID}                    one application's own machines
-//   /login                                   role selection (prototype auth)
+//   /login                                   email + password login (CAP-X02)
+//   /admin/users                             workspace user/role management (CAP-O01, Admin-only)
 //   /notifications                           in-app notification inbox (CAP-A10)
 //   /{machineID}                             default list view
 //   /{machineID}/new                         new record form
@@ -33,6 +34,10 @@ func Mount(r chi.Router, h *handler.Handler) {
 
 	r.Get("/login", h.LoginForm)
 	r.Post("/login", h.Login)
+	r.Post("/logout", h.Logout)
+
+	r.Get("/admin/users", h.AdminUsers)
+	r.Post("/admin/users/{userID}", h.AdminUpdateUser)
 
 	r.Get("/notifications", h.Notifications)
 	r.Post("/notifications/{id}/read", h.MarkNotificationRead)

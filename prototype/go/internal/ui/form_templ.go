@@ -15,7 +15,7 @@ import "menata.id/runtime/internal/model"
 // separate "edit form" view declared in metadata. recordID == "" selects
 // Create mode (POST /{machine}); a non-empty recordID selects Edit mode
 // (POST /{machine}/{recordID}), matching the router's two POST routes.
-func Form(role string, machine *model.Machine, recordID string, fields []FormField, errors []string, unreadCount int) templ.Component {
+func Form(identity, csrfToken string, isAdmin bool, machine *model.Machine, recordID string, fields []FormField, errors []string, unreadCount int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -124,6 +124,10 @@ func Form(role string, machine *model.Machine, recordID string, fields []FormFie
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			templ_7745c5c3_Err = CSRFField(csrfToken).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 			for _, ff := range fields {
 				templ_7745c5c3_Err = FieldInput(ff.Field, ff.Value, ff.Options).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
@@ -137,7 +141,7 @@ func Form(role string, machine *model.Machine, recordID string, fields []FormFie
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(formSubmitLabel(recordID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/form.templ`, Line: 40, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/form.templ`, Line: 41, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -150,7 +154,7 @@ func Form(role string, machine *model.Machine, recordID string, fields []FormFie
 			var templ_7745c5c3_Var8 templ.SafeURL
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(formBackHref(machine, recordID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/form.templ`, Line: 43, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/form.templ`, Line: 44, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -162,7 +166,7 @@ func Form(role string, machine *model.Machine, recordID string, fields []FormFie
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page(formTitle(machine, recordID), role, unreadCount).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page(formTitle(machine, recordID), identity, csrfToken, isAdmin, unreadCount).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

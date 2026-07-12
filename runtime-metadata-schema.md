@@ -205,7 +205,7 @@ that target to point at:
 
 | Type | Reference target | Target status |
 |------|-------------------|-----------------|
-| `user` | Platform identity | Pending CAP-O01 (identity & role registry) |
+| `user` | Platform identity | CAP-O01 (identity & role registry) is now ✅ — `users`/`user_application_roles` — but `type: user` has not yet been migrated to point at it as a `reference` target; still renders as free text (CAP-F05 ⚠️) |
 | `money` | Currency (code + exchange rate) | Pending CAP-O02 (master data designation) |
 | `file` | Runtime-managed File/Document entity | Not yet implemented — CAP-F06 ⚠️ partial |
 
@@ -289,9 +289,9 @@ Business Knowledge should not describe how actions are implemented.
 ### `set_field` dynamic values (CAP-A02)
 
 `value: today` / `value: now` / `value: current_user` resolve at the moment the event fires, instead
-of being stored as that literal string. `current_user` resolves to the acting role (the identity
-this runtime's login currently tracks) — see the `user`/reference-sugar note above; once CAP-O01
-(identity & role registry) exists, this resolves to a real person instead.
+of being stored as that literal string. `current_user` resolves to the acting person's real
+identity (CAP-X02 — a real authenticated account's name, not a role string) — see the
+`user`/reference-sugar note above.
 
 ```yaml
 actions:
@@ -421,6 +421,17 @@ permissions:
   needs to trigger Events still needs at least one Permission row present to
   read/create/edit at all (the defaults only apply once a row already
   exists for that role).
+
+**Who actually holds a `role` string is CAP-O01, not this file.** `role` here only *declares
+the vocabulary* — which role names exist and what each may do on this Machine. A real person
+is assigned one of these roles for the whole Application (every Machine within it shares the
+same role vocabulary, since Permissions across an Application's Machines are what defines it)
+via `user_application_roles`, one row per `(user, application)` pair, set through
+`/admin/users` — not part of Runtime Metadata, and not a login-time free choice either: role
+is no longer self-declared (CAP-X02), it's assigned by a workspace Admin ahead of time. The
+same person can hold a different role in a different Application at the same time (e.g.
+"Requester" here, "Approver" over there) with no "switch role" step — their role for a given
+page resolves from which Application that page belongs to.
 
 ---
 
