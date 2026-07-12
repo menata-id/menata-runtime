@@ -99,6 +99,18 @@ CAP-X07's `internal/handler/api.go` routes use the same session-cookie auth as e
 route, just with the CSRF token carried differently for that one content type — there is no
 separate API-key mechanism in this codebase.
 
+**Every page belonging to a Machine must pass `h.subNavFor(r, machine)` as `ui.Page`'s
+`subNav` argument (CAP-O03 Tier 2) — a page that forgets to silently renders with no sub-nav
+strip, not an error.** `ui.Page`'s `subNav []SubNavLink` parameter renders a persistent,
+Application-scoped nav strip (`internal/ui/layout.templ`'s `subNavBar`) listing a Machine's
+sibling Machines in the same Application, permission-trimmed the same way `AppMachines`
+already is. If you add a new Machine-scoped page renderer, thread `subNav []SubNavLink` through
+its own templ signature and call `h.subNavFor(r, machine)` at the handler call site — the 8
+existing ones (List, Detail, Form, WizardForm, CalendarTimeline, Dashboard, Report, ImportCSV)
+are the pattern to copy. A page that ISN'T scoped to one Machine (workspace/Application home,
+Search, Notifications, Admin) passes `nil` instead — there's no "current Machine" to resolve
+siblings from.
+
 **`Executor.Simulate` / `Executor.Persist` split exists for CAP-C09.** `Simulate` computes an
 event's resulting data without writing anything; the caller (`triggerEvent`) validates that result
 against every declared Constraint *before* calling `Persist`. Never call `Persist` without having
