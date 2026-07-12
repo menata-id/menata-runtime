@@ -1523,6 +1523,30 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > data links that already exist. No JS, no new route, no conflict with the no-SPA posture.
 > Registration only — not implemented by this study.
 
+> **Status update (2026-07-12, same day) — CAP-O03 Tier 2 implemented, the first capability
+> picked from the seven registered by Batches 008/009's own UI/navigation benchmarks.** Chosen
+> to go first as the lowest-risk, most broadly useful of the set: no new field types, no schema
+> change, no client-side JS at all — purely a rendering-layer addition reusing CAP-O03's own
+> already-resolved `ScopeFor`/`MachinesForApplication` data link.
+>
+> `ui.Page` gained an optional `subNav []SubNavLink` parameter (`internal/ui/layout.templ`),
+> rendered as a persistent strip between the global nav bar and page content whenever non-empty.
+> `Handler.subNavFor(r, machine)` resolves it the same permission-trimmed way `AppMachines`
+> already lists an Application's Machines — `Guard.CanRead` per sibling, `nil` (no strip at all)
+> once trimmed below 2, which naturally covers both "genuinely one Machine in this Application"
+> and "this role can only read one of several." Threaded through all 8 Machine-scoped page
+> renderers (List, Detail, Form, WizardForm, Calendar/Timeline, Dashboard, Report, ImportCSV) —
+> a mechanical but wide change (12 `.templ` files, 12 handler call sites), verified with a full
+> conformance run at every step specifically because touching that many render paths carries
+> real regression risk even for a purely additive change.
+>
+> Conformance T135 added (136/136 passing, confirmed stable against production data before and
+> after live deploy — zero regressions across the other 135 tests despite the width of this
+> change), proven on `app_field_types_lab` (3 Machines — Product/Invoice/Shipment sub-nav, with
+> active-state highlighting) and `app_workspace_lab_ops` (1 Machine — confirms no strip renders)
+> using existing seed data, no new migration or seed file needed. Live at `aksi.menata.id`. Six
+> more registered candidates remain unimplemented (CAP-V14 Tier 2, CAP-V15–V19).
+
 ---
 
 # Principles

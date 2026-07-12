@@ -7,8 +7,8 @@ import "menata.id/runtime/internal/model"
 // same grouped-list shape read chronologically top to bottom; both are the
 // same rendering, only the heading and empty-state copy differ, so one
 // templ backs both rather than duplicating the table markup.
-templ CalendarTimeline(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, groups []CalendarGroup, unreadCount int) {
-	@Page(viewName, identity, csrfToken, isAdmin, unreadCount) {
+templ CalendarTimeline(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, groups []CalendarGroup, unreadCount int, subNav []SubNavLink) {
+	@Page(viewName, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
 		</div>

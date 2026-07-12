@@ -156,7 +156,7 @@ func Notifications(identity, csrfToken string, isAdmin bool, items []Notificatio
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page("Notifications", identity, csrfToken, isAdmin, unreadCount).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page("Notifications", identity, csrfToken, isAdmin, unreadCount, nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

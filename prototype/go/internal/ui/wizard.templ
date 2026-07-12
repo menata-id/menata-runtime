@@ -17,8 +17,8 @@ type HiddenField struct {
 // step" vs. "this is the final step, actually create the record." No
 // session state: every prior step's answer travels as a hidden input on
 // each subsequent step's page, so the browser IS the state.
-templ WizardForm(identity, csrfToken string, isAdmin bool, machine *model.Machine, stepIndex, totalSteps int, fields []FormField, hidden []HiddenField, errors []string, unreadCount int) {
-	@Page("New "+machine.Name, identity, csrfToken, isAdmin, unreadCount) {
+templ WizardForm(identity, csrfToken string, isAdmin bool, machine *model.Machine, stepIndex, totalSteps int, fields []FormField, hidden []HiddenField, errors []string, unreadCount int, subNav []SubNavLink) {
+	@Page("New "+machine.Name, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mx-auto max-w-xl">
 			<div class="mb-5 flex items-center gap-3">
 				<a href={ templ.SafeURL("/" + machine.ID) } class="text-sm text-slate-400 hover:text-slate-600 transition-colors">← Back</a>

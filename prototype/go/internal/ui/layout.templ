@@ -8,9 +8,11 @@ import "strconv"
 // per-Application, see internal/handler's roleForApp). csrfToken is the
 // current session's synchronizer token, needed here for the logout form.
 // isAdmin shows the "Manage users" link only for a workspace Admin. Every
-// page passes all four through so the nav bar renders without a separate
-// request.
-templ Page(title, identity, csrfToken string, isAdmin bool, unreadCount int) {
+// page passes all five through so the nav bar renders without a separate
+// request. subNav (CAP-O03 Tier 2) is the current Machine's own sibling
+// Machines in the same Application -- nil/empty for a page that doesn't
+// belong to any one Machine, which renders no strip at all.
+templ Page(title, identity, csrfToken string, isAdmin bool, unreadCount int, subNav []SubNavLink) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -22,11 +24,38 @@ templ Page(title, identity, csrfToken string, isAdmin bool, unreadCount int) {
 		</head>
 		<body class="bg-slate-50 min-h-screen text-slate-900 antialiased">
 			@navBar(identity, csrfToken, isAdmin, unreadCount)
+			if len(subNav) > 0 {
+				@subNavBar(subNav)
+			}
 			<div class="mx-auto max-w-5xl px-4 py-6">
 				{ children... }
 			</div>
 		</body>
 	</html>
+}
+
+// subNavBar (CAP-O03 Tier 2) renders every page belonging to a Machine
+// with a persistent, Application-scoped sub-nav strip -- so a user can
+// move sideways to a sibling Machine in the same Application without
+// returning to the workspace home first. Server-rendered links only, no
+// JS, no new route -- reuses the exact data link CAP-O03's own AppMachines
+// page already resolves (Interpreter.ScopeFor/MachinesForApplication),
+// just rendered persistently instead of as a one-time landing page.
+templ subNavBar(links []SubNavLink) {
+	<nav class="bg-slate-100 border-b border-slate-200">
+		<div class="mx-auto max-w-5xl px-4 flex items-center gap-1 h-9 overflow-x-auto">
+			for _, l := range links {
+				<a
+					href={ templ.SafeURL("/" + l.ID) }
+					class={ "shrink-0 rounded px-2.5 py-1 text-xs font-medium transition-colors",
+						templ.KV("bg-white text-blue-700 shadow-sm", l.Active),
+						templ.KV("text-slate-500 hover:text-slate-800 hover:bg-slate-200", !l.Active) }
+				>
+					{ l.Name }
+				</a>
+			}
+		</div>
+	</nav>
 }
 
 templ navBar(identity, csrfToken string, isAdmin bool, unreadCount int) {

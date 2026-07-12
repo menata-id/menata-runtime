@@ -3,8 +3,8 @@ package ui
 import "menata.id/runtime/internal/model"
 import "menata.id/runtime/internal/store"
 
-templ Detail(identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, fields []DetailField, permittedEvents []EventTrigger, childLists []ChildList, unreadCount int) {
-	@Page(machine.Name + " — Detail", identity, csrfToken, isAdmin, unreadCount) {
+templ Detail(identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, fields []DetailField, permittedEvents []EventTrigger, childLists []ChildList, unreadCount int, subNav []SubNavLink) {
+	@Page(machine.Name + " — Detail", identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mx-auto max-w-2xl">
 			<div class="mb-5 flex items-center gap-3">
 				<a

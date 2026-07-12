@@ -7,8 +7,8 @@ import "menata.id/runtime/internal/model"
 // ImportCSV (CAP-R06) renders both the upload form and, once results is
 // non-nil, the per-row outcome -- one page, not two, so a re-upload after
 // fixing a bad row is a single click back.
-templ ImportCSV(identity, csrfToken string, isAdmin bool, machine *model.Machine, fieldIDs []string, results []ImportRowResult, unreadCount int) {
-	@Page("Import "+machine.Name, identity, csrfToken, isAdmin, unreadCount) {
+templ ImportCSV(identity, csrfToken string, isAdmin bool, machine *model.Machine, fieldIDs []string, results []ImportRowResult, unreadCount int, subNav []SubNavLink) {
+	@Page("Import "+machine.Name, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mx-auto max-w-xl">
 			<div class="mb-5 flex items-center gap-3">
 				<a href={ templ.SafeURL("/" + machine.ID) } class="text-sm text-slate-400 hover:text-slate-600 transition-colors">← Back</a>

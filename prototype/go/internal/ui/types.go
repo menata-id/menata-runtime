@@ -12,6 +12,20 @@ type Card struct {
 	Description string
 }
 
+// SubNavLink (CAP-O03 Tier 2) is one entry in the persistent, Application-
+// scoped sub-nav strip rendered on every page belonging to a Machine --
+// that Machine's own sibling Machines in the same Application (permission-
+// trimmed the same way CardGrid's Application drill-in page already is),
+// so a user can move sideways between an app's own features without
+// returning to the workspace home. Empty slice = no strip rendered (a
+// page that doesn't belong to any one Machine -- Notifications, Search,
+// Admin, the workspace/Application home pages themselves).
+type SubNavLink struct {
+	ID     string
+	Name   string
+	Active bool // this is the Machine the current page already belongs to
+}
+
 // SearchResult (CAP-O04) is one match from the workspace-wide search --
 // which Machine it's on (permission-trimmed: only Machines the searching
 // role can read are ever scanned) and a link to its own Detail page.

@@ -602,7 +602,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		TotalPages:  totalPages,
 	}
 	a := h.auth(r)
-	page := ui.List(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts)
+	page := ui.List(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render list", "error", err)
 	}
@@ -817,7 +817,7 @@ func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.Report(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, sumLabels, rows, h.unreadCount(r.Context(), a))
+	page := ui.Report(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, sumLabels, rows, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render report", "error", err)
 	}
@@ -898,7 +898,7 @@ func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view 
 	flush()
 
 	a := h.auth(r)
-	page := ui.CalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, groups, h.unreadCount(r.Context(), a))
+	page := ui.CalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, groups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render calendar/timeline", "error", err)
 	}
@@ -972,7 +972,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.Dashboard(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), view.Name, tiles, h.unreadCount(r.Context(), a))
+	page := ui.Dashboard(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), view.Name, tiles, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render dashboard", "error", err)
 	}
@@ -1057,7 +1057,7 @@ func (h *Handler) ImportCSVForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a := h.auth(r)
-	page := ui.ImportCSV(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, h.csvFieldIDs(machine), nil, h.unreadCount(r.Context(), a))
+	page := ui.ImportCSV(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, h.csvFieldIDs(machine), nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render import form", "error", err)
 	}
@@ -1164,7 +1164,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.ImportCSV(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, h.csvFieldIDs(machine), results, h.unreadCount(r.Context(), a))
+	page := ui.ImportCSV(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, h.csvFieldIDs(machine), results, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render import results", "error", err)
 	}
@@ -1197,14 +1197,14 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 	// CAP-V12: a FormView declaring Steps renders as a multi-step wizard
 	// instead of the single Form -- step 0, no carried-forward values yet.
 	if fv := h.interp.FormView(machine.ID); fv != nil && len(fv.Config.Steps) > 0 {
-		page := ui.WizardForm(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, 0, len(fv.Config.Steps), h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[0], nil), nil, nil, h.unreadCount(r.Context(), a))
+		page := ui.WizardForm(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, 0, len(fv.Config.Steps), h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[0], nil), nil, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render wizard form", "error", err)
 		}
 		return
 	}
 
-	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, nil), nil, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine))
+	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, nil), nil, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render form", "error", err)
 	}
@@ -1260,7 +1260,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			}
 			a := h.auth(r)
 			page := ui.WizardForm(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, step+1, len(fv.Config.Steps),
-				h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[step+1], nil), carried, nil, h.unreadCount(r.Context(), a))
+				h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[step+1], nil), carried, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 			if err := page.Render(r.Context(), w); err != nil {
 				slog.Error("render wizard form", "error", err)
 			}
@@ -1405,13 +1405,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			page := ui.WizardForm(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, last, len(fv.Config.Steps),
-				h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[last], data), carried, violations, h.unreadCount(r.Context(), a))
+				h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[last], data), carried, violations, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 			if err := page.Render(r.Context(), w); err != nil {
 				slog.Error("render wizard form (violations)", "error", err)
 			}
 			return
 		}
-		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine))
+		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine), h.subNavFor(r, machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
@@ -1471,7 +1471,7 @@ func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a := h.auth(r)
-	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil, h.unreadCount(r.Context(), a), nil)
+	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil, h.unreadCount(r.Context(), a), nil, h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render edit form", "error", err)
 	}
@@ -1596,7 +1596,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		role := h.roleForApp(r, applicationID)
 		h.logRuleViolation(r.Context(), "update", machineID, "", role, h.identity(r), strings.Join(violations, "; "))
 		a := h.auth(r)
-		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), nil)
+		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), nil, h.subNavFor(r, machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
@@ -1691,7 +1691,7 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a := h.auth(r)
-	page := ui.Detail(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a))
+	page := ui.Detail(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render detail", "error", err)
 	}
@@ -2042,6 +2042,34 @@ func fieldIndex(m *model.Machine) map[string]*model.Field {
 // doesn't declare hidden_fields) hides nothing extra -- CAP-P05's
 // deny-by-default already governs whether the role can see the Machine at
 // all; this is a narrower, opt-in restriction on top of that.
+// subNavFor (CAP-O03 Tier 2) resolves the persistent, Application-scoped
+// sub-nav strip for a page belonging to machine -- that Machine's own
+// sibling Machines in the same Application, permission-trimmed the same
+// way AppMachines' own landing page already is, so a user can move
+// sideways between an app's own features without returning to the
+// workspace home. Reuses the exact data link AppMachines already
+// resolves (ScopeFor/MachinesForApplication) -- see benchmarks/009 for
+// the full reasoning.
+func (h *Handler) subNavFor(r *http.Request, machine *model.Machine) []ui.SubNavLink {
+	_, applicationID := h.interp.ScopeFor(machine.ID)
+	siblings := h.interp.MachinesForApplication(applicationID)
+	if len(siblings) < 2 {
+		return nil // nothing to move sideways to
+	}
+	role := h.roleForApp(r, applicationID)
+	links := make([]ui.SubNavLink, 0, len(siblings))
+	for _, m := range siblings {
+		if !h.guard.CanRead(m, role) {
+			continue
+		}
+		links = append(links, ui.SubNavLink{ID: m.ID, Name: m.Name, Active: m.ID == machine.ID})
+	}
+	if len(links) < 2 {
+		return nil // permission-trimmed down to nothing worth switching between
+	}
+	return links
+}
+
 func (h *Handler) hiddenFields(machine *model.Machine, role string) map[string]bool {
 	out := map[string]bool{}
 	for _, perm := range machine.Permissions {

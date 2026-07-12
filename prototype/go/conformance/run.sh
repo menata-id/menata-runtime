@@ -1415,6 +1415,23 @@ DOC_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$WIRA" "$FT1_URL/document"
 body_contains "$FT1_URL/document" "SKU: SKU-" "$WIRA" && ! body_contains "$FT1_URL/document" "{{.fld_ftp_sku}}" "$WIRA"
 check T134 "CAP-F21" "a document View renders its template with real merge fields resolved (got $DOC_CODE)" $?
 
+# --- CAP-O03 Tier 2: persistent in-app sub-navigation (2026-07-12) ---
+# benchmarks/009-in-app-navigation-benchmark.md. No new seed needed --
+# reuses app_field_types_lab (3 machines: Product/Invoice/Shipment,
+# seeds/017) for the positive case and app_workspace_lab_ops (1 machine,
+# seeds/015) for the negative case.
+
+# T135 -- a page belonging to a Machine in a multi-machine Application
+# renders a persistent sub-nav strip listing every sibling Machine, with
+# the current one marked active -- so a user can move sideways without
+# returning to the workspace home. A Machine that's the ONLY one in its
+# Application renders no strip at all (nothing to move sideways to).
+body_contains "$BASE_URL/mch_ft_product" 'href="/mch_ft_invoice"' "$WIRA" && \
+    body_contains "$BASE_URL/mch_ft_product" 'href="/mch_ft_shipment"' "$WIRA" && \
+    body_contains "$BASE_URL/mch_ft_product" 'bg-white text-blue-700' "$WIRA" && \
+    ! body_contains "$BASE_URL/mch_wsx_project" "bg-slate-100 border-b border-slate-200" "$YARA"
+check T135 "CAP-O03" "a multi-machine Application renders a persistent sub-nav to sibling Machines; a single-machine Application renders none" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

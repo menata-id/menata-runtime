@@ -10,7 +10,7 @@ package ui
 // Permissions, not a separately maintained list (CAP-O01's own design
 // choice — see the plan this shipped against).
 templ AdminUsers(identity, csrfToken string, unreadCount int, users []AdminUserRow, appGroups []RoleGroup) {
-	@Page("Manage users", identity, csrfToken, true, unreadCount) {
+	@Page("Manage users", identity, csrfToken, true, unreadCount, nil) {
 		<h1 class="mb-1 text-xl font-semibold text-slate-900">Manage users</h1>
 		<p class="mb-5 text-sm text-slate-500">
 			Workspace role controls access to this page and (reserved, not yet built) Application
