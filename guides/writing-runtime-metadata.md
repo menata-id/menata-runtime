@@ -816,10 +816,37 @@ mereferensikannya lewat string jadi dangling.
 - [ ] Kalau pakai `aggregate_status`, machine child-nya punya field `Sequence`/`Decision`/`Approver` (nama persis, case-insensitive) kalau memang butuh gating sequential (CAP-A07)
 - [ ] Kalau pakai workflow sequential/aggregate, parent machine-nya punya `config` (`approval_mode_field`, `steps_machine`, `steps_parent_field`) — lihat §Machine `config`
 - [ ] Setiap `value` di `expression`/`condition` ditulis sebagai string (`"100"`, bukan `100`) — angka mentah bikin loader crash
-- [ ] Operator di `constraint`/`condition` cuma salah satu dari: `required`, `equals`, `not_equals`, `after` — selain itu diam-diam tidak pernah aktif, bukan error
-- [ ] `set_field.value` cuma literal atau `today`/`now`/`current_user` — bukan pemanggilan fungsi, aritmatika, atau template
+- [ ] Operator di `constraint`/`condition` salah satu dari: `required`, `equals`, `not_equals`, `after`, `greater_than`, `less_than` (per 2026-07-12) — selain itu diam-diam tidak pernah aktif, bukan error
+- [ ] `set_field.value` literal, `today`/`now`/`current_user`/`next`, `"input:<field>"`, atau aritmetika tanggal (`"today + N Days/Business Days"`) — bukan pemanggilan fungsi atau template
+- [ ] `create_record`/`batch_generate` pakai key `machine` (BUKAN `target_machine` — itu cuma untuk field type `reference`), dan nilai `fields` yang menyalin dari record sumber butuh prefix `"field:"`
 - [ ] `owner_field` di Permissions menunjuk Field yang `type: user` — bukan `text` atau tipe lain
 - [ ] Kalau case-nya tersebar di beberapa file berbagi satu Application, tepat satu file mendeklarasikan `workspace:`/`application:` penuh
+
+---
+
+## API JSON otomatis dan Ekspor Metadata (CAP-X07/X08, 2026-07-12)
+
+Bukan sesuatu yang ditulis penulis metadata — konsekuensi otomatis dari mendeklarasikan
+sebuah Machine. Setiap Machine otomatis dapat `GET /api/{machine}`, `GET
+/api/{machine}/{record}`, `POST /api/{machine}` (auth sesi + permission trimming yang sama
+dengan route HTML; CSRF via header `X-CSRF-Token` karena body JSON tidak punya field form
+`csrf_token`). Belum bisa lewat API ini: baris `child_table` (CAP-F16), langkah wizard
+(CAP-V12), trigger event.
+
+Admin workspace bisa ambil `GET /apps/{application}/export` — seluruh pohon metadata
+Application itu (Field/Event/Constraint/Permission/View tiap Machine-nya) sebagai JSON,
+langsung dari model yang sudah dimuat runtime. Read-only untuk saat ini — belum ada endpoint
+import; metadata tetap hanya masuk lewat SQL seed (atau, di hulu-nya, pipeline authoring
+`.menata` → Runtime Metadata yang dijelaskan seluruh dokumen ini).
+
+**Perubahan semantik kegagalan (CAP-X12, 2026-07-12)**: kalau `create_record`/
+`cross_set_field`/`batch_generate` gagal saat runtime (`machine` menunjuk id yang tidak
+nyata, `record_field` menunjuk record yang sudah tidak ada), **SELURUH Event gagal dan TIDAK
+ADA yang commit** — bukan cuma action itu yang dilewati. Setiap request HTTP berjalan dalam
+satu transaksi database sungguhan; kegagalan satu action membatalkan semuanya, termasuk
+`set_field` record itu sendiri dan action lain dalam Event yang sama yang tadinya berhasil
+sendiri. Pastikan `machine`/`record_field` benar — salah ketik sekarang membatalkan seluruh
+Event saat runtime, bukan cuma diam-diam tidak melakukan apa-apa seperti sebelumnya.
 
 ---
 

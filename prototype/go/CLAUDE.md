@@ -69,6 +69,36 @@ Subscription's own failure can't roll back the publisher (it only ever runs afte
 succeeds), and independent Subscriptions on the same publisher Event don't affect each other —
 this fell out of reusing the existing call site rather than needing new isolation logic.
 
+**Every HTTP request already runs inside one real Postgres transaction — a store method
+swallowing its own error instead of returning it silently breaks that guarantee.**
+`cmd/server/main.go`'s `workspaceTx` middleware (built for CAP-X06's RLS cutover) wraps every
+request in `pool.Begin()`/`tx.Commit()` (only on a non-5xx response)/a deferred `Rollback()`
+otherwise — `store.WithTx` attaches it to `ctx`, and every `RecordStore`/`NotificationStore`/
+etc. method already picks it up automatically via `dbFromContext`. This means an event whose
+actions touch several Machines (`create_record`, `cross_set_field`, `batch_generate`) already
+gets true cross-record atomicity **for free** — but only if a failed write inside one of those
+actions actually becomes a `error` return that reaches the HTTP handler as a 5xx. CAP-X12
+(2026-07-12) found and fixed exactly this: those three `Executor` methods used to `slog.Error`
+a failed `records.Create`/`records.Update` and return `nil`, so the request still finished as a
+2xx and `workspaceTx` still committed the transaction — silently keeping the record's own
+`set_field` changes and any earlier, otherwise-successful action in the same event's chain,
+while only the failed action vanished. **If you add a new action type or any other code path
+that writes to the DB inside an event's action loop, return its error — don't log-and-swallow
+it** — the existing transaction machinery only protects you if you let it see the failure.
+
+**A dedupe/claim check is a single `INSERT ... ON CONFLICT DO NOTHING`, never a
+SELECT-then-INSERT.** CAP-X13's webhook idempotency (`RecordStore.ClaimWebhookEvent`) claims an
+`(machine, event, idempotency_key)` tuple this way — a check-then-act pattern races two
+near-simultaneous retries against each other (both SELECTs can see "not claimed yet" before
+either INSERT commits); the atomic-INSERT form can't race regardless of how many callers hit it
+at once. Reuse this shape for any future "has this already happened" check.
+
+**A JSON request body has no `csrf_token` form field — `csrfProtect` (main.go) now also accepts
+`X-CSRF-Token` as a header, falling back to it only when `FormValue("csrf_token")` is empty.**
+CAP-X07's `internal/handler/api.go` routes use the same session-cookie auth as every HTML
+route, just with the CSRF token carried differently for that one content type — there is no
+separate API-key mechanism in this codebase.
+
 **`Executor.Simulate` / `Executor.Persist` split exists for CAP-C09.** `Simulate` computes an
 event's resulting data without writing anything; the caller (`triggerEvent`) validates that result
 against every declared Constraint *before* calling `Persist`. Never call `Persist` without having

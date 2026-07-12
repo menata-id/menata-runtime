@@ -348,6 +348,14 @@ trigger path that deliberately bypasses both (external systems have no browser s
 webhook may also stamp payload fields directly onto the record via InputFields (see below) —
 `"input:<field>"` resolves from the POST body, not a form.
 
+**Idempotency (CAP-X13, 2026-07-12)** — a webhook caller MAY add header
+`X-Idempotency-Key: <any string the caller considers unique to this delivery>`. A repeated
+delivery with the SAME key against the same `(machine_id, event_id)` returns `200` without
+re-running the event a second time — the same "duplicates are success, not errors" contract
+Stripe/Shopify/GitHub's own webhook conventions use, safe for a caller to retry on a timeout
+without double-processing. No key at all skips the check entirely; this is opt-in per delivery,
+not a requirement.
+
 ---
 
 ## Event Schema Declaration (CAP-I02, 2026-07-12)
@@ -712,6 +720,23 @@ views:
 
 ---
 
+## Auto-Generated JSON API and Metadata Export (CAP-X07/X08, 2026-07-12)
+
+Not metadata an author declares — a consequence of it. Every Machine automatically gets
+`GET /api/{machine}`, `GET /api/{machine}/{record}`, `POST /api/{machine}` (same session
+auth, same CAP-P05 permission trimming and CAP-P06 `hidden_fields` stripping as the HTML
+routes; CSRF via an `X-CSRF-Token` header since a JSON body has no `csrf_token` form field).
+Not yet reachable through this API: CAP-F16 child-table rows, CAP-V12 wizard steps, event
+triggering — plain Create/Read on a Machine's own fields only.
+
+Any workspace Admin can pull `GET /apps/{application}/export` — that Application's full
+metadata tree (every Machine's Fields/Events/Constraints/Permissions/Views/Config), as JSON,
+straight from the loaded Application Model. Read-only for now; there is no import endpoint —
+metadata still only enters this runtime via SQL seeds (or, upstream of that, the `.menata` →
+Runtime Metadata authoring pipeline this whole document describes).
+
+---
+
 ## Load-Time Contract — What's Enforced, What Silently No-ops
 
 Found the hard way (2026-07-12): converting 50 previously-untested example `.yaml` files
@@ -808,6 +833,16 @@ already updated):
 Any action may be wrapped in `if: { field, operator, value }` (CAP-A09) to run only when that
 condition is true against the record's data *after* the event's other `set_field`s would apply
 — a per-action guard, distinct from the event-level `condition` above.
+
+**Failure semantics (CAP-X12, 2026-07-12): if `create_record`/`cross_set_field`/
+`batch_generate` fails at runtime — a `machine` naming a Machine id that isn't real, a
+`record_field` pointing at a record that no longer exists — the WHOLE event fails and NOTHING
+it did commits**, not just that one action. Every HTTP request runs inside one real database
+transaction; an action failure aborts it entirely, rolling back the record's own `set_field`
+changes and any earlier action in the same event that had, on its own, already succeeded. A
+`machine`/`record_field` value is still trusted, unvalidated metadata at load time (a typo in
+it won't fail the boot, only the first trigger that reaches it) — get these right, since a
+wrong one now breaks the whole event at runtime instead of just quietly doing nothing.
 
 **A `reference` field's `target_machine` must be a real Machine id already present in the
 same load** — including reserved/pseudo targets like `"$identity"` (CAP-F13's still-
