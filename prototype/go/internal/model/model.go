@@ -10,6 +10,7 @@ type Workspace struct {
 	ID           string
 	Name         string
 	Applications []*Application
+	Holidays     []string // CAP-O06: "YYYY-MM-DD" dates this Workspace declares as non-working, consumed by CAP-A11's "N Business Days" date arithmetic
 }
 
 // Application is an independently realizable solution inside a Workspace.
@@ -93,7 +94,7 @@ type Event struct {
 	Actions            []*EventAction
 	Condition          *ConstraintExpression
 	AggregateCondition *AggregateCondition
-	InputFields        []string // CAP-P04: field ids collected fresh at trigger time (a delegation target picker), not read from the record's own data
+	InputFields        []string  // CAP-P04: field ids collected fresh at trigger time (a delegation target picker), not read from the record's own data
 	Schedule           *Schedule // CAP-E02/E03: fires without any user action, on a time or date-field trigger
 	Category           string    // CAP-I02: documentation metadata, no runtime behavior of its own
 	SchemaVersion      string    // CAP-I02: documentation metadata
@@ -114,8 +115,8 @@ type Event struct {
 // this record today" -- rather than a new tracking table.
 type Schedule struct {
 	Time       string `json:"time,omitempty"`        // CAP-E02: "HH:MM", UTC, fires daily
-	DateField  string `json:"date_field,omitempty"`   // CAP-E03: a date Field on this Event's own Machine
-	OffsetDays int    `json:"offset_days,omitempty"`  // CAP-E03: fires when today == that Field's value + OffsetDays
+	DateField  string `json:"date_field,omitempty"`  // CAP-E03: a date Field on this Event's own Machine
+	OffsetDays int    `json:"offset_days,omitempty"` // CAP-E03: fires when today == that Field's value + OffsetDays
 }
 
 // Subscription (CAP-I01) is a SUBSCRIBER Machine's own declared interest in
@@ -255,15 +256,15 @@ type AggregateCondition struct {
 // Events. A role with no Permission row at all on a machine has none of
 // these — deny-by-default.
 type Permission struct {
-	ID         string
-	MachineID  string
-	Role       string
-	Events     []string // event ids
-	OwnerField string
-	CanRead    bool
-	CanCreate  bool
-	CanEdit    bool
-	CanDelete  bool // CAP-R03 -- defaults false at the DB level, unlike the other three
+	ID           string
+	MachineID    string
+	Role         string
+	Events       []string // event ids
+	OwnerField   string
+	CanRead      bool
+	CanCreate    bool
+	CanEdit      bool
+	CanDelete    bool     // CAP-R03 -- defaults false at the DB level, unlike the other three
 	HiddenFields []string // CAP-P06 -- field ids this role's Permission excludes from List/Detail/Form rendering
 }
 

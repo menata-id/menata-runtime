@@ -151,6 +151,13 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T106 | CAP-I03 | a Subscription's Contract being satisfied lets its own action fire |
 | T107 | CAP-I05 | the same shared Machine accumulates contributions from two different, unrelated publisher Events |
 | T108 | CAP-I02 | a deprecated Event still works and shows a Deprecated indicator |
+| T109 | CAP-O02 | a reference field on a Machine in a different Application targets a master-data record |
+| T110 | CAP-O02 | archiving a master-data record still referenced elsewhere is rejected (negative case) |
+| T111 | CAP-O02 | an unreferenced master-data record archives normally |
+| T112 | CAP-O04 | workspace-wide search finds a match on a Machine the searcher can read |
+| T113 | CAP-O04 | search results are permission-trimmed — a role with no access to the Machine finds nothing (negative case) |
+| T114 | CAP-O05 | switching to digest preference groups the same notifications by day |
+| T115 | CAP-O06 | "N Business Days" date arithmetic skips weekends, matching an independent bash reimplementation |
 
 ---
 
@@ -161,3 +168,4 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 - **Adding a test:** new ✅ capability → add a `T##` here and in `run.sh`, then set the registry's Proof column to `conformance T##`.
 - **State-guard caveat resolved (2026-07-11)** — CAP-E06 landed; T17/T18 assert rejection of out-of-state transitions, including the exact "Approved record still Rejectable" gap Study 1 found.
 - **T99–T101 wait for a real clock, not a stand-in (2026-07-12)** — CAP-E02/E03's background scheduler ticks once a minute; the suite creates the qualifying records, sleeps ~65s once for all three tests together (not once each), then asserts. Slower than every other test here, deliberately: CAP-E05's own T38 used a manual stand-in for this exact gap before the real scheduler existed — now that it does, it gets proven against the real thing, not a simulation of it.
+- **T115's holiday-skip half is manual, not automated (2026-07-12)** — CAP-O06's `"N Business Days"` unit skips both weekends and any date in the acting Workspace's own `workspace_holidays`. T115 only asserts the universal weekend-skip rule (reimplemented independently in bash, same precedent as T66's plain-day arithmetic) because a *seeded* holiday date would go stale relative to whenever this suite is actually run — a fixed "2026-08-17 is a holiday" row eventually stops being a useful assertion. The holiday-specific behavior is verified the same documented, DB-inspection way as T19/T42/T43/T52: insert a row into `workspace_holidays` directly, restart the server (holidays load once at boot, same as everything else the Interpreter caches), and confirm the same date arithmetic shifts around it — done manually during Batch 9's own verification, not part of this automated suite.

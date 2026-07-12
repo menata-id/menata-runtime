@@ -171,6 +171,7 @@ HANA=$(session_for hana@example.com password)       # HR (app_permissions_lab)
 IRIS=$(session_for iris@example.com password)       # Staff (app_permissions_lab)
 SAM=$(session_for sam@example.com password)         # Member (app_event_sources)
 THEO=$(session_for theo@example.com password)       # Member (app_integration_lab)
+YARA=$(session_for yara@example.com password)       # Member (app_workspace_lab_hr, app_workspace_lab_ops)
 
 # Real user ids (CAP-F05) for the four genuine person-reference fields
 # (fld_requester, fld_lr_employee, fld_ad_submitted_by, fld_as_approver) --
@@ -1141,6 +1142,91 @@ check T107 "CAP-I05" "the same shared Machine accumulates contributions from two
 CODE=$(post_status "$BASE_URL/mch_int_order/$ORD1_ID/events/evt_into_legacy_notify" "" "$THEO")
 [ "$CODE" = "303" ] && body_contains "$ORD1_URL" "Deprecated" "$THEO"
 check T108 "CAP-I02" "a deprecated Event still works and shows a Deprecated indicator (got $CODE)" $?
+
+# --- Batch 9: Workspace Services (2026-07-12) ---
+# seeds/015_workspace_services_lab.sql. CAP-O01/CAP-O03 shipped earlier, not
+# part of this batch.
+
+# T109 -- CAP-O02: a `reference` field on a Machine in a DIFFERENT
+# Application can target a master-data Machine's record -- cross-app
+# referenceability, proven deliberately (already implied by CAP-F13 alone,
+# but never exercised across an Application boundary until now).
+WSXE1_URL=$(post_redirect "$BASE_URL/mch_wsx_employee" "fld_wsxe_name=Priya+$$" "$YARA")
+WSXE1_ID="${WSXE1_URL##*/}"
+WSXP1_URL=$(post_redirect "$BASE_URL/mch_wsx_project" "fld_wsxp_title=Cross+App+Project+$$&fld_wsxp_lead=$WSXE1_ID" "$YARA")
+body_contains "$WSXP1_URL" "Priya $$" "$YARA"
+check T109 "CAP-O02" "a reference field on a Machine in a different Application targets a master-data record" $?
+
+# T110 -- CAP-O02 negative: archiving a master-data record still referenced
+# by another Machine's record (any Application) is blocked, not silently
+# allowed to dangle the reference.
+YARA_CSRF=$(csrf_for "$YARA")
+ARCHIVE_BODY=$(curl -s -b "$YARA" -X POST "$BASE_URL/mch_wsx_employee/$WSXE1_ID/archive" -d "csrf_token=$YARA_CSRF")
+ARCHIVE_CODE=$(post_status "$BASE_URL/mch_wsx_employee/$WSXE1_ID/archive" "" "$YARA")
+[ "$ARCHIVE_CODE" = "409" ] && echo "$ARCHIVE_BODY" | grep -q "still referenced by Project (via Lead)"
+check T110 "CAP-O02" "archiving a master-data record still referenced elsewhere is rejected (got $ARCHIVE_CODE)" $?
+
+# T111 -- CAP-O02 positive: an UNREFERENCED master-data record archives
+# normally -- the block is specific to standing references, not a blanket
+# ban on archiving master data at all.
+WSXE2_URL=$(post_redirect "$BASE_URL/mch_wsx_employee" "fld_wsxe_name=Unreferenced+$$" "$YARA")
+WSXE2_ID="${WSXE2_URL##*/}"
+ARCHIVE2_CODE=$(post_status "$BASE_URL/mch_wsx_employee/$WSXE2_ID/archive" "" "$YARA")
+[ "$ARCHIVE2_CODE" = "303" ] && ! body_contains "$BASE_URL/mch_wsx_employee" "Unreferenced $$" "$YARA"
+check T111 "CAP-O02" "an unreferenced master-data record archives normally (got $ARCHIVE2_CODE)" $?
+
+# T112 -- CAP-O04: workspace-wide search finds a match on a Machine the
+# searching role can read, scanning across every Application in the
+# workspace, not just one Machine at a time.
+EMP_PROBE_URL=$(post_redirect "$BASE_URL/mch_pl_employee" "fld_ple2_name=SearchProbe$$&fld_ple2_salary=1000" "$HANA")
+body_contains "$BASE_URL/search?q=SearchProbe$$" ">SearchProbe$$</a>" "$HANA"
+check T112 "CAP-O04" "workspace-wide search finds a match on a Machine the searcher can read" $?
+
+# T113 -- CAP-O04 negative: the SAME record is invisible to a search by a
+# role with no Permission on that Machine at all -- results are
+# permission-trimmed per Machine, not a raw text index over everything.
+# (Checking for the real result anchor, not just the query string, since
+# the search box's own input echoes the query back regardless of results.)
+body_contains "$BASE_URL/search?q=SearchProbe$$" "No matches for" "$YARA" && \
+    ! body_contains "$BASE_URL/search?q=SearchProbe$$" ">SearchProbe$$</a>" "$YARA"
+check T113 "CAP-O04" "search results are permission-trimmed -- a role with no access to the Machine finds nothing" $?
+
+# T114 -- CAP-O05: the notification inbox's per-user delivery preference
+# toggles between "immediate" (flat list) and "digest" (grouped by day) --
+# same underlying notifications either way, just how they're presented.
+DIGEST_CODE=$(post_status "$BASE_URL/notifications/preference" "preference=digest" "$PAM")
+body_contains "$BASE_URL/notifications" "Switch to immediate" "$PAM" && \
+    body_contains "$BASE_URL/notifications" "Task: Complete" "$PAM"
+check T114 "CAP-O05" "switching to digest preference groups the same notifications by day (got $DIGEST_CODE)" $?
+# Restore PAM's preference so a re-run of this suite starts from the same
+# state every time.
+post_status "$BASE_URL/notifications/preference" "preference=immediate" "$PAM" >/dev/null
+
+# T115 -- CAP-O06: "N Business Days" date arithmetic skips weekends,
+# reimplemented independently in bash (same T66 precedent for plain-day
+# arithmetic). The holiday-specific half of this rule (workspace_holidays)
+# is proven by direct DB insert + restart only, documented as a manual,
+# DB-inspection exception in conformance/README.md alongside T19/T42/T43/T52
+# -- a seeded static holiday date would go stale relative to whenever this
+# suite actually runs, so it can't be an automated assertion here.
+add_business_days() { # <n> -> echoes YYYY-MM-DD, n business days from today (weekends only)
+    local n=$1 d wd
+    d=$(date +%Y-%m-%d)
+    while [ "$n" -gt 0 ]; do
+        d=$(date -d "$d +1 day" +%Y-%m-%d 2>/dev/null || date -j -v+1d -f "%Y-%m-%d" "$d" +%Y-%m-%d)
+        wd=$(date -d "$d" +%u 2>/dev/null || date -j -f "%Y-%m-%d" "$d" +%u)
+        if [ "$wd" -lt 6 ]; then
+            n=$((n - 1))
+        fi
+    done
+    echo "$d"
+}
+EXPECTED_BUSDAY=$(add_business_days 5)
+WSXT_URL=$(post_redirect "$BASE_URL/mch_wsx_task" "fld_wsxt_title=Business+Day+Test+$$" "$YARA")
+WSXT_ID="${WSXT_URL##*/}"
+post_status "$BASE_URL/mch_wsx_task/$WSXT_ID/events/evt_wsxt_schedule" "" "$YARA" >/dev/null
+body_contains "$WSXT_URL" "$EXPECTED_BUSDAY" "$YARA"
+check T115 "CAP-O06" "\"N Business Days\" date arithmetic skips weekends, matching an independent bash reimplementation (expected $EXPECTED_BUSDAY)" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

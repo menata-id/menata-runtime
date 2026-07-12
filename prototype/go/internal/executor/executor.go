@@ -34,8 +34,8 @@ func New(records *store.RecordStore, notifications *store.NotificationStore) *Ex
 // Executor's own doc comment already establishes) but wants the exact same
 // resolution a create_record action already gets, not a second
 // implementation of it.
-func (e *Executor) ResolveFields(raw any, sourceData map[string]any, actorRole, actorIdentity string) map[string]any {
-	return resolveActionFields(raw, sourceData, actorRole, actorIdentity)
+func (e *Executor) ResolveFields(raw any, sourceData map[string]any, actorRole, actorIdentity string, holidays map[string]bool) map[string]any {
+	return resolveActionFields(raw, sourceData, actorRole, actorIdentity, holidays)
 }
 
 // Simulate computes a record's data after applying event's set_field actions,
@@ -59,7 +59,12 @@ func (e *Executor) ResolveFields(raw any, sourceData map[string]any, actorRole, 
 // reads from here, distinct from "field:<id>" (reads the record's own
 // EXISTING data, used by create_record/batch_generate's field-copying).
 // nil/empty for every trigger that isn't CAP-P04-shaped.
-func (e *Executor) Simulate(machine *model.Machine, event *model.Event, record *store.Record, actorRole, actorIdentity string, eventInput map[string]string) map[string]any {
+//
+// holidays (CAP-O06) is workspaceID's own declared non-working dates
+// (Interpreter.Holidays), consumed by resolveDateArithmetic's "N Business
+// Days" unit -- nil is safe (business-day math still skips weekends, just
+// without workspace-specific holiday exclusions).
+func (e *Executor) Simulate(machine *model.Machine, event *model.Event, record *store.Record, actorRole, actorIdentity string, eventInput map[string]string, holidays map[string]bool) map[string]any {
 	newData := make(map[string]any, len(record.Data))
 	for k, v := range record.Data {
 		newData[k] = v
@@ -78,7 +83,7 @@ func (e *Executor) Simulate(machine *model.Machine, event *model.Event, record *
 		field, _ := action.Params["field"].(string)
 		value, _ := action.Params["value"].(string)
 		if field != "" {
-			newData[field] = resolveValue(value, newData, fieldByID[field], actorRole, actorIdentity, eventInput)
+			newData[field] = resolveValue(value, newData, fieldByID[field], actorRole, actorIdentity, eventInput, holidays)
 		}
 	}
 	return newData
@@ -113,7 +118,7 @@ func paramsToExpr(v any) (model.ConstraintExpression, bool) {
 	return expr, expr.Field != "" && expr.Operator != ""
 }
 
-var dateArithRe = regexp.MustCompile(`^(.+?)\s*\+\s*(-?\d+)\s*(Day|Days|Week|Weeks|Month|Months|Year|Years)$`)
+var dateArithRe = regexp.MustCompile(`^(.+?)\s*\+\s*(-?\d+)\s*(Day|Days|Week|Weeks|Month|Months|Year|Years|Business Day|Business Days)$`)
 
 // resolveDateArithmetic (CAP-A11): "today + 1 Month" or "<field_id> + N Unit"
 // — the flat, unkeyed date-arithmetic family (advance a date literal or
@@ -122,7 +127,13 @@ var dateArithRe = regexp.MustCompile(`^(.+?)\s*\+\s*(-?\d+)\s*(Day|Days|Week|Wee
 // different, still-unimplemented lookup-by-another-field's-value flavor,
 // noted but not built here). ok=false when value doesn't match this shape
 // at all, or the base doesn't resolve to a real date.
-func resolveDateArithmetic(value string, data map[string]any) (string, bool) {
+//
+// "N Business Day(s)" (CAP-O06) is the one unit that isn't a fixed
+// calendar step -- it counts only weekdays, additionally skipping any date
+// in holidays (workspaceID's own declared non-working dates,
+// Interpreter.Holidays; nil skips weekends only, still correct, just
+// without workspace-specific exclusions).
+func resolveDateArithmetic(value string, data map[string]any, holidays map[string]bool) (string, bool) {
 	m := dateArithRe.FindStringSubmatch(value)
 	if m == nil {
 		return "", false
@@ -159,10 +170,35 @@ func resolveDateArithmetic(value string, data map[string]any) (string, bool) {
 		result = baseDate.AddDate(0, n, 0)
 	case "Year", "Years":
 		result = baseDate.AddDate(n, 0, 0)
+	case "Business Day", "Business Days":
+		result = addBusinessDays(baseDate, n, holidays)
 	default:
 		return "", false
 	}
 	return result.Format("2006-01-02"), true
+}
+
+// addBusinessDays (CAP-O06) advances base by n weekdays, additionally
+// skipping any date present in holidays (nil-safe -- weekends alone still
+// get skipped). n may be negative ("N Business Days ago").
+func addBusinessDays(base time.Time, n int, holidays map[string]bool) time.Time {
+	step := 1
+	if n < 0 {
+		step = -1
+		n = -n
+	}
+	d := base
+	for n > 0 {
+		d = d.AddDate(0, 0, step)
+		if wd := d.Weekday(); wd == time.Saturday || wd == time.Sunday {
+			continue
+		}
+		if holidays[d.Format("2006-01-02")] {
+			continue
+		}
+		n--
+	}
+	return d
 }
 
 // resolveNextValue (CAP-A12): "next" advances a value_list field to the
@@ -189,7 +225,7 @@ func resolveNextValue(field *model.Field, data map[string]any) (string, bool) {
 // static literal, returned unchanged. field is the field this value is
 // being written to (nil where that isn't known/relevant, e.g.
 // create_record's target fields) -- only CAP-A12's "next" needs it.
-func resolveValue(value string, data map[string]any, field *model.Field, actorRole, actorIdentity string, eventInput map[string]string) string {
+func resolveValue(value string, data map[string]any, field *model.Field, actorRole, actorIdentity string, eventInput map[string]string, holidays map[string]bool) string {
 	switch value {
 	case "today":
 		return time.Now().Format("2006-01-02")
@@ -206,7 +242,7 @@ func resolveValue(value string, data map[string]any, field *model.Field, actorRo
 	if inputField, ok := strings.CutPrefix(value, "input:"); ok {
 		return eventInput[inputField]
 	}
-	if v, ok := resolveDateArithmetic(value, data); ok {
+	if v, ok := resolveDateArithmetic(value, data, holidays); ok {
 		return v
 	}
 	return value
@@ -240,7 +276,7 @@ func actorLabel(actorRole, actorIdentity string) string {
 // ctx as the request that triggered it, every record_events row one request
 // produces — even across different records — shares one id for free, no
 // extra plumbing needed.
-func (e *Executor) Persist(ctx context.Context, machine *model.Machine, event *model.Event, record *store.Record, newData map[string]any, machineName, actorRole, actorIdentity, workspaceID string) error {
+func (e *Executor) Persist(ctx context.Context, machine *model.Machine, event *model.Event, record *store.Record, newData map[string]any, machineName, actorRole, actorIdentity, workspaceID string, holidays map[string]bool) error {
 	snapshot := record.Data
 
 	for _, action := range event.Actions {
@@ -252,13 +288,13 @@ func (e *Executor) Persist(ctx context.Context, machine *model.Machine, event *m
 			e.doNotify(ctx, action, event, record, newData, machineName, workspaceID)
 
 		case model.ActionCreateRecord:
-			e.doCreateRecord(ctx, action, newData, actorRole, actorIdentity, workspaceID)
+			e.doCreateRecord(ctx, action, newData, actorRole, actorIdentity, workspaceID, holidays)
 
 		case model.ActionCrossSetField:
-			e.doCrossSetField(ctx, action, newData)
+			e.doCrossSetField(ctx, action, newData, holidays)
 
 		case model.ActionBatchGenerate:
-			e.doBatchGenerate(ctx, action, newData, actorRole, actorIdentity, workspaceID)
+			e.doBatchGenerate(ctx, action, newData, actorRole, actorIdentity, workspaceID, holidays)
 		}
 	}
 
@@ -310,7 +346,7 @@ func (e *Executor) doNotify(ctx context.Context, action *model.EventAction, even
 // (CAP-A06's only way to carry data from the triggering record into the new
 // one -- deliberately not full template interpolation like `{{ this.x }}`,
 // which nothing in this runtime evaluates).
-func resolveActionFields(raw any, sourceData map[string]any, actorRole, actorIdentity string) map[string]any {
+func resolveActionFields(raw any, sourceData map[string]any, actorRole, actorIdentity string, holidays map[string]bool) map[string]any {
 	m, _ := raw.(map[string]any)
 	out := make(map[string]any, len(m))
 	for field, v := range m {
@@ -319,7 +355,7 @@ func resolveActionFields(raw any, sourceData map[string]any, actorRole, actorIde
 			out[field] = sourceData[copied]
 			continue
 		}
-		out[field] = resolveValue(s, sourceData, nil, actorRole, actorIdentity, nil)
+		out[field] = resolveValue(s, sourceData, nil, actorRole, actorIdentity, nil, holidays)
 	}
 	return out
 }
@@ -330,12 +366,12 @@ func resolveActionFields(raw any, sourceData map[string]any, actorRole, actorIde
 // real HTTP Create) -- a metadata-declared action is trusted input the same
 // way a System-triggered event already is elsewhere in this codebase, not a
 // place to re-derive full CAP-C01..C12 enforcement.
-func (e *Executor) doCreateRecord(ctx context.Context, action *model.EventAction, sourceData map[string]any, actorRole, actorIdentity, workspaceID string) {
+func (e *Executor) doCreateRecord(ctx context.Context, action *model.EventAction, sourceData map[string]any, actorRole, actorIdentity, workspaceID string, holidays map[string]bool) {
 	targetMachine, _ := action.Params["machine"].(string)
 	if targetMachine == "" {
 		return
 	}
-	data := resolveActionFields(action.Params["fields"], sourceData, actorRole, actorIdentity)
+	data := resolveActionFields(action.Params["fields"], sourceData, actorRole, actorIdentity, holidays)
 	if _, err := e.records.Create(ctx, targetMachine, workspaceID, data); err != nil {
 		slog.Error("create_record action failed", "target_machine", targetMachine, "error", err)
 	}
@@ -353,7 +389,7 @@ func (e *Executor) doCreateRecord(ctx context.Context, action *model.EventAction
 // different record via the full triggerEvent path when it needs guards to
 // apply; this is the lighter-weight "just set one field" sibling of that,
 // for when a full event trigger on the target would be overkill).
-func (e *Executor) doCrossSetField(ctx context.Context, action *model.EventAction, sourceData map[string]any) {
+func (e *Executor) doCrossSetField(ctx context.Context, action *model.EventAction, sourceData map[string]any, holidays map[string]bool) {
 	recordFieldID, _ := action.Params["record_field"].(string)
 	targetField, _ := action.Params["field"].(string)
 	value, _ := action.Params["value"].(string)
@@ -373,7 +409,7 @@ func (e *Executor) doCrossSetField(ctx context.Context, action *model.EventActio
 	for k, v := range targetRecord.Data {
 		newData[k] = v
 	}
-	newData[targetField] = resolveValue(value, newData, nil, "System", "System", nil)
+	newData[targetField] = resolveValue(value, newData, nil, "System", "System", nil, holidays)
 	if err := e.records.Update(ctx, targetID, newData); err != nil {
 		slog.Error("cross_set_field: update failed", "target_id", targetID, "error", err)
 	}
@@ -387,7 +423,7 @@ func (e *Executor) doCrossSetField(ctx context.Context, action *model.EventActio
 // 0..N-1 (composing CAP-A11's date arithmetic, not a separate mechanism) —
 // e.g. N weekly recurrences of a Task, each one week after the last, from a
 // single "create the series" action.
-func (e *Executor) doBatchGenerate(ctx context.Context, action *model.EventAction, sourceData map[string]any, actorRole, actorIdentity, workspaceID string) {
+func (e *Executor) doBatchGenerate(ctx context.Context, action *model.EventAction, sourceData map[string]any, actorRole, actorIdentity, workspaceID string, holidays map[string]bool) {
 	targetMachine, _ := action.Params["machine"].(string)
 	countRaw, _ := action.Params["count"].(float64) // JSON numbers decode as float64
 	count := int(countRaw)
@@ -397,7 +433,7 @@ func (e *Executor) doBatchGenerate(ctx context.Context, action *model.EventActio
 	offsetField, _ := action.Params["offset_field"].(string)
 	offsetUnit, _ := action.Params["offset_unit"].(string)
 
-	base := resolveActionFields(action.Params["fields"], sourceData, actorRole, actorIdentity)
+	base := resolveActionFields(action.Params["fields"], sourceData, actorRole, actorIdentity, holidays)
 	for i := 0; i < count; i++ {
 		data := make(map[string]any, len(base))
 		for k, v := range base {
@@ -406,7 +442,7 @@ func (e *Executor) doBatchGenerate(ctx context.Context, action *model.EventActio
 		if offsetField != "" && i > 0 {
 			if raw, ok := base[offsetField]; ok {
 				expr := fmt.Sprintf("%v + %d %s", raw, i, offsetUnit)
-				if v, ok := resolveDateArithmetic(expr, nil); ok {
+				if v, ok := resolveDateArithmetic(expr, nil, holidays); ok {
 					data[offsetField] = v
 				}
 			}

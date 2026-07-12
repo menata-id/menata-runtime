@@ -16,13 +16,14 @@ import (
 // role assignments, and callers that only need identity/workspace shouldn't
 // pay for the join.
 type User struct {
-	ID            string
-	WorkspaceID   string
-	Name          string
-	Email         string
-	PasswordHash  string
-	WorkspaceRole string
-	CreatedAt     time.Time
+	ID                     string
+	WorkspaceID            string
+	Name                   string
+	Email                  string
+	PasswordHash           string
+	WorkspaceRole          string
+	CreatedAt              time.Time
+	NotificationPreference string // CAP-O05: "immediate" (default, CAP-A10's own flat inbox) | "digest" (same inbox, grouped by day)
 }
 
 type UserStore struct {
@@ -53,9 +54,9 @@ func (s *UserStore) db(ctx context.Context) querier {
 func (s *UserStore) GetByEmail(ctx context.Context, email string) (*User, error) {
 	u := &User{}
 	err := s.db(ctx).QueryRow(ctx,
-		`SELECT id, workspace_id, name, email, password_hash, workspace_role, created_at
+		`SELECT id, workspace_id, name, email, password_hash, workspace_role, created_at, notification_preference
 		 FROM users WHERE email = $1 LIMIT 1`, email).
-		Scan(&u.ID, &u.WorkspaceID, &u.Name, &u.Email, &u.PasswordHash, &u.WorkspaceRole, &u.CreatedAt)
+		Scan(&u.ID, &u.WorkspaceID, &u.Name, &u.Email, &u.PasswordHash, &u.WorkspaceRole, &u.CreatedAt, &u.NotificationPreference)
 	if err != nil {
 		return nil, err
 	}
@@ -85,13 +86,21 @@ func (s *UserStore) Exists(ctx context.Context, id string) (bool, error) {
 func (s *UserStore) GetByID(ctx context.Context, id string) (*User, error) {
 	u := &User{}
 	err := s.db(ctx).QueryRow(ctx,
-		`SELECT id, workspace_id, name, email, password_hash, workspace_role, created_at
+		`SELECT id, workspace_id, name, email, password_hash, workspace_role, created_at, notification_preference
 		 FROM users WHERE id = $1`, id).
-		Scan(&u.ID, &u.WorkspaceID, &u.Name, &u.Email, &u.PasswordHash, &u.WorkspaceRole, &u.CreatedAt)
+		Scan(&u.ID, &u.WorkspaceID, &u.Name, &u.Email, &u.PasswordHash, &u.WorkspaceRole, &u.CreatedAt, &u.NotificationPreference)
 	if err != nil {
 		return nil, err
 	}
 	return u, nil
+}
+
+// SetNotificationPreference (CAP-O05) updates a user's own inbox grouping
+// preference -- "immediate" (CAP-A10's existing flat list) or "digest"
+// (the same inbox, grouped by day, handler.Notifications).
+func (s *UserStore) SetNotificationPreference(ctx context.Context, userID, preference string) error {
+	_, err := s.db(ctx).Exec(ctx, `UPDATE users SET notification_preference = $1 WHERE id = $2`, preference, userID)
+	return err
 }
 
 // ApplicationRoles returns every (application_id -> role) assignment for a

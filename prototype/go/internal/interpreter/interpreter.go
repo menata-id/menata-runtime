@@ -10,20 +10,27 @@ import (
 // Interpreter builds an indexed Application Model from Runtime Metadata.
 // Handlers and the Router use it for fast lookups — no DB access at request time.
 type Interpreter struct {
-	workspaces         []*model.Workspace
-	apps               map[string]*model.Application
-	machines           map[string]*model.Machine
-	subscriptionsByPub map[string][]*model.Subscription
+	workspaces          []*model.Workspace
+	apps                map[string]*model.Application
+	machines            map[string]*model.Machine
+	subscriptionsByPub  map[string][]*model.Subscription
+	holidaysByWorkspace map[string]map[string]bool
 }
 
 func New(workspaces []*model.Workspace) *Interpreter {
 	i := &Interpreter{
-		workspaces:         workspaces,
-		apps:               make(map[string]*model.Application),
-		machines:           make(map[string]*model.Machine),
-		subscriptionsByPub: make(map[string][]*model.Subscription),
+		workspaces:          workspaces,
+		apps:                make(map[string]*model.Application),
+		machines:            make(map[string]*model.Machine),
+		subscriptionsByPub:  make(map[string][]*model.Subscription),
+		holidaysByWorkspace: make(map[string]map[string]bool),
 	}
 	for _, ws := range workspaces {
+		holidays := make(map[string]bool, len(ws.Holidays))
+		for _, d := range ws.Holidays {
+			holidays[d] = true
+		}
+		i.holidaysByWorkspace[ws.ID] = holidays
 		for _, app := range ws.Applications {
 			i.apps[app.ID] = app
 			for _, m := range app.Machines {
@@ -46,6 +53,13 @@ func New(workspaces []*model.Workspace) *Interpreter {
 // cross-cutting by design) declaring interest in publisherEventID.
 func (i *Interpreter) SubscriptionsFor(publisherEventID string) []*model.Subscription {
 	return i.subscriptionsByPub[publisherEventID]
+}
+
+// Holidays (CAP-O06) returns workspaceID's own declared non-working dates
+// as a set ("YYYY-MM-DD" -> true), for CAP-A11's "N Business Days" date
+// arithmetic to skip alongside weekends.
+func (i *Interpreter) Holidays(workspaceID string) map[string]bool {
+	return i.holidaysByWorkspace[workspaceID]
 }
 
 func (i *Interpreter) GetMachine(id string) (*model.Machine, bool) {

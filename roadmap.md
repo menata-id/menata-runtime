@@ -1337,6 +1337,38 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > (Batches 1–8); Batches 9–10 (Workspace services, Infra) and the remaining field types are
 > still open.
 
+> **Status update (2026-07-12, same day) — Batch 9: the Workspace Services cluster
+> (CAP-O02/O04/O05/O06) now ✅ Supported**, four capabilities, CAP-O01/O03 (identity & role
+> registry, navigation) shipped earlier and untouched here. None of the four needed a new
+> hierarchy level or a new engine concept — each is a thin, targeted addition on top of
+> mechanisms this runtime already had: CAP-O02 (master data) is `Machine.Config["master_data"]`
+> (CAP-X03's existing generic settings) plus one new check in `handler.setDeleted` reusing
+> CAP-V06's own `childLists` scan to block Archive while a standing cross-app reference exists
+> — cross-app referenceability itself needed nothing new, CAP-F13's `reference` field already
+> worked across Application boundaries, this batch just proved that deliberately (T109) instead
+> of leaving it assumed. CAP-O04 (workspace search) scans every Machine in the workspace,
+> trimmed to `Guard.CanRead` (CAP-P05) *before* querying any records, matching each Machine's
+> own DefaultListView columns (CAP-V02) rather than a new "searchable fields" declaration.
+> CAP-O05 (unified notification center) stays one channel — CAP-A10's existing in-app inbox —
+> and adds a per-user "immediate"/"digest" presentation preference (`users.notification_
+> preference`) rather than a multi-channel router nothing else needs yet. CAP-O06 (business
+> calendar) is a new `workspace_holidays` table, loaded once at boot per Workspace (same
+> boot-time-cache discipline as Permissions/Views/everything else), feeding one new unit onto
+> CAP-A11's existing date-arithmetic grammar — `"N Business Days"` — which skips both weekends
+> and the acting Workspace's own declared holidays.
+>
+> One new migration (`migrations/016_workspace_services.sql`: `workspace_holidays`, `users.
+> notification_preference`) and one new seed file (`seeds/015_workspace_services_lab.sql`:
+> Employee (HR) and Project (Ops) as two deliberately separate Applications — CAP-O02's own
+> case is specifically the cross-app reference, already fully covered same-app by CAP-F13
+> alone). Conformance T109–T115 added (116/116 passing, confirmed stable across two consecutive
+> full-suite runs against production — one run caught a stale local test process still pointed
+> at an already-dropped isolated schema, not a code or data defect, fixed by restarting it
+> cleanly before the real production-data run), verified on an isolated port against both a
+> fresh schema and production's real data, then live at `aksi.menata.id`. 45 of the 68
+> capabilities named at the start of this push are now done (Batches 1–9); Batch 10 (Infra) and
+> the remaining field types are still open.
+
 ---
 
 # Principles

@@ -40,6 +40,10 @@ func (l *Loader) LoadAll(ctx context.Context) ([]*model.Workspace, error) {
 			app.Machines = machines
 		}
 		ws.Applications = apps
+		ws.Holidays, err = l.loadHolidays(ctx, ws.ID)
+		if err != nil {
+			return nil, fmt.Errorf("load holidays for %s: %w", ws.ID, err)
+		}
 	}
 	if err := validateReferences(workspaces); err != nil {
 		return nil, err
@@ -380,6 +384,30 @@ func (l *Loader) loadWorkspaces(ctx context.Context) ([]*model.Workspace, error)
 			return nil, err
 		}
 		out = append(out, ws)
+	}
+	return out, rows.Err()
+}
+
+// loadHolidays (CAP-O06) loads a Workspace's own declared non-working
+// dates, once at boot -- the same "in-memory index, no DB access at
+// request time" posture every other piece of Runtime Metadata already
+// gets, consumed by CAP-A11's "N Business Days" date arithmetic.
+func (l *Loader) loadHolidays(ctx context.Context, workspaceID string) ([]string, error) {
+	rows, err := l.db.Query(ctx,
+		`SELECT holiday_date::text FROM workspace_holidays WHERE workspace_id = $1`,
+		workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []string
+	for rows.Next() {
+		var d string
+		if err := rows.Scan(&d); err != nil {
+			return nil, err
+		}
+		out = append(out, d)
 	}
 	return out, rows.Err()
 }

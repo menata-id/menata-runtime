@@ -638,6 +638,19 @@ func (h *Handler) setDeleted(w http.ResponseWriter, r *http.Request, deleted boo
 				http.Error(w, reason, http.StatusForbidden)
 				return
 			}
+			// CAP-O02: a master-data record (Machine.Config["master_data"])
+			// can't be archived while any OTHER record, on ANY Machine
+			// (cross-app by design), still references it -- archiving it
+			// would silently break every one of those references. Reuses
+			// CAP-V06's own childLists scan (every Machine's `reference`
+			// fields targeting this one) rather than a second
+			// implementation of "who points at me."
+			if machine.Config["master_data"] == "true" {
+				if refs := h.childLists(r.Context(), machine, recordID); len(refs) > 0 {
+					http.Error(w, fmt.Sprintf("cannot archive: still referenced by %s", refs[0].Title), http.StatusConflict)
+					return
+				}
+			}
 		}
 	}
 	var err error
@@ -1803,14 +1816,16 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 	// simulate the event's effect first, validate the result, only persist
 	// if it still satisfies every declared Constraint. CAP-A02 — actorIdentity
 	// (falling back to actorRole) resolves this event's "current_user" dynamic
-	// values, if any.
-	newData := h.exec.Simulate(machine, event, rec, actorRole, actorIdentity, eventInput)
+	// values, if any. CAP-O06 — holidays resolved once here, passed through
+	// to every "N Business Days" resolution Simulate/Persist might do.
+	workspaceID, _ := h.interp.ScopeFor(machine.ID)
+	holidays := h.interp.Holidays(workspaceID)
+	newData := h.exec.Simulate(machine, event, rec, actorRole, actorIdentity, eventInput, holidays)
 	if violations := h.engine.Violations(machine, newData); len(violations) > 0 {
 		return &ruleViolation{strings.Join(violations, " ")}
 	}
 
-	workspaceID, _ := h.interp.ScopeFor(machine.ID)
-	if err := h.exec.Persist(ctx, machine, event, rec, newData, machine.Name, actorRole, actorIdentity, workspaceID); err != nil {
+	if err := h.exec.Persist(ctx, machine, event, rec, newData, machine.Name, actorRole, actorIdentity, workspaceID, holidays); err != nil {
 		return err
 	}
 
@@ -1823,7 +1838,7 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 	// CAP-I01 — cross-machine subscribers run last, after the publisher's
 	// OWN write and workflow actions have already succeeded (error rule 1:
 	// a subscriber's failure never rolls back the publisher).
-	h.processSubscriptions(ctx, event, newData, actorRole, actorIdentity, workspaceID)
+	h.processSubscriptions(ctx, event, newData, actorRole, actorIdentity, workspaceID, holidays)
 	return nil
 }
 
@@ -1835,7 +1850,7 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 // is processed regardless of whether an earlier one failed; every failure
 // is logged, never silently dropped; every Subscription sees the same
 // final data, never a partial view.
-func (h *Handler) processSubscriptions(ctx context.Context, event *model.Event, data map[string]any, actorRole, actorIdentity, workspaceID string) {
+func (h *Handler) processSubscriptions(ctx context.Context, event *model.Event, data map[string]any, actorRole, actorIdentity, workspaceID string, holidays map[string]bool) {
 	for _, sub := range h.interp.SubscriptionsFor(event.ID) {
 		violated := false
 		for _, c := range sub.Contract {
@@ -1848,7 +1863,7 @@ func (h *Handler) processSubscriptions(ctx context.Context, event *model.Event, 
 		if violated && sub.OnViolation == "skip" {
 			continue
 		}
-		fields := h.exec.ResolveFields(sub.Fields, data, actorRole, actorIdentity)
+		fields := h.exec.ResolveFields(sub.Fields, data, actorRole, actorIdentity, holidays)
 		if _, err := h.records.Create(ctx, sub.MachineID, workspaceID, fields); err != nil {
 			slog.Error("subscription failed", "subscription", sub.ID, "publisher_event", event.ID, "machine", sub.MachineID, "error", err)
 		}
@@ -2739,6 +2754,66 @@ func (h *Handler) unreadCount(ctx context.Context, a *store.Auth) int {
 // Notifications — the current session's in-app notification inbox: every
 // `notify` action (CAP-A03/A04) whose resolved recipient matches this
 // person's identity OR one of their per-Application roles (CAP-O01).
+// Search (CAP-O04) is workspace-wide: every Machine the searching role can
+// read (CAP-P05, permission-trimmed -- a Machine the role has no access to
+// is never even scanned, not filtered out after the fact), same
+// case-insensitive substring match CAP-V08's own per-Machine `?q=` already
+// uses, against that Machine's own DEFAULT list View columns.
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	a := h.auth(r)
+	workspaceID := h.workspace(r)
+
+	var results []ui.SearchResult
+	if query != "" {
+		q := strings.ToLower(query)
+		for _, m := range h.interp.AllMachines() {
+			ws, appID := h.interp.ScopeFor(m.ID)
+			if ws != workspaceID {
+				continue
+			}
+			role := h.roleForApp(r, appID)
+			if !h.guard.CanRead(m, role) {
+				continue
+			}
+			view := h.interp.DefaultListView(m.ID)
+			var colIDs []string
+			if view != nil {
+				colIDs = view.Config.Columns
+			}
+			if len(colIDs) == 0 {
+				continue
+			}
+			records, err := h.records.List(r.Context(), m.ID, "", "")
+			if err != nil {
+				slog.Error("workspace search: list records", "machine", m.ID, "error", err)
+				continue
+			}
+			for _, rec := range records {
+				matched := false
+				for _, id := range colIDs {
+					if v, ok := rec.Data[id]; ok && strings.Contains(strings.ToLower(fmt.Sprintf("%v", v)), q) {
+						matched = true
+						break
+					}
+				}
+				if matched {
+					results = append(results, ui.SearchResult{
+						MachineName: m.Name,
+						Label:       displayLabel(m, rec.Data),
+						Link:        "/" + m.ID + "/" + rec.ID,
+					})
+				}
+			}
+		}
+	}
+
+	page := ui.Search(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), query, results, h.unreadCount(r.Context(), a))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render search", "error", err)
+	}
+}
+
 func (h *Handler) Notifications(w http.ResponseWriter, r *http.Request) {
 	a := h.auth(r)
 	notifs, err := h.notifications.ListForRecipient(r.Context(), a.User.Name, a.User.ID)
@@ -2758,12 +2833,56 @@ func (h *Handler) Notifications(w http.ResponseWriter, r *http.Request) {
 			Link:    link,
 			Unread:  n.ReadAt == nil,
 			When:    n.CreatedAt.Format("2006-01-02 15:04"),
+			Date:    n.CreatedAt.Format("2006-01-02"),
 		}
 	}
-	page := ui.Notifications(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), items, h.unreadCount(r.Context(), a))
+
+	// CAP-O05: "digest" groups the SAME items by day instead of listing
+	// them flat -- built here (Go), not in the template, matching this
+	// codebase's own "handler builds view-ready structures" convention.
+	var groups []ui.NotificationGroup
+	if a.User.NotificationPreference == "digest" {
+		var cur string
+		var curItems []ui.NotificationItem
+		first := true
+		for _, item := range items {
+			if first || item.Date != cur {
+				if curItems != nil {
+					groups = append(groups, ui.NotificationGroup{Date: cur, Items: curItems})
+				}
+				cur, curItems, first = item.Date, nil, false
+			}
+			curItems = append(curItems, item)
+		}
+		if curItems != nil {
+			groups = append(groups, ui.NotificationGroup{Date: cur, Items: curItems})
+		}
+	}
+
+	page := ui.Notifications(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), items, groups, a.User.NotificationPreference, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render notifications", "error", err)
 	}
+}
+
+// SetNotificationPreference (CAP-O05) toggles the current user's own inbox
+// grouping preference between "immediate" and "digest".
+func (h *Handler) SetNotificationPreference(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	preference := r.FormValue("preference")
+	if preference != "immediate" && preference != "digest" {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	a := h.auth(r)
+	if err := h.users.SetNotificationPreference(r.Context(), a.User.ID, preference); err != nil {
+		http.Error(w, "failed to update preference", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/notifications", http.StatusSeeOther)
 }
 
 // MarkNotificationRead — POST target for a single notification's "Mark read"

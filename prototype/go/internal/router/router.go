@@ -42,6 +42,9 @@ func Mount(r chi.Router, h *handler.Handler) {
 
 	r.Get("/notifications", h.Notifications)
 	r.Post("/notifications/{id}/read", h.MarkNotificationRead)
+	r.Post("/notifications/preference", h.SetNotificationPreference) // CAP-O05
+
+	r.Get("/search", h.Search) // CAP-O04
 
 	r.Get("/{machineID}", h.List)
 	r.Get("/{machineID}/new", h.NewForm)

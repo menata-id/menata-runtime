@@ -97,7 +97,7 @@ func navBar(identity, csrfToken string, isAdmin bool, unreadCount int) templ.Com
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<header class=\"sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm\"><div class=\"mx-auto max-w-5xl px-4 flex items-center gap-4 h-12\"><a href=\"/\" class=\"font-semibold text-sm text-slate-900 hover:text-blue-600 transition-colors\">Menata Runtime</a><div class=\"flex-1\"></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<header class=\"sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm\"><div class=\"mx-auto max-w-5xl px-4 flex items-center gap-4 h-12\"><a href=\"/\" class=\"font-semibold text-sm text-slate-900 hover:text-blue-600 transition-colors\">Menata Runtime</a><div class=\"flex-1\"></div><a href=\"/search\" class=\"text-xs text-slate-500 hover:text-slate-700 transition-colors\">Search</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -119,7 +119,7 @@ func navBar(identity, csrfToken string, isAdmin bool, unreadCount int) templ.Com
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(unreadCount))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 48, Col: 33}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 51, Col: 33}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -142,7 +142,7 @@ func navBar(identity, csrfToken string, isAdmin bool, unreadCount int) templ.Com
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(identity)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 55, Col: 14}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 58, Col: 14}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {

@@ -12,6 +12,15 @@ type Card struct {
 	Description string
 }
 
+// SearchResult (CAP-O04) is one match from the workspace-wide search --
+// which Machine it's on (permission-trimmed: only Machines the searching
+// role can read are ever scanned) and a link to its own Detail page.
+type SearchResult struct {
+	MachineName string
+	Label       string
+	Link        string
+}
+
 // ColumnDef is a resolved column header for the list view.
 type ColumnDef struct {
 	ID   string
@@ -171,6 +180,14 @@ type EventTrigger struct {
 	Inputs []FormField
 }
 
+// NotificationGroup (CAP-O05) buckets NotificationItems by their own Date
+// ("YYYY-MM-DD") -- the "digest" preference's own rendering, the SAME
+// items CAP-A10's flat list already has, just grouped instead of listed.
+type NotificationGroup struct {
+	Date  string
+	Items []NotificationItem
+}
+
 // NotificationItem is one row on the Notifications page (CAP-A10). Link is
 // empty when the triggering record can't be resolved (shouldn't normally
 // happen, but a Notification row outlives the record it points to being
@@ -181,4 +198,5 @@ type NotificationItem struct {
 	Link    string
 	Unread  bool
 	When    string
+	Date    string // CAP-O05: "YYYY-MM-DD", the digest grouping key
 }

@@ -36,6 +36,9 @@ templ navBar(identity, csrfToken string, isAdmin bool, unreadCount int) {
 				Menata Runtime
 			</a>
 			<div class="flex-1"></div>
+			<a href="/search" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
+				Search
+			</a>
 			if isAdmin {
 				<a href="/admin/users" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
 					Manage users
