@@ -380,7 +380,9 @@ constraints:
 
 ## Permissions
 
-Permissions assign events to business roles.
+Permissions assign events to business roles, plus two independent gates
+(CAP-P02, CAP-P05 — implemented 2026-07-12) that don't map to a business role
+alone:
 
 ```yaml
 permissions:
@@ -392,7 +394,33 @@ permissions:
 
   - role: HR
     events: [ evt_record_leave ]
+
+  - role: Approver               # CAP-P02 — record-level ownership
+    events: [ evt_as_approve, evt_as_reject ]
+    owner_field: fld_as_approver # the acting identity (not just role) must
+                                  # equal this record's own field value
+
+  - role: Submitter               # CAP-P05 — CRUD-level, independent of events
+    events: []
+    can_read: true
+    can_create: true
+    can_edit: false               # each defaults to true if omitted
 ```
+
+- **`owner_field`** (optional, a Field id on the same Machine): when set, the
+  listed `events` require the acting identity to equal that field's value on
+  the record, not just the role — e.g. only the specific person named as an
+  Approval Step's own Approver may decide it, not anyone holding the
+  "Approver" role. Omit for role-only gating (the default, and still what
+  most Permission rows want).
+- **`can_read` / `can_create` / `can_edit`** (optional booleans, default
+  `true`): read/create/edit access to a Machine's records, independent of
+  which Events a role may trigger. **Deny-by-default at the Machine level**:
+  a role with no Permission row at all on a Machine has none of these —
+  reads/creates/edits are denied, not implicitly allowed. A role that only
+  needs to trigger Events still needs at least one Permission row present to
+  read/create/edit at all (the defaults only apply once a row already
+  exists for that role).
 
 ---
 

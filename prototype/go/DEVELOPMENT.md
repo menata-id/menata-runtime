@@ -147,6 +147,15 @@ host). On that host specifically:
   taken down another app's production instance before.
 - No auto-restart of any kind (systemd `Restart=`, cron, watchdog) — see
   `/root/docs/server-policies/NO-AUTO-RESTART-POLICY.md`. Manual restart only.
+- **RLS is live on this database** (CAP-X06, `migrations/009_workspace_isolation_rls.sql`) —
+  `records`/`record_events`/`notifications` all `FORCE ROW LEVEL SECURITY`. A regular `make
+  migrate-up` does *not* re-run `009` (it's a deliberate one-time cutover, not part of that
+  target — see the migration's own header) and doesn't need to; it's already applied here.
+  Any *new* migration that touches these three tables must account for RLS already being on
+  (e.g. a raw `psql` backfill needs `SELECT set_config('app.workspace_id', ..., true)` first,
+  or it fails closed — `conformance/run.sh`'s T19/T42/T43/T52 needed this same fix, see their
+  comments for the working pattern, including why a naive FROM-clause subquery version of it
+  is unreliable).
 
 ---
 

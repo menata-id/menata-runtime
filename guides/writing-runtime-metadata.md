@@ -492,6 +492,35 @@ INSERT INTO permissions (id, machine_id, role, events) VALUES
 
 Nilai `role` di sini harus **persis sama** dengan cookie `menata_role` yang dikirim client. Case-sensitive.
 
+**Kepemilikan record (`owner_field`) dan akses CRUD (`can_read`/`can_create`/`can_edit`)**
+
+Dua penambahan (2026-07-12), independen dari `events`:
+
+```yaml
+permissions:
+  - role: Approver
+    events: [ evt_as_approve, evt_as_reject ]
+    owner_field: fld_as_approver   # hanya identity yang namanya cocok dengan
+                                    # nilai field ini di record yang boleh
+                                    # bertindak -- bukan sekadar siapa saja
+                                    # yang memegang role "Approver"
+
+  - role: Submitter
+    events: []
+    can_read: true
+    can_create: true
+    can_edit: false                # masing-masing default true kalau tidak ditulis
+```
+
+- `owner_field` (opsional, id Field di Machine yang sama): kalau diisi, `events`
+  yang terdaftar butuh **identity** yang login (cookie `menata_identity`, bukan
+  cuma `menata_role`) sama persis dengan nilai field itu di record-nya.
+- `can_read`/`can_create`/`can_edit` (opsional, default `true`): akses baca/
+  buat/ubah ke record suatu Machine, terpisah dari Event apa saja yang boleh
+  dipicu. **Deny-by-default per Machine** — role yang sama sekali tidak punya
+  baris Permission di suatu Machine otomatis tidak punya akses baca/buat/ubah
+  sama sekali, bukan diizinkan diam-diam seperti sebelumnya.
+
 ---
 
 ### Views
