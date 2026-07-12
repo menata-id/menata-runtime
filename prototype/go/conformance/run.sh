@@ -140,6 +140,7 @@ GRACE=$(session_for agent@example.com password)     # Agent (app_customer_servic
 HENRY=$(session_for supervisor@example.com password) # Supervisor (app_customer_service)
 IVAN=$(session_for staff@example.com password)      # Staff (app_ops), workspace Admin (ws_acme)
 IVY=$(session_for accountant@example.com password)  # Accountant (app_accounting)
+PAM=$(session_for pm@example.com password)          # PM (app_action_lab)
 
 # Real user ids (CAP-F05) for the four genuine person-reference fields
 # (fld_requester, fld_lr_employee, fld_ad_submitted_by, fld_as_approver) --
@@ -688,6 +689,83 @@ check T63 "CAP-F16" "Journal Entry and both Lines created atomically from one su
 JE_BAD_DATA="fld_je_date=2026-07-12&fld_je_memo=Conformance+T64&child_0_fld_jel_debit=50"
 post_body_contains "$BASE_URL/mch_journal_entry" "$JE_BAD_DATA" "Journal Entry Line, row 1: Account is required" "$IVY"
 check T64 "CAP-F16" "an invalid child row blocks the whole atomic create, not just that row" $?
+
+# --- CAP-A06/A09/A11/A12/A13/A15 (Action Lab: one event, six actions) ---
+
+AL_PROJ_URL=$(post_redirect "$BASE_URL/mch_al_project" "fld_alp_name=Conformance+Project" "$PAM")
+AL_PROJ_ID="${AL_PROJ_URL##*/}"
+AL_TASK_URL=$(post_redirect "$BASE_URL/mch_al_task" "fld_alt_title=Ship+the+thing&fld_alt_priority=Urgent&fld_alt_stage=Todo&fld_alt_project=$AL_PROJ_ID" "$PAM")
+AL_TASK_ID="${AL_TASK_URL##*/}"
+AL_TASKS_BEFORE=$(get_body "$BASE_URL/mch_al_task" "$PAM" | grep -o "Follow-up" | wc -l)
+post_status "$BASE_URL/mch_al_task/$AL_TASK_ID/events/evt_al_task_complete" "" "$PAM" >/dev/null
+
+# T65 -- CAP-A12: Stage steps to the next declared value_list option (Todo ->
+# Doing) -- checked on the Detail page as plain rendered text (StatusBadge),
+# not a form picker's "selected" attribute, which only a New/Edit form renders.
+body_contains "$AL_TASK_URL" ">Doing<" "$PAM"
+check T65 "CAP-A12" "value_list field steps to its next declared option" $?
+
+# T66 -- CAP-A11: Follow Up Date = today + 7 Days (flat date arithmetic).
+EXPECTED_FOLLOWUP=$(date -d "+7 days" +%Y-%m-%d 2>/dev/null || date -v+7d +%Y-%m-%d)
+body_contains "$AL_TASK_URL" "$EXPECTED_FOLLOWUP" "$PAM"
+check T66 "CAP-A11" "date arithmetic resolves today + 7 Days to the real date (expected $EXPECTED_FOLLOWUP)" $?
+
+# T67 -- CAP-A09: the notify action's own "if" fired (Priority was Urgent).
+body_contains "$BASE_URL/notifications" "Task: Complete" "$PAM"
+check T67 "CAP-A09" "a conditional action's \"if\" runs the action when its condition is true" $?
+
+# T68 -- CAP-A06: create_record made a Task Log entry, copying this Task's
+# own Title via "field:<id>", not a literal.
+body_contains "$BASE_URL/mch_al_task_log" "Ship the thing" "$PAM"
+check T68 "CAP-A06" "create_record creates a real record on another Machine, copying a source field" $?
+
+# T69 -- CAP-A13: cross_set_field stamped the linked Project's own field,
+# not this Task's -- record_field resolved the Task's reference to find it.
+body_contains "$AL_PROJ_URL" "$(date +%Y-%m-%d)" "$PAM"
+check T69 "CAP-A13" "cross_set_field updates a field on a DIFFERENT record via a reference field" $?
+
+# T70 -- CAP-A15: batch_generate created 2 new Tasks from one action.
+AL_TASKS_AFTER=$(get_body "$BASE_URL/mch_al_task" "$PAM" | grep -o "Follow-up" | wc -l)
+[ "$((AL_TASKS_AFTER - AL_TASKS_BEFORE))" = "2" ]
+check T70 "CAP-A15" "batch_generate creates N records from one action (got $((AL_TASKS_AFTER - AL_TASKS_BEFORE)), want 2)" $?
+
+# T71 -- CAP-A09 negative: a Normal-priority Task's Complete does NOT notify
+# -- proves "if" actually gates the action, not a coincidence of T67's data.
+# Before/after count (not an absolute number) since this suite's own earlier
+# runs against a persistent database leave prior "Task: Complete"
+# notifications in place -- same reasoning as T70's before/after.
+NOTIF_COUNT_BEFORE=$(get_body "$BASE_URL/notifications" "$PAM" | grep -o "Task: Complete" | wc -l)
+AL_TASK2_URL=$(post_redirect "$BASE_URL/mch_al_task" "fld_alt_title=Quiet+Task&fld_alt_priority=Normal&fld_alt_stage=Todo" "$PAM")
+AL_TASK2_ID="${AL_TASK2_URL##*/}"
+post_status "$BASE_URL/mch_al_task/$AL_TASK2_ID/events/evt_al_task_complete" "" "$PAM" >/dev/null
+NOTIF_COUNT_AFTER=$(get_body "$BASE_URL/notifications" "$PAM" | grep -o "Task: Complete" | wc -l)
+[ "$NOTIF_COUNT_AFTER" = "$NOTIF_COUNT_BEFORE" ]
+check T71 "CAP-A09" "a Normal-priority Task's Complete does not also notify (count stayed $NOTIF_COUNT_BEFORE)" $?
+
+# --- CAP-A14 (aggregate-conditioned action) ---
+# MEMBER is unique per run ($$, this script's own PID) -- SUM(points) must
+# start at 0 for a member no earlier run's leftover Point Entry rows could
+# have touched, or T72's "still under threshold" premise breaks the second
+# time this suite runs against a persistent database.
+
+AL_MEMBER="Conformance+Member+$$"
+
+# T72 -- negative: Award Badge rejected while this Member's own Point Entry
+# total is still under the threshold (SUM < 100).
+PE1_URL=$(post_redirect "$BASE_URL/mch_al_point_entry" "fld_alpe_member=$AL_MEMBER&fld_alpe_points=40" "$PAM")
+PE1_ID="${PE1_URL##*/}"
+CODE=$(post_status "$BASE_URL/mch_al_point_entry/$PE1_ID/events/evt_pe_award" "" "$PAM")
+[ "$CODE" = "400" ]
+check T72 "CAP-A14" "aggregate-conditioned trigger rejected while SUM is still under threshold (got $CODE)" $?
+
+# T73 -- positive: once this same Member's total reaches >= 100 (40 + 65),
+# the SAME event on a new Point Entry row succeeds and its own action
+# (CAP-A06 again) creates the Badge.
+PE2_URL=$(post_redirect "$BASE_URL/mch_al_point_entry" "fld_alpe_member=$AL_MEMBER&fld_alpe_points=65" "$PAM")
+PE2_ID="${PE2_URL##*/}"
+CODE=$(post_status "$BASE_URL/mch_al_point_entry/$PE2_ID/events/evt_pe_award" "" "$PAM")
+[ "$CODE" = "303" ] && body_contains "$BASE_URL/mch_al_badge" "Conformance Member $$" "$PAM"
+check T73 "CAP-A14" "aggregate-conditioned trigger succeeds once SUM crosses the threshold, action creates the Badge (got $CODE)" $?
 
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"

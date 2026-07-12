@@ -1068,6 +1068,65 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > live at `aksi.menata.id`. Next: Batch 3, the Actions cluster (CAP-A06/A09/A11/A12/A13/
 > A14/A15).
 
+> **Status update (2026-07-12, same day) — Batch 3: the whole Actions cluster
+> (CAP-A06/A09/A11/A12/A13/A14/A15) now ✅ Supported**, seven capabilities from one
+> pass through `internal/executor`. `set_field.value` grew a small grammar: `"today + N
+> Unit"`/`"<field> + N Unit"` (CAP-A11, flat date arithmetic) and `"next"` (CAP-A12,
+> value_list stepping — needed `Executor.Simulate` to finally take a `*model.Machine` param
+> so a field's own declared Options are reachable, the one exception to Executor's usual
+> no-Interpreter-access boundary). Any action gained an optional `if` (CAP-A09), gating just
+> that action, not the whole trigger (distinct from CAP-E06). Three new action types:
+> `create_record` actually does something now instead of logging a no-op (CAP-A06, `field:
+> <id>` copies a value from the triggering record — deliberately not full template
+> interpolation, nothing here evaluates `{{ this.x }}`); `cross_set_field` (CAP-A13) writes
+> a field on a *different* record via a reference field, not itself re-validated against
+> that Machine's Constraints (same trusted-metadata-action posture as A06, and not yet
+> guarded by CAP-X12 cross-record atomicity — a named, not silently assumed, gap);
+> `batch_generate` (CAP-A15) creates N records from one action, composing CAP-A11's date
+> arithmetic for a per-instance offset rather than inventing a separate mechanism.
+>
+> CAP-A14 (aggregate-conditioned action) is a structurally different animal — a *gate*, not
+> an action. `Event` gained `AggregateCondition`, sharing CAP-E06's own `condition` JSONB
+> column (disambiguated at load time by an `aggregate_field` key) — `handler.
+> aggregateConditionViolation` sums a field across sibling records via a new `RecordStore.
+> SumField` and blocks the whole trigger if the threshold isn't met, reusing the same
+> guard-before-triggerEvent shape CAP-A07's sequential guard already established rather than
+> inventing per-action aggregate gating.
+>
+> All seven proven from one deliberately minimal seed, `seeds/009_action_lab.sql` — a Task
+> whose single Complete event bundles A06/A09/A11/A12/A13/A15 (one HTTP trigger proves six
+> capabilities at once), plus a separate Point Entry → Badge pair mirroring the
+> community-points.yaml case CAP-A14 was discovered from almost exactly. Conformance
+> T65–T73 added (60 existing + 13 new across Batches 1–3 = 73 total), verified on an
+> isolated port and live at `aksi.menata.id`.
+>
+> **Caught mid-batch**: a real event-id collision — `evt_task_complete` was already the id
+> of `seeds/006_second_workspace.sql`'s own Task-completion event (`events.id` is a global
+> primary key, not scoped per-Machine); `ON CONFLICT DO NOTHING` silently dropped the new
+> event row while `event_actions` (no natural key, plain `INSERT`) still went through,
+> attaching six unrelated actions to a working, already-conformance-tested event on a
+> different workspace's Machine. Caught by an unexpected "events: 0" in the boot log,
+> confirmed and cleaned up via direct inspection before it reached any real usage;
+> renamed to `evt_al_task_complete`. A reminder that this schema's per-table global-id
+> convention (also true of `fields`, `constraints`, `permissions`, `views`) means a new
+> seed file's ids need to be checked against the whole database, not just eyeballed for
+> internal consistency within that one file.
+>
+> **A second, related footgun surfaced applying the fix itself**: re-running a seed file
+> after correcting a value inside an `ON CONFLICT (id) DO NOTHING` row is a no-op if that
+> id already exists from the earlier, wrong attempt — the *row* is already there, so the
+> conflict clause skips the corrected re-insert silently, same as any other already-seeded
+> row. `permissions.events` for the renamed event stayed stale at the old id array
+> (`{evt_task_complete}`) until fixed with a direct `UPDATE`, not another `psql -f`. A
+> transient outage of the environment's own command-safety classifier (unrelated to this
+> repo, affecting every Bash call for a stretch) extended how long this took to catch —
+> `event_actions` (no natural key, plain `INSERT`, no conflict protection at all) had also
+> picked up one duplicate action row from an earlier partial retry, caught the same way.
+> Both fixed with scoped, explicit statements, authorized directly for the shared database
+> the same way this session's earlier direct-DB fixes were. Final tally: conformance
+> T60–T73 (14 new across Batches 1–3), 74/74 passing, verified on an isolated port and live
+> at `aksi.menata.id`.
+
 ---
 
 # Principles

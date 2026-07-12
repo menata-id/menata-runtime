@@ -74,14 +74,24 @@ type FieldOptions struct {
 
 // Event is a business occurrence that triggers actions on a Machine.
 // Condition is a guard (CAP-E06): the event may only be triggered when the
-// record's current data satisfies it. nil = always allowed.
+// record's current data satisfies it. nil = always allowed. AggregateCondition
+// (CAP-A14) is the same idea one level up: a guard computed across sibling
+// records, not just this one's own fields -- an event may only be triggered
+// when a SUM of some field, scoped to records sharing this record's own
+// value for another field, satisfies an operator/value check (e.g. "only
+// once this Member's total Points reach 100"). The two are mutually
+// exclusive per Event in practice (metadata declares one or the other in
+// the same `condition` JSONB column, disambiguated at load time by an
+// "aggregate" key) -- both stored as separate typed fields here rather than
+// forcing one shape to represent both.
 type Event struct {
-	ID        string
-	MachineID string
-	Name      string
-	Position  int
-	Actions   []*EventAction
-	Condition *ConstraintExpression
+	ID                 string
+	MachineID          string
+	Name               string
+	Position           int
+	Actions            []*EventAction
+	Condition          *ConstraintExpression
+	AggregateCondition *AggregateCondition
 }
 
 // EventAction is a single step executed when an Event fires.
@@ -103,6 +113,8 @@ const (
 	ActionActivateNext    ActionType = "activate_next"    // CAP-A07
 	ActionAggregateStatus ActionType = "aggregate_status" // CAP-A08
 	ActionTriggerEvent    ActionType = "trigger_event"    // CAP-E05
+	ActionCrossSetField   ActionType = "cross_set_field"  // CAP-A13
+	ActionBatchGenerate   ActionType = "batch_generate"   // CAP-A15
 )
 
 // Constraint is a business rule enforced before an event is accepted.
@@ -151,6 +163,19 @@ var SupportedOperators = map[string]bool{
 	"greater_than_or_equal": true,
 	"less_than_or_equal":    true,
 	"unique":                true,
+}
+
+// AggregateCondition (CAP-A14) gates an Event on a computed sum across
+// sibling records, not just the triggering record's own data -- see Event's
+// own doc comment for the shape and reasoning. Machine defaults to the
+// Event's own Machine when empty (the common case: summing a field across
+// other records of the SAME Machine, e.g. a Member's own ledger entries).
+type AggregateCondition struct {
+	Machine        string `json:"machine,omitempty"`
+	AggregateField string `json:"aggregate_field"`
+	ScopeField     string `json:"scope_field"`
+	Operator       string `json:"operator"`
+	Value          string `json:"value"`
 }
 
 // Permission assigns a set of Events to a business Role.

@@ -101,6 +101,20 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T57 | CAP-O01 | a non-Admin is denied `/admin/users` (negative case) |
 | T58 | CAP-O01 | a real workspace Admin can reach `/admin/users` |
 | T59 | CAP-O01 | one identity, one session, resolves a different role in each of two Applications with no manual role-switch step — the actual point of the two-tier role model |
+| T60 | CAP-C07 | cross-field comparison (`value_field`) rejects End Date before Start Date, comparing against another Field's own value, not a literal |
+| T61 | CAP-C05 | `greater_than` rejects a non-positive Sequence |
+| T62 | CAP-C12 | composite uniqueness rejects a duplicate (Document, Sequence) pair |
+| T63 | CAP-F16 | a parent record and both its embedded child rows are created atomically from one form submission |
+| T64 | CAP-F16 | an invalid child row rejects the whole atomic create, not just that row (negative case) |
+| T65 | CAP-A12 | `set_field.value = "next"` steps a value_list field to its next declared option |
+| T66 | CAP-A11 | `set_field.value = "today + 7 Days"` resolves to the real date, not a literal string |
+| T67 | CAP-A09 | a conditional action's `if` runs the action when its condition is true |
+| T68 | CAP-A06 | `create_record` creates a real record on another Machine, copying a source field via `field:<id>` |
+| T69 | CAP-A13 | `cross_set_field` updates a field on a DIFFERENT record, reached via a reference field on the triggering record |
+| T70 | CAP-A15 | `batch_generate` creates N records from one action |
+| T71 | CAP-A09 | a conditional action's `if` does NOT run when its condition is false (negative case) |
+| T72 | CAP-A14 | an aggregate-conditioned trigger is rejected while the cross-record SUM is still under threshold (negative case) |
+| T73 | CAP-A14 | an aggregate-conditioned trigger succeeds once the SUM crosses the threshold, and its own action fires |
 
 ---
 

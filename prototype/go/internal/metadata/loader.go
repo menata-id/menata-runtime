@@ -84,6 +84,9 @@ func validateOperators(workspaces []*model.Workspace) error {
 					if err := checkExpr(e.Condition, fmt.Sprintf("event %s's condition on machine %s", e.ID, m.ID)); err != nil {
 						return err
 					}
+					if ac := e.AggregateCondition; ac != nil && !model.SupportedOperators[ac.Operator] {
+						return fmt.Errorf("event %s's aggregate_condition on machine %s: unrecognized operator %q", e.ID, m.ID, ac.Operator)
+					}
 				}
 			}
 		}
@@ -325,9 +328,27 @@ func (l *Loader) loadEvents(ctx context.Context, machineID string) ([]*model.Eve
 			return nil, err
 		}
 		if condJSON != nil {
-			e.Condition = &model.ConstraintExpression{}
-			if err := json.Unmarshal([]byte(*condJSON), e.Condition); err != nil {
+			// CAP-A14: the same `condition` column holds either shape --
+			// disambiguated by an "aggregate_field" key, since an ordinary
+			// CAP-E06 guard and an aggregate one never both apply to the
+			// same Event.
+			var probe map[string]any
+			if err := json.Unmarshal([]byte(*condJSON), &probe); err != nil {
 				return nil, fmt.Errorf("parse condition for event %s: %w", e.ID, err)
+			}
+			if _, isAggregate := probe["aggregate_field"]; isAggregate {
+				e.AggregateCondition = &model.AggregateCondition{}
+				if err := json.Unmarshal([]byte(*condJSON), e.AggregateCondition); err != nil {
+					return nil, fmt.Errorf("parse aggregate condition for event %s: %w", e.ID, err)
+				}
+				if e.AggregateCondition.Machine == "" {
+					e.AggregateCondition.Machine = machineID
+				}
+			} else {
+				e.Condition = &model.ConstraintExpression{}
+				if err := json.Unmarshal([]byte(*condJSON), e.Condition); err != nil {
+					return nil, fmt.Errorf("parse condition for event %s: %w", e.ID, err)
+				}
 			}
 		}
 		events = append(events, e)

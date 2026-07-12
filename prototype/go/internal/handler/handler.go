@@ -941,18 +941,27 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 		return &ruleViolation{msg}
 	}
 
+	// CAP-A14 — aggregate-conditioned guard: the same idea as CAP-E06's
+	// Condition, computed across sibling records instead of this one's own
+	// fields (e.g. "only once this Member's total Points reach 100").
+	if msg, err := h.aggregateConditionViolation(ctx, event, rec); err != nil {
+		return err
+	} else if msg != "" {
+		return &ruleViolation{msg}
+	}
+
 	// CAP-C09 — constraints evaluated on event trigger, not just Create:
 	// simulate the event's effect first, validate the result, only persist
 	// if it still satisfies every declared Constraint. CAP-A02 — actorIdentity
 	// (falling back to actorRole) resolves this event's "current_user" dynamic
 	// values, if any.
-	newData := h.exec.Simulate(event, rec, actorRole, actorIdentity)
+	newData := h.exec.Simulate(machine, event, rec, actorRole, actorIdentity)
 	if violations := h.engine.Violations(machine, newData); len(violations) > 0 {
 		return &ruleViolation{strings.Join(violations, " ")}
 	}
 
 	workspaceID, _ := h.interp.ScopeFor(machine.ID)
-	if err := h.exec.Persist(ctx, event, rec, newData, machine.Name, actorRole, actorIdentity, workspaceID); err != nil {
+	if err := h.exec.Persist(ctx, machine, event, rec, newData, machine.Name, actorRole, actorIdentity, workspaceID); err != nil {
 		return err
 	}
 
@@ -1429,6 +1438,32 @@ func toFloat(v any) float64 {
 	s := fmt.Sprintf("%v", v)
 	f, _ := strconv.ParseFloat(s, 64)
 	return f
+}
+
+// aggregateConditionViolation implements CAP-A14: an Event with an
+// AggregateCondition may only be triggered once SUM(aggregate_field) across
+// every record on Machine sharing this record's own value for scope_field
+// satisfies operator/value -- "only once this Member's total Points reach
+// 100." Returns ("", nil) when the event has no AggregateCondition at all
+// (the overwhelmingly common case).
+func (h *Handler) aggregateConditionViolation(ctx context.Context, event *model.Event, rec *store.Record) (string, error) {
+	ac := event.AggregateCondition
+	if ac == nil {
+		return "", nil
+	}
+	scopeValue := fmt.Sprintf("%v", rec.Data[ac.ScopeField])
+	sum, err := h.records.SumField(ctx, ac.Machine, ac.AggregateField, ac.ScopeField, scopeValue)
+	if err != nil {
+		return "", err
+	}
+	// constraint.Eval reads expr.Field out of a data map -- "sum" is a
+	// synthetic single-key map standing in for the computed aggregate, the
+	// same field/operator/value comparison every other Eval call already uses.
+	expr := model.ConstraintExpression{Field: "sum", Operator: ac.Operator, Value: ac.Value}
+	if !constraint.Eval(expr, map[string]any{"sum": sum}) {
+		return fmt.Sprintf("%s is not allowed until the aggregate condition on %s is met", event.Name, ac.AggregateField), nil
+	}
+	return "", nil
 }
 
 // sequentialGuardViolation implements CAP-A07's hard block: in Sequential

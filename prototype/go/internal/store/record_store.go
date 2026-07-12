@@ -35,6 +35,26 @@ func (s *RecordStore) db(ctx context.Context) querier {
 	return dbFromContext(ctx, s.pool)
 }
 
+// SumField (CAP-A14) sums aggregateField (parsed as numeric) across every
+// record on machineID whose own scopeField equals scopeValue -- "this
+// Member's total Points across their own ledger entries," the cross-record
+// computation an event's AggregateCondition gates on. Non-numeric/missing
+// values coerce to 0 via Postgres's own numeric cast within the query
+// (rows that don't parse are simply excluded, not an error -- the same
+// "don't let one bad row break the whole aggregate" posture COALESCE
+// already gives the empty-set case).
+func (s *RecordStore) SumField(ctx context.Context, machineID, aggregateField, scopeField, scopeValue string) (float64, error) {
+	var sum float64
+	err := s.db(ctx).QueryRow(ctx,
+		`SELECT COALESCE(SUM((data->>$1)::numeric), 0) FROM records
+		 WHERE machine_id = $2 AND data->>$3 = $4 AND data->>$1 ~ '^-?[0-9]+(\.[0-9]+)?$'`,
+		aggregateField, machineID, scopeField, scopeValue).Scan(&sum)
+	if err != nil {
+		return 0, fmt.Errorf("sum field: %w", err)
+	}
+	return sum, nil
+}
+
 func (s *RecordStore) List(ctx context.Context, machineID string) ([]*Record, error) {
 	rows, err := s.db(ctx).Query(ctx,
 		`SELECT id, machine_id, data, created_at, updated_at
