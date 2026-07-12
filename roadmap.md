@@ -1499,6 +1499,30 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > are built yet. Next step, if picked up, is prioritizing them into the Implementation Order
 > table, the same way every other ❌ capability here already waits its turn.
 
+> **Status update (2026-07-12, same day) — In-App Navigation studied
+> (`benchmarks/009-in-app-navigation-benchmark.md`), CAP-O03 Tier 2 registered.** Prompted
+> directly by a question about where a "menu/sub-navbar for an app's own feature pages" would
+> even be recorded. Turned out to be a real, precisely-locatable gap in an already-✅
+> capability: `CAP-O03`'s workspace home / drill-in Application page is a one-time entry point
+> (`AppMachines`, `GET /apps/{applicationID}`) — once a user is inside any one Machine's own
+> pages, there's no way to reach a sibling Machine in the same Application without going all the
+> way back to the workspace home first, even though the runtime already has every data link
+> needed to render that sub-nav (`Interpreter.ScopeFor`/`MachinesForApplication`, both used by
+> `AppMachines` itself).
+>
+> Benchmarked against 6 platforms spanning unrelated categories (Salesforce, Odoo, Frappe,
+> ServiceNow, Jira, Notion) — all converge on the same pattern: a persistent nav element that
+> never disappears while working inside one app/module, so switching between that app's own
+> features never requires a trip back to a home screen. Checked against all 21 portfolio cases,
+> not assumed: 11 have a multi-Machine Application with a real, describable sideways-navigation
+> need (Case 9 Accounting strongest — Chart of Account/Journal Entry/Trial Balance are routine
+> same-session destinations for an ordinary bookkeeping session).
+>
+> Registered as **CAP-O03 Tier 2** — an extension of CAP-O03, not a new mechanism: a
+> rendering-layer addition to `internal/ui/layout.templ`'s existing `Page`/`navBar`, reusing
+> data links that already exist. No JS, no new route, no conflict with the no-SPA posture.
+> Registration only — not implemented by this study.
+
 ---
 
 # Principles
