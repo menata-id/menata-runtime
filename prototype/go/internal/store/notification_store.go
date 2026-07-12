@@ -68,7 +68,13 @@ func (s *NotificationStore) Create(ctx context.Context, recipient, message, mach
 // notification's own Application* (CAP-O01 -- a role broadcast to "Manager"
 // must only reach people who are actually "Manager" in the Application that
 // fired it, not everyone who happens to hold "Manager" anywhere).
-// $1 = identity name, $2 = userID.
+// $1 = identity name, $2 = userID. The explicit ::text/::uuid casts on $2
+// are load-bearing, not decoration: Postgres infers one type per parameter
+// per query, and $2 is compared against both a `text` column (n.recipient)
+// and a `uuid` column (uar.user_id) here -- without the casts this fails at
+// query time with "operator does not exist: uuid = text" (SQLSTATE 42883),
+// caught during CAP-F05's isolated-port verification, not left as a
+// silent landmine for the next person who removes an "unnecessary" cast.
 const recipientMatch = `(
 	n.recipient = $1
 	OR n.recipient = $2::text
