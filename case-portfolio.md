@@ -286,6 +286,17 @@ Files: `prototype/go/docs/examples/community-group.{menata,yaml}`,
 `community-membership.{menata,yaml}`, `community-event.{menata,yaml}`,
 `community-points.{menata,yaml}`, `community-badge-award.{menata,yaml}` (five Machines)
 
+**Audited 2026-07-13** (`benchmarks/010-gamification-flow-audit.md`): this case's own metadata
+was never seeded/run (target-declaration only, per this section's own header), and re-reading it
+in full surfaced an un-flagged gap — `Point Ledger Entry.Reason` names 4 point-earning reasons but
+only 1 (`Joined Group`) has a real triggering event wired; `Posted Status` has no `Post` Machine at
+all, `Hosted Event`/`Attended Event` have no wiring on `Event` (RSVP was deferred and never
+composed). The study also found this case's `create_record`-based wiring (CAP-A06, publisher
+knows its subscriber) contradicts CAP-I05's own stated rationale for gamification (decoupled
+`event_subscriptions`, proven instead by `seeds/014_integration_lab.sql`). No unified,
+conformance-tested proof of the full action→points→threshold→badge→display chain exists anywhere
+in this repo — see the study for the full inventory and recommended next-session task.
+
 ## Case 13 — Blog / One-Page Site (target declaration)
 
 **Business reality:** A public blog. Anyone, logged in or not, reads Published posts and leaves

@@ -47,6 +47,10 @@ machine:
   permissions:
     - role: Admin                      # [SUPPORTED]
       events: []
+      # This Machine declares no events at all — "Hosted Event"/"Attended Event" in
+      # community-points.yaml's Reason enum have nothing to trigger them from. RSVP
+      # (attendance) was deliberately deferred (case-portfolio.md Case 12) and never
+      # actually composed. See benchmarks/010-gamification-flow-audit.md.
 
   views:
     - id: vw_evt_form                  # [SUPPORTED]

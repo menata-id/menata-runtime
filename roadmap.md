@@ -1568,6 +1568,12 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > `internal/config/config.go`'s own comment) updated to the new domain; this roadmap's own
 > historical batch entries were not.
 
+> **Status update (2026-07-13) — Gamification flow audited (`benchmarks/010-gamification-flow-audit.md`), no new capability, integration debt recorded.** Prompted by a direct question about where "action → points → threshold → reward → display" configuration actually lives for Case 12 (Community). Traced every gamification-shaped artifact in the repo and found three, never reconciled: `docs/examples/community-*` (Case 12's full business narrative, but never seeded/run — target-declaration only), `seeds/009_action_lab.sql` (real, conformance-tested, but proves only CAP-A14's aggregate gate — points entered via a plain form, gate triggered manually), and `seeds/014_integration_lab.sql` (real, conformance-tested, proves CAP-I01/CAP-I03/CAP-I05's decoupled accrual, but never reads a threshold or unlocks a reward). No file exercises the full chain together.
+>
+> Two further findings inside Case 12's own paper design, previously un-flagged: (1) `Point Ledger Entry.Reason` declares 4 point-earning reasons but only 1 (`Joined Group`) has a real triggering event — `Posted Status` names a `Post` Machine that was never designed, `Hosted Event`/`Attended Event` have no wiring since `Event` declares no events and RSVP was deferred and never composed; (2) Case 12's own `create_record`-based wiring (CAP-A06, publisher knows subscriber) contradicts CAP-I05's own stated rationale for gamification (decoupled `event_subscriptions`) — Integration Lab uses the pattern CAP-I05 actually recommends, Case 12's draft doesn't.
+>
+> Not a capability proposal — every mechanism needed (CAP-A06, CAP-A14, CAP-I01, CAP-I03, CAP-I05, CAP-V05, CAP-V13) is already ✅, so this fails admission test A4 (non-composability). What's missing is a unified reference implementation: one seed file wiring ≥2 real point-earning triggers via CAP-I01/CAP-I05 (not CAP-A06), CAP-A14's threshold gate, and a real CAP-V05 "My Points" + CAP-V13 "Leaderboard" pair, proven with one conformance test. Sized as a seed-file-only effort, no new migration or Go code expected — a reasonable next-session task. Annotation gaps fixed in place (`community-points.yaml`, `community-event.yaml`); cross-references added to `capability-registry.md`'s CAP-A14/CAP-I01/CAP-I05 rows and `case-portfolio.md`'s Case 12 entry.
+
 ---
 
 # Principles

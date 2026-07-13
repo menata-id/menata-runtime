@@ -28,11 +28,14 @@ machine:
       name: Points
       type: number
       required: true
-    - id: fld_pts_reason                 # [SUPPORTED]
-      name: Reason
-      type: value_list
-      required: true
+    - id: fld_pts_reason                 # [SUPPORTED] as a field/value_list type — but see
+      name: Reason                        #   benchmarks/010-gamification-flow-audit.md: only
+      type: value_list                    #   "Joined Group" is actually wired to a triggering
+      required: true                      #   event (community-membership.yaml's evt_mem_join).
       values: [Joined Group, Posted Status, Hosted Event, Attended Event]
+      # "Posted Status" names a Post Machine that doesn't exist anywhere in this case.
+      # "Hosted Event"/"Attended Event" have no wiring — see community-event.yaml's own note.
+      # Flagged, not silently dropped, per capability-lifecycle.md's "silence is not a decision."
     - id: fld_pts_awarded_at              # [SUPPORTED] — as a field; stamping is not
       name: Awarded At
       type: date
