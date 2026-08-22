@@ -421,6 +421,7 @@ The runtime's capability is being built and verified through a deliberate discov
 | [benchmarks/004-scale-architecture-study.md](benchmarks/004-scale-architecture-study.md) | Study 8 — multi-workspace scale & performance architecture |
 | [benchmarks/005-field-modeling-decision-framework.md](benchmarks/005-field-modeling-decision-framework.md) | Study 15 — field type selection: reference vs. value_list vs. primitive (§"Final Recap" has the settled answer per type, no re-derivation needed) |
 | [benchmarks/006-inventory-warehouse-benchmark.md](benchmarks/006-inventory-warehouse-benchmark.md) | Case 5 supporting benchmark — six-stage WMS flow + APICS/ASCM inventory-control concepts |
+| [benchmarks/011-metadata-workflow-orchestration-brd-benchmark.md](benchmarks/011-metadata-workflow-orchestration-brd-benchmark.md) | Study 19 — comparator "Metadata-Based Workflow Orchestration Application" BRD mapped against Menata Runtime's emergent (Event+Constraint+Permission+Action) workflow model; full comparator BRD preserved verbatim in its Appendix |
 
 ## Reference Implementation
 
