@@ -1770,6 +1770,36 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 - CAP-W08 (Compound Sentry) — evidence-thin, single source
 - CAP-W02 — superseded by CAP-W07, dead, kept only per ratchet (no future work against this row)
 
+### Track G — Blocked on a design-prototype pass, not on case evidence (owner-held)
+
+Distinct from Track F: these items are NOT evidence-thin — the gap is real and directly surfaced
+by the owner — but implementation is explicitly withheld until a design-prototype pass exists
+first, per direct owner instruction (2026-08-22). Do not implement any of these straight into
+`internal/ui/*.templ` without that design work landing first.
+
+- **CAP-O03 Tier 3** (within-Machine navigation to a Machine's own auxiliary Views — Calendar/
+  Timeline/Report/Dashboard/Board/Document, currently URL-only) — surfaced trying CAP-V14 Tier 2's
+  kanban board, confirmed generic to every auxiliary View type, not Board-specific. Needs: a
+  design-prototype pass establishing a shared standard for navigation-component placement across
+  all 21 portfolio cases (relative to the List toolbar / `subNavBar`, whether it reuses
+  `subNavBar`'s own strip or needs a visually distinct control, behavior when a Machine declares
+  several auxiliary Views at once) — see `benchmarks/009-in-app-navigation-benchmark.md`'s
+  "Follow-on finding (2026-08-22)" and `capability-registry.md`'s CAP-O03 Tier 3 row for the full
+  requirement writeup and the open design questions it lists.
+- **Design constraint for the above, and for any future UI/layout work generally**: **mobile-first**
+  — the owner's explicit instruction is to design the phone-viewport layout first, desktop second,
+  not the reverse. This project's existing UI chrome (`internal/ui/layout.templ`'s nav bar,
+  `subNavBar`'s strip, every `.templ` page's table/toolbar layout) has never been designed or
+  checked against a phone viewport — the design-prototype pass should establish the mobile layout
+  from scratch, including possibly revisiting `subNavBar`'s own existing strip, not retrofit
+  today's desktop chrome down to a smaller screen.
+
+**Next step for whichever session picks this up**: produce the design prototype itself (mobile
+layout first — mockups/wireframes and a written component-placement standard covering navigation
+controls generally, not just this one gap) before writing any `internal/ui/*.templ` code against
+it. This is a design task, not an implementation task — flagged here so it isn't silently dropped,
+per this registry's own "silence is not a decision" rule.
+
 ## Recommended order for upcoming sessions
 
 1. ~~CAP-X04~~ — ✅ done (Option A). CAP-X11 demoted to Track A/#2 below, no longer a co-requisite.
@@ -1782,6 +1812,7 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 8. CAP-X08 import completion (Track E) — ready now, X04 done
 9. CAP-X11 (Track A/#2) and remaining Prio-tagged items (Track E) opportunistically, no measured urgency
 10. Leave Track F alone until a real case names the need
+11. Track G (CAP-O03 Tier 3 + mobile-first design standard) — do the design-prototype pass first, not implementation; see Track G's own section above for the open questions to resolve
 
 ---
 

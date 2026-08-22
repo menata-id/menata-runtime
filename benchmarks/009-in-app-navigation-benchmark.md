@@ -106,3 +106,63 @@ Application context.
 
 Registration only, per this registry's own standing process (`case-portfolio.md` §Process per
 case: register, then implement as a separate step) — not implemented by this study.
+
+---
+
+# Follow-on finding (2026-08-22) — within-Machine navigation to a Machine's own auxiliary Views
+
+**Surfaced directly by the owner**, while trying the just-shipped CAP-V14 Tier 2 kanban board
+(`benchmarks/020-ui-interaction-cluster-proof.md`) — the board page has no in-app link anywhere;
+reaching it required typing `/{machineID}/board` by hand. Checked against the rest of this
+codebase before writing anything up: it's not a kanban-specific gap. **Every one of a Machine's
+own auxiliary Views — Calendar, Timeline, Report, Dashboard, Board, Document — is reachable only
+by a hand-typed URL.** `grep`-ing `internal/ui/*.templ` for a link to any of `/calendar`,
+`/timeline`, `/report`, `/dashboard`, `/board` returns nothing; `subNavFor`
+(`internal/handler/handler.go`, CAP-O03 Tier 2's own mechanism) only links **sideways, to sibling
+Machines** in the same Application — it was never scoped to link **within** one Machine, to that
+same Machine's own alternate View types. Those are two different navigation axes this repo has
+now built one of and not the other:
+
+| Axis | Question | Status |
+|---|---|---|
+| Cross-Machine, same Application | "How do I get from Journal Entry to Chart of Account?" | ✅ CAP-O03 Tier 2 (`subNavFor`, persistent sub-nav strip) |
+| Within-Machine, across View types | "How do I get from Task's List to Task's own Board/Calendar/Report?" | ❌ no mechanism at all — URL-only |
+
+**Owner's explicit direction (2026-08-22): do not implement this now.** UI/usability work of this
+shape — and any other not-yet-done work touching visual layout — is explicitly held back from
+implementation until a **design prototype** exists first. The ask is broader than "add a link to
+the Board page": the owner wants a **standard for where navigation components/buttons/controls
+are placed, defined once and shared across every case in the portfolio** (`case-portfolio.md`'s
+21 cases), not a one-off fix scoped to this single gap. **Mobile-first, explicitly** — the owner's
+own instruction: design the mobile layout first, desktop follows after, not the other way around.
+This project's current UI (`internal/ui/*.templ`, Tailwind) has never been designed mobile-first —
+`layout.templ`'s nav bar / `subNavBar` strip / this row's own proposed navigation controls are all
+desktop-table/toolbar shapes with no evidence anyone has checked them at a phone viewport, so the
+design-prototype pass needs to establish the mobile layout from scratch, not retrofit the existing
+desktop chrome down to a smaller screen. Concretely, a future design pass needs to answer, for the
+whole app, before any of this is implemented:
+
+- Where does a link to a Machine's own auxiliary Views live relative to the existing List
+  toolbar (same row as Export/Import/New — `internal/ui/list.templ`'s current button cluster —
+  or a distinct row/strip of its own, closer to `subNavBar`'s own placement)?
+- Does it reuse `subNavBar`'s existing strip pattern (View-type tabs alongside sibling-Machine
+  links) or does View-type switching need a visually distinct control from Machine switching, so
+  the two navigation axes above don't collapse into one confusing row?
+- Is placement driven by which auxiliary Views a Machine actually declares (today: 0–1 of
+  Calendar/Timeline/Report/Dashboard/Board/Document per Machine across the seed data this
+  project has), or does the standard need to hold up for a Machine that declares several at once?
+- What's the shared visual/interaction vocabulary (icon vs. label, active-state styling) at a
+  **phone viewport first** — collapsed into a bottom tab bar / hamburger / sheet, not a row of
+  text links that only works at desktop width — with the desktop layout designed as the second
+  pass, informed by whatever the mobile pass establishes, not the other way around?
+- How do the two navigation axes above (cross-Machine sub-nav, within-Machine View-type switch)
+  both fit into a small screen's limited chrome without stacking into three separate nav rows —
+  `subNavBar`'s existing strip was never designed against a phone-width constraint either, so this
+  pass may need to revisit its layout too, not just add a new row next to it?
+
+**Registered, not scheduled**: see `capability-registry.md`'s "Tracked but Not Yet Studied" →
+Navigation row and its own new `CAP-O03 Tier 3` candidate row for the tracking record, and
+`roadmap.md`'s Track F for the queued-but-blocked status. **This is a note for a future
+implementation session, not a task for this one** — the actual design-prototype pass (mockups,
+placement decisions, a component-vocabulary writeup) hasn't been done yet and is explicitly out
+of scope for whichever session picks this up next until that groundwork exists.
