@@ -862,7 +862,7 @@ Event saat runtime, bukan cuma diam-diam tidak melakukan apa-apa seperti sebelum
 
 ---
 
-## Process Overlay — jalan pintas menulis proses (CAP-W01/W05, 2026-08-22)
+## Process Overlay — jalan pintas menulis proses (CAP-W01/W03/W04/W05, 2026-08-22)
 
 Ada cara kedua menulis proses berbasis-state selain menulis `events`/`permissions`/Field Status
 satu per satu seperti contoh Leave Request di atas: blok `process` pada Machine. Loader
@@ -891,9 +891,72 @@ Kalau butuh kondisi yang lebih kaya (multi-field, `AggregateCondition`, `Schedul
 seperti biasa. **Satu Machine tidak boleh mendeklarasikan keduanya** — loader menolak load kalau
 `process` dan `events` sama-sama ada, supaya tidak ada penggabungan ambigu yang ditebak diam-diam.
 
-`requirements` baru mendukung `type: evidence` (jumlah record child Machine yang mereferensikan
-balik ke Machine ini, lewat Field `reference`) — enam tipe lain versi BRD pembanding (form,
-entity, task, approval, document, decision) belum ada padanannya, jangan ditulis seolah jalan.
+`requirements` mendukung dua tipe: `type: evidence` (jumlah record child Machine yang
+mereferensikan balik ke Machine ini, lewat Field `reference`) dan, **sejak 2026-08-22**,
+`type: approval` (CAP-W03 — lihat contoh di bawah). Empat tipe lain versi BRD pembanding (form,
+entity, task, document, decision) masih belum ada padanannya, jangan ditulis seolah jalan.
+
+**`type: approval` (kuorum deklaratif, CAP-W03)** — cara mendeklarasikan pola "N dari M harus
+Approve" tanpa menulis `aggregate_status` tangan di Machine anak:
+
+```yaml
+process:
+  transitions:
+    - name: Approve
+      from: Review
+      to: Verified
+      actor: { role: System }   # wajib System -- hasil kuorum tidak boleh bisa dipicu manusia
+    - name: Reject
+      from: Review
+      to: Rejected
+      actor: { role: System }
+  requirements:
+    - type: approval
+      target: mch_review_vote       # Machine anak, satu record per pemilih
+      min_approvals: 2              # "N" -- "M" tidak dideklarasikan, otomatis = jumlah
+                                     # record anak yang ada saat itu
+      on_quorum_approved: Approve   # nama transition di process Machine INI
+      on_quorum_rejected: Reject    # keduanya WAJIB actor: { role: System }
+```
+
+`target` (`mch_review_vote` di atas) cukup Machine biasa, tak perlu punya `process` sendiri —
+syaratnya cuma Field `value_list` bernama persis `"Decision"` (nilainya harus mencakup
+`"Approved"`/`"Rejected"`) dan Field `reference` balik ke Machine yang mendeklarasikan
+`requirements`. Detail lengkap aturan validasi: bagian "Process Overlay" di
+`../runtime-metadata-schema.md`.
+
+**`sla[]` (deadline per state, CAP-W04)** — opsional, sejajar dengan `transitions`/`auto` di
+dalam blok `process` yang sama:
+
+```yaml
+process:
+  sla:
+    - state: Review
+      duration: "2 Business Days"        # kosakata unit CAP-A11 (Day(s)/Week(s)/Month(s)/
+                                          # Year(s)/Business Day(s)), bukan grammar baru
+      on_breach:
+        notify: { role: Manager }
+        escalate_to: Escalated           # opsional -- boleh cuma notify tanpa pindah state
+```
+
+**`change_policy` pada Constraint (evolusi metadata effective-dated, CAP-W07)** — bukan bagian
+dari `process`, tapi pasangan alaminya: menjawab pertanyaan "record yang sedang berjalan ikut
+aturan baru ini atau tidak?" tanpa version-pinning:
+
+```yaml
+constraints:
+  - id: cst_approval_ref_2026_policy
+    rule: Approval Reference wajib untuk kasus yang dibuka di bawah kebijakan 2026.
+    expression: { field: fld_approval_ref, operator: required }
+    change_policy:
+      applies_to: new_records          # atau records_in_states: [Draft, ...]
+      effective_from: "2026-01-01"     # hanya untuk new_records
+```
+
+Tanpa `change_policy` sama sekali = perilaku hari ini (aturan langsung berlaku ke semua record,
+`all_records`, eksplisit lewat ketiadaannya). Sebuah Constraint tidak boleh punya `change_policy`
+DAN `condition` sekaligus (loader menolak, bukan menebak AND-list). Perubahan metadata dengan
+`change_policy` baru terasa lewat CAP-X04's `POST /admin/reload` — tidak perlu restart server.
 
 ---
 
