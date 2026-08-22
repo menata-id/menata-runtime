@@ -155,6 +155,11 @@ The runtime owns:
 - constraint enforcement,
 - platform services.
 
+Interpretation may involve internal stages — for example, loading Runtime Metadata and
+compiling a higher-level declarative construct into lower-level primitives the runtime already
+executes. Such stages remain internal to this layer. They do not introduce a new layer in the
+architecture above; they are how this layer realizes Runtime Metadata.
+
 ---
 
 ## Applications

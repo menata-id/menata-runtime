@@ -199,6 +199,12 @@ Workflow should remain declarative.
 
 Business processes should not require imperative programming.
 
+Workflow appears in the Runtime Hierarchy above as a responsibility, not as a stored metadata
+artifact. A Machine does not hold a `Workflow` the way it holds a Page or a View; a higher-level
+declarative form may exist for authoring convenience, but it compiles into Events, Constraints,
+Permissions, and Actions rather than becoming a runtime concept of its own — see
+[004-runtime-metadata.md](004-runtime-metadata.md) § Workflow.
+
 ---
 
 # Service
