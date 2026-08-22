@@ -366,7 +366,7 @@ This directory mixes documents that change on different rhythms. To read the num
 
 - **Numbered `001`–`006`** — the core specification. Stable, read in sequence, changes rarely (mirrors `specification/000`–`006` at the repo root — same convention, one level down).
 - **Unnumbered, at this level** — supporting reference or governance documents. Two different kinds, distinguished below.
-- **`benchmarks/` — numbered `000`–`018`** — evidence studies, numbered by production order (Study 1 → `000`, Study 2 → `001`, …), not a required reading sequence.
+- **`benchmarks/` — numbered `000`–`019`** — evidence studies, numbered by production order (Study 1 → `000`, Study 2 → `001`, …), not a required reading sequence.
 
 This stable/evolving split mirrors the pattern Portal GA v3 uses for its own domain-integration framework (`01-CONSTITUTIONAL-BRD.md` + `02-IMPLEMENTATION-GUIDE.md` as STABLE, `appendices/` as EVOLVING) — see `benchmarks/002-portal-ga-cross-domain-survey.md`.
 
@@ -434,6 +434,7 @@ The runtime's capability is being built and verified through a deliberate discov
 | [benchmarks/016-change-policy-proof.md](benchmarks/016-change-policy-proof.md) | Study 24 — B5, CAP-W07 `change_policy` (effective-dated metadata evolution), implemented and conformance-proven (T154–T158), reusing CAP-X04's live reload to demonstrate `new_records`/`records_in_states`/`all_records` against records that stay open while the metadata changes underneath them |
 | [benchmarks/017-quorum-declarative-form-proof.md](benchmarks/017-quorum-declarative-form-proof.md) | Study 25 — CAP-W03's declarative form (`process.requirements[].type: approval`), implemented and conformance-proven (T159–T160): a new cross-machine loader pass injects the same `aggregate_status` action a hand-authored quorum pair already carries, onto a separately-loaded target Machine's own Events |
 | [benchmarks/018-case9-completion-batch-proof.md](benchmarks/018-case9-completion-batch-proof.md) | Study 26 — Case 9 completion batch: CAP-C08 (general cross-record constraint), realized through CAP-C10 (`sum(debit)=sum(credit)`) and CAP-C11 (no posting into a closed period), implemented and conformance-proven (T161–T164) |
+| [benchmarks/019-decompile-lift-proof.md](benchmarks/019-decompile-lift-proof.md) | Study 27 — B6, CAP-W05 backward direction (decompile-lift), implemented and conformance-proven (T165–T166), built deliberately ahead of case evidence per explicit user direction after the admission-discipline gap was surfaced |
 
 ## Reference Implementation
 

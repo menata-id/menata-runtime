@@ -1871,6 +1871,50 @@ CODE=$(post_status "$JE_D_URL/events/evt_c9je_post" "" "$C9ACCT")
 [ "$CODE" = "303" ]
 check T164 "CAP-C08" "posting into an Open Fiscal Period succeeds (CAP-C11)" $?
 
+# --- B6, decompile-lift (CAP-W05 backward direction) -- seeds/028, applied
+# mid-run via psql (needs DATABASE_URL), same exclusion pattern as
+# 023/025/026_*.sql. Requires `jq` (already present on this host) to extract
+# the lifted Process JSON out of the HTTP response.
+if [ -n "$DATABASE_URL" ]; then
+    # T165 -- GET .../process-lift returns valid Process JSON for an Admin;
+    # a non-Admin gets 403.
+    LIFT_BODY=$(curl -s -b "$FRANK" "$BASE_URL/mch_ca_manual/process-lift")
+    LIFT_STATES=$(echo "$LIFT_BODY" | jq -r '.process.states | length' 2>/dev/null)
+    LIFT_DENIED=$(curl -s -o /dev/null -w '%{http_code}' -b "$DAVE" "$BASE_URL/mch_ca_manual/process-lift")
+    [ "${LIFT_STATES:-0}" -gt 0 ] 2>/dev/null && [ "$LIFT_DENIED" = "403" ]
+    check T165 "CAP-W05" "GET .../process-lift returns valid Process JSON for an Admin (states=$LIFT_STATES), denies a non-Admin (got $LIFT_DENIED)" $?
+
+    # T166 -- that JSON, applied to a fresh Machine and reloaded, drives an
+    # identical lifecycle to mch_ca_manual/mch_ca_overlay (T136/T137), with
+    # zero server restart -- "compiled equals hand-authored", now proven in
+    # the reverse direction too.
+    #
+    # A real finding, not a workaround: `actor.owner_field` in the lifted
+    # JSON names mch_ca_manual's OWN field id (fld_cam_assignee) -- Field
+    # ids are globally unique across the whole `fields` table (not
+    # machine-scoped), so that exact id can't exist on a second Machine.
+    # Reapplying a lift to a DIFFERENT Machine than it came from means the
+    # owner_field reference needs a one-time manual translation to whatever
+    # the target's own equivalent field is called -- exactly the "review
+    # before pasting" step the API response's own `note` already warns
+    # about, not something liftProcess could or should paper over (it
+    # faithfully reproduces the source Machine's actual actor rule; a
+    # rule referencing "the assignee field" has no portable identity to
+    # lift beyond the literal id it's stored under).
+    psql "$DATABASE_URL" -q -f seeds/028_lift_lab.sql >/dev/null
+    LIFTED_PROCESS=$(echo "$LIFT_BODY" | jq -c '.process' | sed 's/fld_cam_assignee/fld_cal_assignee/g')
+    printf "UPDATE machines SET process = \$\$%s\$\$::jsonb WHERE id = 'mch_ca_lifted';\n" "$LIFTED_PROCESS" > /tmp/lift_update_$$.sql
+    psql "$DATABASE_URL" -q -f /tmp/lift_update_$$.sql >/dev/null
+    rm -f /tmp/lift_update_$$.sql
+    post_status "$BASE_URL/admin/reload" "" "$FRANK" >/dev/null
+    LIFTED_LC=$(overlay_lifecycle mch_ca_lifted fld_cal evt_mch_ca_lifted)
+    case "$LIFTED_LC" in OK*) true;; *) false;; esac
+    check T166 "CAP-W05" "a lifted process JSON, applied to a fresh Machine and reloaded, drives an identical lifecycle with zero restart ($LIFTED_LC)" $?
+else
+    printf 'SKIP  T165 %-22s %s\n' "CAP-W05" "DATABASE_URL not set"
+    printf 'SKIP  T166 %-22s %s\n' "CAP-W05" "DATABASE_URL not set -- seed-mid-run fixture unavailable"
+fi
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

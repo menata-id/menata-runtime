@@ -1656,6 +1656,16 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 >
 > Registry: CAP-C10/C11 both ❌→✅. CAP-C08 moved ❌→⚠️, not ✅ — one shape named in this row's own "both directions" framing (a universal/for-all check across every child, illustrated by its own `Fiscal Period.Close` example — checking that *every* Journal Entry in a period is already Posted before letting the period close) is a third, structurally different mechanism this pass didn't build, because no case in `case-portfolio.md` actually declares it as a target (Case 9's own two declared rows — debit=credit, no-posting-into-closed-period — are both fully covered). Full write-up: `benchmarks/018-case9-completion-batch-proof.md`.
 
+> **Status update (2026-08-22, same day) — B6, decompile-lift (CAP-W05 backward direction), implemented and conformance-proven — built deliberately ahead of case evidence.** Before writing any code, research confirmed `case-portfolio.md` names zero cases needing "migrate a hand-authored Machine to the Process Overlay" — by `capability-lifecycle.md`'s own admission bar (A1, dual evidence), this is evidence-thin, the same posture as parked rows like CAP-W08/CAP-V11. Surfaced to the user directly (via `AskUserQuestion`) rather than silently built past the discipline or silently skipped; the explicit answer was to proceed, scope kept narrow specifically to bound the risk of that departure.
+>
+> `extractProcessMap` (T140–T143, `internal/handler/processmap.go`) already reconstructs a Machine's process shape from its Status Field + state-guarded Events, but into a UI-only display list (`ui.ProcessEdge`, actor pre-joined into one string). New `liftProcess` reuses the identical detection but un-flattens it back into `model.Process`'s own struct shape — the same type `compileProcess` consumes — so the output is directly re-loadable, not just renderable. Deliberately narrow, named explicitly: States/Transitions/Actor/`on_transition`/Auto only; Requirements/SLA/`change_policy` are NOT reverse-engineered (a hand-authored counter+Constraint pair is indistinguishable from one that started life as a CAP-W01 requirement — genuinely ambiguous, no case forces solving it). A two-pass design avoids a real double-chain bug: Auto-shaped events (state-guarded, no Permission grants them) are identified first, so a hand-written `trigger_event` action chaining into one is recognized and excluded from `on_transition` — otherwise recompiling the lifted output would fire that chain twice (once from the declared `Auto` entry, once from the copied action).
+>
+> `GET /{machineID}/process-lift` (new, Admin-only, matching CAP-X08's Admin-gated JSON-export pattern) returns the result labeled as a draft — never auto-applied, consistent with this project's "form-based authoring, not a visual builder" non-goal.
+>
+> Proof, and one real finding from building it: lifting `mch_ca_manual` (`seeds/019_overlay_lab.sql`) reproduced its declared shape exactly (verified by hand against the JSON before writing any assertion) — but reapplying that JSON to a **different** Machine (`mch_ca_lifted`, `seeds/028_lift_lab.sql`) surfaced that `actor.owner_field` names the source Machine's own field id, and Field ids are globally unique across the whole `fields` table, not machine-scoped — that exact id cannot exist on a second Machine. The test performs the one-time translation a human reviewing the draft would (swapping the field id via `sed` before applying), which is exactly the "review before pasting" step the API's own response `note` already names, not a workaround. T165: the endpoint returns valid Process JSON for an Admin, 403 for a non-Admin. T166: that (translated) JSON, applied to a fresh Machine and reloaded (CAP-X04, zero restart), drives the identical Open→Assigned→In_Progress→Submitted→(auto)Review→Verified→Closed lifecycle T136/T137 already proved for the hand-authored/compiled pair. **166/166 passing, zero regressions**, confirmed on a fresh isolated schema.
+>
+> Registry: CAP-W05 row ⚠️→✅ (both directions now done).
+
 ---
 
 # Sequencing Guide — Prerequisite Map for What's Next (added 2026-08-22)
@@ -1693,12 +1703,12 @@ Each item is tagged:
 ### Track B — Process Overlay (Workflow), B-series
 
 1. B1 process compiler trunk — ✅ done
-2. B2 process map, forward direction — ✅ done; backward direction (decompile *lift* — same item as B6 below) — ⚠️ open, READY, independent
+2. B2 process map, forward direction — ✅ done; backward direction (decompile *lift* — same item as B6 below) — ✅ done (T165–T166)
 3. B3 generic `Requirement`, `evidence` type — ⚠️ done; other six requirement types (form/entity/task/approval/document/decision) — READY, purely additive scope, no blocker
 4. B4 Part 1, SLA (CAP-W04) — ✅ done
 5. B4 Part 2, Quorum (CAP-W03) — ✅ done, both core (hand-authored `min_approvals`, T149–T150) and declarative form (`process.requirements[].type == "approval"`, T159–T160, `benchmarks/017-quorum-declarative-form-proof.md`)
 6. **B5, `change_policy` (CAP-W07) — ✅ done** (T154–T158, `benchmarks/016-change-policy-proof.md`)
-7. B6, decompiler/lift (CAP-W05 backward direction) — same item as "B2 backward" above; READY, independent
+7. B6, decompiler/lift (CAP-W05 backward direction) — same item as "B2 backward" above; ✅ done, built ahead of case evidence per explicit user direction (`benchmarks/019-decompile-lift-proof.md`)
 8. CAP-W06, async action outbox — READY, independent of the Overlay entirely (already evidenced by Cases 3/10/12 regardless of whether the Overlay exists) — named "Fase 0" in `brd-menata-runtime-v2.md` §13 for that reason
 9. CAP-W08, Compound Sentry — **PARKED (HOLD)**, evidence-thin, no case demands it (Study 22)
 
@@ -1742,7 +1752,7 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 1. ~~CAP-X04~~ — ✅ done (Option A). CAP-X11 demoted to Track A/#2 below, no longer a co-requisite.
 2. ~~B5, `change_policy`~~ — ✅ done (T154–T158)
 3. ~~Quorum's declarative form~~ — ✅ done (T159–T160)
-4. B6 / decompile-lift (Track B) — low risk, can slot in anytime
+4. ~~B6 / decompile-lift~~ — ✅ done (T165–T166), built ahead of case evidence per explicit user direction
 5. ~~Case 9 completion batch: CAP-C10, CAP-C11~~ — ✅ done (T161–T164); CAP-C08 ⚠️ (the two shapes it named done, a third — universal/for-all across children — not built, no case demands it)
 6. CAP-W06 async outbox (Track B) — anytime, independent
 7. UI cluster (Track D): CAP-V16/V17/V18/CAP-V14-Tier-2 anytime; CAP-V15 after step 5 (CAP-C10); CAP-V19 after step 5 (CAP-C08)

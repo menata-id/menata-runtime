@@ -207,6 +207,8 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T162 | CAP-C08 | a balanced entry (debit = credit) posts successfully (CAP-C10) |
 | T163 | CAP-C08 | posting into a Closed Fiscal Period is rejected, even when balanced (CAP-C11) |
 | T164 | CAP-C08 | posting into an Open Fiscal Period succeeds (CAP-C11) |
+| T165 | CAP-W05 | `GET .../process-lift` returns valid Process JSON for an Admin, denies a non-Admin |
+| T166 | CAP-W05 | a lifted Process JSON, applied to a fresh Machine and reloaded, drives an identical lifecycle to the hand-authored/compiled pair (B6, decompile-lift) |
 
 ---
 
