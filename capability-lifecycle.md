@@ -79,6 +79,18 @@ A capability may enter **Incubating** without passing the gates; it may not reac
 
 # 4. Extension architecture — how the runtime grows
 
+> **Reading this against `prototype/go` today (added 2026-08-22):** this section is the *target*
+> extension architecture (`prototype/go/docs/decisions/004-internal-package-architecture.md`,
+> ADR-004) — it is not literally what the code does yet. ~90 capabilities in, dispatch for field
+> types/action types/view types is still ordinary Go `switch` statements in `internal/metadata/
+> loader.go`, `internal/ui/components.templ`, `internal/executor/executor.go`, and `internal/
+> handler/*.go` — no `fieldtype.Register(...)`-style seam exists in the tree (ADR-004's own status
+> update explains why the predicted migration triggers fired without the migration happening).
+> **For how a new capability's code is actually structured today**, use `prototype/go/CLAUDE.md`'s
+> "The capability implementation loop" table and "Established patterns" section instead of this
+> one — that document is kept in sync with the real code; this section stays as the standing
+> target/rationale, not a description of current state.
+
 **Small core, registries at every seam.** Each engine exposes a registration point; capabilities plug in rather than patch the core:
 
 | Seam | Registry | Example plug-in |
