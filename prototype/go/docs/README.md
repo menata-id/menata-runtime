@@ -39,3 +39,7 @@ Dokumentasi di folder ini khusus untuk prototype Go. Panduan bahasa dan Runtime 
 |---------|-------|
 | [decisions/001-techstack.md](decisions/001-techstack.md) | Pilihan tech stack prototype |
 | [decisions/002-metadata-loading.md](decisions/002-metadata-loading.md) | Strategi load metadata + opsi live reload |
+| [decisions/003-tenancy-and-indexing.md](decisions/003-tenancy-and-indexing.md) | Strategi tenancy + indexing |
+| [decisions/004-internal-package-architecture.md](decisions/004-internal-package-architecture.md) | Target layout `internal/` untuk extension seams (migrasi capability-triggered) |
+| [decisions/005-deployment-status.md](decisions/005-deployment-status.md) | Status deployment `menata.app` — cakupan NFR yang sudah live |
+| [decisions/006-handler-file-split.md](decisions/006-handler-file-split.md) | Audit panjang baris/file + split `handler.go` per domain |
