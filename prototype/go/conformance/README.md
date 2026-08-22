@@ -182,6 +182,10 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T137 | Process Overlay B1 | the compiled Machine runs the identical full lifecycle as the hand-authored one, including a System-side automatic transition (CAP-E05 chain) nobody clicked |
 | T138 | Process Overlay B1 | the hand-authored control arm rejects a wrong-state transition (400), wrong-role transition (403), and non-owner transition (403) |
 | T139 | Process Overlay B1 | the compiled arm rejects the identical three cases with the identical codes — the parity claim (brd-menata-runtime-v2.md §6.6) |
+| T140 | CAP-W05 | a compiled Machine's process map lists every state (initial marked) and transition with the correct actor, including the auto step (System) |
+| T141 | CAP-W05 | a hand-authored Machine's process map is identical to the compiled one's — legibility parity |
+| T142 | CAP-W05 | a genuine pre-existing v1 Machine (Leave Request, predates `process`) reconstructs correctly — the decompile claim |
+| T143 | CAP-W05 | a Machine with no `process_map` View declared 404s — the opt-in gate |
 
 ---
 

@@ -12,24 +12,25 @@ import (
 // (loaded from Runtime Metadata), not hardcoded.
 //
 // URL scheme:
-//   /                                        workspace home — list of applications (CAP-O03)
-//   /apps/{applicationID}                    one application's own machines
-//   /login                                   email + password login (CAP-X02)
-//   /admin/users                             workspace user/role management (CAP-O01, Admin-only)
-//   /notifications                           in-app notification inbox (CAP-A10)
-//   /apps/{applicationID}/export             Application metadata export, Admin-only (CAP-X08)
-//   GET  /api/{machineID}                    JSON list (CAP-X07)
-//   GET  /api/{machineID}/{recordID}         JSON detail (CAP-X07)
-//   POST /api/{machineID}                    JSON create (CAP-X07)
-//   /{machineID}                             default list view
-//   /{machineID}/new                         new record form
-//   /{machineID}/{recordID}                  record detail
-//   /{machineID}/{recordID}/edit             edit record form
-//   POST /{machineID}                        create record
-//   POST /{machineID}/{recordID}              update record
-//   POST /{machineID}/{recordID}/events/{eventID}  trigger event
-//   POST /notifications/{id}/read             mark one notification read
-//   POST /webhooks/{machineID}/{recordID}/{eventID}  CAP-E04, secret-token authenticated, no session
+//
+//	/                                        workspace home — list of applications (CAP-O03)
+//	/apps/{applicationID}                    one application's own machines
+//	/login                                   email + password login (CAP-X02)
+//	/admin/users                             workspace user/role management (CAP-O01, Admin-only)
+//	/notifications                           in-app notification inbox (CAP-A10)
+//	/apps/{applicationID}/export             Application metadata export, Admin-only (CAP-X08)
+//	GET  /api/{machineID}                    JSON list (CAP-X07)
+//	GET  /api/{machineID}/{recordID}         JSON detail (CAP-X07)
+//	POST /api/{machineID}                    JSON create (CAP-X07)
+//	/{machineID}                             default list view
+//	/{machineID}/new                         new record form
+//	/{machineID}/{recordID}                  record detail
+//	/{machineID}/{recordID}/edit             edit record form
+//	POST /{machineID}                        create record
+//	POST /{machineID}/{recordID}              update record
+//	POST /{machineID}/{recordID}/events/{eventID}  trigger event
+//	POST /notifications/{id}/read             mark one notification read
+//	POST /webhooks/{machineID}/{recordID}/{eventID}  CAP-E04, secret-token authenticated, no session
 func Mount(r chi.Router, h *handler.Handler) {
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("ok"))
@@ -65,10 +66,11 @@ func Mount(r chi.Router, h *handler.Handler) {
 	r.Get("/{machineID}", h.List)
 	r.Get("/{machineID}/new", h.NewForm)
 	r.Post("/{machineID}", h.Create)
-	r.Get("/{machineID}/report", h.Report)      // CAP-V13
-	r.Get("/{machineID}/calendar", h.Calendar)   // CAP-V07
-	r.Get("/{machineID}/timeline", h.Timeline)   // CAP-V07
-	r.Get("/{machineID}/dashboard", h.Dashboard) // CAP-V10
+	r.Get("/{machineID}/report", h.Report)          // CAP-V13
+	r.Get("/{machineID}/calendar", h.Calendar)      // CAP-V07
+	r.Get("/{machineID}/timeline", h.Timeline)      // CAP-V07
+	r.Get("/{machineID}/dashboard", h.Dashboard)    // CAP-V10
+	r.Get("/{machineID}/process-map", h.ProcessMap) // CAP-W05
 	r.Get("/{machineID}/{recordID}", h.Detail)
 	r.Get("/{machineID}/{recordID}/edit", h.EditForm)
 	r.Get("/{machineID}/{recordID}/document", h.Document) // CAP-F21

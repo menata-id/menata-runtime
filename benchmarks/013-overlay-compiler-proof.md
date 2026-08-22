@@ -17,7 +17,9 @@
 > deployment, not production (corrected 2026-08-22, see `roadmap.md`) — this let the experiment
 > touch the loader directly instead of routing through an external preprocessor first.
 >
-> Status: v1.0 | Created: 2026-08-22
+> Status: v1.1 — + Addendum: B2 (process map, CAP-W05 forward direction) implemented and
+> conformance-proven, including the decompile claim on genuine pre-existing v1 metadata |
+> Created: 2026-08-22
 
 ---
 
@@ -145,3 +147,64 @@ discipline (`capability-lifecycle.md` §4 rule 3). Revisit if a real case forces
   the overlay lab's own two Machines.
 - When B3 (requirements) lands, extend `seeds/019_overlay_lab.sql`'s two arms with a
   requirement-bearing transition and add the matching parity tests, same method as this study.
+
+---
+
+# Addendum — B2: the process map, and the decompile claim (2026-08-22, same day)
+
+Study 20's synthesis (§6.5) named a "two-way door" as a design pillar: a stabilized
+hand-authored Machine should be *liftable* into a Process Overlay declaration, and the same
+information should be readable back out as a map regardless of which way a Machine was
+authored. B2 (CAP-W05, forward direction) tests the readable-map half of that claim, and
+deliberately does it in a way that also tests something B1 didn't: **whether the map-derivation
+logic itself treats compiled and hand-authored Machines identically, and whether it works on
+Machines that never heard of the Process Overlay at all.**
+
+## Design choice that makes this a decompile proof, not just a rendering feature
+
+The map is **not** rendered from `machine.Process` (the raw declaration) — that would only work
+for the one Machine that declares it. It is derived from the same shape B1's own parity proof
+already established as universal: a Machine's `value_list` "Status" Field plus every `Event`
+whose `Condition` is a state-equality guard (CAP-E06) and whose actions include a matching
+`set_field`. Since B1 proved compiled and hand-authored Machines produce byte-identical
+`Event`/`Permission` structs, this same extraction function (`internal/handler/processmap.go`'s
+`extractProcessMap`) works on any of the three:
+
+1. An overlay-compiled Machine (`mch_ca_overlay`).
+2. A hand-authored Machine sharing the identical process (`mch_ca_manual`).
+3. A genuine **pre-existing v1 Machine that predates the Process Overlay by weeks**
+   (`mch_leave_request`, Case 2's original design from the very first capability batches).
+
+## Results
+
+| Test | Claim | Result |
+|---|---|---|
+| T140 | Compiled Machine's map lists all 7 states (initial marked) and 6 transitions with correct actors, including the auto step (labeled "System" — no human Permission grants it) | ✅ PASS |
+| T141 | Hand-authored Machine's map is the byte-identical assertion list — legibility parity, not just execution parity | ✅ PASS |
+| T142 | Leave Request's map reconstructs `Draft→Submitted→{Approved,Rejected}` plus `Cancel`, entirely from Events written before `process` existed | ✅ PASS |
+| T143 | A Machine with no `process_map` View declared 404s — the same opt-in every other auxiliary View type (`report`/`calendar`/`dashboard`) already uses | ✅ PASS |
+
+**144/144 conformance passing, zero regressions on the prior 140.** A manual render of T142's
+page (`GET /mch_leave_request/process-map` as the seeded Employee account) confirms the exact
+readable output: `States: Draft (initial) Submitted Approved Rejected Cancelled` /
+`Submit Draft→Submitted Employee` / `Approve Submitted→Approved Manager` /
+`Reject Submitted→Rejected Manager` / `Cancel Submitted→Cancelled Employee` — a correct,
+legible reconstruction of a process that was never once written down as a `process` block.
+
+## What this closes
+
+Study 20 §4.3's named gap — "no single legible process artifact" — is now closed for **any**
+Machine with a Status-guarded shape, not only overlay-declared ones. This is a stronger result
+than B2 was scoped to prove: the map isn't a feature of the Process Overlay, it's a feature of
+the *substrate shape* B1 revealed every state-guarded Machine already has, whether declared or
+hand-authored. No metadata migration, no re-authoring of the other 20 case-portfolio Machines
+is needed to get a process map for each of them — the same `process_map` View row, dropped into
+any of their seed files, would work today.
+
+## Registry impact
+
+`capability-registry.md`'s CAP-W05 row: forward direction (render) implemented and
+conformance-proven, including the decompile case on real v1 metadata — the row's own
+speculative "derivable... from any hand-authored Machine's own Events+guards" language is no
+longer speculative for the render half. The backward-authoring half (drafting a `process` block
+*from* a rendered map, i.e. "lift") remains open.

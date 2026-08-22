@@ -137,6 +137,17 @@ type ReportRow struct {
 	Sums  []string
 }
 
+// ProcessEdge (CAP-W05) is one transition row on a process map: the
+// declared or compiled Event's own Name, its From/To states, and who may
+// perform it (every Permission granting it, or "System" when none does --
+// an auto/System-chained transition, CAP-E05).
+type ProcessEdge struct {
+	Name  string
+	From  string
+	To    string
+	Actor string
+}
+
 // CalendarGroup (CAP-V07) buckets a Machine's records by their date_field's
 // own value (e.g. every Task due "2026-07-14") -- a server-rendered grouped
 // list, not a JS month-grid widget, matching this prototype's no-SPA

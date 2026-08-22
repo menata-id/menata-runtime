@@ -81,7 +81,10 @@ INSERT INTO views (id, machine_id, name, type, position, config) VALUES
      '{"fields":["fld_cam_title","fld_cam_assignee"]}'),
     ('vw_cam_list',   'mch_ca_manual', 'Corrective Actions', 'list', 1,
      '{"columns":["fld_cam_title","fld_cam_status"]}'),
-    ('vw_cam_detail', 'mch_ca_manual', 'Corrective Action Detail', 'detail', 2, '{}')
+    ('vw_cam_detail', 'mch_ca_manual', 'Corrective Action Detail', 'detail', 2, '{}'),
+    -- CAP-W05 (Process Overlay B2): the map derived from Events/guards, not
+    -- from a `process` declaration -- this Machine has none.
+    ('vw_cam_map',    'mch_ca_manual', 'Process Map', 'process_map', 3, '{}')
 ON CONFLICT (id) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
@@ -116,7 +119,10 @@ INSERT INTO views (id, machine_id, name, type, position, config) VALUES
      '{"fields":["fld_cao_title","fld_cao_assignee"]}'),
     ('vw_cao_list',   'mch_ca_overlay', 'Corrective Actions', 'list', 1,
      '{"columns":["fld_cao_title","fld_mch_ca_overlay_status"]}'),
-    ('vw_cao_detail', 'mch_ca_overlay', 'Corrective Action Detail', 'detail', 2, '{}')
+    ('vw_cao_detail', 'mch_ca_overlay', 'Corrective Action Detail', 'detail', 2, '{}'),
+    -- CAP-W05: same page type, no config -- must produce the identical
+    -- states/edges/actors as vw_cam_map above (the parity proof, T140/T141).
+    ('vw_cao_map',    'mch_ca_overlay', 'Process Map', 'process_map', 3, '{}')
 ON CONFLICT (id) DO NOTHING;
 
 -- ---------------------------------------------------------------------------

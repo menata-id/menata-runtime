@@ -423,6 +423,15 @@ const (
 	// separate, deferred concern (swapping the final render step, not this
 	// mechanism).
 	ViewTypeDocument ViewType = "document"
+	// ViewTypeProcessMap (CAP-W05 forward direction, Process Overlay B2)
+	// renders a read-only state/transition diagram, purely derived from
+	// this Machine's own Status value_list Field + its Events' CAP-E06
+	// guards -- no ViewConfig fields at all, "purely presentational, no
+	// new metadata concept" per the registry's own CAP-W05 row. Works
+	// identically on an overlay-compiled Machine and a hand-authored one,
+	// since both compile to the exact same Event/Field shape (see
+	// internal/handler/processmap.go's extractProcessMap).
+	ViewTypeProcessMap ViewType = "process_map"
 )
 
 // ViewConfig holds view-specific presentation configuration.

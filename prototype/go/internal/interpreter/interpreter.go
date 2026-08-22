@@ -311,6 +311,13 @@ func (i *Interpreter) DocumentView(machineID string) *model.View {
 	return i.viewOfType(machineID, model.ViewTypeDocument)
 }
 
+// ProcessMapView (CAP-W05) -- same "first View of this Type" lookup; a
+// Machine with no such View simply has no process map page (handler.
+// ProcessMap 404s), the opt-in every other auxiliary View type already uses.
+func (i *Interpreter) ProcessMapView(machineID string) *model.View {
+	return i.viewOfType(machineID, model.ViewTypeProcessMap)
+}
+
 func (i *Interpreter) viewOfType(machineID string, t model.ViewType) *model.View {
 	m, ok := i.machines[machineID]
 	if !ok {

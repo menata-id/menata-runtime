@@ -94,5 +94,13 @@ INSERT INTO views (id, machine_id, name, type, position, config) VALUES
      '{"columns":["fld_lr_employee","fld_lr_leave_type","fld_lr_start_date","fld_lr_end_date","fld_lr_status"],"default_sort":{"field":"fld_lr_start_date","direction":"asc"}}'),
     ('vw_lr_detail',
      'mch_leave_request', 'Leave Request Detail', 'detail', 3,
+     '{}'),
+    -- CAP-W05 (Process Overlay B2, decompile direction): this Machine is
+    -- pure v1 -- hand-authored Events/guards from Case 1/2's original
+    -- design, predating `process` by weeks. The map is derived from that
+    -- shape directly (internal/handler/processmap.go), proving the map
+    -- works on real legacy metadata, not just the B1 lab's own pair.
+    ('vw_lr_map',
+     'mch_leave_request', 'Process Map', 'process_map', 4,
      '{}')
 ON CONFLICT (id) DO NOTHING;

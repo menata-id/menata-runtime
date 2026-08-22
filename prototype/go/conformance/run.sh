@@ -1508,6 +1508,63 @@ OVL_NEG=$(overlay_negatives mch_ca_overlay fld_cao evt_mch_ca_overlay)
 [ "$OVL_NEG" = "OK" ]
 check T139 "B1" "compiled arm rejects identically: wrong state 400, wrong role 403, non-assignee Worker 403 (got $OVL_NEG)" $?
 
+# --- Process Overlay B2: process map, CAP-W05 (Study 21 addendum) ---
+# The map is derived from Events/guards + the Status field (internal/
+# handler/processmap.go's extractProcessMap), never from a `process`
+# declaration -- so it must render identically for the compiled arm, the
+# hand-authored arm (T140 vs T141, the legibility-parity proof), AND for a
+# genuine pre-existing v1 Machine that never heard of `process` at all
+# (T142, the decompile proof, on Leave Request's real Case 1/2 metadata).
+
+# process_map_has_shape <url> <jar> <fragment...> -> "OK" if every given
+# fragment appears in the rendered page, else "MISSING:<fragment>". Shared
+# by T140/T141 so both use the byte-identical assertion list.
+process_map_has_shape() {
+    local url="$1" jar="$2"; shift 2
+    local body frag
+    body=$(curl -s -b "$jar" "$url")
+    for frag in "$@"; do
+        echo "$body" | grep -qF "$frag" || { echo "MISSING:$frag"; return; }
+    done
+    echo "OK"
+}
+
+CA_MAP_FRAGMENTS=(
+    "Open (initial)" ">Assigned<" ">In_Progress<" ">Submitted<" ">Review<" ">Verified<" ">Closed<"
+    ">Assign<" ">Supervisor<" ">Start<" "Worker (owner: Assignee)" ">Submit<"
+    "Auto: Submitted" ">System<" ">Approve<" ">Reviewer<" ">Revise<" ">Close<"
+)
+
+# T140 -- the compiled arm's map lists all 7 states (Open marked initial)
+# and all 6 transitions with correct actors, INCLUDING the auto step
+# (System, no human Permission grants it).
+MAP_OVL=$(process_map_has_shape "$BASE_URL/mch_ca_overlay/process-map" "$SURYA" "${CA_MAP_FRAGMENTS[@]}")
+[ "$MAP_OVL" = "OK" ]
+check T140 "CAP-W05" "compiled Machine's process map shows every state and transition with the correct actor (got $MAP_OVL)" $?
+
+# T141 -- the hand-authored arm's map is the SAME assertion list, verbatim
+# -- legibility parity, not just execution parity (T136-T139 already
+# proved execution).
+MAP_MAN=$(process_map_has_shape "$BASE_URL/mch_ca_manual/process-map" "$SURYA" "${CA_MAP_FRAGMENTS[@]}")
+[ "$MAP_MAN" = "OK" ]
+check T141 "CAP-W05" "hand-authored Machine's process map is identical to the compiled one's (got $MAP_MAN)" $?
+
+# T142 -- the decompile claim: Leave Request (seeds/002, Case 1/2 vintage,
+# predates `process` by weeks) reconstructs correctly from its own real
+# Events/guards -- Draft->Submitted->{Approved,Rejected}, plus Cancel.
+MAP_LR=$(process_map_has_shape "$BASE_URL/mch_leave_request/process-map" "$DAVE" \
+    "Draft (initial)" ">Submitted<" ">Approved<" ">Rejected<" ">Cancelled<" \
+    ">Submit<" ">Employee<" ">Approve<" ">Manager<" ">Reject<" ">Cancel<")
+[ "$MAP_LR" = "OK" ]
+check T142 "CAP-W05" "a genuine pre-existing v1 Machine's process map reconstructs correctly with no \`process\` declaration anywhere (got $MAP_LR)" $?
+
+# T143 -- the opt-in gate: FRANK can read mch_employee (HR role, perm_hr)
+# but no process_map View was ever declared for it -- 404, not an error
+# page, the same posture every other auxiliary View type already takes.
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$FRANK" "$BASE_URL/mch_employee/process-map")
+[ "$CODE" = "404" ]
+check T143 "CAP-W05" "a Machine with no process_map View declared 404s (got $CODE)" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
