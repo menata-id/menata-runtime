@@ -408,6 +408,7 @@ The runtime's capability is being built and verified through a deliberate discov
 | [case-portfolio.md](case-portfolio.md) | Deliberately chosen test cases and their declared targets |
 | [capability-lifecycle.md](capability-lifecycle.md) | How a new capability is proposed, admitted, and completed |
 | [nfr-standards.md](nfr-standards.md) | Architecture / performance / security standards per capability area |
+| [brd-menata-runtime-v2.md](brd-menata-runtime-v2.md) | Concept BRD for v2 — the Process Overlay ("declared process, emergent execution"), Study 20's Concept C written as a business requirements document, incl. a metadata-only test against all 21 cases (in Bahasa Indonesia, deliberately matching the comparator BRD's genre) |
 | [benchmarks/](benchmarks/) | Tier 4 — external evidence studies (see below) |
 
 ## Tier 4 — Evidence Studies (`benchmarks/`, numbered by production order)
