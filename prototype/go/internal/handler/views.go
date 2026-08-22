@@ -1,0 +1,225 @@
+package handler
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
+	"menata.id/runtime/internal/model"
+	"menata.id/runtime/internal/ui"
+)
+
+func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	machine, ok := h.interp.Get().GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanRead(machine, role) {
+		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	view := h.interp.Get().ReportView(machineID)
+	if view == nil || view.Config.Report == nil {
+		http.NotFound(w, r)
+		return
+	}
+	rc := view.Config.Report
+
+	srcFieldByID := map[string]*model.Field{}
+	if src, ok := h.interp.Get().GetMachine(rc.Machine); ok {
+		srcFieldByID = fieldIndex(src)
+	}
+	sumLabels := make([]string, len(rc.SumFields))
+	for i, f := range rc.SumFields {
+		sumLabels[i] = f
+		if sf, ok := srcFieldByID[f]; ok {
+			sumLabels[i] = sf.Name
+		}
+	}
+
+	groups, err := h.records.SumFieldsGroupedBy(r.Context(), rc.Machine, rc.GroupField, rc.SumFields)
+	if err != nil {
+		http.Error(w, "failed to load report", http.StatusInternalServerError)
+		return
+	}
+	rows := make([]ui.ReportRow, len(groups))
+	for i, g := range groups {
+		sums := make([]string, len(rc.SumFields))
+		for j, f := range rc.SumFields {
+			sums[j] = fmt.Sprintf("%.2f", g.Sums[f])
+		}
+		rows[i] = ui.ReportRow{Group: g.Group, Sums: sums}
+	}
+
+	a := h.auth(r)
+	page := ui.Report(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, sumLabels, rows, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render report", "error", err)
+	}
+}
+
+// calendarTimeline backs both Calendar and Timeline (CAP-V07) -- same
+// grouped-by-date_field rendering, only the View lookup differs.
+func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view *model.View) {
+	machineID := chi.URLParam(r, "machineID")
+	machine, ok := h.interp.Get().GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanRead(machine, role) {
+		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	if view == nil {
+		http.NotFound(w, r)
+		return
+	}
+	fieldByID := fieldIndex(machine)
+	colIDs := view.Config.Columns
+	cols := make([]ui.ColumnDef, 0, len(colIDs))
+	for _, id := range colIDs {
+		def := ui.ColumnDef{ID: id, Name: id}
+		if f, ok := fieldByID[id]; ok {
+			def.Name = f.Name
+			def.Type = f.Type
+		}
+		cols = append(cols, def)
+	}
+
+	records, err := h.records.List(r.Context(), machineID, view.Config.DateField, "asc")
+	if err != nil {
+		http.Error(w, "failed to load records", http.StatusInternalServerError)
+		return
+	}
+
+	var groups []ui.CalendarGroup
+	var cur string
+	var curRows []ui.ListRow
+	flush := func() {
+		if curRows != nil {
+			groups = append(groups, ui.CalendarGroup{Date: cur, Rows: curRows})
+		}
+	}
+	first := true
+	for _, rec := range records {
+		date := fmt.Sprintf("%v", rec.Data[view.Config.DateField])
+		if date == "<nil>" {
+			date = ""
+		}
+		if first || date != cur {
+			flush()
+			cur = date
+			curRows = nil
+			first = false
+		}
+		cells := make([]ui.ListCell, len(colIDs))
+		for j, id := range colIDs {
+			val := ""
+			if v, ok := rec.Data[id]; ok {
+				val = fmt.Sprintf("%v", v)
+			}
+			cells[j] = ui.ListCell{Value: val, IsStatusBadge: cols[j].Type == model.FieldTypeValueList}
+		}
+		curRows = append(curRows, ui.ListRow{ID: rec.ID, Cells: cells})
+	}
+	flush()
+
+	a := h.auth(r)
+	page := ui.CalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, groups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render calendar/timeline", "error", err)
+	}
+}
+
+// Calendar renders a CAP-V07 calendar View: records grouped by date_field.
+func (h *Handler) Calendar(w http.ResponseWriter, r *http.Request) {
+	h.calendarTimeline(w, r, h.interp.Get().CalendarView(chi.URLParam(r, "machineID")))
+}
+
+// Timeline renders a CAP-V07 timeline View: the same grouping, read
+// chronologically.
+func (h *Handler) Timeline(w http.ResponseWriter, r *http.Request) {
+	h.calendarTimeline(w, r, h.interp.Get().TimelineView(chi.URLParam(r, "machineID")))
+}
+
+// Dashboard renders a CAP-V10 composed dashboard View -- one tile per
+// declared Section, each possibly a DIFFERENT Machine than the one the
+// dashboard View itself is declared on (the actual point of "composed").
+// Each section's own read permission is checked independently -- a role
+// that can't read a given section's Machine just doesn't get that tile,
+// rather than the whole dashboard 403ing.
+func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	machine, ok := h.interp.Get().GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanRead(machine, role) {
+		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	view := h.interp.Get().DashboardView(machineID)
+	if view == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	tiles := make([]ui.DashboardTile, 0, len(view.Config.Sections))
+	for _, sec := range view.Config.Sections {
+		secMachine, ok := h.interp.Get().GetMachine(sec.Machine)
+		if !ok {
+			continue
+		}
+		_, secAppID := h.interp.Get().ScopeFor(sec.Machine)
+		secRole := h.roleForApp(r, secAppID)
+		if !h.guard.CanRead(secMachine, secRole) {
+			continue
+		}
+		counts, err := h.records.CountGroupedBy(r.Context(), sec.Machine, sec.GroupField)
+		if err != nil {
+			http.Error(w, "failed to load dashboard", http.StatusInternalServerError)
+			return
+		}
+		tile := ui.DashboardTile{Title: sec.Title, MachineID: sec.Machine}
+		for _, c := range counts {
+			tile.Total += c.Count
+			if sec.GroupField != "" {
+				tile.Breakdown = append(tile.Breakdown, ui.DashboardBreakdown{Label: c.Group, Count: c.Count})
+			}
+		}
+		tiles = append(tiles, tile)
+	}
+
+	a := h.auth(r)
+	page := ui.Dashboard(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), view.Name, tiles, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render dashboard", "error", err)
+	}
+}
