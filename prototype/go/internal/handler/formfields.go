@@ -80,6 +80,26 @@ func (h *Handler) buildFormFieldsFor(ctx context.Context, machine *model.Machine
 				}
 			}
 		}
+		// CAP-V19: this reference Field is what a CrossRecord{Kind:
+		// "reference_field"} Constraint (CAP-C11) on this SAME Machine
+		// gates on -- surface a live preview of the referenced record's
+		// own TargetField, fetched from CAP-X07's existing API, no new
+		// route.
+		if f.Type == model.FieldTypeReference {
+			for _, c := range machine.Constraints {
+				if c.CrossRecord == nil || c.CrossRecord.Kind != "reference_field" || c.CrossRecord.ReferenceField != f.ID {
+					continue
+				}
+				ff.LivePreviewURL = "/api/" + f.Options.TargetMachine + "/"
+				ff.LivePreviewField = c.CrossRecord.TargetField
+				if targetMachine, ok := h.interp.Get().GetMachine(f.Options.TargetMachine); ok {
+					if tf, ok := fieldIndex(targetMachine)[c.CrossRecord.TargetField]; ok {
+						ff.LivePreviewLabel = tf.Name
+					}
+				}
+				break
+			}
+		}
 		fields = append(fields, ff)
 	}
 	return fields

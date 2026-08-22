@@ -80,6 +80,18 @@ type FormField struct {
 	Typeahead      bool
 	TypeaheadURL   string
 	TypeaheadLabel string // the current value's own display label, pre-filling the search box on Edit
+
+	// LivePreview* (CAP-V19) are set only when this reference Field is
+	// what a CrossRecord{Kind:"reference_field"} Constraint on the parent
+	// Machine gates on (handler.buildFormFieldsFor) -- when set, the
+	// picker shows a live preview of the referenced record's own
+	// TargetField value as soon as one is selected, fetched from CAP-X07's
+	// existing GET /api/{machine}/{record} (no new route needed). Purely
+	// presentational; the real gate stays the already-proven server-side
+	// check (CAP-C11) unchanged.
+	LivePreviewURL   string // "/api/<target_machine>/" -- the record id is appended client-side
+	LivePreviewField string
+	LivePreviewLabel string
 }
 
 // ChildLinesData (CAP-F16) is a form's embedded child-Machine row editor --

@@ -217,6 +217,7 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T172 | CAP-V16 | `GET .../field-options?q=` returns only matching candidates, not all 30 |
 | T173 | CAP-V16 | submitting a typeahead-selected value creates the record correctly end-to-end |
 | T174 | CAP-V15 | the Journal Entry form's `child_lines` section is wired for a live debit/credit total |
+| T175 | CAP-V19 | the Journal Entry form's Fiscal Period picker is wired for a live status preview |
 
 ---
 

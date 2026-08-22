@@ -76,7 +76,7 @@ func Page(title, identity, csrfToken string, isAdmin bool, unreadCount int, subN
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div><script>\n\t\t\t\tdocument.addEventListener('click', function(e) {\n\t\t\t\t\tvar opt = e.target.closest('.field-option');\n\t\t\t\t\tif (!opt) return;\n\t\t\t\t\tvar target = opt.dataset.target;\n\t\t\t\t\tvar hidden = document.getElementById(target);\n\t\t\t\t\tvar search = document.getElementById(target + '_search');\n\t\t\t\t\tvar list = document.getElementById(target + '_opts');\n\t\t\t\t\tif (hidden) hidden.value = opt.dataset.id;\n\t\t\t\t\tif (search) search.value = opt.dataset.label;\n\t\t\t\t\tif (list) list.innerHTML = '';\n\t\t\t\t});\n\t\t\t\t// CAP-V15: a live, client-side running total over a\n\t\t\t\t// ChildLinesSection's own repeated row inputs -- purely\n\t\t\t\t// presentational (the real gate is the server-side CAP-C10\n\t\t\t\t// check, unchanged); config (which two fields to sum) comes\n\t\t\t\t// from the section's own data-sum-a-field/data-sum-b-field\n\t\t\t\t// attributes, never interpolated into this script.\n\t\t\t\tdocument.addEventListener('input', function(e) {\n\t\t\t\t\tvar section = e.target.closest('[data-sum-a-field]');\n\t\t\t\t\tif (!section) return;\n\t\t\t\t\tvar fa = section.dataset.sumAField, fb = section.dataset.sumBField;\n\t\t\t\t\tvar sumA = 0, sumB = 0;\n\t\t\t\t\tsection.querySelectorAll('input[name$=\"_' + fa + '\"]').forEach(function(i) {\n\t\t\t\t\t\tsumA += parseFloat(i.value) || 0;\n\t\t\t\t\t});\n\t\t\t\t\tif (fb) {\n\t\t\t\t\t\tsection.querySelectorAll('input[name$=\"_' + fb + '\"]').forEach(function(i) {\n\t\t\t\t\t\t\tsumB += parseFloat(i.value) || 0;\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t\tvar elA = section.querySelector('.js-sum-a'), elB = section.querySelector('.js-sum-b');\n\t\t\t\t\tif (elA) elA.textContent = sumA.toFixed(2);\n\t\t\t\t\tif (elB) elB.textContent = sumB.toFixed(2);\n\t\t\t\t});\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div><script>\n\t\t\t\tdocument.addEventListener('click', function(e) {\n\t\t\t\t\tvar opt = e.target.closest('.field-option');\n\t\t\t\t\tif (!opt) return;\n\t\t\t\t\tvar target = opt.dataset.target;\n\t\t\t\t\tvar hidden = document.getElementById(target);\n\t\t\t\t\tvar search = document.getElementById(target + '_search');\n\t\t\t\t\tvar list = document.getElementById(target + '_opts');\n\t\t\t\t\tif (hidden) hidden.value = opt.dataset.id;\n\t\t\t\t\tif (search) search.value = opt.dataset.label;\n\t\t\t\t\tif (list) list.innerHTML = '';\n\t\t\t\t});\n\t\t\t\t// CAP-V15: a live, client-side running total over a\n\t\t\t\t// ChildLinesSection's own repeated row inputs -- purely\n\t\t\t\t// presentational (the real gate is the server-side CAP-C10\n\t\t\t\t// check, unchanged); config (which two fields to sum) comes\n\t\t\t\t// from the section's own data-sum-a-field/data-sum-b-field\n\t\t\t\t// attributes, never interpolated into this script.\n\t\t\t\tdocument.addEventListener('input', function(e) {\n\t\t\t\t\tvar section = e.target.closest('[data-sum-a-field]');\n\t\t\t\t\tif (!section) return;\n\t\t\t\t\tvar fa = section.dataset.sumAField, fb = section.dataset.sumBField;\n\t\t\t\t\tvar sumA = 0, sumB = 0;\n\t\t\t\t\tsection.querySelectorAll('input[name$=\"_' + fa + '\"]').forEach(function(i) {\n\t\t\t\t\t\tsumA += parseFloat(i.value) || 0;\n\t\t\t\t\t});\n\t\t\t\t\tif (fb) {\n\t\t\t\t\t\tsection.querySelectorAll('input[name$=\"_' + fb + '\"]').forEach(function(i) {\n\t\t\t\t\t\t\tsumB += parseFloat(i.value) || 0;\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t\tvar elA = section.querySelector('.js-sum-a'), elB = section.querySelector('.js-sum-b');\n\t\t\t\t\tif (elA) elA.textContent = sumA.toFixed(2);\n\t\t\t\t\tif (elB) elB.textContent = sumB.toFixed(2);\n\t\t\t\t});\n\t\t\t\t// CAP-V19: a live preview of a referenced record's own\n\t\t\t\t// field, fetched from CAP-X07's existing GET\n\t\t\t\t// /api/{machine}/{record} (no new route) as soon as a\n\t\t\t\t// reference picker's selection changes -- purely\n\t\t\t\t// presentational; the real gate is the server-side CAP-C11\n\t\t\t\t// check, unchanged. Config (which API to call, which field\n\t\t\t\t// to read) comes from the select's own data-preview-url/\n\t\t\t\t// data-preview-field attributes, never interpolated into\n\t\t\t\t// this script.\n\t\t\t\tdocument.addEventListener('change', function(e) {\n\t\t\t\t\tvar el = e.target;\n\t\t\t\t\tvar url = el.dataset.previewUrl, field = el.dataset.previewField;\n\t\t\t\t\tif (!url || !field) return;\n\t\t\t\t\tvar preview = el.parentElement.querySelector('.js-live-preview');\n\t\t\t\t\tif (!preview) return;\n\t\t\t\t\tif (!el.value) { preview.textContent = '—'; return; }\n\t\t\t\t\tfetch(url + el.value)\n\t\t\t\t\t\t.then(function(r) { return r.json(); })\n\t\t\t\t\t\t.then(function(data) {\n\t\t\t\t\t\t\tvar v = data && data.data ? data.data[field] : null;\n\t\t\t\t\t\t\tpreview.textContent = (v === null || v === undefined || v === '') ? '—' : v;\n\t\t\t\t\t\t})\n\t\t\t\t\t\t.catch(function() { preview.textContent = '—'; });\n\t\t\t\t});\n\t\t\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -131,7 +131,7 @@ func subNavBar(links []SubNavLink) templ.Component {
 			var templ_7745c5c3_Var5 templ.SafeURL
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + l.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 93, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 117, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -157,7 +157,7 @@ func subNavBar(links []SubNavLink) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(l.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 98, Col: 13}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 122, Col: 13}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -219,7 +219,7 @@ func navBar(identity, csrfToken string, isAdmin bool, unreadCount int) templ.Com
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(unreadCount))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 124, Col: 33}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 148, Col: 33}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -242,7 +242,7 @@ func navBar(identity, csrfToken string, isAdmin bool, unreadCount int) templ.Com
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(identity)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 131, Col: 14}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 155, Col: 14}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {

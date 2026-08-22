@@ -101,7 +101,7 @@ templ FieldOptionsFragment(target string, opts []ReferenceOption) {
 // child-line rows pass an indexed name (e.g. "child_0_fld_x") instead, so
 // the same rendering logic serves both a Machine's own form fields and a
 // repeated child row's fields.
-templ FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption, typeahead bool, typeaheadURL, typeaheadLabel string) {
+templ FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption, typeahead bool, typeaheadURL, typeaheadLabel string, livePreviewURL, livePreviewField, livePreviewLabel string) {
 	<div class="space-y-1.5">
 		<label for={ name } class="block text-sm font-medium text-slate-700">
 			{ f.Name }
@@ -118,12 +118,19 @@ templ FieldInput(f *model.Field, name, value string, refOptions []ReferenceOptio
 					id={ name }
 					name={ name }
 					class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+					if livePreviewURL != "" {
+						data-preview-url={ livePreviewURL }
+						data-preview-field={ livePreviewField }
+					}
 				>
 					<option value="">— select —</option>
 					for _, opt := range refOptions {
 						<option value={ opt.ID } selected?={ opt.ID == value }>{ opt.Label }</option>
 					}
 				</select>
+				if livePreviewURL != "" {
+					<p class="text-xs text-slate-500">{ livePreviewLabel }: <span class="js-live-preview font-medium text-slate-700">—</span></p>
+				}
 			}
 		case model.FieldTypeRichText:
 			<textarea
@@ -249,7 +256,7 @@ templ ChildLinesSection(title string, rows [][]FormField, sumFieldA, sumFieldALa
 		for _, row := range rows {
 			<div class="grid grid-cols-1 gap-3 rounded-md border border-slate-200 p-3 sm:grid-cols-2">
 				for _, ff := range row {
-					@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel)
+					@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel, ff.LivePreviewURL, ff.LivePreviewField, ff.LivePreviewLabel)
 				}
 			</div>
 		}

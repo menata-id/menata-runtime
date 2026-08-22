@@ -31,7 +31,7 @@ templ Form(identity, csrfToken string, isAdmin bool, machine *model.Machine, rec
 				<form method="POST" action={ templ.SafeURL(formAction(machine, recordID)) } class="space-y-5">
 					@CSRFField(csrfToken)
 					for _, ff := range fields {
-						@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel)
+						@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel, ff.LivePreviewURL, ff.LivePreviewField, ff.LivePreviewLabel)
 					}
 					if childLines != nil {
 						@ChildLinesSection(childLines.Title, childLines.Rows, childLines.SumFieldA, childLines.SumFieldALabel, childLines.SumFieldB, childLines.SumFieldBLabel)

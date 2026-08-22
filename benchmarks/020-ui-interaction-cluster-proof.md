@@ -139,3 +139,31 @@ coverage.
 **174/174 conformance passing, zero regressions**, confirmed on a fresh isolated schema.
 
 **Registry impact**: `capability-registry.md`'s CAP-V15 row ❌→✅.
+
+---
+
+## Phase 5 — CAP-V19: live cross-record balance preview
+
+**What was built**: smaller than Phase 4 in backend terms — **zero new routes**.
+`handler.buildFormFieldsFor` finds a `reference` Field's own `CrossRecord{Kind:"reference_field"}`
+Constraint (CAP-C11/CAP-C08, this session's earlier work) and wires the picker to fetch CAP-X07's
+already-existing `GET /api/{machine}/{record}` on selection, reading `TargetField` — the exact
+value CAP-C11's own check already gates on (e.g. a Fiscal Period's Status), surfaced before submit
+instead of only discovered at rejection time. Same `data-*`-attribute config-passing and one
+static, page-level, non-interpolated `change`-event listener (`layout.templ`, alongside the
+`input`/`click` listeners CAP-V15/CAP-V16 already added there) — no per-render script, same
+safety discipline throughout the cluster.
+
+**Proof**: reuses `seeds/027_case9_completion_lab.sql` again — no new fixture needed, its
+`CrossRecord{Kind:"reference_field"}` constraint already targets `mch_c9_fiscal_period`'s own
+Status field. T175 asserts the correct wiring is emitted
+(`data-preview-url="/api/mch_c9_fiscal_period/"`, `data-preview-field="fld_c9fp_status"`). Same
+honest limit as Phase 4: this is what an HTTP-black-box suite can prove; the live-fetch behavior
+was manually verified in a real request/response cycle — including confirming the actual API
+response shape (`{"id":...,"data":{...}}`) matches exactly what the script reads
+(`data.data[field]`) — before this phase was reported complete.
+
+**175/175 conformance passing, zero regressions**, confirmed on a fresh isolated schema.
+
+**Registry impact**: `capability-registry.md`'s CAP-V19 row ❌→✅. Five of the six phases of the
+Track D UI/Interaction cluster are now done — Phase 6 (CAP-V14 Tier 2, kanban board) still ahead.

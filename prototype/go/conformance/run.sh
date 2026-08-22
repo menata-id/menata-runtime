@@ -2041,6 +2041,25 @@ HAS_SUM_B=$?
 [ "$HAS_SUM_A" -eq 0 ] && [ "$HAS_SUM_B" -eq 0 ]
 check T174 "CAP-V15" "the Journal Entry form's child_lines section is wired for a live debit/credit total" $?
 
+# --- CAP-V19 (live cross-record balance preview) -- reuses the SAME
+# seeds/027_case9_completion_lab.sql fixture again (its CrossRecord{Kind:
+# "reference_field"} constraint already targets mch_c9_fiscal_period's own
+# Status field). Zero new routes -- CAP-X07's existing GET
+# /api/{machine}/{record} is reused directly. Same HTTP-black-box
+# limitation as T174: this proves the correct wiring is emitted, not that a
+# browser executes it -- manually verified in a real request/response cycle
+# before this phase was reported complete.
+
+# T175 -- the Journal Entry form's Fiscal Period picker is wired for a live
+# preview of that period's own Status, fetched from the existing JSON API.
+NEW_JE_BODY2=$(get_body "$BASE_URL/mch_c9_journal_entry/new" "$C9ACCT")
+echo "$NEW_JE_BODY2" | grep -q 'data-preview-url="/api/mch_c9_fiscal_period/"'
+HAS_PREVIEW_URL=$?
+echo "$NEW_JE_BODY2" | grep -q 'data-preview-field="fld_c9fp_status"'
+HAS_PREVIEW_FIELD=$?
+[ "$HAS_PREVIEW_URL" -eq 0 ] && [ "$HAS_PREVIEW_FIELD" -eq 0 ]
+check T175 "CAP-V19" "the Journal Entry form's Fiscal Period picker is wired for a live status preview" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
