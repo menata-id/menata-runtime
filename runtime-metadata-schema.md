@@ -245,29 +245,57 @@ machine:
 | `transitions[].{name,from,to}` | one `Event` per transition, id `evt_<machine>_<slug(name)>`, `condition: {status equals from}`, first action `set_field {status: to}` | CAP-E06 |
 | `transitions[].actor` | one `Permission` per distinct `{role, owner_field}` pair across all transitions, granting every Event that pair authors | CAP-P01/CAP-P02 |
 | `transitions[].on_transition` | appended as further `EventAction`s on the same compiled Event, in declared order | ordinary Executor action vocabulary — no second grammar |
-| `transitions[].requirements` | a generated `number` counter Field (`fld_<machine>_<target>_count`, default `"0"`) + a gating `Constraint` (`condition: {status equals to}`, `expression: {counter >= min}` [+ `<= max`]) | CAP-C09 re-validates it unchanged — see below |
+| `transitions[].requirements[].type: evidence` | a generated `number` counter Field (`fld_<machine>_<target>_count`, default `"0"`) + a gating `Constraint` (`condition: {status equals to}`, `expression: {counter >= min}` [+ `<= max`]) | CAP-C09 re-validates it unchanged — see below |
+| `transitions[].requirements[].type: approval` | an `aggregate_status` `EventAction` appended to every `target` Event that sets its own `"Decision"` field — nothing generated on the declaring Machine itself | CAP-A08, resolved once every Machine has loaded — see below |
 | `auto` | a `System`-actor `Event` of the same shape, chained onto every compiled Event landing on its `from` state via `trigger_event` (no human Permission grants it — deny-by-default keeps it off every button) | CAP-E05 |
 | `sla[].{state,duration}` | a generated `date` due-date Field (`fld_<machine>_<state>_due`) + an appended `set_field` action (`"today + " + duration`) on **every** already-compiled transition/auto Event landing on `state` | CAP-A11's date-arithmetic grammar, reused verbatim (`duration` is just the `"N Unit"` half — the compiler always prepends `"today + "`) |
 | `sla[].on_breach` | one generated scheduled `Event` (`evt_<machine>_<state>_sla_breach`), `condition: {status equals state}`, actions = the declared `notify` + an optional `set_field {status: escalate_to}` | CAP-E06 guard + CAP-E03 schedule (`date_field` = the due Field, `offset_days: 0`) — no `Permission` generated, scheduled Events already bypass `Guard.CanTrigger` entirely |
 
-**`requirements[].type` is `"evidence"` only, so far** (CAP-W01) — `target` names a *child* Machine
-that must itself hold a `reference` Field pointing back at this Machine (validated at load time,
-same "Unknown = explicit" discipline as `child_lines`/CAP-F16); `cardinality` is `"N"` (exact),
-`"N..*"` (at least N), or `"N..M"` (a bounded range). **The count is never computed by a query at
-transition time** — it is maintained by *write-time fan-in*: every time a `target`-Machine record
-is `Create`d referencing the parent, the parent's counter increments on the spot
-(`internal/handler/requirement.go`'s `stampRequirementCounters`, wired into the plain HTTP
-`Create` route only — `create_record`/CSV import/the JSON API do not stamp it yet, a named gap).
-Two transitions naming the same `(type, target)` share one counter; naming it with two
-*different* `to` states is a load-time error (no OR-condition support).
+**`requirements[].type` is `"evidence"` or `"approval"`** (CAP-W01, CAP-W03). For `evidence`,
+`target` names a *child* Machine that must itself hold a `reference` Field pointing back at this
+Machine (validated at load time, same "Unknown = explicit" discipline as `child_lines`/CAP-F16);
+`cardinality` is `"N"` (exact), `"N..*"` (at least N), or `"N..M"` (a bounded range). **The count
+is never computed by a query at transition time** — it is maintained by *write-time fan-in*: every
+time a `target`-Machine record is `Create`d referencing the parent, the parent's counter
+increments on the spot (`internal/handler/requirement.go`'s `stampRequirementCounters`, wired into
+the plain HTTP `Create` route only — `create_record`/CSV import/the JSON API do not stamp it yet,
+a named gap). Two transitions naming the same `(type, target)` share one counter; naming it with
+two *different* `to` states is a load-time error (no OR-condition support).
+
+**`type: approval` (CAP-W03's declarative quorum form)** compiles to the exact same
+`aggregate_status` `EventAction` a hand-authored parallel-approval pair would carry by hand — but
+injected onto the `target` Machine's own Events, not this one's:
+```yaml
+requirements:
+  - type: approval
+    target: mch_ca_review       # a child Machine, one record per voter
+    min_approvals: 2            # "N" -- "M" is never declared; it's however many
+                                 # sibling records currently reference the parent
+    on_quorum_approved: Approve # a transition NAME on THIS machine's own process
+    on_quorum_rejected: Reject  # ditto -- both MUST be actor: {role: System}
+```
+No `approve_state`/`reject_state` key: the compiler finds every Event on `target` that sets a
+`value_list` Field literally named `"Decision"` (the same convention `handler.doAggregateStatus`
+already reads at runtime, `CAP-A07`/`CAP-A08`'s own heuristic, not a new one) and appends the tally
+action there — `doAggregateStatus` re-tallies fresh from every sibling on each call, so which
+specific value triggered it doesn't matter. `target` needs no `process` block of its own; it can
+stay entirely hand-authored, as long as it declares that `Decision` field (with `"Approved"`/
+`"Rejected"` among its values) and a `reference` field back to the declaring Machine. Compiled
+once every Machine has fully loaded (`internal/metadata/loader.go`'s `compileApprovalRequirements`,
+run after `validateReferences`) — not inside the process compiler itself, the same "wait until
+everything's loaded" reasoning `evidence`'s own target-validation already needs, one step further
+(this one *writes* to the target, not just reads it). At most one `approval` requirement per
+Machine is supported so far (no dedup/merge across transitions the way `evidence` has — no case
+has needed a second yet).
 
 **`sla[]` (CAP-W04)** declares a time budget for sitting in a state — `duration` reuses CAP-A11's
 own unit vocabulary exactly (`Day(s)`/`Week(s)`/`Month(s)`/`Year(s)`/`Business Day(s)`, e.g. `"2
 Business Days"`), never a new grammar; `on_breach.notify` is the identical `{role, ...}`/
 `{recipient_field, role}` shape `ActionNotify` already uses; `on_breach.escalate_to` is optional
 — a notify-only breach (no forced state change) is a valid, simpler declaration. Entirely
-single-Machine — no cross-machine wiring, unlike Quorum's declarative form (still open, see
-`aggregate_status`'s own `min_approvals` note in Event Actions below).
+single-Machine — no cross-machine wiring, unlike `type: approval` above (see
+`aggregate_status`'s own `min_approvals` note in Event Actions below for the mechanism it compiles
+to).
 
 **Rules enforced at load time (fail-loud, same posture as everywhere else in this document):**
 
@@ -286,6 +314,12 @@ single-Machine — no cross-machine wiring, unlike Quorum's declarative form (st
   Machine — checked once every Application has loaded (`metadata.validateReferences`), not
   inside the process compiler itself, since a Requirement may target a Machine in an Application
   that hasn't loaded yet at the point its own Machine compiles.
+- `type: approval` additionally requires: `min_approvals > 0`; `on_quorum_approved`/
+  `on_quorum_rejected` each name a transition declared on the SAME Machine's own process, and that
+  transition's `actor.role` must be `"System"` (enforced, not conventional — a quorum-controlled
+  outcome triggerable by a human role would make the quorum guarantee bypassable); `target` must
+  have a `value_list` Field literally named `"Decision"` whose values include both `"Approved"`
+  and `"Rejected"`, and at least one Event that sets it.
 - `sla[].state` must be a declared state, named at most once; `duration` must match `"N Unit"`
   (CAP-A11's vocabulary, no sign — the compiler always prepends `"today + "`);
   `on_breach.escalate_to`, when set, must itself be a declared state — and, per the reachability
@@ -757,12 +791,14 @@ any_rejected` fires only once quorum becomes **mathematically impossible**
 N) — a minority of rejections that still leaves enough headroom does *not* cancel early, unlike
 the single-rejection-cancels default above.
 
-**Deliberately hand-authored only, not yet declarable via `process.requirements`.** Expressing
-quorum *declaratively* (`{type: approval, target: mch_x_step, quorum: "2_of_3"}` on a
-`ProcessTransition`) needs the compiler to inject this action onto a *separately-loaded child
-Machine's own events* — a genuinely new cross-machine compile capability the Process Overlay
-hasn't needed before (`compileProcess` only ever touches the one Machine passed to it). Named
-explicit future work (`../roadmap.md`'s B4 status entry), not attempted yet.
+**Also declarable via `process.requirements[].type: approval`** (Process Overlay, `## Process
+Overlay` section above) — the compiler injects this exact action onto the `target` Machine's own
+Events once every Machine has loaded (`compileApprovalRequirements`,
+`internal/metadata/loader.go`). The declarative grammar deliberately differs from an earlier
+sketch once considered here (`{type: approval, target: mch_x_step, quorum: "2_of_3"}`): "M" is
+never declared (it's always however many sibling records exist, a runtime fact `doAggregateStatus`
+already computes this way even for the hand-authored form above) — only `min_approvals` (the "N"),
+matching this section's own param name exactly.
 
 ### Event `input_fields` — trigger-time inline input (CAP-P04)
 

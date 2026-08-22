@@ -5,6 +5,8 @@
 // operate on. It is never persisted directly.
 package model
 
+import "strings"
+
 // Workspace is the top-level organizational boundary.
 type Workspace struct {
 	ID           string
@@ -145,7 +147,45 @@ type ProcessTransition struct {
 type ProcessRequirement struct {
 	Type        string `json:"type"`
 	Target      string `json:"target"`
-	Cardinality string `json:"cardinality"`
+	Cardinality string `json:"cardinality,omitempty"` // evidence
+
+	// approval (CAP-W03's declarative form) -- see compileApprovalRequirements
+	// (internal/metadata/loader.go). "M" (how many voters exist) is
+	// deliberately not declared here -- handler.doAggregateStatus already
+	// computes it as a runtime fact (however many sibling records currently
+	// reference the parent), not a metadata constant, so the compiler
+	// doesn't need to either.
+	MinApprovals     int    `json:"min_approvals,omitempty"`
+	OnQuorumApproved string `json:"on_quorum_approved,omitempty"` // a transition NAME on the declaring machine's own process
+	OnQuorumRejected string `json:"on_quorum_rejected,omitempty"` // ditto
+}
+
+// FindFieldByName resolves a Field by name, case-insensitive -- the same
+// heuristic handler.go's displayLabel/Sequence/Decision/Approver lookups
+// already use (Menata Language has no grammar yet for a business author to
+// name "the field that means X"), exported so internal/metadata's
+// cross-machine compile pass (CAP-W03's declarative quorum) can reuse it
+// without a package cycle back into internal/handler.
+func FindFieldByName(machine *Machine, name string) *Field {
+	for _, f := range machine.Fields {
+		if strings.EqualFold(f.Name, name) {
+			return f
+		}
+	}
+	return nil
+}
+
+// FindReferenceFieldTo resolves the Field on machine (if any) whose type is
+// `reference` and whose target_machine is targetMachineID -- "the field
+// that scopes this record to its parent" heuristic, same reasoning and same
+// export rationale as FindFieldByName.
+func FindReferenceFieldTo(machine *Machine, targetMachineID string) *Field {
+	for _, f := range machine.Fields {
+		if f.Type == FieldTypeReference && f.Options.TargetMachine == targetMachineID {
+			return f
+		}
+	}
+	return nil
 }
 
 // RequirementCounterFieldID is the deterministic id of the generated

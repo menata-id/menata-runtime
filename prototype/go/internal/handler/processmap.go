@@ -25,7 +25,7 @@ import (
 // Returns ok=false when the Machine has no Status value_list Field at all
 // -- nothing to build a map from, not an error.
 func extractProcessMap(machine *model.Machine) (states []string, initial string, edges []ui.ProcessEdge, ok bool) {
-	statusField := findFieldByName(machine, "Status")
+	statusField := model.FindFieldByName(machine, "Status")
 	if statusField == nil || statusField.Type != model.FieldTypeValueList {
 		return nil, "", nil, false
 	}

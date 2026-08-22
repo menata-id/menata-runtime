@@ -48,6 +48,16 @@ func (l *Loader) LoadAll(ctx context.Context) ([]*model.Workspace, error) {
 	if err := validateReferences(workspaces); err != nil {
 		return nil, err
 	}
+	// CAP-W03's declarative quorum form: an `approval` requirement injects
+	// an EventAction onto a DIFFERENT (target) machine's own Events -- only
+	// possible now, after every Workspace/Application/Machine above has
+	// fully loaded and compiled. Runs after validateReferences on purpose:
+	// that function already guarantees every requirement's target exists
+	// and has a real back-reference field, so this one can trust that and
+	// focus purely on resolving/injecting the compiled shape.
+	if err := compileApprovalRequirements(workspaces); err != nil {
+		return nil, err
+	}
 	if err := validateOperators(workspaces); err != nil {
 		return nil, err
 	}
@@ -459,6 +469,138 @@ func validateReferences(workspaces []*model.Workspace) error {
 				}
 			}
 		}
+	}
+	return nil
+}
+
+// compileApprovalRequirements (CAP-W03, declarative quorum form) resolves
+// every `approval` ProcessRequirement declared anywhere and injects the same
+// aggregate_status EventAction a hand-authored quorum pair
+// (seeds/022_quorum_lab.sql) already carries by hand -- onto the TARGET
+// machine's own Events, not the declaring machine's. Only possible here,
+// after every Workspace/Application/Machine has fully loaded and compiled
+// (called from LoadAll after validateReferences) -- this is exactly the
+// cross-machine reach compileProcess/compileRequirements deliberately never
+// attempt on their own (each only ever touches the one *model.Machine it's
+// given).
+func compileApprovalRequirements(workspaces []*model.Workspace) error {
+	machineByID := make(map[string]*model.Machine)
+	for _, ws := range workspaces {
+		for _, app := range ws.Applications {
+			for _, m := range app.Machines {
+				machineByID[m.ID] = m
+			}
+		}
+	}
+	for _, ws := range workspaces {
+		for _, app := range ws.Applications {
+			for _, m := range app.Machines {
+				if m.Process == nil {
+					continue
+				}
+				for _, t := range m.Process.Transitions {
+					for _, r := range t.Requirements {
+						if r.Type != "approval" {
+							continue
+						}
+						if err := injectApprovalQuorum(m, r, machineByID); err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// injectApprovalQuorum does the actual cross-machine work for one `approval`
+// requirement declared on m, targeting r.Target. Resolution order mirrors
+// handler.doAggregateStatus's own runtime reads exactly, so what gets
+// injected here is indistinguishable from what a human would type by hand:
+// a value_list Field literally named "Decision" on the target (same
+// heuristic CAP-A07/A08 already use elsewhere, not a new convention), a
+// `reference` Field on the target pointing back at m (CAP-W01's target
+// already required this via validateReferences, generically), and every
+// Event on the target that sets Decision to any value gets the tally action
+// appended -- doAggregateStatus recomputes fresh from all siblings on every
+// call, so it doesn't matter which specific value triggered it.
+func injectApprovalQuorum(m *model.Machine, r *model.ProcessRequirement, machineByID map[string]*model.Machine) error {
+	target := machineByID[r.Target] // existence already guaranteed by validateReferences
+
+	decisionField := model.FindFieldByName(target, "Decision")
+	if decisionField == nil || decisionField.Type != model.FieldTypeValueList {
+		return fmt.Errorf("machine %s: approval requirement on %q needs a value_list field named \"Decision\" on the target machine", m.ID, r.Target)
+	}
+	hasApproved, hasRejected := false, false
+	for _, v := range decisionField.Options.Values {
+		if v == "Approved" {
+			hasApproved = true
+		}
+		if v == "Rejected" {
+			hasRejected = true
+		}
+	}
+	if !hasApproved || !hasRejected {
+		return fmt.Errorf("machine %s: approval requirement on %q -- target's \"Decision\" field must declare both \"Approved\" and \"Rejected\" as values", m.ID, r.Target)
+	}
+
+	backRefField := model.FindReferenceFieldTo(target, m.ID)
+	if backRefField == nil {
+		return fmt.Errorf("machine %s: approval requirement on %q -- target has no reference field back to this machine", m.ID, r.Target)
+	}
+
+	var approvedEvt, rejectedEvt *model.Event
+	for _, ev := range m.Events {
+		if ev.Name == r.OnQuorumApproved {
+			approvedEvt = ev
+		}
+		if ev.Name == r.OnQuorumRejected {
+			rejectedEvt = ev
+		}
+	}
+	if approvedEvt == nil || rejectedEvt == nil {
+		return fmt.Errorf("machine %s: approval requirement's on_quorum_approved/on_quorum_rejected did not resolve to a compiled event -- this is a loader bug, not a metadata error, since compileRequirements already validated both names", m.ID)
+	}
+
+	// JSON numbers decode as float64 everywhere else in this codebase
+	// (EventAction.Params is always populated from json.Unmarshal for
+	// hand-authored/DB-loaded actions) -- handler.doAggregateStatus's own
+	// params["min_approvals"].(float64) type assertion depends on that, so
+	// this in-memory-constructed action must match it exactly or the
+	// assertion silently fails and quorum never fires.
+	params := map[string]any{
+		"parent_field":                 backRefField.ID,
+		"parent_event_if_all_approved": approvedEvt.ID,
+		"parent_event_if_any_rejected": rejectedEvt.ID,
+		"min_approvals":                float64(r.MinApprovals),
+	}
+
+	injected := 0
+	for _, ev := range target.Events {
+		setsDecision := false
+		for _, a := range ev.Actions {
+			if a.Type != model.ActionSetField {
+				continue
+			}
+			if field, _ := a.Params["field"].(string); field == decisionField.ID {
+				setsDecision = true
+				break
+			}
+		}
+		if !setsDecision {
+			continue
+		}
+		ev.Actions = append(ev.Actions, &model.EventAction{
+			EventID:  ev.ID,
+			Type:     model.ActionAggregateStatus,
+			Position: len(ev.Actions),
+			Params:   params,
+		})
+		injected++
+	}
+	if injected == 0 {
+		return fmt.Errorf("machine %s: approval requirement on %q -- target has no event that sets its own \"Decision\" field, nothing to attach quorum tallying to", m.ID, r.Target)
 	}
 	return nil
 }

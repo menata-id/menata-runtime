@@ -200,7 +200,9 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T155 | CAP-W07 | `records_in_states: [Draft]` rejects a blank Compliance Note on a Draft record |
 | T156 | CAP-W07 | a record already past Draft when the rule arrived is grandfathered |
 | T157 | CAP-W07 | a record created before `new_records`' effective_from is untouched by the new policy |
-| T158 | CAP-W07 | `new_records` rejects a blank Compliance Note on a record created after the effective date |
+| T158 | CAP-W07 | `new_records` rejects a blank Approval Reference on a record created after the effective date |
+| T159 | CAP-W03 | declarative quorum (`process.requirements[].type: approval`): 2-of-3 reaches Approved without waiting for the 3rd |
+| T160 | CAP-W03 | declarative quorum: 2-of-3 reaches Rejected once quorum is mathematically impossible |
 
 ---
 

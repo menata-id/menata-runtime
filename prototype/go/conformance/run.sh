@@ -1780,6 +1780,48 @@ else
     printf 'SKIP  T158 %-22s %s\n' "CAP-W07" "DATABASE_URL not set"
 fi
 
+# --- CAP-W03 declarative quorum (seeds/026, boot-time -- no DATABASE_URL
+# needed) -- proves the compiler's cross-machine injection
+# (compileApprovalRequirements) produces IDENTICAL behavior to 022's
+# hand-authored pair (T149/T150), driven entirely through HTTP. Only
+# difference from T149/T150's own flow: the parent must Submit (Open ->
+# PendingApproval) first -- the transition that carries the declarative
+# `requirements: [{type: approval, ...}]` -- before Approve/Reject (System-
+# only, fired by the injected aggregate_status action) become reachable.
+
+RANI2=$(session_for quorumdecl.requester@example.com password) # Requester (app_quorum_decl_lab)
+DV1=$(session_for quorumdecl.voter1@example.com password)      # Voter
+DV2=$(session_for quorumdecl.voter2@example.com password)      # Voter
+DV3=$(session_for quorumdecl.voter3@example.com password)      # Voter
+
+DV1_ID=$(user_option_id "$BASE_URL/mch_ql2_vote/new" "$DV1" "Voter Decl One")
+DV2_ID=$(user_option_id "$BASE_URL/mch_ql2_vote/new" "$DV1" "Voter Decl Two")
+DV3_ID=$(user_option_id "$BASE_URL/mch_ql2_vote/new" "$DV1" "Voter Decl Three")
+
+# T159 -- same shape as T149, against the declaratively-wired pair.
+DREQ_A_URL=$(post_redirect "$BASE_URL/mch_ql2_request" "fld_qr2_title=Quorum+Decl+Approve+$$" "$RANI2")
+DREQ_A_ID="${DREQ_A_URL##*/}"
+post_status "$DREQ_A_URL/events/evt_mch_ql2_request_submit" "" "$RANI2" > /dev/null
+DVA1_URL=$(post_redirect "$BASE_URL/mch_ql2_vote" "fld_ql2v_request=$DREQ_A_ID&fld_ql2v_voter=$DV1_ID" "$DV1")
+DVA2_URL=$(post_redirect "$BASE_URL/mch_ql2_vote" "fld_ql2v_request=$DREQ_A_ID&fld_ql2v_voter=$DV2_ID" "$DV2")
+post_redirect "$BASE_URL/mch_ql2_vote" "fld_ql2v_request=$DREQ_A_ID&fld_ql2v_voter=$DV3_ID" "$DV3" > /dev/null
+post_status "$DVA1_URL/events/evt_ql2v_approve" "" "$DV1" > /dev/null
+post_status "$DVA2_URL/events/evt_ql2v_approve" "" "$DV2" > /dev/null
+body_contains "$DREQ_A_URL" ">Approved<" "$RANI2"
+check T159 "CAP-W03" "declarative quorum (process.requirements[].type=approval): 2-of-3 reaches Approved once 2 votes are in, without waiting for the 3rd" $?
+
+# T160 -- same shape as T150, against the declaratively-wired pair.
+DREQ_B_URL=$(post_redirect "$BASE_URL/mch_ql2_request" "fld_qr2_title=Quorum+Decl+Reject+$$" "$RANI2")
+DREQ_B_ID="${DREQ_B_URL##*/}"
+post_status "$DREQ_B_URL/events/evt_mch_ql2_request_submit" "" "$RANI2" > /dev/null
+DVB1_URL=$(post_redirect "$BASE_URL/mch_ql2_vote" "fld_ql2v_request=$DREQ_B_ID&fld_ql2v_voter=$DV1_ID" "$DV1")
+DVB2_URL=$(post_redirect "$BASE_URL/mch_ql2_vote" "fld_ql2v_request=$DREQ_B_ID&fld_ql2v_voter=$DV2_ID" "$DV2")
+post_redirect "$BASE_URL/mch_ql2_vote" "fld_ql2v_request=$DREQ_B_ID&fld_ql2v_voter=$DV3_ID" "$DV3" > /dev/null
+post_status "$DVB1_URL/events/evt_ql2v_reject" "" "$DV1" > /dev/null
+post_status "$DVB2_URL/events/evt_ql2v_reject" "" "$DV2" > /dev/null
+body_contains "$DREQ_B_URL" ">Rejected<" "$RANI2"
+check T160 "CAP-W03" "declarative quorum: 2-of-3 reaches Rejected once 2 votes are rejected (quorum mathematically impossible)" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

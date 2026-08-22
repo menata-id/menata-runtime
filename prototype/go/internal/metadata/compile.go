@@ -300,9 +300,9 @@ func resolveStatusField(m *model.Machine, states []string) (*model.Field, error)
 }
 
 // compileRequirements (CAP-W01, Process Overlay B3) expands every declared
-// ProcessRequirement into a generated counter Field + gating Constraint(s)
-// on m. Requirements are deduped across ALL of p's transitions by
-// (Type, Target) -- two transitions naming the same requirement share one
+// `evidence` ProcessRequirement into a generated counter Field + gating
+// Constraint(s) on m. Requirements are deduped across ALL of p's transitions
+// by (Type, Target) -- two transitions naming the same requirement share one
 // counter and one pair of Constraints, since the counter describes a fact
 // about the RECORD ("how much evidence is attached"), not about any one
 // transition. If they disagree on the transition's own `to` state, that is
@@ -311,6 +311,13 @@ func resolveStatusField(m *model.Machine, states []string) (*model.Field, error)
 //
 // The counter's VALUE is never computed here -- see model.ProcessRequirement
 // and handler.stampRequirementCounters for the write-time-fan-in half.
+//
+// `approval` requirements (CAP-W03's declarative quorum form) are only
+// VALIDATED here -- single-machine data (p.Transitions, this machine's own)
+// is all this needs. Nothing is generated on m for this type: it compiles to
+// an EventAction injected onto the TARGET machine's own Events, which can
+// only happen once every Machine has loaded -- see loader.go's
+// compileApprovalRequirements, called from LoadAll after validateReferences.
 func compileRequirements(m *model.Machine, p *model.Process, statusField *model.Field) error {
 	type reqKey struct{ typ, target string }
 	type reqInfo struct {
@@ -320,11 +327,47 @@ func compileRequirements(m *model.Machine, p *model.Process, statusField *model.
 	}
 	seen := make(map[reqKey]*reqInfo)
 	var order []reqKey
+	sawApproval := false
+
+	transitionNames := make(map[string]bool, len(p.Transitions))
+	transitionActorRole := make(map[string]string, len(p.Transitions))
+	for _, t := range p.Transitions {
+		transitionNames[t.Name] = true
+		transitionActorRole[t.Name] = t.Actor.Role
+	}
 
 	for _, t := range p.Transitions {
 		for _, r := range t.Requirements {
+			if r.Type == "approval" {
+				if r.Target == "" {
+					return fmt.Errorf("machine %s: transition %q's approval requirement has no target", m.ID, t.Name)
+				}
+				if r.MinApprovals <= 0 {
+					return fmt.Errorf("machine %s: transition %q's approval requirement on %q needs min_approvals > 0", m.ID, t.Name, r.Target)
+				}
+				if r.OnQuorumApproved == "" || r.OnQuorumRejected == "" {
+					return fmt.Errorf("machine %s: transition %q's approval requirement on %q needs both on_quorum_approved and on_quorum_rejected", m.ID, t.Name, r.Target)
+				}
+				for _, name := range []string{r.OnQuorumApproved, r.OnQuorumRejected} {
+					if !transitionNames[name] {
+						return fmt.Errorf("machine %s: transition %q's approval requirement names %q, which is not a transition declared on this machine's own process", m.ID, t.Name, name)
+					}
+					// Enforced, not just conventional: a quorum-controlled
+					// transition must never be directly human-triggerable,
+					// or the quorum guarantee it exists to provide is
+					// bypassable by anyone with that role.
+					if role := transitionActorRole[name]; role != "System" {
+						return fmt.Errorf("machine %s: transition %q is named as an approval-quorum outcome but its actor role is %q, not \"System\" -- a quorum-controlled transition must be System-only", m.ID, name, role)
+					}
+				}
+				if sawApproval {
+					return fmt.Errorf("machine %s: more than one \"approval\" requirement declared -- only one per machine is supported so far, no case has needed a second yet", m.ID)
+				}
+				sawApproval = true
+				continue // nothing generated on m for this type -- see loader.go's compileApprovalRequirements
+			}
 			if r.Type != "evidence" {
-				return fmt.Errorf("machine %s: transition %q declares requirement type %q -- only \"evidence\" is implemented so far", m.ID, t.Name, r.Type)
+				return fmt.Errorf("machine %s: transition %q declares requirement type %q -- only \"evidence\" and \"approval\" are implemented so far", m.ID, t.Name, r.Type)
 			}
 			if r.Target == "" {
 				return fmt.Errorf("machine %s: transition %q's requirement has no target", m.ID, t.Name)
