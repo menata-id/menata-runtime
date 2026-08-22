@@ -67,6 +67,33 @@ type Process struct {
 	States      []string             `json:"states"`
 	Transitions []*ProcessTransition `json:"transitions"`
 	Auto        []*ProcessAuto       `json:"auto,omitempty"`
+	SLA         []*ProcessSLA        `json:"sla,omitempty"`
+}
+
+// ProcessSLA (CAP-W04, Process Overlay B4 — brd-menata-runtime-v2.md §7.3,
+// Study 20 §5.2) declares a time budget for sitting in State: Duration
+// (CAP-A11's own date-arithmetic unit grammar, e.g. "2 Business Days") is
+// stamped onto a generated due-date Field every time a compiled transition
+// or auto step lands on State; a generated scheduled Event (CAP-E03) fires
+// the moment today reaches that due date, running OnBreach -- entirely
+// within this one Machine, no cross-machine wiring (internal/metadata/
+// compile.go's compileSLA).
+type ProcessSLA struct {
+	State    string          `json:"state"`
+	Duration string          `json:"duration"`
+	OnBreach ProcessOnBreach `json:"on_breach"`
+}
+
+// ProcessOnBreach names what happens when a ProcessSLA's due date passes
+// while the record is still in State. Notify is the exact {role, ...}/
+// {recipient_field, role} shape ActionNotify's own params already use — no
+// new action grammar. EscalateTo, if set, must be a declared process state;
+// the breach compiles an extra set_field moving the record there, the same
+// shape an ordinary transition's own action already is. Omit EscalateTo for
+// a notify-only breach (no forced state change).
+type ProcessOnBreach struct {
+	Notify     map[string]any `json:"notify,omitempty"`
+	EscalateTo string         `json:"escalate_to,omitempty"`
 }
 
 // ProcessTransition is one declared state change. Actor is required — a

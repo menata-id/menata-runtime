@@ -17,11 +17,15 @@
 > deployment, not production (corrected 2026-08-22, see `roadmap.md`) — this let the experiment
 > touch the loader directly instead of routing through an external preprocessor first.
 >
-> Status: v1.2 — + Addendum: B2 (process map, CAP-W05 forward direction) implemented and
+> Status: v1.3 — + Addendum: B2 (process map, CAP-W05 forward direction) implemented and
 > conformance-proven, including the decompile claim on genuine pre-existing v1 metadata.
 > + Addendum: B3 (generic Requirement, CAP-W01, evidence cardinality) implemented and
 > conformance-proven — the one genuinely new runtime mechanism the whole Process Overlay needs
-> (write-time fan-in), the check itself reuses CAP-C09 unchanged | Created: 2026-08-22
+> (write-time fan-in), the check itself reuses CAP-C09 unchanged.
+> + Addendum: B4 (SLA, CAP-W04, single-machine compile; Quorum-core, CAP-W03, `min_approvals`
+> on the existing hand-authored `aggregate_status` action) implemented and conformance-proven,
+> in two deliberately asymmetric parts — quorum's declarative form needs a genuinely new
+> cross-machine compile capability, named explicit future work | Created: 2026-08-22
 
 ---
 
@@ -280,3 +284,90 @@ sharpest gap) is implemented and conformance-proven, on the exact write-time-fan
 Study 20 §6.3 specified. The row stays ⚠️, not ✅ — the comparator's other six requirement types
 (form, entity, task, approval, document, decision) remain unimplemented, named as future
 escalation, not silently assumed covered by this one type.
+
+---
+
+# Addendum — B4: SLA + Quorum-core, in two deliberately asymmetric parts (2026-08-22, same day)
+
+B4 was named "Quorum & SLA" together in the standing implementation order. A fresh plan-mode
+pass before implementing surfaced a real asymmetry the standing plan hadn't anticipated:
+
+- **SLA** compiles entirely within ONE Machine — a due-date Field + a scheduled breach Event,
+  the exact same shape B1/B3 already compile. Low architectural risk.
+- **Quorum**, to be *declared* via `process` the way `brd-menata-runtime-v2.md` sketched it,
+  needs the compiler to inject an `aggregate_status`-shaped action onto a *separately-loaded
+  child Machine's own events* — a genuinely new cross-machine compile capability B1–B3 never
+  needed (`compileProcess` only ever touches the one Machine passed to it).
+
+Per "quality > time": this addendum implements SLA fully, and implements only the
+**proven-valuable, low-risk core** of Quorum — generalizing the existing hand-authored
+`aggregate_status` action with a `min_approvals` parameter, closing the actual functional gap
+(N-of-M approval was impossible today, full stop) immediately, usable in hand-authored metadata
+exactly like Case 3 already is, no Process Overlay dependency. Expressing quorum *declaratively*
+is named explicit future work — the same "escalate only when cardinality demands it" honesty
+this codebase already applies to CAP-F19 Tier 2/3, CAP-O07, etc.
+
+## Part 1 — SLA (CAP-W04)
+
+A `process.sla[]` entry declares, per state, `duration` (CAP-A11's own date-arithmetic
+vocabulary, reused verbatim — no new grammar) and `on_breach: {notify, escalate_to}`. Compiles
+(`internal/metadata/compile.go`'s new `compileSLA`, called from `compileProcess` after
+transitions/auto are built) to: a generated `date` due-date Field; an appended `set_field`
+action (`"today + " + duration`) on every already-compiled transition/auto Event landing on that
+state; one generated scheduled breach Event (`CAP-E06` guard + `CAP-E03` schedule,
+`offset_days: 0`) whose actions are the declared `notify` plus an optional `set_field` to
+`escalate_to`.
+
+**A real design gap found while building, not anticipated in the plan:** the reachability check
+(which only walks `p.Transitions`/`p.Auto`) had no notion that a state could *also* become
+reachable purely via an SLA's own `escalate_to` — an SLA-only-reachable state would have been
+wrongly flagged dead at load time. Fixed by adding SLA edges to the same reachability walk.
+
+**Proof:** `seeds/021_sla_lab.sql` (new `app_sla_lab`, `mch_sla_case`) — `duration: "0 Days"` is
+a deliberate fast-test trick (due = today, so the very next scheduler tick already sees it
+overdue), the same trick T99/T100's own real-scheduler wait already relies on.
+
+| Test | Claim | Result |
+|---|---|---|
+| T147 | A record left in the SLA-bound state past its due date auto-escalates to the declared state | ✅ PASS |
+| T148 | A record that already left the SLA-bound state (via an ordinary transition) before the tick is untouched by the breach event — CAP-E06's guard correctly no-ops it | ✅ PASS |
+
+## Part 2 — Quorum-core (CAP-W03)
+
+`doAggregateStatus` (`internal/handler/handler.go`) gains one optional param, `min_approvals` —
+backward-compatible by construction (omitted/zero falls through to the exact ALL-required
+behavior that already existed; Case 3's own T22–T26 untouched). Set to N over M total siblings
+sharing a parent: reaches the all-approved event as soon as `count(Approved) >= N`, without
+waiting on stragglers (real N-of-M semantics); reaches the rejected event only once quorum
+becomes **mathematically impossible** (`count(Rejected) > total - N`) — a minority of rejections
+that still leaves enough headroom does not cancel early, unlike the single-rejection-cancels
+default.
+
+**Proof:** `seeds/022_quorum_lab.sql` (new `app_quorum_lab`, `mch_ql_request` + `mch_ql_vote`) —
+**deliberately hand-authored, no Process Overlay involvement**, proving the mechanism itself
+works independent of declarative support.
+
+| Test | Claim | Result |
+|---|---|---|
+| T149 | 2 of 3 votes Approved (3rd left Pending) → the parent reaches Approved as soon as the 2nd Approve fires, without waiting on the 3rd | ✅ PASS |
+| T150 | 2 of 3 votes Rejected (3rd left Pending) → the parent reaches Rejected once quorum is mathematically impossible (only 1 vote remains, which alone could never reach 2) | ✅ PASS |
+
+**A real bug caught while writing the test, not the implementation:** the first draft resolved
+the Voter picker options through the *Requester's* own session — which correctly 403s under this
+lab's own permission design (a Requester is read-only on Votes, `can_create: false`). Fixed by
+resolving the picker through a Voter session instead — the same account that would actually cast
+a vote in real use, the more realistic test to begin with.
+
+## Results, both parts
+
+**149/149 → 151/151 conformance passing across both parts, zero regressions** on the prior 147.
+
+## Registry impact
+
+`capability-registry.md`: CAP-W04 moved ❌→✅ (SLA fully implemented, same low architectural risk
+as B1/B3). CAP-W03 moved ❌→⚠️ (the `min_approvals` core is implemented and proven; the
+declarative form — expressing quorum through `process.requirements[].type == "approval"` — is
+named explicit future work, its own focused design pass, not attempted this round). This
+document's own doc-debt lesson from the B2/B3 addenda was applied *during* this pass, not after:
+`runtime-metadata-schema.md`'s "Process Overlay" section was extended with `sla`'s grammar and
+`aggregate_status`'s new `min_approvals` key in the same commit as the implementation.

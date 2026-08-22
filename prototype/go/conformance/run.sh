@@ -1598,6 +1598,81 @@ CODE=$(post_status "$BASE_URL/mch_req_case/$CASE_ID/events/evt_mch_req_case_subm
 [ "$CODE" = "303" ]
 check T146 "CAP-W01" "Submit with 2 attached evidence records (cardinality satisfied) succeeds (got $CODE)" $?
 
+# --- Process Overlay B4 Part 1: SLA (CAP-W04, seeds/021) ---
+# mch_sla_case declares one `sla` entry on Review: duration "0 Days" (due =
+# today, so the very next scheduler tick already sees it overdue -- same
+# fast-test trick T99/T100's own real-scheduler wait already relies on).
+# Compiles to a due-date Field, a due-date-stamping action on Submit (the
+# only transition landing on Review), and a scheduled breach Event.
+
+WISNU=$(session_for sla.worker@example.com password)  # Worker (app_sla_lab)
+MAYA=$(session_for sla.manager@example.com password)  # Manager (app_sla_lab)
+
+# Case A: left in Review -- should breach and escalate.
+SLA_A_URL=$(post_redirect "$BASE_URL/mch_sla_case" "fld_sc_title=Breach+$$" "$WISNU")
+SLA_A_ID="${SLA_A_URL##*/}"
+post_status "$BASE_URL/mch_sla_case/$SLA_A_ID/events/evt_mch_sla_case_submit" "" "$WISNU" > /dev/null
+
+# Case B: leaves Review (Closed) BEFORE the tick -- must NOT be touched by
+# the breach event once it fires.
+SLA_B_URL=$(post_redirect "$BASE_URL/mch_sla_case" "fld_sc_title=Safe+$$" "$WISNU")
+SLA_B_ID="${SLA_B_URL##*/}"
+post_status "$BASE_URL/mch_sla_case/$SLA_B_ID/events/evt_mch_sla_case_submit" "" "$WISNU" > /dev/null
+post_status "$BASE_URL/mch_sla_case/$SLA_B_ID/events/evt_mch_sla_case_close" "" "$MAYA" > /dev/null
+
+echo "(waiting ~65s for the real background scheduler tick -- CAP-E02/E03/CAP-W04)"
+sleep 65
+
+# T147 -- a record left in Review past its due date auto-escalates.
+body_contains "$SLA_A_URL" ">Escalated<" "$MAYA"
+check T147 "CAP-W04" "a record left in an SLA-bound state past its due date auto-escalates to the declared state" $?
+
+# T148 -- a record that already left the SLA-bound state (Closed) before
+# the tick is never touched -- CAP-E06's guard correctly no-ops the breach
+# event, proving the state-guard, not just the happy path.
+body_contains "$SLA_B_URL" ">Closed<" "$MAYA"
+check T148 "CAP-W04" "a record that already left the SLA-bound state is untouched by the breach event" $?
+
+# --- Process Overlay B4 Part 2: quorum-of-N (CAP-W03, seeds/022) ---
+# CAP-A08's aggregate_status action, generalized with min_approvals=2 over
+# 3 hand-authored Voter records -- deliberately NOT declared via `process`,
+# proving the mechanism itself, independent of the Process Overlay (see
+# roadmap.md's B4 note on why the declarative form is separate future work).
+
+RANI=$(session_for quorum.requester@example.com password) # Requester (app_quorum_lab)
+QV1=$(session_for quorum.voter1@example.com password)     # Voter
+QV2=$(session_for quorum.voter2@example.com password)     # Voter
+QV3=$(session_for quorum.voter3@example.com password)     # Voter
+
+V1_ID=$(user_option_id "$BASE_URL/mch_ql_vote/new" "$QV1" "Voter One")
+V2_ID=$(user_option_id "$BASE_URL/mch_ql_vote/new" "$QV1" "Voter Two")
+V3_ID=$(user_option_id "$BASE_URL/mch_ql_vote/new" "$QV1" "Voter Three")
+
+# T149 -- 2 of 3 votes Approved (3rd left Pending): the parent reaches
+# Approved as soon as the 2nd Approve fires, without waiting on the 3rd.
+REQ_A_URL=$(post_redirect "$BASE_URL/mch_ql_request" "fld_qr_title=Quorum+Approve+$$" "$RANI")
+REQ_A_ID="${REQ_A_URL##*/}"
+VA1_URL=$(post_redirect "$BASE_URL/mch_ql_vote" "fld_qv_request=$REQ_A_ID&fld_qv_voter=$V1_ID" "$QV1")
+VA2_URL=$(post_redirect "$BASE_URL/mch_ql_vote" "fld_qv_request=$REQ_A_ID&fld_qv_voter=$V2_ID" "$QV2")
+post_redirect "$BASE_URL/mch_ql_vote" "fld_qv_request=$REQ_A_ID&fld_qv_voter=$V3_ID" "$QV3" > /dev/null
+post_status "$VA1_URL/events/evt_qv_approve" "" "$QV1" > /dev/null
+post_status "$VA2_URL/events/evt_qv_approve" "" "$QV2" > /dev/null
+body_contains "$REQ_A_URL" ">Approved<" "$RANI"
+check T149 "CAP-W03" "a 2-of-3 quorum reaches Approved once 2 votes are in, without waiting for the 3rd" $?
+
+# T150 -- 2 of 3 votes Rejected (3rd left Pending): quorum is now
+# mathematically impossible (at most 1 more Approved could ever land), the
+# parent reaches Rejected.
+REQ_B_URL=$(post_redirect "$BASE_URL/mch_ql_request" "fld_qr_title=Quorum+Reject+$$" "$RANI")
+REQ_B_ID="${REQ_B_URL##*/}"
+VB1_URL=$(post_redirect "$BASE_URL/mch_ql_vote" "fld_qv_request=$REQ_B_ID&fld_qv_voter=$V1_ID" "$QV1")
+VB2_URL=$(post_redirect "$BASE_URL/mch_ql_vote" "fld_qv_request=$REQ_B_ID&fld_qv_voter=$V2_ID" "$QV2")
+post_redirect "$BASE_URL/mch_ql_vote" "fld_qv_request=$REQ_B_ID&fld_qv_voter=$V3_ID" "$QV3" > /dev/null
+post_status "$VB1_URL/events/evt_qv_reject" "" "$QV1" > /dev/null
+post_status "$VB2_URL/events/evt_qv_reject" "" "$QV2" > /dev/null
+body_contains "$REQ_B_URL" ">Rejected<" "$RANI"
+check T150 "CAP-W03" "a 2-of-3 quorum reaches Rejected once 2 votes are rejected (quorum mathematically impossible)" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"menata.id/runtime/internal/model"
@@ -189,6 +190,14 @@ func compileProcess(m *model.Machine) error {
 		events = append(events, autoBySrc[a.From])
 	}
 
+	// --- SLA → due-date Field + scheduled breach Event (CAP-W04) ------------
+	// Must run after every transition/auto Event above is built (it patches
+	// them by target state) and before m.Events is assigned below.
+	events, err = compileSLA(m, p, statusField, events, states)
+	if err != nil {
+		return err
+	}
+
 	// --- reachability: every state must be reachable from States[0] ---------
 	reached := map[string]bool{p.States[0]: true}
 	for changed := true; changed; {
@@ -202,6 +211,14 @@ func compileProcess(m *model.Machine) error {
 		for _, a := range p.Auto {
 			if reached[a.From] && !reached[a.To] {
 				reached[a.To] = true
+				changed = true
+			}
+		}
+		// An SLA breach's escalate_to is also a real edge -- a state ONLY
+		// reachable via SLA escalation is still reachable, not dead.
+		for _, s := range p.SLA {
+			if s.OnBreach.EscalateTo != "" && reached[s.State] && !reached[s.OnBreach.EscalateTo] {
+				reached[s.OnBreach.EscalateTo] = true
 				changed = true
 			}
 		}
@@ -402,6 +419,91 @@ func parseCardinality(s string) (min, max int, err error) {
 		return 0, 0, fmt.Errorf("invalid cardinality %q: minimum must be at least 1", s)
 	}
 	return min, max, nil
+}
+
+// durationRe mirrors executor.go's own dateArithRe unit vocabulary exactly
+// (Day(s)/Week(s)/Month(s)/Year(s)/Business Day(s)) but without a sign --
+// compileSLA always prepends "today + ", so a duration is always a forward
+// offset; a bare "N Unit" is all this needs to validate.
+var durationRe = regexp.MustCompile(`^\d+ (Day|Days|Week|Weeks|Month|Months|Year|Years|Business Day|Business Days)$`)
+
+// compileSLA (CAP-W04, Process Overlay B4) expands p.SLA into a due-date
+// Field + due-date-stamping actions on every already-compiled Event landing
+// on the declared state + one generated scheduled breach Event per entry.
+// Entirely within m -- no cross-machine wiring, unlike Quorum's declarative
+// form (deliberately not attempted this pass, see roadmap.md's B4 note).
+func compileSLA(m *model.Machine, p *model.Process, statusField *model.Field, events []*model.Event, states map[string]bool) ([]*model.Event, error) {
+	seenState := map[string]bool{}
+	for _, entry := range p.SLA {
+		if !states[entry.State] {
+			return nil, fmt.Errorf("machine %s: sla names undeclared state %q", m.ID, entry.State)
+		}
+		if seenState[entry.State] {
+			return nil, fmt.Errorf("machine %s: sla declares state %q twice", m.ID, entry.State)
+		}
+		seenState[entry.State] = true
+		if !durationRe.MatchString(entry.Duration) {
+			return nil, fmt.Errorf("machine %s: sla on %q has invalid duration %q -- expected \"N Unit\", e.g. \"2 Business Days\"", m.ID, entry.State, entry.Duration)
+		}
+		if entry.OnBreach.EscalateTo != "" && !states[entry.OnBreach.EscalateTo] {
+			return nil, fmt.Errorf("machine %s: sla on %q's escalate_to %q is not a declared state", m.ID, entry.State, entry.OnBreach.EscalateTo)
+		}
+
+		dueFieldID := "fld_" + m.ID + "_" + slug(entry.State) + "_due"
+		if fieldByID(m, dueFieldID) != nil {
+			return nil, fmt.Errorf("machine %s: generated sla due-date field %q collides with an existing field", m.ID, dueFieldID)
+		}
+		m.Fields = append(m.Fields, &model.Field{
+			ID:        dueFieldID,
+			MachineID: m.ID,
+			Name:      entry.State + " Due",
+			Type:      model.FieldTypeDate,
+			Position:  len(m.Fields),
+		})
+
+		// Stamp the due date on every already-compiled Event (transition or
+		// auto) that lands the record on this SLA-bound state.
+		for _, ev := range events {
+			if targetState(ev) != entry.State {
+				continue
+			}
+			ev.Actions = append(ev.Actions, &model.EventAction{
+				EventID:  ev.ID,
+				Type:     model.ActionSetField,
+				Position: len(ev.Actions),
+				Params:   map[string]any{"field": dueFieldID, "value": "today + " + entry.Duration},
+			})
+		}
+
+		if entry.OnBreach.Notify == nil {
+			return nil, fmt.Errorf("machine %s: sla on %q declares no on_breach.notify", m.ID, entry.State)
+		}
+		breachID := "evt_" + m.ID + "_" + slug(entry.State) + "_sla_breach"
+		breach := &model.Event{
+			ID:        breachID,
+			MachineID: m.ID,
+			Name:      "SLA Breach: " + entry.State,
+			Position:  len(events),
+			Condition: &model.ConstraintExpression{Field: statusField.ID, Operator: "equals", Value: entry.State},
+			Schedule:  &model.Schedule{DateField: dueFieldID, OffsetDays: 0},
+			Actions: []*model.EventAction{{
+				EventID:  breachID,
+				Type:     model.ActionNotify,
+				Position: 0,
+				Params:   entry.OnBreach.Notify,
+			}},
+		}
+		if entry.OnBreach.EscalateTo != "" {
+			breach.Actions = append(breach.Actions, &model.EventAction{
+				EventID:  breachID,
+				Type:     model.ActionSetField,
+				Position: 1,
+				Params:   map[string]any{"field": statusField.ID, "value": entry.OnBreach.EscalateTo},
+			})
+		}
+		events = append(events, breach)
+	}
+	return events, nil
 }
 
 // validateProcessAction fail-louds a declared on_transition action the

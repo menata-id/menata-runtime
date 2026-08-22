@@ -189,6 +189,10 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T144 | CAP-W01 | a transition requiring cardinality-2 evidence rejects with 0 evidence attached |
 | T145 | CAP-W01 | still rejects with 1 evidence attached — a real count, not a presence check |
 | T146 | CAP-W01 | succeeds once a 2nd evidence record is attached — write-time fan-in, read-time O(1) |
+| T147 | CAP-W04 | a record left in an SLA-bound state past its due date auto-escalates to the declared state |
+| T148 | CAP-W04 | a record that already left the SLA-bound state is untouched by the breach event |
+| T149 | CAP-W03 | a 2-of-3 quorum reaches Approved once 2 votes are in, without waiting for the 3rd |
+| T150 | CAP-W03 | a 2-of-3 quorum reaches Rejected once 2 votes are rejected (quorum mathematically impossible) |
 
 ---
 

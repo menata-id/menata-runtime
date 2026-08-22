@@ -2914,10 +2914,23 @@ func (h *Handler) doTriggerEvent(ctx context.Context, machine *model.Machine, pa
 // would use (CAP-E06/CAP-C09 guards still apply), as "System" — the acting
 // role recorded for this rollup's dynamic values, matching approval-
 // document.yaml's own declared System permission role.
+//
+// min_approvals (CAP-W03, Process Overlay B4 Part 2) is an optional
+// quorum-of-N parameter, backward-compatible by construction — omitted or
+// zero falls through to the ALL-required behavior above, unchanged. Set to
+// N over M total siblings: reaches parent_event_if_all_approved as soon as
+// count(Approved) >= N, without waiting for every sibling to decide (real
+// N-of-M semantics — a still-Pending sibling no longer blocks quorum once
+// enough others have approved); reaches parent_event_if_any_rejected only
+// once quorum becomes mathematically impossible
+// (count(Rejected) > total - N, i.e. too few non-rejected siblings remain
+// to ever reach N) — a minority of rejections that still leaves enough
+// headroom does NOT cancel early, unlike the ALL-required rule above.
 func (h *Handler) doAggregateStatus(ctx context.Context, machine *model.Machine, params map[string]any, data map[string]any) {
 	parentFieldID, _ := params["parent_field"].(string)
 	allApprovedEvt, _ := params["parent_event_if_all_approved"].(string)
 	anyRejectedEvt, _ := params["parent_event_if_any_rejected"].(string)
+	minApprovals, _ := params["min_approvals"].(float64) // JSON numbers decode as float64
 	if parentFieldID == "" {
 		return
 	}
@@ -2944,15 +2957,19 @@ func (h *Handler) doAggregateStatus(ctx context.Context, machine *model.Machine,
 	}
 
 	found, allApproved, anyRejected := false, true, false
+	total, approved, rejected := 0, 0, 0
 	for _, sib := range siblings {
 		if sp, _ := sib.Data[parentFieldID].(string); sp != parentID {
 			continue
 		}
 		found = true
+		total++
 		switch fmt.Sprintf("%v", sib.Data[decisionField.ID]) {
 		case "Rejected":
 			anyRejected = true
+			rejected++
 		case "Approved":
+			approved++
 			// stays eligible for allApproved
 		default:
 			allApproved = false
@@ -2964,6 +2981,15 @@ func (h *Handler) doAggregateStatus(ctx context.Context, machine *model.Machine,
 
 	var targetEventID string
 	switch {
+	case minApprovals > 0:
+		switch {
+		case approved >= int(minApprovals) && allApprovedEvt != "":
+			targetEventID = allApprovedEvt
+		case rejected > total-int(minApprovals) && anyRejectedEvt != "":
+			targetEventID = anyRejectedEvt
+		default:
+			return
+		}
 	case anyRejected && anyRejectedEvt != "":
 		targetEventID = anyRejectedEvt
 	case allApproved && allApprovedEvt != "":
