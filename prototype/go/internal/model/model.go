@@ -640,6 +640,13 @@ type ViewConfig struct {
 	// warning bucket, just overdue/ok).
 	SlaField       string `json:"sla_field,omitempty"`
 	SlaWarningDays int    `json:"sla_warning_days,omitempty"`
+
+	// ResourceField (CAP-V18) names a `reference` Field -- when set, a
+	// calendar/timeline View groups by (resource, date_field) instead of
+	// date_field alone, extending CAP-V07's existing single-dimension
+	// grouping (internal/handler/views.go's calendarTimeline) rather than a
+	// new View type.
+	ResourceField string `json:"resource_field,omitempty"`
 }
 
 // ReportConfig (CAP-V13) declares a "report" View as a grouped aggregate

@@ -159,6 +159,15 @@ type CalendarGroup struct {
 	Rows []ListRow
 }
 
+// ResourceCalendarGroup (CAP-V18) buckets a Machine's records by a declared
+// resource reference Field first, then by date_field within each resource
+// (Dates, reusing CalendarGroup unchanged) -- extends CAP-V07's single
+// dimension with a second one, not a new grouping mechanism.
+type ResourceCalendarGroup struct {
+	Resource string
+	Dates    []CalendarGroup
+}
+
 // DashboardTile (CAP-V10) is one section of a composed dashboard View --
 // Total is the section's overall record count, Breakdown is populated only
 // when the section declared a group_field (count per distinct value).

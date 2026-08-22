@@ -1933,6 +1933,59 @@ FUTURE_URL=$(post_redirect "$BASE_URL/mch_sla_ticket" "fld_slat_title=Future+$$&
 ! body_contains "$FUTURE_URL" "Overdue by" "$SLA_AGENT"
 check T168 "CAP-V17" "a ticket due far in the future does not render the overdue badge" $?
 
+# --- CAP-V18 (resource-grouped calendar) -- seeds/030, boot-time. Section
+# isolation is checked via python3 (already present on this host) rather
+# than fragile line-based grep -A/-B, since templ's own line-wrapping isn't
+# a contract this suite should depend on.
+
+RES_SCHED=$(session_for resourcecal.scheduler@example.com password)
+
+STAFF_A_URL=$(post_redirect "$BASE_URL/mch_v18_staff" "fld_v18s_name=Dr.+Amara+$$" "$RES_SCHED")
+STAFF_A_ID="${STAFF_A_URL##*/}"
+STAFF_B_URL=$(post_redirect "$BASE_URL/mch_v18_staff" "fld_v18s_name=Dr.+Budi+$$" "$RES_SCHED")
+STAFF_B_ID="${STAFF_B_URL##*/}"
+STAFF_C_URL=$(post_redirect "$BASE_URL/mch_v18_staff" "fld_v18s_name=Dr.+Citra+$$" "$RES_SCHED")
+STAFF_C_ID="${STAFF_C_URL##*/}"
+
+post_redirect "$BASE_URL/mch_v18_appointment" "fld_v18a_title=Amara-Only-$$&fld_v18a_staff=$STAFF_A_ID&fld_v18a_date=2026-09-01" "$RES_SCHED" > /dev/null
+post_redirect "$BASE_URL/mch_v18_appointment" "fld_v18a_title=Budi-Only-$$&fld_v18a_staff=$STAFF_B_ID&fld_v18a_date=2026-09-01" "$RES_SCHED" > /dev/null
+
+CAL_BODY=$(get_body "$BASE_URL/mch_v18_appointment/calendar" "$RES_SCHED")
+
+# T169 -- two staff each with a same-day appointment: each staff's OWN
+# section contains only their own appointment title, not the other's.
+V18_ISOLATION=$(python3 -c "
+import sys
+body, amara_h, budi_h, amara_a, budi_a = sys.argv[1:6]
+def section(heading):
+    start = body.find(heading)
+    if start == -1:
+        return ''
+    nxt = body.find('<h2', start + 3)
+    return body[start:nxt if nxt != -1 else len(body)]
+amara_sec = section(amara_h)
+budi_sec = section(budi_h)
+ok = (amara_a in amara_sec and budi_a not in amara_sec and
+      budi_a in budi_sec and amara_a not in budi_sec)
+print('OK' if ok else 'FAIL')
+" "$CAL_BODY" "Dr. Amara $$" "Dr. Budi $$" "Amara-Only-$$" "Budi-Only-$$")
+[ "$V18_ISOLATION" = "OK" ]
+check T169 "CAP-V18" "two staff with same-day appointments each show only their own (got $V18_ISOLATION)" $?
+
+# T170 -- a staff member with zero appointments still gets a (empty)
+# section, proving the grouping is resource-driven, not a filtered date
+# list that would silently drop an idle resource.
+V18_IDLE=$(python3 -c "
+import sys
+body, citra_h = sys.argv[1:3]
+start = body.find(citra_h)
+nxt = body.find('<h2', start + 3) if start != -1 else -1
+section = body[start:nxt if nxt != -1 else len(body)] if start != -1 else ''
+print('OK' if start != -1 and 'No dated records' in section else 'FAIL')
+" "$CAL_BODY" "Dr. Citra $$")
+[ "$V18_IDLE" = "OK" ]
+check T170 "CAP-V18" "a staff member with zero appointments still gets its own (empty) section (got $V18_IDLE)" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

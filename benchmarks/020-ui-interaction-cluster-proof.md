@@ -39,3 +39,32 @@ when it was written; the two unambiguous buckets are what's proven. **168/168 co
 passing, zero regressions on the prior 166**, confirmed on a fresh isolated schema.
 
 **Registry impact**: `capability-registry.md`'s CAP-V17 row ❌→✅.
+
+---
+
+## Phase 2 — CAP-V18: resource-grouped calendar
+
+**What was built**: `ViewConfig` gains `ResourceField` (a `reference` Field id). `calendarTimeline`'s
+existing single-dimension grouping (`internal/handler/views.go`) — "sort by `date_field`, then a
+linear scan flushing on each date change," not a SQL `GROUP BY` — is extracted into a reusable
+`groupByDate` helper and reused per-resource when `ResourceField` is set, rather than being
+generalized into a new mechanism. Every resource gets its own section, including an idle one with
+zero dated records — fetched directly from the resource Machine (`h.records.List` on its
+`target_machine`), not derived from the dated records themselves, which would silently drop a
+resource nobody scheduled anything against yet. Unset `ResourceField` is byte-identical to CAP-V07's
+existing behavior — zero risk to its own tests.
+
+**Proof**: new `seeds/030_resource_calendar_lab.sql` (`Staff`, `Appointment` referencing Staff + a
+date field). T169: two staff, each with a same-day appointment — each staff's own rendered
+section contains only their own appointment title, verified via a `python3` substring-isolation
+check (the rendered HTML isn't reliably line-wrapped in a way plain `grep -A`/`-B` could depend
+on, so isolation is checked by finding each resource's `<h2>` heading and slicing to the next one,
+not by counting lines). T170: a staff member with zero appointments still gets a section
+containing "No dated records" — proving the grouping is resource-driven, not a filtered date list
+that would drop an idle resource silently. **170/170 conformance passing, zero regressions**,
+confirmed on a fresh isolated schema (two failures seen on a *reused*, repeatedly-run schema
+during development — T151/T154 — were the same pre-existing non-idempotent-mid-run-seed artifacts
+already diagnosed earlier this session, not caused by this phase; the fresh-schema run confirms
+that directly).
+
+**Registry impact**: `capability-registry.md`'s CAP-V18 row ❌→✅.

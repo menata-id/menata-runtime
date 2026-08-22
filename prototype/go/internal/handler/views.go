@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sort"
 
 	"github.com/go-chi/chi/v5"
 
 	"menata.id/runtime/internal/model"
+	"menata.id/runtime/internal/store"
 	"menata.id/runtime/internal/ui"
 )
 
@@ -111,6 +113,69 @@ func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view 
 		return
 	}
 
+	a := h.auth(r)
+	if view.Config.ResourceField == "" {
+		groups := groupByDate(records, view.Config.DateField, colIDs, cols)
+		page := ui.CalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, groups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+		if err := page.Render(r.Context(), w); err != nil {
+			slog.Error("render calendar/timeline", "error", err)
+		}
+		return
+	}
+
+	// CAP-V18: a second grouping dimension (resource) on top of the same
+	// date_field grouping above -- every resource gets its own section,
+	// including one with zero records for the date range shown (fetched
+	// from the resource Machine directly, not derived from `records`,
+	// which would silently drop an idle resource).
+	resourceField := fieldByID[view.Config.ResourceField]
+	byResource := map[string][]*store.Record{}
+	var order []string
+	if resourceField != nil {
+		if resourceMachine, ok := h.interp.Get().GetMachine(resourceField.Options.TargetMachine); ok {
+			resources, err := h.records.List(r.Context(), resourceMachine.ID, "", "")
+			if err == nil {
+				for _, rres := range resources {
+					label := displayLabel(resourceMachine, rres.Data)
+					order = append(order, label)
+					byResource[label] = nil
+				}
+			}
+		}
+	}
+	for _, rec := range records {
+		label := "Unassigned"
+		if resourceField != nil {
+			if refID, _ := rec.Data[view.Config.ResourceField].(string); refID != "" {
+				if l, err := h.referenceLabel(r.Context(), resourceField.Options.TargetMachine, refID); err == nil && l != "" {
+					label = l
+				}
+			}
+		}
+		if _, seen := byResource[label]; !seen {
+			order = append(order, label)
+		}
+		byResource[label] = append(byResource[label], rec)
+	}
+	sort.Strings(order)
+	resGroups := make([]ui.ResourceCalendarGroup, 0, len(order))
+	for _, label := range order {
+		resGroups = append(resGroups, ui.ResourceCalendarGroup{
+			Resource: label,
+			Dates:    groupByDate(byResource[label], view.Config.DateField, colIDs, cols),
+		})
+	}
+
+	page := ui.ResourceCalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, resGroups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render resource calendar/timeline", "error", err)
+	}
+}
+
+// groupByDate (CAP-V07, extracted for CAP-V18's reuse) buckets records
+// already sorted by dateField into consecutive same-date runs -- a manual
+// "flush on change" pass over an already-sorted slice, not a SQL GROUP BY.
+func groupByDate(records []*store.Record, dateField string, colIDs []string, cols []ui.ColumnDef) []ui.CalendarGroup {
 	var groups []ui.CalendarGroup
 	var cur string
 	var curRows []ui.ListRow
@@ -121,7 +186,7 @@ func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view 
 	}
 	first := true
 	for _, rec := range records {
-		date := fmt.Sprintf("%v", rec.Data[view.Config.DateField])
+		date := fmt.Sprintf("%v", rec.Data[dateField])
 		if date == "<nil>" {
 			date = ""
 		}
@@ -142,12 +207,7 @@ func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view 
 		curRows = append(curRows, ui.ListRow{ID: rec.ID, Cells: cells})
 	}
 	flush()
-
-	a := h.auth(r)
-	page := ui.CalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, groups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
-	if err := page.Render(r.Context(), w); err != nil {
-		slog.Error("render calendar/timeline", "error", err)
-	}
+	return groups
 }
 
 // Calendar renders a CAP-V07 calendar View: records grouped by date_field.

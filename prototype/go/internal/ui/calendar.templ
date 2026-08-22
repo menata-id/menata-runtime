@@ -57,3 +57,71 @@ templ CalendarTimeline(identity, csrfToken string, isAdmin bool, machine *model.
 		}
 	}
 }
+
+// ResourceCalendarTimeline (CAP-V18) is CalendarTimeline's two-dimension
+// sibling -- one section per resource (even an idle one with zero dated
+// records), each containing its own date-grouped table, reusing the exact
+// same per-date table markup CalendarTimeline renders inline above.
+templ ResourceCalendarTimeline(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, resGroups []ResourceCalendarGroup, unreadCount int, subNav []SubNavLink) {
+	@Page(viewName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+		<div class="mb-4">
+			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
+		</div>
+		if len(resGroups) == 0 {
+			<div class="rounded-lg border border-slate-200 bg-white py-16 text-center text-sm text-slate-400 shadow-sm">
+				No resources found.
+			</div>
+		} else {
+			<div class="space-y-10">
+				for _, res := range resGroups {
+					<div>
+						<h2 class="mb-3 text-sm font-semibold text-slate-900">{ res.Resource }</h2>
+						if len(res.Dates) == 0 {
+							<div class="rounded-lg border border-slate-200 bg-white py-8 text-center text-sm text-slate-400 shadow-sm">
+								No dated records.
+							</div>
+						} else {
+							<div class="space-y-4 pl-2">
+								for _, group := range res.Dates {
+									<div>
+										<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+											if group.Date == "" {
+												No Date
+											} else {
+												{ group.Date }
+											}
+										</h3>
+										<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+											<table class="w-full text-sm">
+												<tbody class="divide-y divide-slate-100">
+													for _, row := range group.Rows {
+														<tr class="hover:bg-slate-50">
+															for _, cell := range row.Cells {
+																<td class="px-4 py-3 text-slate-700">
+																	if cell.IsStatusBadge && cell.Value != "" {
+																		@StatusBadge(cell.Value)
+																	} else if cell.Value != "" {
+																		{ cell.Value }
+																	} else {
+																		<span class="text-slate-300">—</span>
+																	}
+																</td>
+															}
+															<td class="px-4 py-3 text-right">
+																<a href={ templ.SafeURL("/" + machine.ID + "/" + row.ID) } class="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline">View →</a>
+															</td>
+														</tr>
+													}
+												</tbody>
+											</table>
+										</div>
+									</div>
+								}
+							</div>
+						}
+					</div>
+				}
+			</div>
+		}
+	}
+}
