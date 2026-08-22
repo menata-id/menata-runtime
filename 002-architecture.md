@@ -125,6 +125,9 @@ Runtime Metadata may be produced by:
 
 The runtime never depends on how Runtime Metadata is created.
 
+See `benchmarks/018-menata-apps-builder-concept.md` for an early page-concept exploration of what
+a Menata Apps Builder could contain — exploratory only, no runtime dependency implied.
+
 ---
 
 ## Runtime Metadata

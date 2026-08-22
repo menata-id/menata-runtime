@@ -224,6 +224,9 @@ Menata Runtime only interprets Runtime Metadata.
 
 It never depends on how the metadata was authored.
 
+See `benchmarks/018-menata-apps-builder-concept.md` for an early page-concept exploration of what
+a Menata Apps Builder could contain — exploratory only, no runtime dependency implied.
+
 ---
 
 # Metadata-Driven Applications
