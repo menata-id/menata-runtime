@@ -233,6 +233,13 @@ Workflow behavior should emerge from:
 
 Business processes should remain declarative.
 
+Workflow is a responsibility, not a stored metadata section. A Machine does not declare a
+dedicated `workflow` artifact the way it declares Pages, Views, or Services; workflow behavior is
+realized entirely through the Machine's Events, Constraints, Permissions, and Actions. A
+higher-level declarative form may exist purely for authoring convenience, but it compiles into
+those same elements at load time rather than introducing a new runtime concept — see
+[006-runtime-model.md](006-runtime-model.md) § Workflow.
+
 ---
 
 # Navigation

@@ -14,6 +14,13 @@
 > (Study 20, uji 21 case + analisis ekonomi server + sintesis Konsep C). Dokumen ini adalah
 > Konsep C tersebut, dituliskan sebagai BRD.
 
+> **Status update (2026-08-22, hari yang sama, sore hari — Study 21):** Fase 1 (compiler inti +
+> peta proses arah maju) dan sebagian Fase 2 (CAP-W01 tipe `evidence`) dari §13 sudah
+> diimplementasikan dan dibuktikan conformance-nya (`benchmarks/013-overlay-compiler-proof.md`,
+> T136–T146; lihat juga `capability-registry.md` baris CAP-W05/CAP-W01 dan `roadmap.md`). §13 di
+> bawah diperbarui untuk mencerminkan ini. Disiplin admisi tetap berlaku untuk sisa cakupan yang
+> belum ada case-nya — lihat status per fase di §13.
+
 ---
 
 # 1. RINGKASAN EKSEKUTIF
@@ -467,19 +474,22 @@ v2 **tidak** akan:
 
 # 13. ROADMAP IMPLEMENTASI
 
-| Fase | Isi | CAP |
-|---|---|---|
-| **0 — Prasyarat independen** | Outbox async (bermanfaat tanpa overlay; dibuktikan Case 3/10/12) | CAP-W06 |
-| **1 — Compiler inti** | `process.states`/`transitions`/`auto` → Event/guard/Permission; validasi graph; peta proses (arah maju) | CAP-W05 (maju), fondasi |
-| **2 — Requirement** | Kontrak generik + counter cardinality + flag rollup termaterialisasi + worklist ter-index | CAP-W01 (+ CAP-X10) |
-| **3 — Quorum & SLA** | Parameter `ALL/ANY/N_OF_M` pada rollup; `sla` satu-deklarasi | CAP-W03, CAP-W04 |
-| **4 — Evolusi** | `change_policy` efektif-tanggal | CAP-W07 |
-| **5 — Dua arah** | Decompiler (peta untuk Machine lama; draft *lift*) | CAP-W05 (mundur) |
+| Fase | Isi | CAP | Status (2026-08-22, Study 21) |
+|---|---|---|---|
+| **0 — Prasyarat independen** | Outbox async (bermanfaat tanpa overlay; dibuktikan Case 3/10/12) | CAP-W06 | belum dibangun — tidak di-HOLD |
+| **1 — Compiler inti** | `process.states`/`transitions`/`auto` → Event/guard/Permission; validasi graph; peta proses (arah maju) | CAP-W05 (maju), fondasi | ✅ selesai & conformance-proven — B1+B2, T136–T143 |
+| **2 — Requirement** | Kontrak generik + counter cardinality + flag rollup termaterialisasi + worklist ter-index | CAP-W01 (+ CAP-X10) | ⚠️ sebagian — tipe `evidence` selesai & proven (B3, T144–T146); enam tipe lain (form/entity/task/approval/document/decision) + worklist ter-index masih HOLD |
+| **3 — Quorum & SLA** | Parameter `ALL/ANY/N_OF_M` pada rollup; `sla` satu-deklarasi | CAP-W03, CAP-W04 | HOLD |
+| **4 — Evolusi** | `change_policy` efektif-tanggal | CAP-W07 | HOLD |
+| **5 — Dua arah** | Decompiler (peta untuk Machine lama; draft *lift*) | CAP-W05 (mundur) | ⚠️ arah baca (decompile Machine lama) sudah terbukti sebagai bagian B2, T142; arah tulis (draft *lift*) tetap HOLD |
 
-Disiplin admisi tetap berlaku (`capability-lifecycle.md`): fase 1–5 berstatus **HOLD** sampai ada
-case proses nyata — idealnya diarang oleh orang selain pengembang runtime ini, karena pengalaman
-pengarang itulah nilai jual overlay. Fase 0 (CAP-W06) tidak di-HOLD: bukti kebutuhannya sudah ada
-pada case yang berjalan.
+Disiplin admisi (`capability-lifecycle.md`) tetap berlaku untuk seluruh cakupan yang masih HOLD di
+atas — sampai ada case proses nyata, idealnya diarang oleh orang selain pengembang runtime ini,
+karena pengalaman pengarang itulah nilai jual overlay. Fase 1 dan sub-cakupan Fase 2/5 di atas
+sudah keluar dari HOLD karena Study 21 menyediakan bukti conformance itu sendiri — bukan
+menunggu case eksternal, sesuai catatan status di awal dokumen ini. Fase 0 (CAP-W06) tidak
+di-HOLD sejak awal: bukti kebutuhannya sudah ada pada case yang berjalan, namun implementasinya
+sendiri belum dimulai.
 
 ---
 

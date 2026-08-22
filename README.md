@@ -306,9 +306,9 @@ Menata Runtime is built upon the following principles.
 
 ## Platform Principles
 
-- Open Platform
-- Extensible Runtime
 - Single Runtime
+- Open Platform
+- Compatible Authoring
 
 ## Vision
 
