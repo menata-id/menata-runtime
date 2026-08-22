@@ -17,9 +17,11 @@
 > deployment, not production (corrected 2026-08-22, see `roadmap.md`) — this let the experiment
 > touch the loader directly instead of routing through an external preprocessor first.
 >
-> Status: v1.1 — + Addendum: B2 (process map, CAP-W05 forward direction) implemented and
-> conformance-proven, including the decompile claim on genuine pre-existing v1 metadata |
-> Created: 2026-08-22
+> Status: v1.2 — + Addendum: B2 (process map, CAP-W05 forward direction) implemented and
+> conformance-proven, including the decompile claim on genuine pre-existing v1 metadata.
+> + Addendum: B3 (generic Requirement, CAP-W01, evidence cardinality) implemented and
+> conformance-proven — the one genuinely new runtime mechanism the whole Process Overlay needs
+> (write-time fan-in), the check itself reuses CAP-C09 unchanged | Created: 2026-08-22
 
 ---
 
@@ -208,3 +210,73 @@ conformance-proven, including the decompile case on real v1 metadata — the row
 speculative "derivable... from any hand-authored Machine's own Events+guards" language is no
 longer speculative for the render half. The backward-authoring half (drafting a `process` block
 *from* a rendered map, i.e. "lift") remains open.
+
+---
+
+# Addendum — B3: generic Requirement, evidence cardinality (2026-08-22, same day)
+
+B1 and B2 introduced **zero new runtime mechanisms** — both are pure compilation to primitives
+that already existed and were already conformance-proven. B3 is different: Study 19 §4.1 named
+"no generic check exists for evidence-count" as the sharpest concrete gap versus the comparator
+BRD (its own worked example: "minimum 2 photos" blocks Submit), and Study 20 §6.3 named the one
+genuinely new engine piece the whole Process Overlay needs — **write-time fan-in, read-time
+O(1)**: a requirement's truth is maintained as a counter on the parent record when a child is
+created, never computed by a query at transition time. This addendum scopes B3 to exactly that
+one concrete claim: `requirement: {type: evidence, target: <child Machine>, cardinality:
+"N..*"}` on a `ProcessTransition` — not the comparator's full seven-type Requirement taxonomy.
+Other types (approval, task, entity, document, decision) are named as explicit future work, per
+this codebase's own CAP-F19 escalation precedent ("escalate only when cardinality demands it").
+
+## The design that keeps the check itself at zero new mechanism
+
+A cardinality requirement compiles (`internal/metadata/compile.go`'s new `compileRequirements`)
+to an ordinary generated `Constraint`: `Condition = {status equals <to-state>}`, `Expression =
+{counterField >= min}` (+ `<= max` for a bounded range). **CAP-C09 already re-validates every
+Constraint against a transition's simulated post-action data before `Persist`** — so the gate is
+a state invariant ("can't be in Submitted without ≥2 evidence records"), not a special
+per-transition hook, and costs nothing beyond what `engine.Violations` already does per trigger.
+Two transitions naming the same `(type, target)` share one counter and one Constraint pair
+(deduped in `compileRequirements`); declaring the same pair with two different `to` states is a
+load-time error (no OR-condition support this pass — fail-loud, not a silent wrong answer).
+
+The genuinely new piece is how the counter gets its *value*: **write-time fan-in**
+(`internal/handler/requirement.go`'s `stampRequirementCounters`, one new `RecordStore.
+IncrementField` — a single atomic `UPDATE ... jsonb_set`, same discipline as `NextSequence`'s
+UPSERT and CAP-X13's claim). Wired only into the plain HTTP `Create` path this pass — the
+dominant case, a user attaching evidence via an ordinary form. `CAP-A06`/CSV import/the JSON API
+do not call it yet, a named, deliberate gap for a later pass, not silently assumed to work.
+Cross-machine validation (the requirement's `Target` must exist and hold a `reference` Field
+back) landed in `metadata.validateReferences`, not `compileProcess` itself — `compileProcess`
+runs mid-load, before every Application (and so every Machine a Requirement might target) is
+necessarily loaded yet.
+
+## Proof (new fixture, zero risk to B1/B2)
+
+New, self-contained lab (`seeds/020_requirement_lab.sql`, new Application `app_req_lab`) rather
+than an edit to `019` — B1/B2's own lifecycle tests (T136/T137) drive `mch_ca_overlay`/
+`mch_ca_manual` through every transition including Submit; adding a requirement to that Submit
+would have broken them. This codebase's own "ratchet rule — new Machines, not a retrofit."
+
+- `mch_req_case` — `process`: `Open →(Submit, requires evidence target=mch_req_photo,
+  cardinality "2..*")→ Submitted`.
+- `mch_req_photo` — a plain Machine (no Events of its own — "not every Object needs one," same
+  posture `seeds/003_hr_employee.sql` already established) with a `reference` Field back to
+  `mch_req_case`.
+
+| Test | Claim | Result |
+|---|---|---|
+| T144 | Submit with 0 attached evidence records → 400 | ✅ PASS |
+| T145 | Submit with exactly 1 attached record → still 400 — proves a real count, not a presence check | ✅ PASS |
+| T146 | Submit with a 2nd record attached → 303, transition succeeds | ✅ PASS |
+
+**147/147 conformance passing, zero regressions on the prior 144.** T136–T143's B1/B2 fixtures
+are untouched — confirmed by construction (a new Application, new Machine ids) and by the suite
+itself re-passing every one of them unchanged.
+
+## Registry impact
+
+`capability-registry.md`'s CAP-W01 row: the evidence-cardinality sub-scope (Study 19's own named
+sharpest gap) is implemented and conformance-proven, on the exact write-time-fan-in mechanism
+Study 20 §6.3 specified. The row stays ⚠️, not ✅ — the comparator's other six requirement types
+(form, entity, task, approval, document, decision) remain unimplemented, named as future
+escalation, not silently assumed covered by this one type.

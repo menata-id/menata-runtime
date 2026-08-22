@@ -1565,6 +1565,39 @@ CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$FRANK" "$BASE_URL/mch_employe
 [ "$CODE" = "404" ]
 check T143 "CAP-W05" "a Machine with no process_map View declared 404s (got $CODE)" $?
 
+# --- Process Overlay B3: generic Requirement, evidence cardinality (CAP-W01, seeds/020) ---
+# mch_req_case's Submit (Open -> Submitted) requires at least 2 mch_req_photo
+# records referencing it -- the comparator BRD's own "minimum 2 photos"
+# example. The count is maintained by write-time fan-in (handler.
+# stampRequirementCounters, on every mch_req_photo Create), the gate itself
+# is an ordinary CAP-C09 constraint re-check -- no new check mechanism, per
+# Study 20 §6.3.
+
+WIRA=$(session_for req.worker@example.com password) # Worker (app_req_lab)
+
+CASE_URL=$(post_redirect "$BASE_URL/mch_req_case" "fld_rc_title=Parity+$$" "$WIRA")
+CASE_ID="${CASE_URL##*/}"
+
+# T144 -- zero evidence attached: Submit is rejected (400), not silently
+# allowed through.
+CODE=$(post_status "$BASE_URL/mch_req_case/$CASE_ID/events/evt_mch_req_case_submit" "" "$WIRA")
+[ "$CODE" = "400" ]
+check T144 "CAP-W01" "Submit with 0 attached evidence records is rejected (got $CODE)" $?
+
+# T145 -- one photo attached (counter=1): still below the cardinality
+# minimum of 2 -- proves the threshold is a real count, not a presence check.
+post_redirect "$BASE_URL/mch_req_photo" "fld_rp_case=$CASE_ID&fld_rp_caption=first" "$WIRA" > /dev/null
+CODE=$(post_status "$BASE_URL/mch_req_case/$CASE_ID/events/evt_mch_req_case_submit" "" "$WIRA")
+[ "$CODE" = "400" ]
+check T145 "CAP-W01" "Submit with 1 attached evidence record (below cardinality 2) is still rejected (got $CODE)" $?
+
+# T146 -- a second photo attached (counter=2): the requirement is satisfied,
+# Submit succeeds.
+post_redirect "$BASE_URL/mch_req_photo" "fld_rp_case=$CASE_ID&fld_rp_caption=second" "$WIRA" > /dev/null
+CODE=$(post_status "$BASE_URL/mch_req_case/$CASE_ID/events/evt_mch_req_case_submit" "" "$WIRA")
+[ "$CODE" = "303" ]
+check T146 "CAP-W01" "Submit with 2 attached evidence records (cardinality satisfied) succeeds (got $CODE)" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

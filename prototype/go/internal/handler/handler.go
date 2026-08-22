@@ -1429,6 +1429,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// CAP-W01: write-time fan-in -- if this record references a Machine
+	// whose Process declares a Requirement naming machineID as its target,
+	// stamp that parent's counter now. Error propagates to a real 5xx (the
+	// CAP-X12 lesson: a swallowed error here would leave the child
+	// committed but its parent's counter silently stale) so workspaceTx
+	// rolls the whole request back, not just this write.
+	if err := h.stampRequirementCounters(r.Context(), machine, rec); err != nil {
+		http.Error(w, "failed to update requirement counter", http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, "/"+machineID+"/"+rec.ID, http.StatusSeeOther)
 }
 

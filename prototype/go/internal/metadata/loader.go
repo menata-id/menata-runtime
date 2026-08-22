@@ -175,6 +175,36 @@ func validateReferences(workspaces []*model.Workspace) error {
 					}
 				}
 
+				// CAP-W01 (Process Overlay B3): a Requirement's target must
+				// name a real Machine, and that Machine must itself declare
+				// a `reference` Field pointing back at m -- same "Unknown =
+				// explicit" discipline as CAP-F16's child_lines check below,
+				// and the reason this validation waits until here rather
+				// than running inside compileProcess itself: compileProcess
+				// runs mid-load, before every Application (and so every
+				// Machine a Requirement might target) has necessarily
+				// loaded yet.
+				if m.Process != nil {
+					for _, t := range m.Process.Transitions {
+						for _, r := range t.Requirements {
+							target, ok := machineByID[r.Target]
+							if !ok {
+								return fmt.Errorf("machine %s: transition %q's requirement target %q does not exist", m.ID, t.Name, r.Target)
+							}
+							backRef := false
+							for _, tf := range target.Fields {
+								if tf.Type == model.FieldTypeReference && tf.Options.TargetMachine == m.ID {
+									backRef = true
+									break
+								}
+							}
+							if !backRef {
+								return fmt.Errorf("machine %s: transition %q's requirement target %q has no `reference` field pointing back at %s", m.ID, t.Name, r.Target, m.ID)
+							}
+						}
+					}
+				}
+
 				// CAP-F08/F17: a `money` field must declare exactly one of
 				// Currency (fixed code) or CurrencyField (a reference to
 				// another field on the same record, for per-transaction

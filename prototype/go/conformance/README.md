@@ -186,6 +186,9 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T141 | CAP-W05 | a hand-authored Machine's process map is identical to the compiled one's — legibility parity |
 | T142 | CAP-W05 | a genuine pre-existing v1 Machine (Leave Request, predates `process`) reconstructs correctly — the decompile claim |
 | T143 | CAP-W05 | a Machine with no `process_map` View declared 404s — the opt-in gate |
+| T144 | CAP-W01 | a transition requiring cardinality-2 evidence rejects with 0 evidence attached |
+| T145 | CAP-W01 | still rejects with 1 evidence attached — a real count, not a presence check |
+| T146 | CAP-W01 | succeeds once a 2nd evidence record is attached — write-time fan-in, read-time O(1) |
 
 ---
 

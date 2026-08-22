@@ -267,6 +267,21 @@ func (s *RecordStore) Update(ctx context.Context, id string, data map[string]any
 	return err
 }
 
+// IncrementField (CAP-W01, Process Overlay B3) atomically adds 1 to a
+// numeric JSONB field -- the write-time-fan-in half of a Requirement's
+// cardinality counter (Study 20 §6.3, "write-time fan-in, read-time O(1)"):
+// the transition-time gate later reads this field directly (constraint.Eval,
+// no query), so the counter must never drift from a read-then-write race.
+// One UPDATE, COALESCE for a counter field that hasn't been touched yet --
+// same "never check-then-act" discipline as NextSequence's atomic UPSERT
+// and CAP-X13's claim.
+func (s *RecordStore) IncrementField(ctx context.Context, recordID, fieldID string) error {
+	_, err := s.db(ctx).Exec(ctx,
+		`UPDATE records SET data = jsonb_set(data, ARRAY[$2], to_jsonb(COALESCE((data->>$2)::numeric, 0) + 1)), updated_at = NOW() WHERE id = $1`,
+		recordID, fieldID)
+	return err
+}
+
 // LogEvent appends one row to the append-only record_events audit trail
 // (CAP-R04, enforced append-only at the DB level, migrations/007 REVOKEs
 // UPDATE/DELETE/TRUNCATE from this role). performedBy is the acting

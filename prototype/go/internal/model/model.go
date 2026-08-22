@@ -71,12 +71,61 @@ type Process struct {
 
 // ProcessTransition is one declared state change. Actor is required — a
 // transition nobody may perform is a declaration error, caught at load time.
+// Requirements (CAP-W01, Process Overlay B3) name what must be true before
+// this transition's target state may be reached — see ProcessRequirement.
 type ProcessTransition struct {
-	Name    string           `json:"name"`
-	From    string           `json:"from"`
-	To      string           `json:"to"`
-	Actor   ProcessActor     `json:"actor"`
-	Actions []*ProcessAction `json:"on_transition,omitempty"`
+	Name         string                `json:"name"`
+	From         string                `json:"from"`
+	To           string                `json:"to"`
+	Actor        ProcessActor          `json:"actor"`
+	Actions      []*ProcessAction      `json:"on_transition,omitempty"`
+	Requirements []*ProcessRequirement `json:"requirements,omitempty"`
+}
+
+// ProcessRequirement (CAP-W01, Process Overlay B3 — brd-menata-runtime-v2.md
+// §7.4, Study 20 §6.3) declares that at least Cardinality records of a child
+// Machine (Target, which must hold a `reference` Field back to this
+// Machine — validated at load time, metadata/loader.go) must exist before
+// the declaring transition's target state may be reached.
+//
+// Compiles to (internal/metadata/compile.go's compileProcess):
+//   - a generated `number` counter Field on THIS Machine
+//     (model.RequirementCounterFieldID), starting at "0"
+//   - a generated Constraint gating the transition's `to` state on that
+//     counter (reusing CAP-C09's existing trigger-time re-validation --
+//     no new check mechanism)
+//
+// The counter's VALUE is maintained by write-time fan-in, not a query: when
+// a Target record is created referencing this record, the counter is
+// incremented on the spot (handler.stampRequirementCounters) -- "write-time
+// fan-in, read-time O(1)" (Study 20 §6.3), the one genuinely new runtime
+// mechanism the whole Process Overlay needs.
+//
+// Type is "evidence" only this pass -- the comparator BRD's own sharpest
+// named gap (Study 19 §4.1: "no generic check exists for evidence-count").
+// Other types (approval/task/entity/document/decision) are deliberately
+// not built speculatively; escalate only when a case demands one, per this
+// codebase's own CAP-F19 precedent ("escalate only when cardinality
+// demands it").
+//
+// Cardinality is "N" (exact), "N..*" (at least N), or "N..M" (a bounded
+// range) -- parsed at compile time (compile.go's parseCardinality).
+type ProcessRequirement struct {
+	Type        string `json:"type"`
+	Target      string `json:"target"`
+	Cardinality string `json:"cardinality"`
+}
+
+// RequirementCounterFieldID is the deterministic id of the generated
+// counter Field a ProcessRequirement compiles to -- shared between the
+// compiler (which creates the Field and its gating Constraints) and the
+// runtime write-time-fan-in hook (which increments it), so both sides
+// agree on the id without either reading the other's code. Target is
+// already a Machine id (already-valid identifier characters, unlike a
+// human-authored transition Name) -- no slugging needed, unlike the
+// compiler's own event/permission ids.
+func RequirementCounterFieldID(machineID, target string) string {
+	return "fld_" + machineID + "_" + target + "_count"
 }
 
 // ProcessActor names who may perform a transition: a Role (CAP-P01), further

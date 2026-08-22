@@ -212,6 +212,11 @@ func compileProcess(m *model.Machine) error {
 		}
 	}
 
+	// --- requirements → counter Fields + gating Constraints (CAP-W01) -------
+	if err := compileRequirements(m, p, statusField); err != nil {
+		return err
+	}
+
 	// --- permissions: one row per distinct (role, owner_field) pair ---------
 	// Auto events deliberately appear in no Permission: they are only ever
 	// fired System-side through the trigger_event chain; deny-by-default
@@ -274,6 +279,129 @@ func resolveStatusField(m *model.Machine, states []string) (*model.Field, error)
 	}
 	m.Fields = append(m.Fields, f)
 	return f, nil
+}
+
+// compileRequirements (CAP-W01, Process Overlay B3) expands every declared
+// ProcessRequirement into a generated counter Field + gating Constraint(s)
+// on m. Requirements are deduped across ALL of p's transitions by
+// (Type, Target) -- two transitions naming the same requirement share one
+// counter and one pair of Constraints, since the counter describes a fact
+// about the RECORD ("how much evidence is attached"), not about any one
+// transition. If they disagree on the transition's own `to` state, that is
+// a load-time error (fail-loud beats guessing at an OR-condition this
+// runtime's Constraint grammar can't express).
+//
+// The counter's VALUE is never computed here -- see model.ProcessRequirement
+// and handler.stampRequirementCounters for the write-time-fan-in half.
+func compileRequirements(m *model.Machine, p *model.Process, statusField *model.Field) error {
+	type reqKey struct{ typ, target string }
+	type reqInfo struct {
+		min, max     int // max == -1 means unbounded
+		toState      string
+		firstTransit string
+	}
+	seen := make(map[reqKey]*reqInfo)
+	var order []reqKey
+
+	for _, t := range p.Transitions {
+		for _, r := range t.Requirements {
+			if r.Type != "evidence" {
+				return fmt.Errorf("machine %s: transition %q declares requirement type %q -- only \"evidence\" is implemented so far", m.ID, t.Name, r.Type)
+			}
+			if r.Target == "" {
+				return fmt.Errorf("machine %s: transition %q's requirement has no target", m.ID, t.Name)
+			}
+			min, max, err := parseCardinality(r.Cardinality)
+			if err != nil {
+				return fmt.Errorf("machine %s: transition %q's requirement on %q: %w", m.ID, t.Name, r.Target, err)
+			}
+			k := reqKey{r.Type, r.Target}
+			if existing, ok := seen[k]; ok {
+				if existing.toState != t.To {
+					return fmt.Errorf("machine %s: transitions %q and %q both require %q evidence from %q but land on different states (%q vs %q) -- this compiler can't express an OR condition, split the requirement or the target state", m.ID, existing.firstTransit, t.Name, r.Target, r.Target, existing.toState, t.To)
+				}
+				continue // same (type, target, to-state) declared again -- nothing new to compile
+			}
+			seen[k] = &reqInfo{min: min, max: max, toState: t.To, firstTransit: t.Name}
+			order = append(order, k)
+		}
+	}
+
+	for _, k := range order {
+		info := seen[k]
+		counterID := model.RequirementCounterFieldID(m.ID, k.target)
+		if fieldByID(m, counterID) != nil {
+			return fmt.Errorf("machine %s: generated requirement counter field %q collides with an existing field", m.ID, counterID)
+		}
+		m.Fields = append(m.Fields, &model.Field{
+			ID:        counterID,
+			MachineID: m.ID,
+			Name:      k.target + " Count",
+			Type:      model.FieldTypeNumber,
+			Position:  len(m.Fields),
+			Options:   model.FieldOptions{Default: "0"},
+		})
+		toGuard := &model.ConstraintExpression{Field: statusField.ID, Operator: "equals", Value: info.toState}
+		m.Constraints = append(m.Constraints, &model.Constraint{
+			ID:         "cst_" + m.ID + "_" + k.target + "_min",
+			MachineID:  m.ID,
+			Rule:       fmt.Sprintf("At least %d %s record(s) required.", info.min, k.target),
+			Expression: model.ConstraintExpression{Field: counterID, Operator: "greater_than_or_equal", Value: fmt.Sprintf("%d", info.min)},
+			Condition:  toGuard,
+		})
+		if info.max >= 0 {
+			m.Constraints = append(m.Constraints, &model.Constraint{
+				ID:         "cst_" + m.ID + "_" + k.target + "_max",
+				MachineID:  m.ID,
+				Rule:       fmt.Sprintf("At most %d %s record(s) allowed.", info.max, k.target),
+				Expression: model.ConstraintExpression{Field: counterID, Operator: "less_than_or_equal", Value: fmt.Sprintf("%d", info.max)},
+				Condition:  toGuard,
+			})
+		}
+	}
+	return nil
+}
+
+// parseCardinality reads "N" (exact), "N..*" (at least N), or "N..M" (a
+// bounded range) into (min, max) -- max == -1 means unbounded.
+func parseCardinality(s string) (min, max int, err error) {
+	parseInt := func(v string) (int, error) {
+		n := 0
+		if v == "" {
+			return 0, fmt.Errorf("empty number")
+		}
+		for _, r := range v {
+			if r < '0' || r > '9' {
+				return 0, fmt.Errorf("not a number: %q", v)
+			}
+			n = n*10 + int(r-'0')
+		}
+		return n, nil
+	}
+	if before, after, ok := strings.Cut(s, ".."); ok {
+		min, err = parseInt(before)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid cardinality %q: %w", s, err)
+		}
+		if after == "*" {
+			max = -1
+		} else if max, err = parseInt(after); err != nil {
+			return 0, 0, fmt.Errorf("invalid cardinality %q: %w", s, err)
+		}
+		if max >= 0 && max < min {
+			return 0, 0, fmt.Errorf("invalid cardinality %q: max is less than min", s)
+		}
+	} else {
+		min, err = parseInt(s)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid cardinality %q: %w", s, err)
+		}
+		max = min
+	}
+	if min < 1 {
+		return 0, 0, fmt.Errorf("invalid cardinality %q: minimum must be at least 1", s)
+	}
+	return min, max, nil
 }
 
 // validateProcessAction fail-louds a declared on_transition action the
