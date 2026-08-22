@@ -521,7 +521,85 @@ operator hitung.
 
 ---
 
-# 15. KESIMPULAN
+# 15. PERBANDINGAN DENGAN RENCANA BERJALAN — DAN URUTAN KEPUTUSAN
+
+Pertanyaan praktis penutup: apa beda **aplikasi** yang dihasilkan BRD v2 dengan aplikasi yang
+dihasilkan rencana berjalan (v1 + roadmap registry apa adanya)? Karena keduanya berjalan di
+runtime yang sama, bedanya bukan pada apa yang *bisa dijalankan* aplikasi (sama-sama 21/21 case,
+performa identik) — melainkan pada pengalaman **membangun, mengubah, dan mengelola**-nya.
+
+## 15.1 Aplikasi dengan rencana berjalan
+
+| Keunggulan | Konsekuensi |
+|---|---|
+| Nol risiko compiler — tidak ada yang baru dibangun untuk lapisan proses | Effort langsung ke gap yang benar-benar memblokir case: CAP-C08/C10/C11 membuka Case 5/6/9/16, perluasan view membuka 11/19/20 — **ROI jangka pendek lebih tinggi** |
+| Grammar metadata terkecil dan sudah teruji (conformance ratchet) | Stabilitas maksimal; tak ada permukaan authoring baru yang bisa salah |
+| Sesuai disiplin admisi — overlay memang masih HOLD | Tidak membangun spekulatif sebelum ada case nyata |
+
+Warisan keterbatasannya (§2.3): proses tak terlihat, hanya terarang oleh ahli registry, SLA/
+approval dirakit per case, tanpa N_OF_M, tanpa cardinality, perubahan metadata mengenai semua
+record terbuka tanpa kecuali, worklist tetap scan berfilter.
+
+## 15.2 Aplikasi dengan BRD v2
+
+| Keunggulan | Konsekuensi |
+|---|---|
+| Proses terbaca: satu deklarasi + peta proses + validator graph | Auditor/admin melihat alur ujung-ke-ujung tanpa membaca metadata mentah |
+| Siapa pun mengarang proses: admin, konsultan, AI tool | Case 3: komposisi 6-CAP + heuristik → satu blok; laju evolusi tak lagi dibatasi kelangkaan ahli |
+| Kemampuan baru: cardinality, quorum N_OF_M, SLA satu baris | "Minimal 2 foto" dan "2 dari 3 approver" ternyatakan — hari ini tidak |
+| `change_policy` efektif-tanggal | Proses berumur panjang aman diubah, dengan niat eksplisit dan ter-audit |
+| Worklist ter-index + outbox async | "Pending keputusan saya" = query ter-index; request tak menunggu rantai notifikasi |
+| Runtime & biaya identik (§6.6 syarat lulus) | Semua di atas tanpa membayar 3–4× biaya transisi ala engine workflow |
+
+Biayanya: compiler harus dibangun dan dibuktikan — permukaan baru yang bisa salah, karenanya
+Kriteria Sukses §12 menuntut kesetaraan perilaku dan biaya dengan rakitan tangan.
+
+## 15.3 Urutan keputusan — keduanya bukan pilihan saling meniadakan
+
+1. **Bernilai sekarang di kedua jalur:** CAP-W06 (outbox — tidak di-HOLD, dibuktikan Case
+   3/10/12) + keluarga CAP-C08/C10/C11 dari rencana berjalan. Membuka 4 case ⚠️ dan memperbaiki
+   latensi tanpa menyentuh overlay sama sekali.
+2. **v2 menjadi mendesak ketika** tujuan bergeser dari "menyelesaikan portfolio" ke "lebih
+   banyak aplikasi dibangun lebih banyak orang" — mis. saat `menata.app` mulai dipakai pihak
+   lain untuk mengarang prosesnya sendiri. Itu persis trigger admisi §13.
+
+Dipadatkan satu kalimat:
+
+> **Rencana berjalan menghasilkan aplikasi yang lebih *lengkap* lebih cepat; BRD v2
+> menghasilkan platform yang prosesnya lebih *terbaca*, lebih *aman diubah*, dan lebih
+> *terjangkau diarang* — pada biaya server yang sama.**
+
+## 15.4 Skenario greenfield — jika sama-sama mulai dari nol, quality > time
+
+Jika keduanya dibangun dari nol dengan prinsip kualitas di atas waktu (dan di atas biaya token
+AI), **v2 adalah target yang tepat sejak hari pertama** — dengan satu presisi penting: memilih
+v2 dari nol *bukan* berarti melewati arsitektur v1, karena v2 mengandung v1 (overlay adalah
+lapisan di atas substrat v1, dan compiler tidak bisa dibangun sebelum targetnya ada). Yang
+berubah adalah **urutan desain**, bukan urutan bangun:
+
+1. **Tanpa utang retrofit.** Grammar overlay dirancang bersama substrat sejak awal, sehingga
+   pola rakitan-tangan ala Case 3 (3 kunci config + heuristik pencocokan nama `Sequence`/
+   `Decision`) tidak pernah sempat lahir — overlay mendeklarasikan hal-hal yang di v1 terpaksa
+   ditebak heuristik.
+2. **Kualitas by construction.** Setiap proses tervalidasi sebagai graph sejak dimuat pertama
+   kali; conformance ditulis terhadap deklarasi, bukan terhadap rakitan.
+3. **Ekonomi token AI justru condong ke v2, kuat.** AI yang mengarang proses menulis satu blok
+   deklaratif kecil — bukan memuat pengetahuan 6 CAP + konvensi komposisinya ke context untuk
+   setiap pengarang ulang. Konteks lebih kecil, ruang salah lebih sempit, dan hasil generate
+   tervalidasi murah oleh compiler yang deterministik. Untuk authoring berbasis AI (arah yang
+   dinyatakan arsitektur v1 sendiri), overlay bukan biaya — ia justru bentuk paling hemat token.
+
+Satu peringatan jujur dari sejarah proyek ini sendiri: merancang grammar overlay *sebelum* ada
+case nyata yang menguji substrat adalah risiko kualitas — penemuan terpenting repo ini justru
+datang dari case dan benchmark yang mendahului desain (CAP-E06 ditemukan benchmark, bukan
+dirancang; heuristik ditemukan karena membangun). Maka jalur greenfield ber-kualitas-tertinggi
+adalah: substrat + beberapa case pembuktian dulu, baru overlay — **yang persis merupakan posisi
+proyek ini hari ini**. Dengan kata lain: v1 yang sudah terbangun adalah 80% pertama dari jalur
+greenfield v2 yang benar, dan hampir tidak ada yang terbuang.
+
+---
+
+# 16. KESIMPULAN
 
 Menata Runtime v2 bukan:
 
