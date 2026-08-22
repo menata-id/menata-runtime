@@ -124,7 +124,14 @@ The application will be available at `http://localhost:3100`.
 
 ---
 
-## Production Deployment
+## Dev Deployment (`menata.app`)
+
+**Correction (2026-08-22):** earlier revisions of this section called this a "Production
+Deployment." It is not — `menata.app` is a **development** deployment; there is no production
+instance of this runtime yet. The operational cautions below (restart discipline, port
+awareness, no-auto-restart policy) remain real and unchanged, though: the same host runs other
+apps' genuine production instances (`/root/scripts/server-manager.sh status` lists them), so
+carelessness here still risks THEIR production traffic even though this app has none of its own.
 
 This prototype is live at **`https://menata.app`** (reassigned to this port 2026-07-12 as
 `aksi.menata.id`; domain changed to `menata.app` the same day — the old domain permanently

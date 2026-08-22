@@ -497,7 +497,7 @@ func (l *Loader) loadApplications(ctx context.Context, workspaceID string) ([]*m
 
 func (l *Loader) loadMachines(ctx context.Context, applicationID string) ([]*model.Machine, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, application_id, name, config::text FROM machines WHERE application_id = $1 ORDER BY name`,
+		`SELECT id, application_id, name, config::text, process::text FROM machines WHERE application_id = $1 ORDER BY name`,
 		applicationID)
 	if err != nil {
 		return nil, err
@@ -507,14 +507,20 @@ func (l *Loader) loadMachines(ctx context.Context, applicationID string) ([]*mod
 	var machines []*model.Machine
 	for rows.Next() {
 		m := &model.Machine{}
-		var configJSON *string
-		if err := rows.Scan(&m.ID, &m.ApplicationID, &m.Name, &configJSON); err != nil {
+		var configJSON, processJSON *string
+		if err := rows.Scan(&m.ID, &m.ApplicationID, &m.Name, &configJSON, &processJSON); err != nil {
 			return nil, err
 		}
 		if configJSON != nil {
 			m.Config = make(map[string]string)
 			if err := json.Unmarshal([]byte(*configJSON), &m.Config); err != nil {
 				return nil, fmt.Errorf("parse config for machine %s: %w", m.ID, err)
+			}
+		}
+		if processJSON != nil {
+			m.Process = &model.Process{}
+			if err := json.Unmarshal([]byte(*processJSON), m.Process); err != nil {
+				return nil, fmt.Errorf("parse process for machine %s: %w", m.ID, err)
 			}
 		}
 		machines = append(machines, m)
@@ -554,7 +560,15 @@ func (l *Loader) loadMachineDetails(ctx context.Context, m *model.Machine) error
 		return err
 	}
 	m.Subscriptions, err = l.loadSubscriptions(ctx, m.ID)
-	return err
+	if err != nil {
+		return err
+	}
+	// Process Overlay B1: expand a declared process into Events/guards/
+	// Permissions (compile.go) once everything hand-authored is loaded --
+	// downstream (validateReferences/validateOperators, Interpreter, Guard,
+	// Executor) then treats the compiled result exactly like hand-authored
+	// metadata, including re-validating it.
+	return compileProcess(m)
 }
 
 func (l *Loader) loadFields(ctx context.Context, machineID string) ([]*model.Field, error) {

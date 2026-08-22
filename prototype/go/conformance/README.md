@@ -178,6 +178,10 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T133 | CAP-F19 | quantity/UoM Tier 1 composition converts to its base unit correctly |
 | T134 | CAP-F21 | a document View renders its template with real merge fields resolved |
 | T135 | CAP-O03 | a multi-machine Application renders a persistent sub-nav to sibling Machines; a single-machine Application renders none |
+| T136 | Process Overlay B1 | a Machine declaring only a `process` block boots, compiles, and renders with the correct generated initial state, same as a hand-authored Machine with the identical process |
+| T137 | Process Overlay B1 | the compiled Machine runs the identical full lifecycle as the hand-authored one, including a System-side automatic transition (CAP-E05 chain) nobody clicked |
+| T138 | Process Overlay B1 | the hand-authored control arm rejects a wrong-state transition (400), wrong-role transition (403), and non-owner transition (403) |
+| T139 | Process Overlay B1 | the compiled arm rejects the identical three cases with the identical codes — the parity claim (brd-menata-runtime-v2.md §6.6) |
 
 ---
 

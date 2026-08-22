@@ -147,17 +147,18 @@ CAP-A02 change for a worked example.
 Postgres runs locally in this environment already (`pg_isready`). `.env.example`'s
 `postgres:password@localhost:5432/menata_runtime` are working credentials, not a placeholder.
 
-**`.env`'s `PORT=4000` is not a free dev port on this host** — this prototype is deployed live at
-`https://menata.app` (domain changed from `aksi.menata.id` 2026-07-12; the old domain now
-permanently redirects to the new one) on that exact port (see DEVELOPMENT.md "Production
-Deployment"), managed
-by `/root/scripts/server-manager.sh restart menata-runtime`, not a bare `go run`/`make dev` left
-running in the background. Before starting any server here, check
-`/root/projects/MULTI-APP-GUIDE.md`'s port allocation map and `ss -ltnp | grep :4000` first — a
-bare dev process on that port silently squats on production traffic instead of erroring, and
-`kill`/`pkill` without checking what's actually listening has taken down another app's production
-instance before. If you need an ad hoc dev instance, use a different `PORT` for it, or stop with
-`server-manager.sh` (not a raw `kill`) and restart the same way when done.
+**`.env`'s `PORT=4000` may not be a free port on this host.** This prototype's own dev deployment
+(`https://menata.app`, not production — corrected 2026-08-22, see DEVELOPMENT.md "Dev
+Deployment") runs on that exact port when it's up, managed by
+`/root/scripts/server-manager.sh restart menata-runtime`. Check `ss -ltnp | grep :4000` before
+starting a bare `go run`/`make dev` there — if this app's own dev instance is already running,
+a second process silently fails to bind or fights the first for the port; if it's down (nothing
+listening), starting one directly is fine. Separately, this host also runs OTHER apps' genuine
+production instances (`/root/projects/MULTI-APP-GUIDE.md`'s port allocation map,
+`server-manager.sh status`) — a `kill`/`pkill` without checking what's actually listening has
+taken down another app's production instance before, so still stop this app via
+`server-manager.sh` rather than a raw `kill` when in doubt. If you need an ad hoc dev instance
+alongside a running one, use a different `PORT` for it.
 
 ```bash
 make migrate-up && make seed         # fresh database only, see Makefile comments

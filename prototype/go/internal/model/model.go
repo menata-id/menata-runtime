@@ -25,6 +25,10 @@ type Application struct {
 // Config holds machine-level settings (CAP-X03) — values that configure how
 // the Machine itself behaves, not a Field of its records. nil = no config,
 // the default. See migrations/004_machine_config.sql.
+// Process (Process Overlay B1, migrations/019) is the Machine's declared
+// process, compiled by the loader into ordinary Events/guards/Permissions
+// before anything downstream ever sees this Machine — Router, Guard,
+// Executor, and Engine have no knowledge of it. nil = no overlay.
 type Machine struct {
 	ID            string
 	ApplicationID string
@@ -36,6 +40,69 @@ type Machine struct {
 	Views         []*View
 	Config        map[string]string
 	Subscriptions []*Subscription // CAP-I01: this Machine's OWN declared interest in other Machines' Events
+	Process       *Process        // Process Overlay B1 -- consumed (and satisfied) entirely at load time
+}
+
+// Process (Process Overlay B1 — brd-menata-runtime-v2.md §7.2, Study 20 §6)
+// declares a Machine's process as states + transitions, compiled at load
+// time into the substrate primitives that already exist:
+//
+//	transition {name, from, to, actor}  →  Event (id "evt_<machine>_<slug(name)>",
+//	    condition {status equals From} via CAP-E06, action set_field status→To,
+//	    plus the declaration's own on_transition actions)
+//	  + Permission (per distinct actor {role, owner_field} pair, CAP-P01/P02)
+//	auto {from, to}                     →  a System-triggered Event of the same
+//	    shape, chained from every transition landing on From via CAP-E05's
+//	    trigger_event action
+//	states                              →  the Status value_list Field's values;
+//	    the Field is generated ("fld_<machine>_status") when the Machine does
+//	    not declare its own value_list Field named "Status" — States[0] is the
+//	    initial state, per the existing first-value-is-default convention
+//
+// The runtime executes only the compiled result — "declared process,
+// emergent execution." Event ids are deterministic functions of the
+// declaration so identity stays stable across reloads (004-runtime-metadata
+// §Stable Identity).
+type Process struct {
+	States      []string             `json:"states"`
+	Transitions []*ProcessTransition `json:"transitions"`
+	Auto        []*ProcessAuto       `json:"auto,omitempty"`
+}
+
+// ProcessTransition is one declared state change. Actor is required — a
+// transition nobody may perform is a declaration error, caught at load time.
+type ProcessTransition struct {
+	Name    string           `json:"name"`
+	From    string           `json:"from"`
+	To      string           `json:"to"`
+	Actor   ProcessActor     `json:"actor"`
+	Actions []*ProcessAction `json:"on_transition,omitempty"`
+}
+
+// ProcessActor names who may perform a transition: a Role (CAP-P01), further
+// narrowed to the specific person a `user`-typed OwnerField on the record
+// names when set (CAP-P02) — the same two-level model hand-authored
+// Permissions already use.
+type ProcessActor struct {
+	Role       string `json:"role"`
+	OwnerField string `json:"owner_field,omitempty"`
+}
+
+// ProcessAction is one extra action on a compiled transition Event, in the
+// exact {type, params} shape hand-authored event_actions rows already use —
+// no second action vocabulary.
+type ProcessAction struct {
+	Type   ActionType     `json:"type"`
+	Params map[string]any `json:"params"`
+}
+
+// ProcessAuto declares a system-performed transition: whenever a record
+// lands on From (via any declared transition), it immediately moves on to
+// To — compiled as a trigger_event chain (CAP-E05), so it runs through the
+// same guarded triggerEvent path a user-performed transition would.
+type ProcessAuto struct {
+	From string `json:"from"`
+	To   string `json:"to"`
 }
 
 // Field is a typed piece of business information on a Machine.

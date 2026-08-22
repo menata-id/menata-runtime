@@ -1432,6 +1432,82 @@ body_contains "$BASE_URL/mch_ft_product" 'href="/mch_ft_invoice"' "$WIRA" && \
     ! body_contains "$BASE_URL/mch_wsx_project" "bg-slate-100 border-b border-slate-200" "$YARA"
 check T135 "CAP-O03" "a multi-machine Application renders a persistent sub-nav to sibling Machines; a single-machine Application renders none" $?
 
+# --- Process Overlay B1 parity experiment (Study 21, seeds/019) ---
+# Two Machines carry the SAME Corrective Action process: mch_ca_manual is
+# hand-authored (events/guards/permissions/status field explicit, the v1
+# way), mch_ca_overlay declares ONLY a `process` block and everything else
+# is compiled at load time (internal/metadata/compile.go). T136-T139 drive
+# both through the identical lifecycle and assert identical behavior --
+# the falsifiable core claim of the v2 concept ("declared process,
+# emergent execution", brd-menata-runtime-v2.md §6.6).
+
+SURYA=$(session_for overlay.sup@example.com password)      # Supervisor (app_overlay_lab)
+WATI=$(session_for overlay.worker@example.com password)    # Worker -- the assignee
+WINDA=$(session_for overlay.worker2@example.com password)  # Worker -- NOT the assignee (CAP-P02 probe)
+RIAN=$(session_for overlay.reviewer@example.com password)  # Reviewer
+
+# overlay_lifecycle <machine> <fld_prefix> <evt_prefix> -> creates a record
+# assigned to Wati and drives it Open -> ... -> Closed, echoing "OK" only if
+# every step behaves exactly as the process declares (incl. the automatic
+# Submitted -> Review step firing without any user action).
+overlay_lifecycle() {
+    local M="$1" F="$2" E="$3" wati_id rec_url
+    wati_id=$(user_option_id "$BASE_URL/$M/new" "$SURYA" "Wati Overlay")
+    [ -n "$wati_id" ] || { echo "NO-PICKER"; return; }
+    rec_url=$(post_redirect "$BASE_URL/$M" "${F}_title=Parity+$$&${F}_assignee=$wati_id" "$SURYA")
+    [ -n "$rec_url" ] || { echo "NO-CREATE"; return; }
+    body_contains "$rec_url" "Open" "$SURYA" || { echo "NO-INITIAL-STATE"; return; }
+    [ "$(post_status "$rec_url/events/${E}_assign" "" "$SURYA")" = "303" ] || { echo "ASSIGN"; return; }
+    [ "$(post_status "$rec_url/events/${E}_start" "" "$WATI")" = "303" ]  || { echo "START"; return; }
+    [ "$(post_status "$rec_url/events/${E}_submit" "" "$WATI")" = "303" ] || { echo "SUBMIT"; return; }
+    body_contains "$rec_url" "Review" "$WATI" || { echo "NO-AUTO"; return; }
+    [ "$(post_status "$rec_url/events/${E}_approve" "" "$RIAN")" = "303" ] || { echo "APPROVE"; return; }
+    [ "$(post_status "$rec_url/events/${E}_close" "" "$SURYA")" = "303" ]  || { echo "CLOSE"; return; }
+    body_contains "$rec_url" "Closed" "$SURYA" || { echo "NO-FINAL-STATE"; return; }
+    echo "OK $rec_url"
+}
+
+# overlay_negatives <machine> <fld_prefix> <evt_prefix> -> fresh record;
+# echoes "OK" only if the state guard (400), the role guard (403), and the
+# CAP-P02 ownership guard (403 for a Worker who is not the assignee) all
+# reject identically.
+overlay_negatives() {
+    local M="$1" F="$2" E="$3" wati_id rec_url
+    wati_id=$(user_option_id "$BASE_URL/$M/new" "$SURYA" "Wati Overlay")
+    rec_url=$(post_redirect "$BASE_URL/$M" "${F}_title=Negative+$$&${F}_assignee=$wati_id" "$SURYA")
+    [ -n "$rec_url" ] || { echo "NO-CREATE"; return; }
+    [ "$(post_status "$rec_url/events/${E}_approve" "" "$RIAN")" = "400" ] || { echo "STATE-GUARD"; return; }
+    [ "$(post_status "$rec_url/events/${E}_assign" "" "$WATI")" = "403" ]  || { echo "ROLE-GUARD"; return; }
+    [ "$(post_status "$rec_url/events/${E}_assign" "" "$SURYA")" = "303" ] || { echo "ASSIGN"; return; }
+    [ "$(post_status "$rec_url/events/${E}_start" "" "$WINDA")" = "403" ]  || { echo "OWNER-GUARD"; return; }
+    [ "$(post_status "$rec_url/events/${E}_start" "" "$WATI")" = "303" ]   || { echo "OWNER-OK"; return; }
+    echo "OK"
+}
+
+# T136 -- the compiled Machine boots, renders, and its GENERATED status
+# field starts at the declared initial state, exactly like the manual arm's
+# hand-declared one (first-value-is-default convention preserved).
+MAN_LC=$(overlay_lifecycle mch_ca_manual fld_cam evt_cam)
+OVL_LC=$(overlay_lifecycle mch_ca_overlay fld_cao evt_mch_ca_overlay)
+case "$MAN_LC" in OK*) case "$OVL_LC" in OK*) true;; *) false;; esac;; *) false;; esac
+check T136 "B1" "manual and compiled Machines both create with initial state Open and render ($MAN_LC / $OVL_LC)" $?
+
+# T137 -- full-lifecycle parity: the whole Open->Assigned->In_Progress->
+# Submitted->(auto)Review->Verified->Closed sequence succeeds identically on
+# both arms, including the System-side auto step nobody clicked.
+case "$MAN_LC $OVL_LC" in OK*OK*) true;; *) false;; esac
+check T137 "B1" "compiled process runs the identical full lifecycle incl. the automatic Submitted->Review step" $?
+
+# T138/T139 -- negative parity: state guard (CAP-E06), role guard (CAP-P01),
+# and ownership guard (CAP-P02) reject with the same codes on both arms.
+MAN_NEG=$(overlay_negatives mch_ca_manual fld_cam evt_cam)
+[ "$MAN_NEG" = "OK" ]
+check T138 "B1" "manual arm rejects: wrong state 400, wrong role 403, non-assignee Worker 403 (got $MAN_NEG)" $?
+
+OVL_NEG=$(overlay_negatives mch_ca_overlay fld_cao evt_mch_ca_overlay)
+[ "$OVL_NEG" = "OK" ]
+check T139 "B1" "compiled arm rejects identically: wrong state 400, wrong role 403, non-assignee Worker 403 (got $OVL_NEG)" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
