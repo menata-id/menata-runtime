@@ -34,7 +34,7 @@ func (h *Handler) stampRequirementCounters(ctx context.Context, machine *model.M
 		if parentID == "" {
 			continue
 		}
-		parentMachine, ok := h.interp.GetMachine(f.Options.TargetMachine)
+		parentMachine, ok := h.interp.Get().GetMachine(f.Options.TargetMachine)
 		if !ok || parentMachine.Process == nil {
 			continue
 		}

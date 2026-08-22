@@ -1673,6 +1673,54 @@ post_status "$VB2_URL/events/evt_qv_reject" "" "$QV2" > /dev/null
 body_contains "$REQ_B_URL" ">Rejected<" "$RANI"
 check T150 "CAP-W03" "a 2-of-3 quorum reaches Rejected once 2 votes are rejected (quorum mathematically impossible)" $?
 
+# --- CAP-X04: metadata live reload (Option A, docs/decisions/002-metadata-loading.md) ---
+# seeds/023_reload_lab.sql is deliberately NOT part of `make seed`'s boot-time
+# list -- applied here, mid-run, via a direct psql call (same documented
+# exception T19 already uses), so T151 can prove the new Machine becomes
+# servable WITHOUT a restart. Metadata tables (machines/fields/permissions/
+# views/user_application_roles) carry no RLS (CAP-X06's own scope note --
+# "trusted-seed-only write path"), so no app.workspace_id GUC dance is
+# needed here, unlike T19's own records-table UPDATE.
+if [ -n "$DATABASE_URL" ]; then
+    # T151 -- before the seed is applied, the Machine is unknown; after
+    # applying it + triggering reload, it's servable -- the core falsifiable
+    # claim, proven without ever restarting the server process.
+    PRE_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$FRANK" "$BASE_URL/mch_reload_case")
+    psql "$DATABASE_URL" -q -f seeds/023_reload_lab.sql >/dev/null
+    RELOAD_CODE=$(post_status "$BASE_URL/admin/reload" "" "$FRANK")
+    POST_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$FRANK" "$BASE_URL/mch_reload_case")
+    [ "$PRE_CODE" = "404" ] && [ "$RELOAD_CODE" = "303" ] && [ "$POST_CODE" = "200" ]
+    check T151 "CAP-X04" "a Machine seeded mid-run becomes servable after reload, no restart (pre=$PRE_CODE reload=$RELOAD_CODE post=$POST_CODE)" $?
+
+    # T152 -- a non-Admin cannot trigger a reload.
+    CODE=$(post_status "$BASE_URL/admin/reload" "" "$DAVE")
+    [ "$CODE" = "403" ]
+    check T152 "CAP-X04" "a non-Admin cannot trigger a metadata reload (got $CODE)" $?
+
+    # T153 -- a deliberately malformed row (a `reference` field targeting a
+    # nonexistent Machine -- the exact CAP-F13 dangling-reference check
+    # validateReferences already enforces) makes the NEXT reload fail (500),
+    # and the OLD, still-valid interpreter must keep serving everything else
+    # completely normally -- the one property this feature exists to
+    # guarantee. Cleaned up immediately after: a real correctness
+    # requirement, not just hygiene -- a future server RESTART (not just a
+    # reload) calls os.Exit(1) on bad metadata, so leaving this row behind
+    # would break the very next boot, not just the next reload attempt.
+    psql "$DATABASE_URL" -q -c \
+        "INSERT INTO fields (id, machine_id, name, type, position, required, options) VALUES
+         ('fld_rlc_bad_ref', 'mch_reload_case', 'Bad Ref', 'reference', 1, false, '{\"target_machine\":\"mch_does_not_exist\"}')" \
+        >/dev/null
+    BAD_RELOAD_CODE=$(post_status "$BASE_URL/admin/reload" "" "$FRANK")
+    OLD_STILL_UP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$DAVE" "$BASE_URL/mch_leave_request")
+    psql "$DATABASE_URL" -q -c "DELETE FROM fields WHERE id = 'fld_rlc_bad_ref'" >/dev/null
+    [ "$BAD_RELOAD_CODE" = "500" ] && [ "$OLD_STILL_UP_CODE" = "200" ]
+    check T153 "CAP-X04" "a bad reload is rejected (500) and the old interpreter keeps serving unrelated Machines normally (reload=$BAD_RELOAD_CODE old_machine=$OLD_STILL_UP_CODE)" $?
+else
+    printf 'SKIP  T151 %-22s %s\n' "CAP-X04" "DATABASE_URL not set -- seed-mid-run fixture unavailable"
+    printf 'SKIP  T152 %-22s %s\n' "CAP-X04" "DATABASE_URL not set"
+    printf 'SKIP  T153 %-22s %s\n' "CAP-X04" "DATABASE_URL not set -- malformed-row fixture unavailable"
+fi
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

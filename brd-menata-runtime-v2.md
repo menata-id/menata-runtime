@@ -15,11 +15,19 @@
 > Konsep C tersebut, dituliskan sebagai BRD.
 
 > **Status update (2026-08-22, hari yang sama, sore hari — Study 21):** Fase 1 (compiler inti +
-> peta proses arah maju) dan sebagian Fase 2 (CAP-W01 tipe `evidence`) dari §13 sudah
-> diimplementasikan dan dibuktikan conformance-nya (`benchmarks/013-overlay-compiler-proof.md`,
-> T136–T146; lihat juga `capability-registry.md` baris CAP-W05/CAP-W01 dan `roadmap.md`). §13 di
-> bawah diperbarui untuk mencerminkan ini. Disiplin admisi tetap berlaku untuk sisa cakupan yang
-> belum ada case-nya — lihat status per fase di §13.
+> peta proses arah maju), Fase 2 sebagian (CAP-W01 tipe `evidence`), dan Fase 3 (CAP-W04 SLA
+> penuh + CAP-W03 quorum-core) dari §13 sudah diimplementasikan dan dibuktikan conformance-nya
+> (`benchmarks/013-overlay-compiler-proof.md`, T136–T150; lihat juga `capability-registry.md`
+> baris CAP-W05/CAP-W01/CAP-W04/CAP-W03 dan `roadmap.md`). §13 di bawah diperbarui untuk
+> mencerminkan ini. **Fase 4 (`change_policy`, CAP-W07) sekarang punya prasyarat bernama, bukan
+> hanya HOLD-menunggu-case**: baris CAP-W02 (pendahulu CAP-W07 di registry) sudah menyatakan
+> ketergantungan pada CAP-X04 (live reload metadata, ❌) sejak awal — CAP-W07 mewarisi
+> ketergantungan itu karena maknanya ("perubahan ini berlaku untuk `new_records` /
+> `records_in_states` / `all_records`") hanya bisa dibuktikan jika ada batas hidup nyata antara
+> "sebelum" dan "sesudah" perubahan — sesuatu yang mustahil selama deploy metadata hanya lewat
+> restart proses. Lihat `roadmap.md`'s "Sequencing Guide" (ditambahkan 2026-08-22) untuk urutan
+> lengkapnya. Disiplin admisi tetap berlaku untuk sisa cakupan yang belum ada case-nya — lihat
+> status per fase di §13.
 
 ---
 
@@ -479,17 +487,19 @@ v2 **tidak** akan:
 | **0 — Prasyarat independen** | Outbox async (bermanfaat tanpa overlay; dibuktikan Case 3/10/12) | CAP-W06 | belum dibangun — tidak di-HOLD |
 | **1 — Compiler inti** | `process.states`/`transitions`/`auto` → Event/guard/Permission; validasi graph; peta proses (arah maju) | CAP-W05 (maju), fondasi | ✅ selesai & conformance-proven — B1+B2, T136–T143 |
 | **2 — Requirement** | Kontrak generik + counter cardinality + flag rollup termaterialisasi + worklist ter-index | CAP-W01 (+ CAP-X10) | ⚠️ sebagian — tipe `evidence` selesai & proven (B3, T144–T146); enam tipe lain (form/entity/task/approval/document/decision) + worklist ter-index masih HOLD |
-| **3 — Quorum & SLA** | Parameter `ALL/ANY/N_OF_M` pada rollup; `sla` satu-deklarasi | CAP-W03, CAP-W04 | HOLD |
-| **4 — Evolusi** | `change_policy` efektif-tanggal | CAP-W07 | HOLD |
-| **5 — Dua arah** | Decompiler (peta untuk Machine lama; draft *lift*) | CAP-W05 (mundur) | ⚠️ arah baca (decompile Machine lama) sudah terbukti sebagai bagian B2, T142; arah tulis (draft *lift*) tetap HOLD |
+| **3 — Quorum & SLA** | Parameter `ALL/ANY/N_OF_M` pada rollup; `sla` satu-deklarasi | CAP-W03, CAP-W04 | ⚠️ SLA (CAP-W04) selesai penuh & proven (T147–T148); quorum-core (CAP-W03, hand-authored `min_approvals`) selesai & proven (T149–T150) — bentuk *deklaratif*-nya lewat `process.requirements[].type == "approval"` tetap terbuka, butuh sesi desain sendiri (kapabilitas compile lintas-Machine baru, tidak dibutuhkan B1–B3) |
+| **4 — Evolusi** | `change_policy` efektif-tanggal | CAP-W07 | **READY** — prasyaratnya (CAP-X04, live reload) selesai dibangun hari ini juga (Option A, ADR-002: reload lewat admin, atomic swap; `benchmarks/015-metadata-live-reload-proof.md`, T151–T153). Batas hidup nyata antara metadata lama/baru sekarang ada untuk dibuktikan `new_records`/`records_in_states`/`all_records`-nya. Lihat `roadmap.md`'s Sequencing Guide |
+| **5 — Dua arah** | Decompiler (peta untuk Machine lama; draft *lift*) | CAP-W05 (mundur) | ⚠️ arah baca (decompile Machine lama) sudah terbukti sebagai bagian B2, T142; arah tulis (draft *lift*) tetap terbuka — READY, tidak ada prasyarat teknis, tinggal butuh sesi desain |
 
 Disiplin admisi (`capability-lifecycle.md`) tetap berlaku untuk seluruh cakupan yang masih HOLD di
 atas — sampai ada case proses nyata, idealnya diarang oleh orang selain pengembang runtime ini,
-karena pengalaman pengarang itulah nilai jual overlay. Fase 1 dan sub-cakupan Fase 2/5 di atas
-sudah keluar dari HOLD karena Study 21 menyediakan bukti conformance itu sendiri — bukan
+karena pengalaman pengarang itulah nilai jual overlay. Fase 1, Fase 3, dan sub-cakupan Fase 2/5 di
+atas sudah keluar dari HOLD karena Study 21 menyediakan bukti conformance itu sendiri — bukan
 menunggu case eksternal, sesuai catatan status di awal dokumen ini. Fase 0 (CAP-W06) tidak
 di-HOLD sejak awal: bukti kebutuhannya sudah ada pada case yang berjalan, namun implementasinya
-sendiri belum dimulai.
+sendiri belum dimulai. Fase 4 berbeda dari yang lain: statusnya bukan menunggu case (admission
+discipline), melainkan menunggu prasyarat infrastruktur (CAP-X04) yang sudah punya alasan
+teknisnya sendiri, lepas dari overlay ini sama sekali.
 
 ---
 

@@ -20,6 +20,7 @@ import (
 	"menata.id/runtime/internal/constraint"
 	"menata.id/runtime/internal/executor"
 	"menata.id/runtime/internal/interpreter"
+	"menata.id/runtime/internal/metadata"
 	"menata.id/runtime/internal/model"
 	"menata.id/runtime/internal/permission"
 	"menata.id/runtime/internal/store"
@@ -27,7 +28,8 @@ import (
 )
 
 type Handler struct {
-	interp        *interpreter.Interpreter
+	interp        *interpreter.Store // CAP-X04: atomic, swapped by Reload -- call .Get() fresh at point of use, never cache across a request
+	loader        *metadata.Loader   // CAP-X04: re-run by Reload to build a fresh Interpreter
 	records       *store.RecordStore
 	notifications *store.NotificationStore
 	sessions      *store.SessionStore
@@ -38,9 +40,10 @@ type Handler struct {
 	exec          *executor.Executor
 }
 
-func New(interp *interpreter.Interpreter, records *store.RecordStore, notifications *store.NotificationStore, sessions *store.SessionStore, users *store.UserStore, secureCookies bool) *Handler {
+func New(interp *interpreter.Store, loader *metadata.Loader, records *store.RecordStore, notifications *store.NotificationStore, sessions *store.SessionStore, users *store.UserStore, secureCookies bool) *Handler {
 	return &Handler{
 		interp:        interp,
+		loader:        loader,
 		records:       records,
 		notifications: notifications,
 		sessions:      sessions,
@@ -123,14 +126,14 @@ func (h *Handler) isWorkspaceAdmin(r *http.Request) bool {
 // role sees an empty grid, not an error.
 func (h *Handler) Apps(w http.ResponseWriter, r *http.Request) {
 	a := h.auth(r)
-	apps := h.interp.ApplicationsForWorkspace(a.User.WorkspaceID)
+	apps := h.interp.Get().ApplicationsForWorkspace(a.User.WorkspaceID)
 	cards := make([]ui.Card, 0, len(apps))
 	for _, app := range apps {
 		// CAP-O01: role is resolved per-Application here, not once for the
 		// whole page — the same person can see a different set of readable
 		// Applications depending on which role (if any) they hold in each.
 		role := a.ApplicationRoles[app.ID]
-		machines := h.interp.MachinesForApplication(app.ID)
+		machines := h.interp.Get().MachinesForApplication(app.ID)
 		readable := 0
 		for _, m := range machines {
 			if h.guard.CanRead(m, role) {
@@ -158,7 +161,7 @@ func (h *Handler) Apps(w http.ResponseWriter, r *http.Request) {
 // level down: a Machine only appears if the role can read it.
 func (h *Handler) AppMachines(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "applicationID")
-	app, ok := h.interp.GetApplication(appID)
+	app, ok := h.interp.Get().GetApplication(appID)
 	if !ok || app.WorkspaceID != h.workspace(r) {
 		// CAP-X06: an Application from another Workspace 404s exactly like
 		// one that doesn't exist at all -- not a 403, which would confirm
@@ -168,7 +171,7 @@ func (h *Handler) AppMachines(w http.ResponseWriter, r *http.Request) {
 	}
 	a := h.auth(r)
 	role := h.roleForApp(r, appID)
-	machines := h.interp.MachinesForApplication(appID)
+	machines := h.interp.Get().MachinesForApplication(appID)
 	cards := make([]ui.Card, 0, len(machines))
 	for _, m := range machines {
 		if !h.guard.CanRead(m, role) {
@@ -335,7 +338,7 @@ func (h *Handler) AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, g := range h.interp.AllRoles(a.User.WorkspaceID) {
+	for _, g := range h.interp.Get().AllRoles(a.User.WorkspaceID) {
 		submitted := r.FormValue("app_role_" + g.AppID)
 		if submitted == "" {
 			if err := h.users.RemoveApplicationRole(r.Context(), target.ID, g.AppID); err != nil {
@@ -371,8 +374,46 @@ func (h *Handler) AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 }
 
+// Reload (CAP-X04, Option A of docs/decisions/002-metadata-loading.md) is
+// the only way this runtime's metadata changes without a full process
+// restart: re-runs metadata.Loader.LoadAll and, only if it succeeds,
+// atomically swaps the active interpreter.Store (interpreter.New's own
+// validation -- validateReferences, validateOperators, compileProcess's own
+// checks -- already runs inside LoadAll, unchanged from boot).
+//
+// The one property this handler exists to guarantee: a bad reload must
+// NEVER brick the live server. At boot, a LoadAll failure calls os.Exit(1)
+// (cmd/server/main.go) -- there is nothing yet to protect. Here, a failure
+// is surfaced back to the admin over HTTP instead, and the OLD interpreter
+// -- still valid, still serving every other request unaffected -- is never
+// touched. Only a fully-built, fully-validated new Interpreter ever reaches
+// Store.Swap.
+func (h *Handler) Reload(w http.ResponseWriter, r *http.Request) {
+	if !h.isWorkspaceAdmin(r) {
+		a := h.auth(r)
+		h.logPermissionDenied(r.Context(), "reload", "", "", a.User.WorkspaceRole, a.User.Name)
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	a := h.auth(r)
+	workspaces, err := h.loader.LoadAll(r.Context())
+	if err != nil {
+		slog.Error("metadata reload failed", "correlation_id", middleware.GetReqID(r.Context()), "actor", a.User.Name, "error", err)
+		http.Error(w, "reload failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	newInterp := interpreter.New(workspaces)
+	h.interp.Swap(newInterp)
+	slog.Info("metadata reloaded",
+		"correlation_id", middleware.GetReqID(r.Context()),
+		"actor", a.User.Name,
+		"machines", len(newInterp.AllMachines()),
+	)
+	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
 func (h *Handler) uiRoleGroups(workspaceID string) []ui.RoleGroup {
-	interpGroups := h.interp.AllRoles(workspaceID)
+	interpGroups := h.interp.Get().AllRoles(workspaceID)
 	out := make([]ui.RoleGroup, 0, len(interpGroups))
 	for _, g := range interpGroups {
 		out = append(out, ui.RoleGroup{AppID: g.AppID, AppName: g.AppName, Roles: g.Roles})
@@ -405,12 +446,12 @@ func (h *Handler) adminUserRows(ctx context.Context, workspaceID string) ([]ui.A
 // List — list view of records for a machine.
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
@@ -427,7 +468,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	view := h.interp.DefaultListView(machineID)
+	view := h.interp.Get().DefaultListView(machineID)
 	fieldByID := fieldIndex(machine)
 
 	// CAP-P06: field-level visibility -- a column this role's Permission
@@ -602,7 +643,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		TotalPages:  totalPages,
 	}
 	a := h.auth(r)
-	page := ui.List(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine))
+	page := ui.List(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render list", "error", err)
 	}
@@ -622,12 +663,12 @@ func (h *Handler) Restore(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) setDeleted(w http.ResponseWriter, r *http.Request, deleted bool) {
 	machineID := chi.URLParam(r, "machineID")
 	recordID := chi.URLParam(r, "recordID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -688,12 +729,12 @@ func (h *Handler) MoveRecord(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	recordID := chi.URLParam(r, "recordID")
 	direction := chi.URLParam(r, "direction")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -727,12 +768,12 @@ func (h *Handler) MoveRecord(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Document(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	recordID := chi.URLParam(r, "recordID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -743,7 +784,7 @@ func (h *Handler) Document(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
-	view := h.interp.DocumentView(machineID)
+	view := h.interp.Get().DocumentView(machineID)
 	if view == nil || view.Config.Template == "" {
 		http.NotFound(w, r)
 		return
@@ -767,12 +808,12 @@ func (h *Handler) Document(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -783,7 +824,7 @@ func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
-	view := h.interp.ReportView(machineID)
+	view := h.interp.Get().ReportView(machineID)
 	if view == nil || view.Config.Report == nil {
 		http.NotFound(w, r)
 		return
@@ -791,7 +832,7 @@ func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
 	rc := view.Config.Report
 
 	srcFieldByID := map[string]*model.Field{}
-	if src, ok := h.interp.GetMachine(rc.Machine); ok {
+	if src, ok := h.interp.Get().GetMachine(rc.Machine); ok {
 		srcFieldByID = fieldIndex(src)
 	}
 	sumLabels := make([]string, len(rc.SumFields))
@@ -827,12 +868,12 @@ func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
 // grouped-by-date_field rendering, only the View lookup differs.
 func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view *model.View) {
 	machineID := chi.URLParam(r, "machineID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -906,13 +947,13 @@ func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view 
 
 // Calendar renders a CAP-V07 calendar View: records grouped by date_field.
 func (h *Handler) Calendar(w http.ResponseWriter, r *http.Request) {
-	h.calendarTimeline(w, r, h.interp.CalendarView(chi.URLParam(r, "machineID")))
+	h.calendarTimeline(w, r, h.interp.Get().CalendarView(chi.URLParam(r, "machineID")))
 }
 
 // Timeline renders a CAP-V07 timeline View: the same grouping, read
 // chronologically.
 func (h *Handler) Timeline(w http.ResponseWriter, r *http.Request) {
-	h.calendarTimeline(w, r, h.interp.TimelineView(chi.URLParam(r, "machineID")))
+	h.calendarTimeline(w, r, h.interp.Get().TimelineView(chi.URLParam(r, "machineID")))
 }
 
 // Dashboard renders a CAP-V10 composed dashboard View -- one tile per
@@ -923,12 +964,12 @@ func (h *Handler) Timeline(w http.ResponseWriter, r *http.Request) {
 // rather than the whole dashboard 403ing.
 func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -939,7 +980,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
-	view := h.interp.DashboardView(machineID)
+	view := h.interp.Get().DashboardView(machineID)
 	if view == nil {
 		http.NotFound(w, r)
 		return
@@ -947,11 +988,11 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 
 	tiles := make([]ui.DashboardTile, 0, len(view.Config.Sections))
 	for _, sec := range view.Config.Sections {
-		secMachine, ok := h.interp.GetMachine(sec.Machine)
+		secMachine, ok := h.interp.Get().GetMachine(sec.Machine)
 		if !ok {
 			continue
 		}
-		_, secAppID := h.interp.ScopeFor(sec.Machine)
+		_, secAppID := h.interp.Get().ScopeFor(sec.Machine)
 		secRole := h.roleForApp(r, secAppID)
 		if !h.guard.CanRead(secMachine, secRole) {
 			continue
@@ -984,7 +1025,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 // ids, not display Names -- unambiguous and machine-inspectable, the same
 // "ids are the interchange format" choice CAP-F05 already made.
 func (h *Handler) csvFieldIDs(machine *model.Machine) []string {
-	if fv := h.interp.FormView(machine.ID); fv != nil {
+	if fv := h.interp.Get().FormView(machine.ID); fv != nil {
 		return fv.Config.Fields
 	}
 	return nil
@@ -994,12 +1035,12 @@ func (h *Handler) csvFieldIDs(machine *model.Machine) []string {
 // machineID as CSV -- CanRead-gated, same tier as viewing the list itself.
 func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -1040,12 +1081,12 @@ func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 // ImportCSVForm (CAP-R06) renders the CSV upload page.
 func (h *Handler) ImportCSVForm(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -1075,12 +1116,12 @@ func (h *Handler) ImportCSVForm(w http.ResponseWriter, r *http.Request) {
 // in the same file, not just what existed in the database beforehand.
 func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -1173,12 +1214,12 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 // NewForm — form for creating a new record.
 func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
@@ -1196,7 +1237,7 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 
 	// CAP-V12: a FormView declaring Steps renders as a multi-step wizard
 	// instead of the single Form -- step 0, no carried-forward values yet.
-	if fv := h.interp.FormView(machine.ID); fv != nil && len(fv.Config.Steps) > 0 {
+	if fv := h.interp.Get().FormView(machine.ID); fv != nil && len(fv.Config.Steps) > 0 {
 		page := ui.WizardForm(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, 0, len(fv.Config.Steps), h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[0], nil), nil, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render wizard form", "error", err)
@@ -1213,12 +1254,12 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 // Create — handle new record form submission.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
@@ -1235,7 +1276,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	fv := h.interp.FormView(machine.ID)
+	fv := h.interp.Get().FormView(machine.ID)
 
 	// CAP-V12: an intermediate wizard-step submission renders the NEXT step
 	// instead of creating anything -- only the final step's POST falls
@@ -1449,12 +1490,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	recordID := chi.URLParam(r, "recordID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
@@ -1495,12 +1536,12 @@ func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	recordID := chi.URLParam(r, "recordID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
@@ -1531,7 +1572,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	formFieldIDs := map[string]bool{}
-	if fv := h.interp.FormView(machine.ID); fv != nil {
+	if fv := h.interp.Get().FormView(machine.ID); fv != nil {
 		for _, id := range fv.Config.Fields {
 			formFieldIDs[id] = true
 		}
@@ -1625,12 +1666,12 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	recordID := chi.URLParam(r, "recordID")
 
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
@@ -1688,7 +1729,7 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	childLists := h.childLists(r.Context(), machine, recordID)
-	events := h.interp.PermittedEventsForRecord(machineID, role, h.identityID(r), rec.Data)
+	events := h.interp.Get().PermittedEventsForRecord(machineID, role, h.identityID(r), rec.Data)
 	// CAP-P04: an event declaring InputFields (e.g. "delegate to") renders
 	// an inline picker alongside its trigger button, same field/options
 	// shape a Form uses -- built here, not in ui, since resolving a `user`
@@ -1713,12 +1754,12 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 	recordID := chi.URLParam(r, "recordID")
 	eventID := chi.URLParam(r, "eventID")
 
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		// CAP-X06: a Machine from another Workspace 404s exactly like one
 		// that doesn't exist at all -- app-layer guard alongside RLS
@@ -1726,7 +1767,7 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	event, ok := h.interp.GetEvent(machineID, eventID)
+	event, ok := h.interp.Get().GetEvent(machineID, eventID)
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -1800,7 +1841,7 @@ func (h *Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 	recordID := chi.URLParam(r, "recordID")
 	eventID := chi.URLParam(r, "eventID")
 
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -1814,7 +1855,7 @@ func (h *Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	event, ok := h.interp.GetEvent(machineID, eventID)
+	event, ok := h.interp.Get().GetEvent(machineID, eventID)
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -1893,7 +1934,7 @@ func (e *ruleViolation) Error() string { return e.msg }
 // workspace/application (006-runtime-model.md's hierarchy) are resolved
 // here, not passed in, so every call site stays a one-liner.
 func (h *Handler) logPermissionDenied(ctx context.Context, action, machineID, eventID, role, identity string) {
-	workspaceID, appID := h.interp.ScopeFor(machineID)
+	workspaceID, appID := h.interp.Get().ScopeFor(machineID)
 	slog.Warn("permission denied",
 		"correlation_id", middleware.GetReqID(ctx),
 		"workspace", workspaceID,
@@ -1912,7 +1953,7 @@ func (h *Handler) logPermissionDenied(ctx context.Context, action, machineID, ev
 // failures: this is a request that *was* permitted but rejected on the
 // data/state it carried.
 func (h *Handler) logRuleViolation(ctx context.Context, action, machineID, eventID, role, identity, reason string) {
-	workspaceID, appID := h.interp.ScopeFor(machineID)
+	workspaceID, appID := h.interp.Get().ScopeFor(machineID)
 	slog.Warn("rule violation",
 		"correlation_id", middleware.GetReqID(ctx),
 		"workspace", workspaceID,
@@ -1984,8 +2025,8 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 	// (falling back to actorRole) resolves this event's "current_user" dynamic
 	// values, if any. CAP-O06 — holidays resolved once here, passed through
 	// to every "N Business Days" resolution Simulate/Persist might do.
-	workspaceID, _ := h.interp.ScopeFor(machine.ID)
-	holidays := h.interp.Holidays(workspaceID)
+	workspaceID, _ := h.interp.Get().ScopeFor(machine.ID)
+	holidays := h.interp.Get().Holidays(workspaceID)
 	newData := h.exec.Simulate(machine, event, rec, actorRole, actorIdentity, eventInput, holidays)
 	if violations := h.engine.Violations(machine, newData); len(violations) > 0 {
 		return &ruleViolation{strings.Join(violations, " ")}
@@ -2017,7 +2058,7 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 // is logged, never silently dropped; every Subscription sees the same
 // final data, never a partial view.
 func (h *Handler) processSubscriptions(ctx context.Context, event *model.Event, data map[string]any, actorRole, actorIdentity, workspaceID string, holidays map[string]bool) {
-	for _, sub := range h.interp.SubscriptionsFor(event.ID) {
+	for _, sub := range h.interp.Get().SubscriptionsFor(event.ID) {
 		violated := false
 		for _, c := range sub.Contract {
 			if !constraint.Eval(c, data) {
@@ -2061,8 +2102,8 @@ func fieldIndex(m *model.Machine) map[string]*model.Field {
 // resolves (ScopeFor/MachinesForApplication) -- see benchmarks/009 for
 // the full reasoning.
 func (h *Handler) subNavFor(r *http.Request, machine *model.Machine) []ui.SubNavLink {
-	_, applicationID := h.interp.ScopeFor(machine.ID)
-	siblings := h.interp.MachinesForApplication(applicationID)
+	_, applicationID := h.interp.Get().ScopeFor(machine.ID)
+	siblings := h.interp.Get().MachinesForApplication(applicationID)
 	if len(siblings) < 2 {
 		return nil // nothing to move sideways to
 	}
@@ -2095,7 +2136,7 @@ func (h *Handler) hiddenFields(machine *model.Machine, role string) map[string]b
 
 func (h *Handler) buildFormFields(ctx context.Context, machine *model.Machine, vals map[string]any) []ui.FormField {
 	var fieldIDs []string
-	if view := h.interp.FormView(machine.ID); view != nil {
+	if view := h.interp.Get().FormView(machine.ID); view != nil {
 		fieldIDs = view.Config.Fields
 	}
 	return h.buildFormFieldsFor(ctx, machine, fieldIDs, vals)
@@ -2146,12 +2187,12 @@ func childRowName(row int, fieldID string) string {
 // existingRows is nil at Create; kept as a param so a future edit-time
 // extension has an obvious seam, not because anything passes it non-nil today.
 func (h *Handler) buildChildLinesData(ctx context.Context, machine *model.Machine) *ui.ChildLinesData {
-	view := h.interp.FormView(machine.ID)
+	view := h.interp.Get().FormView(machine.ID)
 	if view == nil || view.Config.ChildLines == nil {
 		return nil
 	}
 	cl := view.Config.ChildLines
-	childMachine, ok := h.interp.GetMachine(cl.Machine)
+	childMachine, ok := h.interp.Get().GetMachine(cl.Machine)
 	if !ok {
 		return nil
 	}
@@ -2195,7 +2236,7 @@ func (h *Handler) buildChildLinesData(ctx context.Context, machine *model.Machin
 // own "leave a row blank to skip it" hint. Returned data never has
 // ParentField set; insertChildRows adds it once the parent's real id exists.
 func (h *Handler) validateChildRows(ctx context.Context, r *http.Request, cl *model.ChildLinesConfig) ([]map[string]any, []string, error) {
-	childMachine, ok := h.interp.GetMachine(cl.Machine)
+	childMachine, ok := h.interp.Get().GetMachine(cl.Machine)
 	if !ok {
 		return nil, nil, fmt.Errorf("child_lines.machine %q not found", cl.Machine)
 	}
@@ -2279,7 +2320,7 @@ func (h *Handler) insertChildRows(ctx context.Context, cl *model.ChildLinesConfi
 // future reference relationship gets a sub-list automatically.
 func (h *Handler) childLists(ctx context.Context, machine *model.Machine, recordID string) []ui.ChildList {
 	var out []ui.ChildList
-	for _, m := range h.interp.AllMachines() {
+	for _, m := range h.interp.Get().AllMachines() {
 		for _, f := range m.Fields {
 			if f.Type != model.FieldTypeReference || f.Options.TargetMachine != machine.ID {
 				continue
@@ -2316,7 +2357,7 @@ func (h *Handler) referenceOptions(ctx context.Context, targetMachineID string) 
 		slog.Error("list reference options", "target_machine", targetMachineID, "error", err)
 		return nil
 	}
-	targetMachine, _ := h.interp.GetMachine(targetMachineID)
+	targetMachine, _ := h.interp.Get().GetMachine(targetMachineID)
 	opts := make([]ui.ReferenceOption, 0, len(records))
 	for _, rec := range records {
 		opts = append(opts, ui.ReferenceOption{ID: rec.ID, Label: displayLabel(targetMachine, rec.Data)})
@@ -2331,7 +2372,7 @@ func (h *Handler) referenceLabel(ctx context.Context, targetMachineID, recordID 
 	if err != nil {
 		return "", err
 	}
-	targetMachine, _ := h.interp.GetMachine(targetMachineID)
+	targetMachine, _ := h.interp.Get().GetMachine(targetMachineID)
 	return displayLabel(targetMachine, rec.Data), nil
 }
 
@@ -2458,7 +2499,7 @@ func (h *Handler) referenceViolations(ctx context.Context, machine *model.Machin
 			return nil, err
 		}
 		if !exists {
-			target, _ := h.interp.GetMachine(f.Options.TargetMachine)
+			target, _ := h.interp.Get().GetMachine(f.Options.TargetMachine)
 			targetName := f.Options.TargetMachine
 			if target != nil {
 				targetName = target.Name
@@ -2747,7 +2788,7 @@ func (h *Handler) sequentialGuardViolation(ctx context.Context, machine *model.M
 	if parentField == nil || parentField.Type != model.FieldTypeReference {
 		return ""
 	}
-	parentMachine, ok := h.interp.GetMachine(parentField.Options.TargetMachine)
+	parentMachine, ok := h.interp.Get().GetMachine(parentField.Options.TargetMachine)
 	if !ok || parentMachine.Config == nil {
 		return ""
 	}
@@ -2822,7 +2863,7 @@ func (h *Handler) doActivateNext(ctx context.Context, machine *model.Machine, pa
 	if modeFieldID == "" {
 		return
 	}
-	parentMachine := findMachineContainingField(h.interp, modeFieldID)
+	parentMachine := findMachineContainingField(h.interp.Get(), modeFieldID)
 	if parentMachine == nil || parentMachine.Config == nil {
 		return
 	}
@@ -2895,7 +2936,7 @@ func (h *Handler) doTriggerEvent(ctx context.Context, machine *model.Machine, pa
 	if targetEventID == "" {
 		return
 	}
-	targetEvent, ok := h.interp.GetEvent(machine.ID, targetEventID)
+	targetEvent, ok := h.interp.Get().GetEvent(machine.ID, targetEventID)
 	if !ok {
 		return
 	}
@@ -2938,7 +2979,7 @@ func (h *Handler) doAggregateStatus(ctx context.Context, machine *model.Machine,
 	if parentField == nil || parentField.Type != model.FieldTypeReference {
 		return
 	}
-	parentMachine, ok := h.interp.GetMachine(parentField.Options.TargetMachine)
+	parentMachine, ok := h.interp.Get().GetMachine(parentField.Options.TargetMachine)
 	if !ok {
 		return
 	}
@@ -2998,7 +3039,7 @@ func (h *Handler) doAggregateStatus(ctx context.Context, machine *model.Machine,
 		return
 	}
 
-	targetEvent, ok := h.interp.GetEvent(parentMachine.ID, targetEventID)
+	targetEvent, ok := h.interp.Get().GetEvent(parentMachine.ID, targetEventID)
 	if !ok {
 		return
 	}
@@ -3052,8 +3093,8 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	var results []ui.SearchResult
 	if query != "" {
 		q := strings.ToLower(query)
-		for _, m := range h.interp.AllMachines() {
-			ws, appID := h.interp.ScopeFor(m.ID)
+		for _, m := range h.interp.Get().AllMachines() {
+			ws, appID := h.interp.Get().ScopeFor(m.ID)
 			if ws != workspaceID {
 				continue
 			}
@@ -3061,7 +3102,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 			if !h.guard.CanRead(m, role) {
 				continue
 			}
-			view := h.interp.DefaultListView(m.ID)
+			view := h.interp.Get().DefaultListView(m.ID)
 			var colIDs []string
 			if view != nil {
 				colIDs = view.Config.Columns

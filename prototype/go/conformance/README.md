@@ -193,6 +193,9 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T148 | CAP-W04 | a record that already left the SLA-bound state is untouched by the breach event |
 | T149 | CAP-W03 | a 2-of-3 quorum reaches Approved once 2 votes are in, without waiting for the 3rd |
 | T150 | CAP-W03 | a 2-of-3 quorum reaches Rejected once 2 votes are rejected (quorum mathematically impossible) |
+| T151 | CAP-X04 | a Machine seeded mid-run becomes servable after `POST /admin/reload`, no server restart |
+| T152 | CAP-X04 | a non-Admin cannot trigger a metadata reload |
+| T153 | CAP-X04 | a bad reload is rejected (500) and the old interpreter keeps serving unrelated Machines normally |
 
 ---
 

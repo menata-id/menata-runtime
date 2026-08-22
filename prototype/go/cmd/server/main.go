@@ -61,12 +61,18 @@ func main() {
 			"views", len(m.Views),
 		)
 	}
+	// CAP-X04: interpStore holds the currently-active Interpreter behind an
+	// atomic pointer -- handler.Reload swaps it after a fresh LoadAll, no
+	// restart required. Every reader (Handler, sessionAuth, runScheduler)
+	// takes this Store, not a raw *Interpreter, and must call .Get() fresh
+	// at the point of use -- see interpreter.Store's own doc comment.
+	interpStore := interpreter.NewStore(interp)
 
 	records := store.NewRecordStore(pool)
 	notifications := store.NewNotificationStore(pool)
 	sessions := store.NewSessionStore(pool)
 	users := store.NewUserStore(pool)
-	h := handler.New(interp, records, notifications, sessions, users, cfg.SecureCookies)
+	h := handler.New(interpStore, loader, records, notifications, sessions, users, cfg.SecureCookies)
 
 	r := chi.NewRouter()
 	// RequestID before the access logger: gives every access log line a
@@ -82,7 +88,7 @@ func main() {
 	// anything else runs -- workspaceTx's own workspace_id now comes from
 	// the authenticated User (store.AuthFromContext), not a client-suppliable
 	// cookie, so this must run first.
-	r.Use(sessionAuth(sessions, users, interp, &permission.Guard{}))
+	r.Use(sessionAuth(sessions, users, interpStore, &permission.Guard{}))
 	// CAP-X02: CSRF check, after sessionAuth (needs the session's stored
 	// token from ctx) and before workspaceTx (a rejected request shouldn't
 	// pay for opening a transaction).
@@ -105,7 +111,7 @@ func main() {
 	// workspaceTx (SET LOCAL app.workspace_id per workspace, so RLS applies
 	// exactly like a real request's queries would), just not attached to
 	// one -- there is no request here to scope it to.
-	go runScheduler(context.Background(), pool, interp, h)
+	go runScheduler(context.Background(), pool, interpStore, h)
 
 	addr := ":" + cfg.Port
 	slog.Info("menata runtime listening", "addr", addr)
@@ -192,11 +198,14 @@ func workspaceTx(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 // app.workspace_id shape as workspaceTx, just not attached to an HTTP
 // request -- there isn't one here). One workspace's error is logged and
 // skipped, not fatal to the process or to sweeping the other workspaces.
-func runScheduler(ctx context.Context, pool *pgxpool.Pool, interp *interpreter.Interpreter, h *handler.Handler) {
+func runScheduler(ctx context.Context, pool *pgxpool.Pool, interpStore *interpreter.Store, h *handler.Handler) {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for range ticker.C {
-		for _, workspaceID := range interp.AllWorkspaceIDs() {
+		// CAP-X04: .Get() fresh every tick, not once before the loop -- a
+		// reload becomes visible to the scheduler on the very next tick,
+		// without restarting this goroutine.
+		for _, workspaceID := range interpStore.Get().AllWorkspaceIDs() {
 			func() {
 				tx, err := pool.Begin(ctx)
 				if err != nil {
@@ -320,7 +329,7 @@ func visitorAuth(r *http.Request, interp *interpreter.Interpreter, guard *permis
 // as before -- there's no useful page to redirect a form submission to,
 // and CAP-P07 is deliberately read-only: no anonymous Create/Update/
 // TriggerEvent, only GET.
-func sessionAuth(sessions *store.SessionStore, users *store.UserStore, interp *interpreter.Interpreter, guard *permission.Guard) func(http.Handler) http.Handler {
+func sessionAuth(sessions *store.SessionStore, users *store.UserStore, interpStore *interpreter.Store, guard *permission.Guard) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if isPublicPath(r.URL.Path) {
@@ -338,7 +347,10 @@ func sessionAuth(sessions *store.SessionStore, users *store.UserStore, interp *i
 
 			c, err := r.Cookie("menata_session")
 			if err != nil || c.Value == "" {
-				if a, ok := visitorAuth(r, interp, guard); ok {
+				// CAP-X04: .Get() fresh per request -- a reload's Permission
+				// changes (e.g. a newly granted Visitor role) take effect on
+				// the very next request, not just future server restarts.
+				if a, ok := visitorAuth(r, interpStore.Get(), guard); ok {
 					next.ServeHTTP(w, r.WithContext(store.WithAuth(r.Context(), a)))
 					return
 				}

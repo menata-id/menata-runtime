@@ -17,6 +17,7 @@ import (
 //	/apps/{applicationID}                    one application's own machines
 //	/login                                   email + password login (CAP-X02)
 //	/admin/users                             workspace user/role management (CAP-O01, Admin-only)
+//	POST /admin/reload                       re-load metadata without restart, Admin-only (CAP-X04)
 //	/notifications                           in-app notification inbox (CAP-A10)
 //	/apps/{applicationID}/export             Application metadata export, Admin-only (CAP-X08)
 //	GET  /api/{machineID}                    JSON list (CAP-X07)
@@ -45,6 +46,7 @@ func Mount(r chi.Router, h *handler.Handler) {
 
 	r.Get("/admin/users", h.AdminUsers)
 	r.Post("/admin/users/{userID}", h.AdminUpdateUser)
+	r.Post("/admin/reload", h.Reload) // CAP-X04, Admin-only
 
 	r.Get("/notifications", h.Notifications)
 	r.Post("/notifications/{id}/read", h.MarkNotificationRead)

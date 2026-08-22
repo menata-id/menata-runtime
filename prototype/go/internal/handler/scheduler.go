@@ -26,8 +26,8 @@ import (
 // more than once a day must not fire the same record twice.
 func (h *Handler) RunScheduledEvents(ctx context.Context, workspaceID string) {
 	now := time.Now().UTC()
-	for _, m := range h.interp.AllMachines() {
-		ws, _ := h.interp.ScopeFor(m.ID)
+	for _, m := range h.interp.Get().AllMachines() {
+		ws, _ := h.interp.Get().ScopeFor(m.ID)
 		if ws != workspaceID {
 			continue
 		}

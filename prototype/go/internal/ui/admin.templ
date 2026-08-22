@@ -18,6 +18,19 @@ templ AdminUsers(identity, csrfToken string, unreadCount int, users []AdminUserR
 			trigger within that Application — see each Application's own Machines' Permissions for
 			the role vocabulary offered below.
 		</p>
+		<form method="POST" action="/admin/reload" class="mb-5 flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-5 py-3.5 shadow-sm">
+			@CSRFField(csrfToken)
+			<div class="text-sm text-slate-600">
+				<span class="font-medium text-slate-900">Reload metadata</span> — apply Machine/Field/Event/etc.
+				changes already saved to the database, without restarting the server (CAP-X04).
+			</div>
+			<button
+				type="submit"
+				class="ml-auto shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 transition-colors"
+			>
+				Reload now
+			</button>
+		</form>
 		<div class="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
 			for _, u := range users {
 				<form

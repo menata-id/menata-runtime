@@ -1620,6 +1620,110 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 >
 > No new capability admitted. Registry: `capability-registry.md`'s Workflow row and new CAP-W08 row updated; `case-portfolio.md`'s Case 7 CMMN line cross-referenced to this study; `README.md` Tier 4 table gains this row.
 
+> **Status update (2026-08-22, same day) — CAP-X04 (metadata live reload) implemented and conformance-proven, Option A only — a deliberate, narrower scope than this same section's own "Sequencing Guide" below originally recommended.** That guide's Track A entry said "build CAP-X04 + CAP-X11 together, one design pass," reasoning that both touch `Loader.LoadAll`/`interpreter.New` and ADR-002 Option C unifies them eventually. A fresh plan-mode research pass, done in full before writing any code, found a cleaner call: CAP-X11 (lazy per-workspace loading, LRU eviction, `singleflight`) solves a **scale** problem — many workspaces, each paying boot-time load cost — this single-workspace-mostly prototype has no measured pressure for yet; bundling it now would have meant "building ahead of measured need," the exact violation of "Infer Before Configure" this registry's own CAP-X10 row already refuses to commit elsewhere. B5's actual blocker was narrower: a *mechanism* to change metadata while records stay open, not a *scale* optimization on top of it. So this pass built exactly that mechanism (ADR-002 Option A: admin-triggered reload, atomic swap) and named X11 explicitly out of scope, not silently dropped.
+>
+> Design: new `internal/interpreter/store.go` — `Store`, a thin `atomic.Pointer[Interpreter]` wrapper (`NewStore`, `Get`, `Swap`). Every reader that previously held a frozen `*interpreter.Interpreter` now holds `*interpreter.Store` instead: `Handler` (91 call sites across `handler.go`/`requirement.go`/`processmap.go`/`scheduler.go`/`api.go`, mechanically transformed `h.interp.` → `h.interp.Get().` via `sed`, plus one bare-usage call site fixed by hand — `go build`'s own exhaustiveness is what makes this kind of wide, mechanical change safe: a missed site is a compile error, not a latent runtime bug), `sessionAuth`'s `visitorAuth` check (CAP-P07), and `runScheduler` — the latter two call `.Get()` **fresh at the point of use** (per-request, per-tick), not once at construction time, which is the one place a stale capture would have silently defeated the whole feature.
+>
+> New endpoint `POST /admin/reload` (`Handler.Reload`, Admin-only, same `isWorkspaceAdmin` check `AdminUsers` already uses) re-runs `h.loader.LoadAll` and swaps only on success. The property this whole feature exists to guarantee: **a bad reload must never brick the live server** — at boot, `LoadAll` failure calls `os.Exit(1)`; here it's surfaced to the admin as a 500, and the old, still-valid interpreter is never touched. A small form/button was added to the existing `/admin/users` page rather than a new page.
+>
+> Proof: `seeds/023_reload_lab.sql` (new `app_reload_lab`, `mch_reload_case`) deliberately NOT in `make seed`'s boot-time list — applied mid-conformance-run via a direct `psql` call (the same documented exception T19 already established), so T151 proves the new Machine becomes servable **without a restart**: 404 before the seed+reload, 200 after. T152: a non-Admin gets 403. T153, the critical safety proof: a deliberately malformed row (a `reference` field targeting a nonexistent Machine — the exact CAP-F13 dangling-reference check `validateReferences` already enforces) makes the reload fail (500), and an unrelated, already-working Machine (`mch_leave_request`) keeps responding 200 completely normally on the still-good old interpreter — then the malformed row is deleted immediately, a real correctness requirement (not just hygiene): left behind, it would fail the very next server *restart*, not just the next reload attempt, since boot-time `LoadAll` failure is still fatal by design. **154/154 passing, zero regressions** on the prior 151.
+>
+> Registry: `capability-registry.md`'s CAP-X04 row moved ❌→⚠️ (Option A done; Option C `LISTEN/NOTIFY` and CAP-X11 remain open, named explicitly — not ✅ for that reason). One named, accepted limitation: `Store.Get()` being called fresh per access rather than once per request means a request whose processing straddles the exact instant of a `Swap` could theoretically read old-then-new data within itself — acceptable for a rare, admin-triggered action (worst case a transient inconsistent read, never data corruption); a stronger per-request-snapshot design is not built this pass. Full write-up: `benchmarks/015-metadata-live-reload-proof.md`. **B5 (`change_policy`) is now READY** — see the Sequencing Guide below, updated to match.
+
+---
+
+# Sequencing Guide — Prerequisite Map for What's Next (added 2026-08-22)
+
+> Why this section exists: the **Prio** column in `capability-registry.md` orders work *within* a track — it says nothing about *cross-track* dependencies. A low-Prio item can still be blocked by a specific, differently-numbered (or unlisted) item elsewhere in the registry. This section makes those real prerequisites explicit as a working order, so a session doesn't start an item before what it actually depends on is done. It doesn't replace the registry — the registry stays the single source of record for status — it's the sequencing lens on top of it, kept current as items land.
+
+## The immediate decision: CAP-X04 before B5 — done, Option A only
+
+**Resolved 2026-08-22, same day** (see the status update above): CAP-X04 is implemented via ADR-002 Option A (admin-triggered reload, atomic swap), conformance-proven T151–T153. CAP-X11 (lazy per-workspace loading) was deliberately **not** bundled in — a fresh plan-mode pass found it solves a scale problem this prototype has no measured pressure for yet, while B5 only needed the reload *mechanism* to exist. **B5 is READY now.** The reasoning that led to building X04 first is kept below as-written (accurate history of the decision at the time it was made), with the Track/order lists further down updated to match the actual outcome.
+
+The natural next step after B4 (per the last status update above) was B5 — `change_policy` (CAP-W07), effective-dated metadata evolution. On inspection this is **blocked, not ready**:
+
+- CAP-W07 is CAP-W02's direct successor (CAP-W02 itself superseded, never built) — and CAP-W02's own registry row already named the real dependency: *"depends on CAP-X04 (live reload, ❌)"*. CAP-W07 changed *what* gets built (state-scoped guards compiled per change, not a version-pinned metadata cache) but not *the deployment mechanism a change policy has to reason about*.
+- CAP-W07's entire point is expressing "this change applies to `new_records` / `records_in_states [...]` / `all_records`" — a distinction that only means something if a metadata change can reach a running system while some records are already mid-flight under the old rules. Today the only way to deploy a metadata change is `Loader.LoadAll` at process boot (CAP-X04's row: "today: restart required") — a restart reloads everything for everyone atomically, so there is no live boundary between "before this change" and "after this change" to observe. `new_records` and `all_records` would behave identically under a restart-only deploy, and `records_in_states` would have nothing to prove against — there's no moment where old-metadata records and new-metadata records coexist for the policy to actually discriminate between.
+- Building B5 now would produce a compiled guard that is real Go code but not a provably-real *capability* — nothing in the runtime today can demonstrate the "in-flight work" half of what CAP-W07 claims. That fails the same admission bar (`capability-lifecycle.md`) every other ✅ row on this registry had to clear: dual evidence, and specifically here a working proof, not just a plausible compile target.
+
+**Decision: build CAP-X04 (metadata live reload) first.** Two secondary reasons reinforce it, beyond unblocking B5:
+1. CAP-X11 (lazy per-workspace metadata loading + cache) is *the same underlying mechanism* as CAP-X04 — both rows say so explicitly, and ADR-002 Option C already unifies them. Building X04 alone and X11 later means touching `Loader.LoadAll`/`interpreter.New` twice; doing them in one pass is cheaper than sequencing them apart.
+2. CAP-X08's import half (⚠️, not built) was deliberately deferred pending "a real reload story" of its own — CAP-X04 unblocks that too, not just B5.
+
+This is a genuine architectural risk item, not a batch-sized addition — CAP-X04's own row already warned of this twice (2026-07-12 review) — it touches the exact boot-time mechanism every other capability in this runtime depends on. It deserves its own focused plan-mode session, the same discipline B1–B4 already used before implementing.
+
+## How to read the rest of this map
+
+Each item is tagged:
+- **READY** — no further prerequisite; pick up in Prio order whenever a session is free.
+- **BLOCKED** — has a real, named prerequisite; do not start until that prerequisite is ✅.
+- **PARKED (HOLD)** — evidence-thin or no case yet; per the standing admission discipline (`capability-lifecycle.md`), do not build speculatively — wait for a real case.
+
+### Track A — Metadata Loading Infrastructure
+
+1. **CAP-X04 — ✅ done** (Option A: admin-triggered reload, atomic swap; T151–T153). Unblocked B5 (Track B) and CAP-X08's import half (Track E).
+2. **CAP-X11 (lazy per-workspace loading + cache)** — READY, independent, no longer bundled with X04 (see the "done, Option A only" note above) — a scale concern with no measured pressure yet, per this registry's own "Infer Before Configure" discipline; pick up when a real multi-workspace load case demands it.
+
+### Track B — Process Overlay (Workflow), B-series
+
+1. B1 process compiler trunk — ✅ done
+2. B2 process map, forward direction — ✅ done; backward direction (decompile *lift* — same item as B6 below) — ⚠️ open, READY, independent
+3. B3 generic `Requirement`, `evidence` type — ⚠️ done; other six requirement types (form/entity/task/approval/document/decision) — READY, purely additive scope, no blocker
+4. B4 Part 1, SLA (CAP-W04) — ✅ done
+5. B4 Part 2, Quorum-core (CAP-W03) — ✅ core done (hand-authored `min_approvals`); quorum's *declarative* form (via `process.requirements[].type == "approval"`) — READY but needs its own design pass first: a genuinely new cross-machine compile capability (injecting an action onto a separately-loaded child Machine's own events), which B1–B3 never needed
+6. **B5, `change_policy` (CAP-W07) — READY** (Track A/CAP-X04 done, Option A)
+7. B6, decompiler/lift (CAP-W05 backward direction) — same item as "B2 backward" above; READY, independent
+8. CAP-W06, async action outbox — READY, independent of the Overlay entirely (already evidenced by Cases 3/10/12 regardless of whether the Overlay exists) — named "Fase 0" in `brd-menata-runtime-v2.md` §13 for that reason
+9. CAP-W08, Compound Sentry — **PARKED (HOLD)**, evidence-thin, no case demands it (Study 22)
+
+### Track C — Case 9 completion batch (v1 substrate, independent of the Overlay)
+
+Correction to the 2026-08-22 B2 status update above: this batch was originally assumed to be a B3 prerequisite ("pulled in exactly when B3 needs the write-time-fan-in counters they provide") — B3's own same-day implementation note found that assumption wrong: CAP-C10/C11/C08 are read-time SQL-aggregate constraints, the *opposite* of the write-time-fan-in keystone B3 actually needed. This batch is real, valuable, independent v1 work — it does not gate, and is not gated by, anything in Track B.
+
+1. **CAP-C10** (`sum(debit) = sum(credit)`) — READY, its only named dependency (CAP-F16) is already ✅
+2. **CAP-C11** (no posting into a closed period) — READY, no dependency
+3. **CAP-C08** (cross-record constraint, generalized) — READY, no dependency
+
+No required order among the three — grouped only because Case 9 (Accounting) is the shared forcing case. Downstream, once these land: CAP-V15 (live aggregate preview, follows CAP-C10) and CAP-V19 (live cross-record balance preview, follows CAP-C08) become buildable — both currently ❌ with no Prio, both explicitly named against these as their forcing constraint.
+
+### Track D — UI/Interaction cluster (`benchmarks/008-ui-workflow-interaction-benchmark.md`)
+
+- CAP-V16 (typeahead/autocomplete) — READY, independent
+- CAP-V17 (SLA countdown badge) — READY, independent (pairs naturally with CAP-W04 SLA, already ✅, but not blocked by it)
+- CAP-V18 (resource-grouped calendar) — READY, independent, extends already-✅ CAP-V07
+- CAP-V14 Tier 2 (kanban board drag-and-drop) — READY, independent, extends already-✅ CAP-V14
+- CAP-V15 (live aggregate preview) — **BLOCKED on Track C / CAP-C10**
+- CAP-V19 (live cross-record balance preview) — **BLOCKED on Track C / CAP-C08**
+
+### Track E — Independent, no dependency, pick up per Prio when convenient
+
+- CAP-F20 (many-to-many join machine), Prio 5
+- CAP-X09 (organizational unit scoping), Prio 6 — needs its own Study-level design pass, same rigor CAP-O01 got, not a batch item
+- CAP-X08 import half, Prio 9 — **READY** (Track A/CAP-X04 done, Option A — "a real reload story" now exists)
+- CAP-X10 (metadata-driven index management), Prio 10 — deliberately deferred until real load pressure exists (own row: building ahead of measured need contradicts "Infer Before Configure")
+- CAP-I04 SLO half, Prio 10
+- CAP-O07 (Groups/Teams), Prio 14 — cheap to retrofit whenever needed
+- CAP-F17 real Currency Machine, CAP-F21 binary PDF/image render — both deferred, no case forcing either yet
+
+### Track F — Parked (HOLD), do not schedule without new case evidence
+
+- CAP-V11 (channel-independent rendering) — evidence-thin, single source
+- CAP-W08 (Compound Sentry) — evidence-thin, single source
+- CAP-W02 — superseded by CAP-W07, dead, kept only per ratchet (no future work against this row)
+
+## Recommended order for upcoming sessions
+
+1. ~~CAP-X04~~ — ✅ done (Option A). CAP-X11 demoted to Track A/#2 below, no longer a co-requisite.
+2. **B5, `change_policy`** (Track B) — now provable, own plan-mode session
+3. Quorum's declarative form (Track B) — own plan-mode session (new cross-machine compile capability); can interleave with #2 in either order, neither blocks the other
+4. B6 / decompile-lift (Track B) — low risk, can slot in anytime
+5. **Case 9 completion batch: CAP-C10 → CAP-C11 → CAP-C08** (Track C) — no required order among the three
+6. CAP-W06 async outbox (Track B) — anytime, independent
+7. UI cluster (Track D): CAP-V16/V17/V18/CAP-V14-Tier-2 anytime; CAP-V15 after step 5 (CAP-C10); CAP-V19 after step 5 (CAP-C08)
+8. CAP-X08 import completion (Track E) — ready now, X04 done
+9. CAP-X11 (Track A/#2) and remaining Prio-tagged items (Track E) opportunistically, no measured urgency
+10. Leave Track F alone until a real case names the need
+
 ---
 
 # Principles

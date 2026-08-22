@@ -61,12 +61,12 @@ type apiRecord struct {
 // APIList handles GET /api/{machineID}.
 func (h *Handler) APIList(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -94,12 +94,12 @@ func (h *Handler) APIList(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) APIGet(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	recordID := chi.URLParam(r, "recordID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -125,12 +125,12 @@ func (h *Handler) APIGet(w http.ResponseWriter, r *http.Request) {
 // wizard steps (see this file's own top-of-file scope note).
 func (h *Handler) APICreate(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -222,7 +222,7 @@ func (h *Handler) APIExportApplication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	applicationID := chi.URLParam(r, "applicationID")
-	app, ok := h.interp.GetApplication(applicationID)
+	app, ok := h.interp.Get().GetApplication(applicationID)
 	if !ok || app.WorkspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return

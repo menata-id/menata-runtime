@@ -93,12 +93,12 @@ func extractProcessMap(machine *model.Machine) (states []string, initial string,
 // auxiliary View type) -> extract -> render.
 func (h *Handler) ProcessMap(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
-	machine, ok := h.interp.GetMachine(machineID)
+	machine, ok := h.interp.Get().GetMachine(machineID)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
-	workspaceID, applicationID := h.interp.ScopeFor(machineID)
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
 	if workspaceID != h.workspace(r) {
 		http.NotFound(w, r)
 		return
@@ -109,7 +109,7 @@ func (h *Handler) ProcessMap(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return
 	}
-	view := h.interp.ProcessMapView(machineID)
+	view := h.interp.Get().ProcessMapView(machineID)
 	if view == nil {
 		http.NotFound(w, r)
 		return
