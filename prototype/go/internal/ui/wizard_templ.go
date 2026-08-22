@@ -214,7 +214,7 @@ func WizardForm(identity, csrfToken string, isAdmin bool, machine *model.Machine
 				}
 			}
 			for _, ff := range fields {
-				templ_7745c5c3_Err = FieldInput(ff.Field, ff.Name, ff.Value, ff.Options).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

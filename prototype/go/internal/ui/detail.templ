@@ -46,7 +46,7 @@ templ Detail(identity, csrfToken string, isAdmin bool, machine *model.Machine, r
 							>
 								@CSRFField(csrfToken)
 								for _, inp := range trig.Inputs {
-									@FieldInput(inp.Field, inp.Name, inp.Value, inp.Options)
+									@FieldInput(inp.Field, inp.Name, inp.Value, inp.Options, inp.Typeahead, inp.TypeaheadURL, inp.TypeaheadLabel)
 								}
 								<button
 									type="submit"

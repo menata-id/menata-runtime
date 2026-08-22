@@ -71,6 +71,15 @@ type FormField struct {
 	Name    string // HTML input name/id -- Field.ID normally, or CAP-F16's indexed child-row name
 	Value   string
 	Options []ReferenceOption
+
+	// Typeahead (CAP-V16) is true when this reference/user field's
+	// candidate pool exceeded the eager-<select> threshold -- Options is
+	// left empty in that case (nothing to render into a <select> with),
+	// and the picker instead search-queries TypeaheadURL as the user
+	// types (handler.FieldOptions).
+	Typeahead      bool
+	TypeaheadURL   string
+	TypeaheadLabel string // the current value's own display label, pre-filling the search box on Edit
 }
 
 // ChildLinesData (CAP-F16) is a form's embedded child-Machine row editor --

@@ -189,7 +189,7 @@ func Detail(identity, csrfToken string, isAdmin bool, machine *model.Machine, re
 						return templ_7745c5c3_Err
 					}
 					for _, inp := range trig.Inputs {
-						templ_7745c5c3_Err = FieldInput(inp.Field, inp.Name, inp.Value, inp.Options).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = FieldInput(inp.Field, inp.Name, inp.Value, inp.Options, inp.Typeahead, inp.TypeaheadURL, inp.TypeaheadLabel).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
+
+	"github.com/go-chi/chi/v5"
 
 	"menata.id/runtime/internal/constraint"
 	"menata.id/runtime/internal/model"
@@ -35,6 +38,13 @@ func (h *Handler) buildFormFields(ctx context.Context, machine *model.Machine, v
 // buildFormFieldsFor is buildFormFields narrowed to an explicit fieldIDs
 // subset -- CAP-V12's own use, one step's worth of fields at a time, rather
 // than a FormView's whole declared set.
+// typeaheadThreshold (CAP-V16) is the candidate-pool size past which a
+// reference/user picker switches from an eager <select> to a search-as-
+// you-type fragment swap -- a judgment call, not derived from a case,
+// matching the existing pageSize=25 convention (record_crud.go's List)
+// rather than inventing a second number.
+const typeaheadThreshold = 25
+
 func (h *Handler) buildFormFieldsFor(ctx context.Context, machine *model.Machine, fieldIDs []string, vals map[string]any) []ui.FormField {
 	fieldByID := fieldIndex(machine)
 
@@ -57,7 +67,20 @@ func (h *Handler) buildFormFieldsFor(ctx context.Context, machine *model.Machine
 		case model.FieldTypeUser:
 			opts = h.userFieldOptions(ctx, machine.ApplicationID)
 		}
-		fields = append(fields, ui.FormField{Field: f, Name: f.ID, Value: val, Options: opts})
+		ff := ui.FormField{Field: f, Name: f.ID, Value: val, Options: opts}
+		if (f.Type == model.FieldTypeReference || f.Type == model.FieldTypeUser) && len(opts) > typeaheadThreshold {
+			ff.Typeahead = true
+			ff.Options = nil // nothing to render into a <select> with -- TypeaheadPicker queries TypeaheadURL instead
+			ff.TypeaheadURL = "/" + machine.ID + "/field-options?field=" + f.ID
+			if val != "" {
+				if f.Type == model.FieldTypeReference {
+					ff.TypeaheadLabel, _ = h.referenceLabel(ctx, f.Options.TargetMachine, val)
+				} else {
+					ff.TypeaheadLabel, _ = h.userLabel(ctx, val)
+				}
+			}
+		}
+		fields = append(fields, ff)
 	}
 	return fields
 }
@@ -253,6 +276,63 @@ func (h *Handler) referenceOptions(ctx context.Context, targetMachineID string) 
 		opts = append(opts, ui.ReferenceOption{ID: rec.ID, Label: displayLabel(targetMachine, rec.Data)})
 	}
 	return opts
+}
+
+// FieldOptions (CAP-V16) is TypeaheadPicker's own search endpoint -- an
+// HTML fragment (FieldOptionsFragment), not JSON, matching this project's
+// HTMX-driven "no SPA framework" posture rather than extending CAP-X07's
+// JSON API with a new query surface. Read-gated the same as List/Detail on
+// the SAME Machine the field lives on (?field= must name a real Field on
+// it) -- a picker never leaks more than the form itself already would.
+// Substring match on Label reuses CAP-V08's own case-insensitive
+// contains-match logic (record_crud.go's List), applied here to the
+// already-built ReferenceOption list rather than to raw record fields.
+func (h *Handler) FieldOptions(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	machine, ok := h.interp.Get().GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanRead(machine, role) {
+		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	f, ok := fieldIndex(machine)[r.URL.Query().Get("field")]
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	var opts []ui.ReferenceOption
+	switch f.Type {
+	case model.FieldTypeReference:
+		opts = h.referenceOptions(r.Context(), f.Options.TargetMachine)
+	case model.FieldTypeUser:
+		opts = h.userFieldOptions(r.Context(), applicationID)
+	default:
+		http.NotFound(w, r)
+		return
+	}
+	if q := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q"))); q != "" {
+		kept := opts[:0]
+		for _, o := range opts {
+			if strings.Contains(strings.ToLower(o.Label), q) {
+				kept = append(kept, o)
+			}
+		}
+		opts = kept
+	}
+	page := ui.FieldOptionsFragment(f.ID, opts)
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render field options", "error", err)
+	}
 }
 
 // referenceLabel resolves one record's display label, for rendering an

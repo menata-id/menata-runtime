@@ -213,6 +213,9 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T168 | CAP-V17 | a ticket due far in the future does not render the overdue badge |
 | T169 | CAP-V18 | two staff with same-day appointments each show only their own (resource-grouped calendar) |
 | T170 | CAP-V18 | a staff member with zero appointments still gets its own (empty) section |
+| T171 | CAP-V16 | a 30-candidate reference field renders the typeahead input, not an eager 30-option select |
+| T172 | CAP-V16 | `GET .../field-options?q=` returns only matching candidates, not all 30 |
+| T173 | CAP-V16 | submitting a typeahead-selected value creates the record correctly end-to-end |
 
 ---
 

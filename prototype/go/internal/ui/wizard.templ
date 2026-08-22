@@ -45,7 +45,7 @@ templ WizardForm(identity, csrfToken string, isAdmin bool, machine *model.Machin
 						<input type="hidden" name={ h.Name } value={ h.Value }/>
 					}
 					for _, ff := range fields {
-						@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options)
+						@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel)
 					}
 					<div class="flex items-center gap-3 border-t border-slate-100 pt-5">
 						<button

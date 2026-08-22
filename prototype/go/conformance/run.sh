@@ -1986,6 +1986,39 @@ print('OK' if start != -1 and 'No dated records' in section else 'FAIL')
 [ "$V18_IDLE" = "OK" ]
 check T170 "CAP-V18" "a staff member with zero appointments still gets its own (empty) section (got $V18_IDLE)" $?
 
+# --- CAP-V16 (typeahead/autocomplete) -- seeds/031, boot-time (30
+# pre-seeded Product records, past the 25-record eager-<select> threshold).
+
+TA_CLERK=$(session_for typeahead.clerk@example.com password)
+
+# T171 -- the New Order form renders the typeahead input (referencing the
+# new field-options endpoint), not a 30-option <select> (no eagerly-listed
+# product name anywhere in the page).
+NEW_ORDER_BODY=$(get_body "$BASE_URL/mch_v16_order/new" "$TA_CLERK")
+echo "$NEW_ORDER_BODY" | grep -q 'field-options?field=fld_v16o_product'
+HAS_TYPEAHEAD=$?
+! echo "$NEW_ORDER_BODY" | grep -q "Widget 015"
+HAS_NO_EAGER_OPTION=$?
+[ "$HAS_TYPEAHEAD" -eq 0 ] && [ "$HAS_NO_EAGER_OPTION" -eq 0 ]
+check T171 "CAP-V16" "a 30-candidate reference field renders the typeahead input, not an eager 30-option select" $?
+
+# T172 -- the search endpoint returns only matching candidates, not all 30.
+OPTS_BODY=$(get_body "$BASE_URL/mch_v16_order/field-options?field=fld_v16o_product&q=029" "$TA_CLERK")
+echo "$OPTS_BODY" | grep -q "Widget 029"
+HAS_MATCH=$?
+! echo "$OPTS_BODY" | grep -q "Widget 001"
+HAS_NO_OTHER=$?
+[ "$HAS_MATCH" -eq 0 ] && [ "$HAS_NO_OTHER" -eq 0 ]
+check T172 "CAP-V16" "GET .../field-options?q=029 returns only the matching candidate, not all 30" $?
+
+# T173 -- submitting a typeahead-selected value still creates the record
+# correctly end-to-end -- the real regression check, proving the hidden
+# field round-trips a valid id exactly like the eager <select> already did.
+PRODUCT_ID=$(echo "$OPTS_BODY" | grep -oE 'data-id="[a-f0-9-]+"' | head -1 | sed -E 's/data-id="([^"]+)"/\1/')
+ORDER_URL=$(post_redirect "$BASE_URL/mch_v16_order" "fld_v16o_title=Typeahead+Order+$$&fld_v16o_product=$PRODUCT_ID" "$TA_CLERK")
+body_contains "$ORDER_URL" "Widget 029" "$TA_CLERK"
+check T173 "CAP-V16" "submitting a typeahead-selected value creates the record correctly end-to-end" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

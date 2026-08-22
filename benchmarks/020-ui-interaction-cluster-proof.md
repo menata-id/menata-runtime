@@ -68,3 +68,40 @@ already diagnosed earlier this session, not caused by this phase; the fresh-sche
 that directly).
 
 **Registry impact**: `capability-registry.md`'s CAP-V18 row ❌→✅.
+
+---
+
+## Phase 3 — CAP-V16: typeahead/autocomplete
+
+**Scope decision, diverging from the registry's own original sketch, named explicitly**: rather
+than extending CAP-X07's JSON API with a `?q=` filter (this row's original framing), the picker
+is an HTMX search-as-you-type fragment swap (new `GET /{machineID}/field-options?field=&q=`,
+returning HTML, not JSON) — HTMX is already loaded (`layout.templ`) and is this project's own
+established "no SPA framework" enhancement layer, a better fit than a new JSON surface consumed
+by hand-written fetch code. `buildFormFieldsFor` keeps today's eager `<select>` for pools ≤25
+(`typeaheadThreshold`, matching the existing `pageSize` convention, a judgment call not derived
+from a case) and switches to a new `TypeaheadPicker` component above that threshold — zero
+regression risk on every one of this suite's existing small pickers.
+
+**A real finding that changed the design mid-implementation**: filling the hidden field on click
+needs the selected option's Label — the natural-looking approach (interpolating it into a
+per-option inline `hx-on:click` JS expression) is a genuine risk: templ's `{ }` interpolation
+HTML-escapes for attribute-value safety, not for JS-string safety, so a Label containing an
+apostrophe (a real possibility — product/person names routinely have one) could break or, worse,
+inject. Solved with `data-*` attributes (which templ safely HTML-escapes) plus **one small,
+static, page-level, non-interpolated** delegated click listener in `layout.templ` — the one piece
+of hand-written JS this phase needed after all, not the "zero JS" originally planned, but
+qualitatively different from a per-instance script: written once, never templated, so there's
+nothing for it to leak.
+
+**Proof**: new `seeds/031_typeahead_lab.sql` (30 pre-seeded `Product` records via a single `SQL`
+`generate_series` insert, not 30 boot-time HTTP round trips). T171: the New Order form renders
+the typeahead input, not an eager 30-option `<select>` (no product name anywhere in the page).
+T172: `GET .../field-options?q=029` returns only the one matching product. T173: submitting a
+typeahead-selected value still creates the record correctly — the real regression check, proving
+the hidden field round-trips a valid id exactly like the eager `<select>` already did. **173/173
+conformance passing, zero regressions**, confirmed on a fresh isolated schema (and manually
+exercised in a real browser-equivalent request/response cycle before trusting the automated
+suite, per this project's own `CLAUDE.md` discipline).
+
+**Registry impact**: `capability-registry.md`'s CAP-V16 row ❌→✅.

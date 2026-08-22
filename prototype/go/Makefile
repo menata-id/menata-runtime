@@ -82,6 +82,7 @@ seed:
 	psql "$(DB_URL)" -f seeds/027_case9_completion_lab.sql
 	psql "$(DB_URL)" -f seeds/029_sla_badge_lab.sql
 	psql "$(DB_URL)" -f seeds/030_resource_calendar_lab.sql
+	psql "$(DB_URL)" -f seeds/031_typeahead_lab.sql
 
 # The real test suite (there are no Go unit tests in this codebase -- every
 # capability's proof is here, per capability-registry.md's Proof column).

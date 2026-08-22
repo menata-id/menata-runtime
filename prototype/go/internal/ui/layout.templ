@@ -30,6 +30,27 @@ templ Page(title, identity, csrfToken string, isAdmin bool, unreadCount int, sub
 			<div class="mx-auto max-w-5xl px-4 py-6">
 				{ children... }
 			</div>
+			// CAP-V16: the one static, page-level script this project needs --
+			// a delegated click listener filling a TypeaheadPicker's hidden
+			// field from whichever .field-option the user clicked. Reads
+			// data-* attributes (safely HTML-escaped by templ wherever
+			// they're set, components.templ's FieldOptionsFragment)
+			// rather than interpolating a Label into an inline JS
+			// attribute, which would need escaping it as JS source, not
+			// just as an HTML attribute value.
+			<script>
+				document.addEventListener('click', function(e) {
+					var opt = e.target.closest('.field-option');
+					if (!opt) return;
+					var target = opt.dataset.target;
+					var hidden = document.getElementById(target);
+					var search = document.getElementById(target + '_search');
+					var list = document.getElementById(target + '_opts');
+					if (hidden) hidden.value = opt.dataset.id;
+					if (search) search.value = opt.dataset.label;
+					if (list) list.innerHTML = '';
+				});
+			</script>
 		</body>
 	</html>
 }
