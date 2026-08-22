@@ -598,7 +598,13 @@ func (l *Loader) loadMachineDetails(ctx context.Context, m *model.Machine) error
 	// downstream (validateReferences/validateOperators, Interpreter, Guard,
 	// Executor) then treats the compiled result exactly like hand-authored
 	// metadata, including re-validating it.
-	return compileProcess(m)
+	if err := compileProcess(m); err != nil {
+		return err
+	}
+	// CAP-W07: compiles each Constraint's change_policy (if any) into its
+	// own Condition -- needs this Machine's own Fields (the Status field)
+	// already loaded above, which they are by this point.
+	return compileChangePolicies(m)
 }
 
 func (l *Loader) loadFields(ctx context.Context, machineID string) ([]*model.Field, error) {
@@ -754,7 +760,7 @@ func (l *Loader) loadEventActions(ctx context.Context, eventID string) ([]*model
 
 func (l *Loader) loadConstraints(ctx context.Context, machineID string) ([]*model.Constraint, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, machine_id, rule, expression::text, condition::text, position
+		`SELECT id, machine_id, rule, expression::text, condition::text, position, change_policy::text
 		 FROM constraints WHERE machine_id = $1 ORDER BY position`,
 		machineID)
 	if err != nil {
@@ -767,7 +773,8 @@ func (l *Loader) loadConstraints(ctx context.Context, machineID string) ([]*mode
 		c := &model.Constraint{}
 		var exprJSON string
 		var condJSON *string
-		if err := rows.Scan(&c.ID, &c.MachineID, &c.Rule, &exprJSON, &condJSON, &c.Position); err != nil {
+		var changePolicyJSON *string
+		if err := rows.Scan(&c.ID, &c.MachineID, &c.Rule, &exprJSON, &condJSON, &c.Position, &changePolicyJSON); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal([]byte(exprJSON), &c.Expression); err != nil {
@@ -777,6 +784,12 @@ func (l *Loader) loadConstraints(ctx context.Context, machineID string) ([]*mode
 			c.Condition = &model.ConstraintExpression{}
 			if err := json.Unmarshal([]byte(*condJSON), c.Condition); err != nil {
 				return nil, fmt.Errorf("parse condition for constraint %s: %w", c.ID, err)
+			}
+		}
+		if changePolicyJSON != nil {
+			c.ChangePolicy = &model.ChangePolicy{}
+			if err := json.Unmarshal([]byte(*changePolicyJSON), c.ChangePolicy); err != nil {
+				return nil, fmt.Errorf("parse change_policy for constraint %s: %w", c.ID, err)
 			}
 		}
 		out = append(out, c)

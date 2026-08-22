@@ -1180,7 +1180,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 
 		var violations []string
 		if !h.inScratchState(machine, data) {
-			violations = h.engine.Violations(machine, data)
+			violations = h.engine.Violations(machine, withChangePolicyCreatedAt(machine, data, time.Now()))
 		}
 		if refV, err := h.referenceViolations(r.Context(), machine, data); err == nil {
 			violations = append(violations, refV...)
@@ -1387,7 +1387,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	// Constraints too (referential integrity still applies, below).
 	var violations []string
 	if !h.inScratchState(machine, data) {
-		violations = h.engine.Violations(machine, data)
+		violations = h.engine.Violations(machine, withChangePolicyCreatedAt(machine, data, time.Now()))
 	}
 	refViolations, err := h.referenceViolations(r.Context(), machine, data)
 	if err != nil {
@@ -1622,7 +1622,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	// a scratch record can be incomplete, not corrupt.
 	var violations []string
 	if !h.inScratchState(machine, data) {
-		violations = h.engine.Violations(machine, data)
+		violations = h.engine.Violations(machine, withChangePolicyCreatedAt(machine, data, rec.CreatedAt))
 	}
 	refViolations, err := h.referenceViolations(r.Context(), machine, data)
 	if err != nil {
@@ -2028,7 +2028,7 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 	workspaceID, _ := h.interp.Get().ScopeFor(machine.ID)
 	holidays := h.interp.Get().Holidays(workspaceID)
 	newData := h.exec.Simulate(machine, event, rec, actorRole, actorIdentity, eventInput, holidays)
-	if violations := h.engine.Violations(machine, newData); len(violations) > 0 {
+	if violations := h.engine.Violations(machine, withChangePolicyCreatedAt(machine, newData, rec.CreatedAt)); len(violations) > 0 {
 		return &ruleViolation{strings.Join(violations, " ")}
 	}
 
@@ -2614,6 +2614,25 @@ func (h *Handler) inScratchState(machine *model.Machine, data map[string]any) bo
 		}
 	}
 	return false
+}
+
+// withChangePolicyCreatedAt (CAP-W07) exposes a record's creation time to
+// constraint.Eval as an ordinary comparable field (model.ChangePolicyCreatedAtField)
+// without ever persisting it. Always returns a COPY -- data is the exact map
+// that gets written to the record's JSONB column right after the Violations
+// check runs, so mutating it in place would leak the synthetic key into
+// storage. Skips the copy entirely for the vast majority of Machines that
+// declare no `new_records` change_policy (machine.NeedsCreatedAtGuard).
+func withChangePolicyCreatedAt(machine *model.Machine, data map[string]any, t time.Time) map[string]any {
+	if !machine.NeedsCreatedAtGuard {
+		return data
+	}
+	out := make(map[string]any, len(data)+1)
+	for k, v := range data {
+		out[k] = v
+	}
+	out[model.ChangePolicyCreatedAtField] = t.Format("2006-01-02")
+	return out
 }
 
 // uniquenessViolations (CAP-C12) enforces `unique` constraints -- single or

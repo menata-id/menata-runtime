@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -162,7 +163,7 @@ func (h *Handler) APICreate(w http.ResponseWriter, r *http.Request) {
 
 	var violations []string
 	if !h.inScratchState(machine, data) {
-		violations = h.engine.Violations(machine, data)
+		violations = h.engine.Violations(machine, withChangePolicyCreatedAt(machine, data, time.Now()))
 	}
 	refViolations, err := h.referenceViolations(r.Context(), machine, data)
 	if err != nil {

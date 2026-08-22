@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"menata.id/runtime/internal/model"
 )
@@ -555,4 +556,66 @@ func slug(s string) string {
 		}
 	}
 	return strings.Trim(b.String(), "_")
+}
+
+// findStatusField is resolveStatusField's read-only counterpart -- CAP-W07's
+// change_policy needs to find the Machine's existing Status field (any
+// Machine with real transitions already has one), never generate one the
+// way Process Overlay's own resolveStatusField does.
+func findStatusField(m *model.Machine) *model.Field {
+	for _, f := range m.Fields {
+		if strings.EqualFold(f.Name, "Status") {
+			return f
+		}
+	}
+	return nil
+}
+
+// compileChangePolicies (CAP-W07 -- see model.ChangePolicy's doc comment)
+// compiles every Constraint's declared change_policy into that Constraint's
+// own Condition. Runs after compileProcess so a process-overlay-compiled
+// Machine's Status field already exists by the time records_in_states needs
+// to resolve it.
+func compileChangePolicies(m *model.Machine) error {
+	for _, c := range m.Constraints {
+		cp := c.ChangePolicy
+		if cp == nil {
+			continue
+		}
+		if c.Condition != nil {
+			return fmt.Errorf("constraint %s on machine %s: change_policy cannot be combined with an existing condition on the same constraint (not supported yet -- attach change_policy only to a constraint with no other condition)", c.ID, m.ID)
+		}
+		switch cp.AppliesTo {
+		case "all_records":
+			// Explicit, intentionally inert -- matches today's default
+			// behavior, named on purpose rather than left implicit.
+		case "records_in_states":
+			if len(cp.States) == 0 {
+				return fmt.Errorf("constraint %s on machine %s: change_policy records_in_states needs at least one state", c.ID, m.ID)
+			}
+			statusField := findStatusField(m)
+			if statusField == nil {
+				return fmt.Errorf("constraint %s on machine %s: change_policy records_in_states needs a Status field on this machine", c.ID, m.ID)
+			}
+			declared := make(map[string]bool, len(statusField.Options.Values))
+			for _, v := range statusField.Options.Values {
+				declared[v] = true
+			}
+			for _, s := range cp.States {
+				if !declared[s] {
+					return fmt.Errorf("constraint %s on machine %s: change_policy state %q is not among the Status field's declared values", c.ID, m.ID, s)
+				}
+			}
+			c.Condition = &model.ConstraintExpression{Field: statusField.ID, Operator: "in", Values: cp.States}
+		case "new_records":
+			if _, err := time.Parse("2006-01-02", cp.EffectiveFrom); err != nil {
+				return fmt.Errorf("constraint %s on machine %s: change_policy new_records needs effective_from as YYYY-MM-DD, got %q", c.ID, m.ID, cp.EffectiveFrom)
+			}
+			c.Condition = &model.ConstraintExpression{Field: model.ChangePolicyCreatedAtField, Operator: "on_or_after", Value: cp.EffectiveFrom}
+			m.NeedsCreatedAtGuard = true
+		default:
+			return fmt.Errorf("constraint %s on machine %s: change_policy has unrecognized applies_to %q", c.ID, m.ID, cp.AppliesTo)
+		}
+	}
+	return nil
 }

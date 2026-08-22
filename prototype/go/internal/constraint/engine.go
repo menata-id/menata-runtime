@@ -77,7 +77,7 @@ func Eval(expr model.ConstraintExpression, data map[string]any) bool {
 	case "not_equals":
 		return str != resolveCompareValue(expr, data)
 
-	case "after", "before":
+	case "after", "before", "on_or_after", "on_or_before":
 		cmpStr := resolveCompareValue(expr, data)
 		if str == "" || cmpStr == "" {
 			return false
@@ -90,10 +90,24 @@ func Eval(expr model.ConstraintExpression, data map[string]any) bool {
 		if !ok {
 			return false
 		}
-		if expr.Operator == "after" {
+		switch expr.Operator {
+		case "after":
 			return t.After(cmp)
+		case "before":
+			return t.Before(cmp)
+		case "on_or_after":
+			return !t.Before(cmp)
+		default: // "on_or_before"
+			return !t.After(cmp)
 		}
-		return t.Before(cmp)
+
+	case "in": // CAP-W07 -- membership check, e.g. change_policy's records_in_states
+		for _, v := range expr.Values {
+			if str == v {
+				return true
+			}
+		}
+		return false
 
 	case "greater_than", "less_than", "greater_than_or_equal", "less_than_or_equal":
 		cmpStr := resolveCompareValue(expr, data)

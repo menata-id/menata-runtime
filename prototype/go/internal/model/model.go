@@ -41,6 +41,11 @@ type Machine struct {
 	Config        map[string]string
 	Subscriptions []*Subscription // CAP-I01: this Machine's OWN declared interest in other Machines' Events
 	Process       *Process        // Process Overlay B1 -- consumed (and satisfied) entirely at load time
+	// NeedsCreatedAtGuard (CAP-W07) is true iff any Constraint on this
+	// Machine has a `new_records` change_policy -- lets every
+	// engine.Violations call site skip exposing ChangePolicyCreatedAtField
+	// (a real map copy) for the vast majority of Machines that never use it.
+	NeedsCreatedAtGuard bool
 }
 
 // Process (Process Overlay B1 — brd-menata-runtime-v2.md §7.2, Study 20 §6)
@@ -386,12 +391,13 @@ const (
 
 // Constraint is a business rule enforced before an event is accepted.
 type Constraint struct {
-	ID         string
-	MachineID  string
-	Rule       string // human-readable description
-	Expression ConstraintExpression
-	Condition  *ConstraintExpression // nil = always applies
-	Position   int
+	ID           string
+	MachineID    string
+	Rule         string // human-readable description
+	Expression   ConstraintExpression
+	Condition    *ConstraintExpression // nil = always applies
+	Position     int
+	ChangePolicy *ChangePolicy // CAP-W07 -- compiled into Condition at load time, see compileChangePolicies
 }
 
 // ConstraintExpression is the evaluatable part of a Constraint.
@@ -403,12 +409,38 @@ type Constraint struct {
 // composite key -- ["fld_a","fld_b"] for a multi-field uniqueness rule,
 // checked cross-record (constraint.Engine can't do this alone, see
 // handler.uniquenessViolations), not evaluated by constraint.Eval.
+// Values (operator "in" only, CAP-W07) is a membership list.
 type ConstraintExpression struct {
 	Field      string   `json:"field,omitempty"`
 	Fields     []string `json:"fields,omitempty"`
 	Operator   string   `json:"operator"`
 	Value      string   `json:"value,omitempty"`
 	ValueField string   `json:"value_field,omitempty"`
+	Values     []string `json:"values,omitempty"`
+}
+
+// ChangePolicyCreatedAtField is the synthetic, never-persisted data key
+// constraint.Eval reads a record's creation time from when a Constraint's
+// compiled Condition needs it (`new_records` change_policy). Never a real
+// Field ID -- every real one is "fld_...".
+const ChangePolicyCreatedAtField = "__created_at__"
+
+// ChangePolicy (CAP-W07 -- brd-menata-runtime-v2.md §13 Fase 4,
+// benchmarks/012-process-model-synthesis.md §6.4) declares which in-flight
+// records a newly added/tightened Constraint applies to, answering the
+// question neither the comparator BRD's blanket version-pinning nor this
+// runtime's own pre-CAP-W07 behavior could express: "does this rule change
+// reach open records, or only new ones?" Compiled at load time
+// (compileChangePolicies, internal/metadata/compile.go) into the Constraint's
+// own Condition -- no engine change, no version-pinned metadata cache, one
+// live model. Attaches to a Constraint that has no other Condition already
+// (a documented, deferred limitation -- combining with a pre-existing
+// Condition would need Constraint.Conditions []ConstraintExpression, not
+// built this pass, no case demands it yet).
+type ChangePolicy struct {
+	AppliesTo     string   `json:"applies_to"`               // "new_records" | "records_in_states" | "all_records"
+	States        []string `json:"states,omitempty"`         // records_in_states only
+	EffectiveFrom string   `json:"effective_from,omitempty"` // new_records only, "2006-01-02"
 }
 
 // SupportedOperators is every constraint/condition operator this runtime
@@ -430,6 +462,9 @@ var SupportedOperators = map[string]bool{
 	"greater_than_or_equal": true,
 	"less_than_or_equal":    true,
 	"unique":                true,
+	"in":                    true, // CAP-W07
+	"on_or_after":           true, // CAP-W07
+	"on_or_before":          true, // CAP-W07
 }
 
 // AggregateCondition (CAP-A14) gates an Event on a computed sum across

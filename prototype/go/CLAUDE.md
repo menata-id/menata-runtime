@@ -233,10 +233,13 @@ under this same shared directory — clean them up (`rm -rf uploads`) after an i
 verification pass the same way you'd drop the schema itself, so stray test images don't
 accumulate across every future batch's own verification runs.
 
-**A seed/permission data change needs a server restart to take effect, same as a code change.**
-The Interpreter loads every Machine's Permissions (and everything else) into memory once at boot
-(`interpreter.New`) — re-running a seed file that adds or updates a `permissions` row (e.g. a new
-`can_read` grant) changes the database immediately but the *running* server keeps serving the old,
-now-stale in-memory model until it's restarted. Caught once already: a new permission row tested
-as still-denied against a server that hadn't been restarted yet, which looked like the fix hadn't
-worked at all.
+**A seed/permission data change needs a server restart OR an admin reload to take effect, same as
+a code change would need a restart.** The Interpreter loads every Machine's Permissions (and
+everything else) into memory once at boot (`interpreter.New`) — re-running a seed file that adds
+or updates a `permissions` row (e.g. a new `can_read` grant) changes the database immediately but
+the *running* server keeps serving the old, now-stale in-memory model until either a restart or
+`POST /admin/reload` (CAP-X04, `benchmarks/015-metadata-live-reload-proof.md`) picks it up.
+Caught once already, before CAP-X04 existed: a new permission row tested as still-denied against
+a server that hadn't been restarted yet, which looked like the fix hadn't worked at all — the
+same trap now has a cheaper fix (reload, not restart), but forgetting either one still reproduces
+it identically.

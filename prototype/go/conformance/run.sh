@@ -1715,10 +1715,69 @@ if [ -n "$DATABASE_URL" ]; then
     psql "$DATABASE_URL" -q -c "DELETE FROM fields WHERE id = 'fld_rlc_bad_ref'" >/dev/null
     [ "$BAD_RELOAD_CODE" = "500" ] && [ "$OLD_STILL_UP_CODE" = "200" ]
     check T153 "CAP-X04" "a bad reload is rejected (500) and the old interpreter keeps serving unrelated Machines normally (reload=$BAD_RELOAD_CODE old_machine=$OLD_STILL_UP_CODE)" $?
+
+    # --- CAP-W07: change_policy (effective-dated metadata evolution) ---
+    # seeds/024_change_policy_lab.sql (boot-time) seeds mch_policy_case and
+    # three baseline records, all open before any change_policy exists.
+    # seeds/025_change_policy_activate.sql (deliberately NOT part of `make
+    # seed`, same exclusion pattern as 023 above) is the actual metadata
+    # CHANGE -- two new Constraint rows, each requiring "Compliance Note"
+    # but scoped by a different change_policy -- applied here mid-run, then
+    # picked up by the same POST /admin/reload CAP-X04 just proved.
+    # Compliance Note is optional at the Field level (only drives the UI's
+    # `required` attribute) -- every assertion below is the server-side
+    # (CAP-C09) check, submitting it blank on purpose.
+    DRAFT_ID='11111111-1111-1111-1111-111111111101'
+    SUBMITTED_ID='11111111-1111-1111-1111-111111111102'
+    OLD_ID='11111111-1111-1111-1111-111111111103'
+
+    # T154 -- before 025 is applied, no rule exists yet: updating the Draft
+    # record with a blank Compliance Note succeeds.
+    CODE=$(post_status "$BASE_URL/mch_policy_case/$DRAFT_ID" "fld_pc_title=Draft+case" "$FRANK")
+    [ "$CODE" = "303" ]
+    check T154 "CAP-W07" "before change_policy exists, a blank Compliance Note is accepted (got $CODE)" $?
+
+    psql "$DATABASE_URL" -q -f seeds/025_change_policy_activate.sql >/dev/null
+    post_status "$BASE_URL/admin/reload" "" "$FRANK" >/dev/null
+
+    # T155 -- records_in_states: [Draft] now gates the Draft record.
+    post_body_contains "$BASE_URL/mch_policy_case/$DRAFT_ID" "fld_pc_title=Draft+case" "Compliance Note is required for cases still in Draft" "$FRANK"
+    check T155 "CAP-W07" "records_in_states [Draft] rejects a blank Compliance Note on a Draft record" $?
+
+    # T156 -- the Submitted record is grandfathered: already past Draft when
+    # the rule arrived, so records_in_states [Draft] never reaches it.
+    # Approval Reference is supplied so this record (created just now, so
+    # new_records' OWN condition is true for it) isn't ALSO blocked by the
+    # other constraint -- isolates the state dimension from the date one.
+    CODE=$(post_status "$BASE_URL/mch_policy_case/$SUBMITTED_ID" "fld_pc_title=Submitted+case&fld_pc_approval_ref=ok" "$FRANK")
+    [ "$CODE" = "303" ]
+    check T156 "CAP-W07" "a record already past Draft when the rule arrived is grandfathered (got $CODE)" $?
+
+    # T157 -- the Old record predates new_records' effective_from
+    # (2026-01-01, seeds/024's own past-dated fixture): the policy doesn't
+    # reach it either. Compliance Note is supplied so this record (seeded in
+    # Draft, so records_in_states' OWN condition is true for it) isn't ALSO
+    # blocked by the other constraint -- isolates the date dimension from
+    # the state one.
+    CODE=$(post_status "$BASE_URL/mch_policy_case/$OLD_ID" "fld_pc_title=Old+case&fld_pc_compliance=ok" "$FRANK")
+    [ "$CODE" = "303" ]
+    check T157 "CAP-W07" "a record created before new_records' effective_from is untouched by the new policy (got $CODE)" $?
+
+    # T158 -- a brand-new record, created after the policy's effective_from
+    # (today), IS gated by it. Compliance Note is supplied (a fresh Create
+    # defaults to Draft, so records_in_states would otherwise ALSO fire) to
+    # isolate this assertion to new_records specifically.
+    post_body_contains "$BASE_URL/mch_policy_case" "fld_pc_title=New+case&fld_pc_compliance=ok" "Approval Reference is required for cases opened under the policy" "$FRANK"
+    check T158 "CAP-W07" "new_records rejects a blank Approval Reference on a record created after the effective date" $?
 else
     printf 'SKIP  T151 %-22s %s\n' "CAP-X04" "DATABASE_URL not set -- seed-mid-run fixture unavailable"
     printf 'SKIP  T152 %-22s %s\n' "CAP-X04" "DATABASE_URL not set"
     printf 'SKIP  T153 %-22s %s\n' "CAP-X04" "DATABASE_URL not set -- malformed-row fixture unavailable"
+    printf 'SKIP  T154 %-22s %s\n' "CAP-W07" "DATABASE_URL not set -- seed-mid-run fixture unavailable"
+    printf 'SKIP  T155 %-22s %s\n' "CAP-W07" "DATABASE_URL not set"
+    printf 'SKIP  T156 %-22s %s\n' "CAP-W07" "DATABASE_URL not set"
+    printf 'SKIP  T157 %-22s %s\n' "CAP-W07" "DATABASE_URL not set"
+    printf 'SKIP  T158 %-22s %s\n' "CAP-W07" "DATABASE_URL not set"
 fi
 
 echo "--------------------------------------------------------------------"

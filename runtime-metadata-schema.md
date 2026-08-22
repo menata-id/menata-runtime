@@ -818,6 +818,59 @@ constraints:
       value: Banner
 ```
 
+### `change_policy` (CAP-W07, 2026-08-22) — effective-dated metadata evolution
+
+A Constraint may declare `change_policy` instead of (never alongside — see below) its own
+`condition`: which in-flight records this rule applies to. Answers the question neither a
+restart-only deploy nor blanket version-pinning can express: does a new or tightened rule reach
+records already open under the old one, or only new work?
+
+```yaml
+constraints:
+  # records_in_states -- applies only while the record is currently in one
+  # of the listed states (reads the Machine's own Status field; states must
+  # already be among its declared values).
+  - id: cst_compliance_note_draft
+    rule: Compliance Note is required for cases still in Draft.
+    expression:
+      field: fld_compliance_note
+      operator: required
+    change_policy:
+      applies_to: records_in_states
+      states: [Draft]
+
+  # new_records -- applies only to records created on or after effective_from
+  # (YYYY-MM-DD). A record's creation date is never part of its own stored
+  # data -- the loader exposes it only for this comparison.
+  - id: cst_approval_ref_2026_policy
+    rule: Approval Reference is required for cases opened under the 2026 policy.
+    expression:
+      field: fld_approval_ref
+      operator: required
+    change_policy:
+      applies_to: new_records
+      effective_from: "2026-01-01"
+
+  # all_records -- explicit, not accidental: today's default behavior
+  # (a rule with no change_policy at all reaches every record immediately),
+  # named on purpose so the choice is auditable in the metadata itself.
+```
+
+Compiled entirely at load time (`internal/metadata/compile.go`'s `compileChangePolicies`) into
+the Constraint's own `condition` — `records_in_states` becomes an `in` check against the Status
+field; `new_records` becomes an `on_or_after` check against the record's creation date. No engine
+change: the compiled Constraint is checked by the exact same CAP-C09 mechanism (Create, Update,
+and every Event trigger) every other Constraint already goes through. A metadata change that adds
+or tightens a `change_policy`-scoped rule takes effect on a running system via CAP-X04's
+`POST /admin/reload` — no restart, and every record already open when the reload happens keeps
+being evaluated correctly against whichever rules its own state/creation-date actually put it
+under.
+
+**Load-time contract:** `change_policy` cannot be combined with an explicit `condition` on the
+same Constraint — the loader rejects that combination rather than guessing at how the two should
+combine (this Constraint grammar has no AND-list). Attach `change_policy` only to a Constraint
+that has no `condition` of its own.
+
 ---
 
 ## Permissions
@@ -1036,17 +1089,21 @@ loader (`cannot unmarshal number into Go struct field ConstraintExpression.value
 string`) — write `value: "100"`. This is one of the load-time-fatal mistakes above, not a
 silent no-op.
 
-**Operators implemented as of 2026-07-12 (Batch 1)**: `required`, `equals`, `not_equals`,
-`after` (literal `"today"` only), `greater_than`, `less_than` (CAP-C05), plus **cross-field
-comparison** — `value` may name another Field id instead of a literal, e.g. `{ field:
-fld_end_date, operator: after, value: fld_start_date }` compares two fields on the same record
-(CAP-C07). **Composite uniqueness** (CAP-C12) is a different shape entirely, not an operator on
-a single Constraint — see `constraints.unique_together` below. Still **not implemented, still
-silently never fire** (same "unrecognized operator defaults to satisfied" behavior as before):
-`greater_than_or_equal`, `less_than_or_equal`, `unique` as a plain field-level operator (use
-`unique_together` instead), and any aggregate shape (`aggregate: sum`) or plural `conditions:`
-list. Don't write these as if they worked — name the gap instead (`capability-registry.md`'s
-CAP-C10 row).
+**Operators implemented (updated 2026-08-22)**: `required`, `equals`, `not_equals`, `after`/
+`before`, `on_or_after`/`on_or_before` (CAP-W07, literal `"today"` accepted on either side same
+as `after`/`before`), `greater_than`/`less_than`/`greater_than_or_equal`/`less_than_or_equal`
+(CAP-C05), `in` (CAP-W07 — membership against `values: [...]`, e.g. `records_in_states`), plus
+**cross-field comparison** — `value` may name another Field id instead of a literal, e.g.
+`{ field: fld_end_date, operator: after, value: fld_start_date }` compares two fields on the same
+record (CAP-C07). **Composite uniqueness** (CAP-C12) is a different shape entirely, not an
+operator on a single Constraint — see `constraints.unique_together` below. Still **not
+implemented**: `unique` as a plain field-level operator (use `unique_together` instead), and any
+aggregate shape (`aggregate: sum`) or plural `conditions:` list. **Since CAP-X05 (2026-07-12),
+an unrecognized operator is a load-time error, not a silent no-op** — `validateOperators`
+(`internal/metadata/loader.go`) rejects any Constraint/Event condition/View filter naming an
+operator outside `model.SupportedOperators`, so writing one of the gaps above now fails to load
+rather than silently never firing; name the gap instead (`capability-registry.md`'s CAP-C10 row)
+rather than writing it as metadata.
 
 ```yaml
 constraints:

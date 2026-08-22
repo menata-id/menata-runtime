@@ -196,6 +196,11 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T151 | CAP-X04 | a Machine seeded mid-run becomes servable after `POST /admin/reload`, no server restart |
 | T152 | CAP-X04 | a non-Admin cannot trigger a metadata reload |
 | T153 | CAP-X04 | a bad reload is rejected (500) and the old interpreter keeps serving unrelated Machines normally |
+| T154 | CAP-W07 | before change_policy exists, a blank Compliance Note is accepted |
+| T155 | CAP-W07 | `records_in_states: [Draft]` rejects a blank Compliance Note on a Draft record |
+| T156 | CAP-W07 | a record already past Draft when the rule arrived is grandfathered |
+| T157 | CAP-W07 | a record created before `new_records`' effective_from is untouched by the new policy |
+| T158 | CAP-W07 | `new_records` rejects a blank Compliance Note on a record created after the effective date |
 
 ---
 

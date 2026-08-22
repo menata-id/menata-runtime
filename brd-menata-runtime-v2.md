@@ -470,8 +470,10 @@ v2 **tidak** akan:
 5. Quorum `2_of_3` pada parallel approval bekerja (perluasan CAP-A08).
 6. SLA satu-deklarasi menghasilkan warning + breach + eskalasi (perilaku Case 7, kini dari satu
    baris).
-7. `change_policy: records_in_states [Draft]` terbukti: perubahan rule tidak mengenai record
-   yang sudah melewati Draft; `all_records` terbukti sebaliknya.
+7. ✅ **Terbukti (2026-08-22)** — `change_policy: records_in_states [Draft]`: perubahan rule tidak
+   mengenai record yang sudah melewati Draft (conformance T155/T156); `new_records` dengan
+   `effective_from` terbukti serupa untuk dimensi tanggal (T157/T158), keduanya lewat
+   `POST /admin/reload` tanpa restart. Lihat `benchmarks/016-change-policy-proof.md`.
 8. Peta proses ter-render untuk Machine ber-overlay **dan** (via decompile) untuk minimal satu
    Machine v1 lama tanpa overlay.
 9. Aksi lambat (fan-out notifikasi ≥ N penerima, rantai subscription) berjalan lewat outbox —
@@ -488,7 +490,7 @@ v2 **tidak** akan:
 | **1 — Compiler inti** | `process.states`/`transitions`/`auto` → Event/guard/Permission; validasi graph; peta proses (arah maju) | CAP-W05 (maju), fondasi | ✅ selesai & conformance-proven — B1+B2, T136–T143 |
 | **2 — Requirement** | Kontrak generik + counter cardinality + flag rollup termaterialisasi + worklist ter-index | CAP-W01 (+ CAP-X10) | ⚠️ sebagian — tipe `evidence` selesai & proven (B3, T144–T146); enam tipe lain (form/entity/task/approval/document/decision) + worklist ter-index masih HOLD |
 | **3 — Quorum & SLA** | Parameter `ALL/ANY/N_OF_M` pada rollup; `sla` satu-deklarasi | CAP-W03, CAP-W04 | ⚠️ SLA (CAP-W04) selesai penuh & proven (T147–T148); quorum-core (CAP-W03, hand-authored `min_approvals`) selesai & proven (T149–T150) — bentuk *deklaratif*-nya lewat `process.requirements[].type == "approval"` tetap terbuka, butuh sesi desain sendiri (kapabilitas compile lintas-Machine baru, tidak dibutuhkan B1–B3) |
-| **4 — Evolusi** | `change_policy` efektif-tanggal | CAP-W07 | **READY** — prasyaratnya (CAP-X04, live reload) selesai dibangun hari ini juga (Option A, ADR-002: reload lewat admin, atomic swap; `benchmarks/015-metadata-live-reload-proof.md`, T151–T153). Batas hidup nyata antara metadata lama/baru sekarang ada untuk dibuktikan `new_records`/`records_in_states`/`all_records`-nya. Lihat `roadmap.md`'s Sequencing Guide |
+| **4 — Evolusi** | `change_policy` efektif-tanggal | CAP-W07 | **✅ selesai & conformance-proven** — `change_policy` (kolom JSONB `constraints.change_policy`) di-compile saat load ke `Condition` milik Constraint itu sendiri, nol perubahan engine (mekanisme guard CAP-E06/CAP-C09 yang sudah ada dipakai apa adanya). T154–T158, lewat `POST /admin/reload` (CAP-X04) tanpa restart. Keterbatasan bernama: belum bisa digabung dengan Constraint yang sudah punya `condition` sendiri (butuh `Conditions []ConstraintExpression`, belum ada case yang menuntutnya). Lihat `benchmarks/016-change-policy-proof.md` |
 | **5 — Dua arah** | Decompiler (peta untuk Machine lama; draft *lift*) | CAP-W05 (mundur) | ⚠️ arah baca (decompile Machine lama) sudah terbukti sebagai bagian B2, T142; arah tulis (draft *lift*) tetap terbuka — READY, tidak ada prasyarat teknis, tinggal butuh sesi desain |
 
 Disiplin admisi (`capability-lifecycle.md`) tetap berlaku untuk seluruh cakupan yang masih HOLD di
