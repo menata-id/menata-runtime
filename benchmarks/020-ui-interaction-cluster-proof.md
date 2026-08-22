@@ -165,5 +165,61 @@ response shape (`{"id":...,"data":{...}}`) matches exactly what the script reads
 
 **175/175 conformance passing, zero regressions**, confirmed on a fresh isolated schema.
 
-**Registry impact**: `capability-registry.md`'s CAP-V19 row ❌→✅. Five of the six phases of the
-Track D UI/Interaction cluster are now done — Phase 6 (CAP-V14 Tier 2, kanban board) still ahead.
+**Registry impact**: `capability-registry.md`'s CAP-V19 row ❌→✅.
+
+---
+
+## Phase 6 — CAP-V14 Tier 2: kanban board (cross-column drag-and-drop)
+
+**Scope decision, narrower than Case 19's own literal declaration, named explicitly**: Case 19's
+"Lists" are separate, user-creatable, freely-reordered records — `Card.Move` in its full form is a
+cross-machine composition (CAP-F13 reference write + CAP-A13 `cross_set_field`), a materially
+bigger feature (a second CRUD surface, list management, list-ordering) than any other case in the
+portfolio needs. This phase instead groups a new `board` View (`ViewType: "board"`) by an existing
+`value_list` Field (`ViewConfig.GroupField`) — moving a card between columns is a plain same-record
+field write, not a cross-machine one. CAP-V14's existing Up/Down buttons remain the accessible/
+keyboard fallback, completely untouched — Board is new and additive, nothing existing was replaced.
+
+**What was built**: `RecordStore.MoveToLane` (`internal/store/record_store.go`, next to `Move`)
+does the "one action, two writes" a card drop needs in one `UPDATE`: the group field is set via
+`jsonb_set` (the same single-JSONB-key idiom `IncrementField` already established — read to confirm
+the convention before writing this, rather than inventing a second one) and `sort_order` is
+appended to the end of the target lane's own ordering, extending `Move`'s "always-tradeable
+`DOUBLE PRECISION`" design rather than a new mechanism. `Board` (`internal/handler/views.go`)
+renders every lane declared in the Field's own `Options.Values` — including an empty one, from the
+Field's declared options, not a distinct-values scan of the records (an unused lane still has to be
+a valid drop target, the same principle CAP-V18's idle-resource section already proved). `BoardMove`
+(`internal/handler/record_crud.go`, next to `MoveRecord`) is `CanEdit`-gated with the same
+trusted-write posture `MoveRecord` already takes (no Constraint re-validation — a lightweight
+UI-triggered field write, not a business Event) and rejects any `lane` value not in the Field's own
+declared options, this project's usual "Unknown = explicit" discipline. The drag gesture itself
+(`internal/ui/board.templ`'s `draggable="true"` cards, `layout.templ`'s 4th static, page-level,
+non-interpolated listener set — `dragstart`/`dragover`/`drop` → `fetch` to `board-move`) is the one
+piece of hand-written JS this phase needed — but unlike V15/V19, the write it triggers is an
+ordinary POST, fully HTTP-testable without executing any JS at all.
+
+**Proof**: new `seeds/032_kanban_lab.sql` (`Task` Machine, a `Status` value_list Field with three
+lanes — Todo/Doing/Done — two Todo records, one Doing, Done deliberately empty). T176: the board
+groups each record into its current lane, and the empty Done lane still renders its own section
+(same isolation-by-marker technique T169/T170 used, here slicing on each lane's own `data-lane="X"`
+attribute rather than a heading, since the heading text itself IS the lane name). T177: `POST
+.../board-move` with `lane=Done` moves the Doing-lane record into Done — the real, directly
+HTTP-testable proof of the atomic "one action, two writes" requirement Case 19 itself named, no
+manual/JS-execution step needed for this half. **177/177 conformance passing, zero regressions**,
+confirmed on a fresh isolated schema (a first run surfaced one bug in the test itself, not the
+implementation — comparing `curl`'s resolved absolute redirect URL against a bare relative path;
+fixed to a suffix match, then reconfirmed 164/164 non-skipped tests passing on a second fresh
+schema).
+
+**Registry impact**: `capability-registry.md`'s CAP-V14 Tier 2 row ❌→✅.
+
+---
+
+## Cluster complete
+
+All six phases of the Track D UI/Interaction cluster are done, committed one phase at a time.
+Final tally: conformance grew from 166 to 177 (T167–T177), the whole cluster's own consolidated
+status note is in `roadmap.md`'s Track D section. The one durable finding carried across every
+JS-needing phase: never interpolate dynamic/user-derived text into an inline JS attribute string —
+templ's `{ }` escapes for HTML-attribute safety, not JS-string safety — pass config through `data-*`
+attributes instead and keep the actual listener static, page-level, and written once.

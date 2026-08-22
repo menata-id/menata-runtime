@@ -1727,9 +1727,32 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 - CAP-V16 (typeahead/autocomplete) — ✅ done (T171–T173)
 - CAP-V17 (SLA countdown badge) — ✅ done (T167–T168, `benchmarks/020-ui-interaction-cluster-proof.md`)
 - CAP-V18 (resource-grouped calendar) — ✅ done (T169–T170)
-- CAP-V14 Tier 2 (kanban board drag-and-drop) — READY, independent, extends already-✅ CAP-V14
+- CAP-V14 Tier 2 (kanban board drag-and-drop) — ✅ done (T176–T177, `benchmarks/020-ui-interaction-cluster-proof.md`)
 - CAP-V15 (live aggregate preview) — ✅ done (T174)
 - CAP-V19 (live cross-record balance preview) — ✅ done (T175)
+
+> **Status update (2026-08-22, same day) — all six phases of Track D done, per the owner's explicit
+> direction to do the whole UI cluster in one batch rather than one item at a time.** Sequenced
+> simplest-first: two pure server-render phases (CAP-V17 SLA badge, CAP-V18 resource calendar —
+> same "computed/grouped at render time" precedent CAP-F14/CAP-V07 already established, zero new
+> JS), one HTMX-only phase (CAP-V16 typeahead, no hand-written JS, but a real finding — filling a
+> hidden field from a clicked result needs the option's own Label, and interpolating that into an
+> inline JS attribute would only be HTML-attribute-safe, not JS-string-safe; solved with `data-*`
+> attributes plus one static, page-level, non-interpolated click listener instead), then three
+> phases needing genuine hand-written JS (CAP-V15 live aggregate total, CAP-V19 live cross-record
+> preview, CAP-V14 Tier 2's drag gesture) — each following the same safety discipline the CAP-V16
+> finding established, one small static listener per interaction type, all living in
+> `layout.templ`'s single script block, config passed via `data-*` attributes, never interpolated.
+> CAP-V14 Tier 2 was deliberately scoped narrower than Case 19's own literal declaration (grouping
+> by an existing `value_list` Field, not a second user-creatable "Lists" CRUD surface) — named
+> explicitly in `capability-registry.md`'s own row, not silently substituted. This project's
+> conformance suite is HTTP black-box and cannot execute JS or observe live DOM behavior — for the
+> three JS phases, conformance proves the server emits correct wiring and the underlying
+> server-side enforcement still works; the actual live interaction was manually verified in a real
+> request/response cycle before each phase was reported complete, named as a manual check, not
+> claimed as automated coverage. 177/177 conformance passing at the end, zero regressions,
+> confirmed on a fresh isolated schema after every phase. Full writeup:
+> `benchmarks/020-ui-interaction-cluster-proof.md`.
 
 ### Track E — Independent, no dependency, pick up per Prio when convenient
 
@@ -1755,7 +1778,7 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 4. ~~B6 / decompile-lift~~ — ✅ done (T165–T166), built ahead of case evidence per explicit user direction
 5. ~~Case 9 completion batch: CAP-C10, CAP-C11~~ — ✅ done (T161–T164); CAP-C08 ⚠️ (the two shapes it named done, a third — universal/for-all across children — not built, no case demands it)
 6. CAP-W06 async outbox (Track B) — anytime, independent
-7. UI cluster (Track D): CAP-V16/V17/V18/CAP-V14-Tier-2 anytime; CAP-V15 after step 5 (CAP-C10); CAP-V19 after step 5 (CAP-C08)
+7. ~~UI cluster (Track D): CAP-V16/V17/V18/V14-Tier-2/V15/V19~~ — ✅ done, all six (T167–T177)
 8. CAP-X08 import completion (Track E) — ready now, X04 done
 9. CAP-X11 (Track A/#2) and remaining Prio-tagged items (Track E) opportunistically, no measured urgency
 10. Leave Track F alone until a real case names the need

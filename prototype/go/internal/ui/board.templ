@@ -1,0 +1,55 @@
+package ui
+
+import "strconv"
+import "menata.id/runtime/internal/model"
+
+// Board (CAP-V14 Tier 2) renders a kanban board: one lane per GroupField
+// value_list option, cards draggable between lanes (layout.templ's own
+// dragstart/dragover/drop listeners -- see that file's own doc comment).
+// Every declared lane renders even when empty (BoardLane's own doc comment)
+// so an unused option still shows up as a valid drop target. The board
+// itself needs no htmx/JS to render correctly -- only the drag gesture
+// needs the script; a client with JS disabled still sees every card in its
+// correct lane, just without the ability to move one.
+templ Board(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName, groupField string, columns []ColumnDef, lanes []BoardLane, unreadCount int, subNav []SubNavLink) {
+	@Page(viewName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+		<div class="mb-4">
+			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
+		</div>
+		<div
+			class="flex gap-4 overflow-x-auto pb-4"
+			data-board-machine={ machine.ID }
+			data-board-csrf={ csrfToken }
+		>
+			for _, lane := range lanes {
+				<div class="board-lane w-72 shrink-0 rounded-lg border border-slate-200 bg-slate-50" data-lane={ lane.Name }>
+					<h2 class="border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+						{ lane.Name }
+						<span class="ml-1 text-slate-400">({ strconv.Itoa(len(lane.Rows)) })</span>
+					</h2>
+					<div class="board-lane-body min-h-16 space-y-2 p-2">
+						if len(lane.Rows) == 0 {
+							<div class="rounded-md border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400">
+								No records
+							</div>
+						}
+						for _, row := range lane.Rows {
+							<a
+								href={ templ.SafeURL("/" + machine.ID + "/" + row.ID) }
+								class="board-card block cursor-move rounded-md border border-slate-200 bg-white p-3 text-sm shadow-sm hover:shadow"
+								draggable="true"
+								data-record-id={ row.ID }
+							>
+								for _, cell := range row.Cells {
+									if cell.Value != "" {
+										<div class="truncate text-slate-700">{ cell.Value }</div>
+									}
+								}
+							</a>
+						}
+					</div>
+				</div>
+			}
+		</div>
+	}
+}

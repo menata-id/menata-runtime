@@ -2060,6 +2060,69 @@ HAS_PREVIEW_FIELD=$?
 [ "$HAS_PREVIEW_URL" -eq 0 ] && [ "$HAS_PREVIEW_FIELD" -eq 0 ]
 check T175 "CAP-V19" "the Journal Entry form's Fiscal Period picker is wired for a live status preview" $?
 
+# --- CAP-V14 Tier 2 (kanban board) -- seeds/032_kanban_lab.sql. A "board"
+# View groups records into lanes from an existing value_list Field
+# (ViewConfig.GroupField) -- narrower than Case 19's own "user-creatable
+# Lists" model, a deliberate scope cut (see capability-registry.md's own
+# CAP-V14 row). The drag gesture itself is client-side JS this HTTP-black-box
+# suite cannot execute, but the write it triggers (BoardMove) is an ordinary
+# POST -- both halves below are fully HTTP-testable without a browser.
+
+KB_LEAD=$(session_for kanban.lead@example.com password)
+
+# T176 -- the board groups records into the lane matching each record's
+# current Status value, and a lane nobody's in yet ("Done") still renders
+# with its own (empty) section -- same "every declared option is a valid
+# drop target" proof T170 already made for CAP-V18's resource sections.
+BOARD_BODY=$(get_body "$BASE_URL/mch_kanban_task/board" "$KB_LEAD")
+V14T2_LANES=$(python3 -c "
+import sys
+body = sys.argv[1]
+def section(lane):
+    marker = 'data-lane=\"' + lane + '\"'
+    start = body.find(marker)
+    if start == -1:
+        return ''
+    nxt = body.find('data-lane=\"', start + len(marker))
+    return body[start:nxt if nxt != -1 else len(body)]
+todo, doing, done = section('Todo'), section('Doing'), section('Done')
+ok = (
+    'Write proposal' in todo and 'Review budget' in todo and 'Draft contract' not in todo
+    and 'Draft contract' in doing and 'Write proposal' not in doing
+    and 'No records' in done
+)
+print('OK' if ok else 'FAIL')
+" "$BOARD_BODY")
+[ "$V14T2_LANES" = "OK" ]
+check T176 "CAP-V14" "the board groups records into their current lane, and an unused lane still renders empty (got $V14T2_LANES)" $?
+
+# T177 -- POST .../board-move updates the group field AND appends the record
+# to the end of the target lane's own sort order -- the "one action, two
+# writes" a kanban card-drop needs (RecordStore.MoveToLane).
+DRAFT_CONTRACT_ID='22222222-3333-4444-5555-000000000003'
+MOVE_URL=$(post_redirect "$BASE_URL/mch_kanban_task/$DRAFT_CONTRACT_ID/board-move" "lane=Done" "$KB_LEAD")
+case "$MOVE_URL" in
+    */mch_kanban_task/board) HAS_REDIRECT=0 ;;
+    *) HAS_REDIRECT=1 ;;
+esac
+AFTER_MOVE_BODY=$(get_body "$BASE_URL/mch_kanban_task/board" "$KB_LEAD")
+V14T2_MOVED=$(python3 -c "
+import sys
+body = sys.argv[1]
+def section(lane):
+    marker = 'data-lane=\"' + lane + '\"'
+    start = body.find(marker)
+    if start == -1:
+        return ''
+    nxt = body.find('data-lane=\"', start + len(marker))
+    return body[start:nxt if nxt != -1 else len(body)]
+doing, done = section('Doing'), section('Done')
+ok = 'Draft contract' not in doing and 'Draft contract' in done
+print('OK' if ok else 'FAIL')
+" "$AFTER_MOVE_BODY")
+[ "$HAS_REDIRECT" -eq 0 ] && [ "$V14T2_MOVED" = "OK" ]
+check T177 "CAP-V14" "POST .../board-move moves the record into the target lane (got redirect=$MOVE_URL, moved=$V14T2_MOVED)" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

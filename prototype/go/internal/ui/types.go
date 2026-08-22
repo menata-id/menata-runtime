@@ -201,6 +201,18 @@ type ResourceCalendarGroup struct {
 	Dates    []CalendarGroup
 }
 
+// BoardLane (CAP-V14 Tier 2) is one column of a kanban board -- Name is one
+// of the GroupField's own declared value_list options, Rows is every record
+// currently holding that value, in sort_order (the same manual-order column
+// CAP-V14's Up/Down buttons already use). Every declared option gets a lane,
+// including an empty one -- the lane list comes from the Field's own
+// Options.Values, not a distinct-values scan of the records themselves,
+// so an option nobody's used yet still shows up as a valid drop target.
+type BoardLane struct {
+	Name string
+	Rows []ListRow
+}
+
 // DashboardTile (CAP-V10) is one section of a composed dashboard View --
 // Total is the section's overall record count, Breakdown is populated only
 // when the section declared a group_field (count per distinct value).

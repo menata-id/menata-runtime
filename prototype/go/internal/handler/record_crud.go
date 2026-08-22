@@ -333,6 +333,61 @@ func (h *Handler) MoveRecord(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/"+machineID, http.StatusSeeOther)
 }
 
+// BoardMove (CAP-V14 Tier 2) handles a kanban card drop -- CanEdit-gated
+// same as MoveRecord above, no constraint re-validation, the same "trusted
+// same-record field write triggered by a UI action, not a business Event"
+// posture MoveRecord itself already takes for sort_order. lane must be one
+// of the GroupField's own declared value_list options -- rejected otherwise
+// (this project's "Unknown = explicit" discipline), not written as an
+// arbitrary string into the record's data.
+func (h *Handler) BoardMove(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	recordID := chi.URLParam(r, "recordID")
+	machine, ok := h.interp.Get().GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanEdit(machine, role) {
+		h.logPermissionDenied(r.Context(), "edit", machineID, recordID, role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	view := h.interp.Get().BoardView(machineID)
+	if view == nil || view.Config.GroupField == "" {
+		http.NotFound(w, r)
+		return
+	}
+	groupField, ok := fieldIndex(machine)[view.Config.GroupField]
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	lane := r.FormValue("lane")
+	validLane := false
+	for _, v := range groupField.Options.Values {
+		if v == lane {
+			validLane = true
+			break
+		}
+	}
+	if !validLane {
+		http.Error(w, "invalid lane", http.StatusBadRequest)
+		return
+	}
+	if err := h.records.MoveToLane(r.Context(), machineID, recordID, view.Config.GroupField, lane); err != nil {
+		http.Error(w, "failed to move record", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/"+machineID+"/board", http.StatusSeeOther)
+}
+
 // Report renders a CAP-V13 aggregate report View -- grouped SUMs computed
 // at render time from ANOTHER Machine's own records (view.Config.Report),
 // not this Machine's. Read access is checked against the SOURCE machine

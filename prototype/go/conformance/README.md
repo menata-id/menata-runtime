@@ -218,6 +218,8 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T173 | CAP-V16 | submitting a typeahead-selected value creates the record correctly end-to-end |
 | T174 | CAP-V15 | the Journal Entry form's `child_lines` section is wired for a live debit/credit total |
 | T175 | CAP-V19 | the Journal Entry form's Fiscal Period picker is wired for a live status preview |
+| T176 | CAP-V14 | the board groups records into their current lane, and an unused lane still renders empty |
+| T177 | CAP-V14 | `POST .../board-move` updates the group field and appends the record to the target lane |
 
 ---
 

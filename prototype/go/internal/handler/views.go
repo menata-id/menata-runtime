@@ -283,3 +283,89 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		slog.Error("render dashboard", "error", err)
 	}
 }
+
+// Board (CAP-V14 Tier 2) renders a kanban board View -- one lane per
+// GroupField value_list option, sorted by sort_order within each lane (the
+// same manual-order column CAP-V14's Up/Down buttons already use), so a
+// card dropped into a lane by BoardMove renders where it landed. Every
+// declared option gets a lane, even an empty one -- from GroupField's own
+// Options.Values, not a distinct-values scan of the records (an option
+// nobody's used yet still has to be a valid drop target).
+func (h *Handler) Board(w http.ResponseWriter, r *http.Request) {
+	machineID := chi.URLParam(r, "machineID")
+	machine, ok := h.interp.Get().GetMachine(machineID)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	workspaceID, applicationID := h.interp.Get().ScopeFor(machineID)
+	if workspaceID != h.workspace(r) {
+		http.NotFound(w, r)
+		return
+	}
+	role := h.roleForApp(r, applicationID)
+	if !h.guard.CanRead(machine, role) {
+		h.logPermissionDenied(r.Context(), "read", machineID, "", role, h.identity(r))
+		http.Error(w, "not permitted", http.StatusForbidden)
+		return
+	}
+	view := h.interp.Get().BoardView(machineID)
+	if view == nil || view.Config.GroupField == "" {
+		http.NotFound(w, r)
+		return
+	}
+	fieldByID := fieldIndex(machine)
+	groupField, ok := fieldByID[view.Config.GroupField]
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	hidden := h.hiddenFields(machine, role)
+	colIDs := []string{}
+	for _, id := range view.Config.Columns {
+		if !hidden[id] {
+			colIDs = append(colIDs, id)
+		}
+	}
+	cols := make([]ui.ColumnDef, 0, len(colIDs))
+	for _, id := range colIDs {
+		def := ui.ColumnDef{ID: id, Name: id}
+		if f, ok := fieldByID[id]; ok {
+			def.Name = f.Name
+			def.Type = f.Type
+		}
+		cols = append(cols, def)
+	}
+
+	records, err := h.records.List(r.Context(), machineID, store.SortOrderField, "")
+	if err != nil {
+		http.Error(w, "failed to load records", http.StatusInternalServerError)
+		return
+	}
+
+	byLane := make(map[string][]ui.ListRow, len(groupField.Options.Values))
+	for _, rec := range records {
+		laneVal := fmt.Sprintf("%v", rec.Data[view.Config.GroupField])
+		cells := make([]ui.ListCell, len(colIDs))
+		for j, id := range colIDs {
+			val := ""
+			if v, ok := rec.Data[id]; ok {
+				val = fmt.Sprintf("%v", v)
+			}
+			cells[j] = ui.ListCell{Value: val}
+		}
+		byLane[laneVal] = append(byLane[laneVal], ui.ListRow{ID: rec.ID, Cells: cells})
+	}
+
+	lanes := make([]ui.BoardLane, 0, len(groupField.Options.Values))
+	for _, v := range groupField.Options.Values {
+		lanes = append(lanes, ui.BoardLane{Name: v, Rows: byLane[v]})
+	}
+
+	a := h.auth(r)
+	page := ui.Board(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, view.Config.GroupField, cols, lanes, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render board", "error", err)
+	}
+}

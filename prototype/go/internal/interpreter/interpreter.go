@@ -318,6 +318,11 @@ func (i *Interpreter) ProcessMapView(machineID string) *model.View {
 	return i.viewOfType(machineID, model.ViewTypeProcessMap)
 }
 
+// BoardView (CAP-V14 Tier 2) -- same "first View of this Type" lookup.
+func (i *Interpreter) BoardView(machineID string) *model.View {
+	return i.viewOfType(machineID, model.ViewTypeBoard)
+}
+
 func (i *Interpreter) viewOfType(machineID string, t model.ViewType) *model.View {
 	m, ok := i.machines[machineID]
 	if !ok {

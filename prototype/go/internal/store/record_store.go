@@ -393,6 +393,35 @@ func (s *RecordStore) Move(ctx context.Context, machineID, recordID, direction s
 	return nil
 }
 
+// MoveToLane (CAP-V14 Tier 2) moves recordID into a new value_list lane --
+// the "one action, two writes" a kanban card-drop needs, done as one
+// UPDATE: groupField's value is set via jsonb_set (same idiom as
+// IncrementField, a single-key partial write rather than a whole-map
+// replace) and sort_order is appended to the end of the target lane's own
+// ordering, reusing Move's "always-tradeable DOUBLE PRECISION" design
+// rather than a new mechanism. Always append-to-end -- this Tier 2 cut
+// supports cross-lane drop, not within-lane reordering.
+func (s *RecordStore) MoveToLane(ctx context.Context, machineID, recordID, groupField, newLane string) error {
+	var maxOrder *float64
+	if err := s.db(ctx).QueryRow(ctx,
+		`SELECT MAX(sort_order) FROM records WHERE machine_id = $1 AND data->>$2 = $3`,
+		machineID, groupField, newLane).Scan(&maxOrder); err != nil {
+		return fmt.Errorf("move to lane: find max order: %w", err)
+	}
+	newOrder := 0.0
+	if maxOrder != nil {
+		newOrder = *maxOrder + 1
+	}
+
+	_, err := s.db(ctx).Exec(ctx,
+		`UPDATE records SET data = jsonb_set(data, ARRAY[$1], to_jsonb($2::text)), sort_order = $3, updated_at = NOW() WHERE id = $4 AND machine_id = $5`,
+		groupField, newLane, newOrder, recordID, machineID)
+	if err != nil {
+		return fmt.Errorf("move to lane: %w", err)
+	}
+	return nil
+}
+
 // GroupSum is one row of a CAP-V13 report: a group label (a report View's
 // group_field value) and the SUM of each declared sum_field across every
 // record in that group.

@@ -97,6 +97,37 @@ templ Page(title, identity, csrfToken string, isAdmin bool, unreadCount int, sub
 						})
 						.catch(function() { preview.textContent = '—'; });
 				});
+				// CAP-V14 Tier 2: native HTML5 drag-and-drop for the
+				// kanban board -- the drag gesture itself is unavoidably
+				// client-side, but the write it triggers is an ordinary
+				// POST (BoardMove), fully provable without executing this
+				// script (conformance T177). Config (machine id, CSRF
+				// token) comes from the board wrapper's own
+				// data-board-machine/data-board-csrf attributes, the
+				// target lane from the drop zone's own data-lane -- never
+				// interpolated into this script.
+				document.addEventListener('dragstart', function(e) {
+					var card = e.target.closest('.board-card');
+					if (!card) return;
+					e.dataTransfer.setData('text/plain', card.dataset.recordId);
+				});
+				document.addEventListener('dragover', function(e) {
+					if (e.target.closest('.board-lane-body')) e.preventDefault();
+				});
+				document.addEventListener('drop', function(e) {
+					var body = e.target.closest('.board-lane-body');
+					if (!body) return;
+					e.preventDefault();
+					var recordId = e.dataTransfer.getData('text/plain');
+					var lane = body.closest('.board-lane').dataset.lane;
+					var board = body.closest('[data-board-machine]');
+					if (!recordId || !lane || !board) return;
+					fetch('/' + board.dataset.boardMachine + '/' + recordId + '/board-move', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+						body: 'lane=' + encodeURIComponent(lane) + '&csrf_token=' + encodeURIComponent(board.dataset.boardCsrf)
+					}).then(function() { location.reload(); });
+				});
 			</script>
 		</body>
 	</html>

@@ -616,6 +616,11 @@ const (
 	// since both compile to the exact same Event/Field shape (see
 	// internal/handler/processmap.go's extractProcessMap).
 	ViewTypeProcessMap ViewType = "process_map"
+	// ViewTypeBoard (CAP-V14 Tier 2) renders records grouped into
+	// value_list lanes with drag-and-drop cross-lane move -- additive to
+	// CAP-V14's own core (Up/Down buttons, still the accessible/keyboard
+	// fallback on the ordinary List view, untouched by this).
+	ViewTypeBoard ViewType = "board"
 )
 
 // ViewConfig holds view-specific presentation configuration.
@@ -647,6 +652,14 @@ type ViewConfig struct {
 	// grouping (internal/handler/views.go's calendarTimeline) rather than a
 	// new View type.
 	ResourceField string `json:"resource_field,omitempty"`
+
+	// GroupField (CAP-V14 Tier 2) names a `value_list` Field -- a "board"
+	// View groups records into one lane per declared option value, and a
+	// card drag/drop (POST .../board-move) rewrites this field via
+	// RecordStore.MoveToLane. Narrower than Case 19's own "user-creatable
+	// Lists" model: lanes are the Field's own fixed option set, not a
+	// second CRUD surface -- see capability-registry.md's CAP-V14 row.
+	GroupField string `json:"group_field,omitempty"`
 }
 
 // ReportConfig (CAP-V13) declares a "report" View as a grouped aggregate

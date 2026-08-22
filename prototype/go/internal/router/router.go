@@ -75,12 +75,14 @@ func Mount(r chi.Router, h *handler.Handler) {
 	r.Get("/{machineID}/process-map", h.ProcessMap)     // CAP-W05
 	r.Get("/{machineID}/process-lift", h.LiftProcess)   // CAP-W05 backward direction (B6), Admin-only
 	r.Get("/{machineID}/field-options", h.FieldOptions) // CAP-V16 typeahead search fragment
+	r.Get("/{machineID}/board", h.Board)                 // CAP-V14 Tier 2 kanban board
 	r.Get("/{machineID}/{recordID}", h.Detail)
 	r.Get("/{machineID}/{recordID}/edit", h.EditForm)
 	r.Get("/{machineID}/{recordID}/document", h.Document) // CAP-F21
 	r.Post("/{machineID}/{recordID}", h.Update)
 	r.Post("/{machineID}/{recordID}/events/{eventID}", h.TriggerEvent)
-	r.Post("/{machineID}/{recordID}/move/{direction}", h.MoveRecord) // CAP-V14
+	r.Post("/{machineID}/{recordID}/move/{direction}", h.MoveRecord)   // CAP-V14
+	r.Post("/{machineID}/{recordID}/board-move", h.BoardMove)          // CAP-V14 Tier 2
 	r.Post("/{machineID}/{recordID}/archive", h.Archive)             // CAP-R03
 	r.Post("/{machineID}/{recordID}/restore", h.Restore)             // CAP-R03
 	r.Get("/{machineID}/export.csv", h.ExportCSV)                    // CAP-R06
