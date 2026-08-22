@@ -366,7 +366,7 @@ This directory mixes documents that change on different rhythms. To read the num
 
 - **Numbered `001`–`006`** — the core specification. Stable, read in sequence, changes rarely (mirrors `specification/000`–`006` at the repo root — same convention, one level down).
 - **Unnumbered, at this level** — supporting reference or governance documents. Two different kinds, distinguished below.
-- **`benchmarks/` — numbered `000`–`004`** — evidence studies, numbered by production order (Study 1 → `000`, Study 2 → `001`, …), not a required reading sequence.
+- **`benchmarks/` — numbered `000`–`012`** — evidence studies, numbered by production order (Study 1 → `000`, Study 2 → `001`, …), not a required reading sequence.
 
 This stable/evolving split mirrors the pattern Portal GA v3 uses for its own domain-integration framework (`01-CONSTITUTIONAL-BRD.md` + `02-IMPLEMENTATION-GUIDE.md` as STABLE, `appendices/` as EVOLVING) — see `benchmarks/002-portal-ga-cross-domain-survey.md`.
 
@@ -422,6 +422,10 @@ The runtime's capability is being built and verified through a deliberate discov
 | [benchmarks/004-scale-architecture-study.md](benchmarks/004-scale-architecture-study.md) | Study 8 — multi-workspace scale & performance architecture |
 | [benchmarks/005-field-modeling-decision-framework.md](benchmarks/005-field-modeling-decision-framework.md) | Study 15 — field type selection: reference vs. value_list vs. primitive (§"Final Recap" has the settled answer per type, no re-derivation needed) |
 | [benchmarks/006-inventory-warehouse-benchmark.md](benchmarks/006-inventory-warehouse-benchmark.md) | Case 5 supporting benchmark — six-stage WMS flow + APICS/ASCM inventory-control concepts |
+| [benchmarks/007-user-role-management-survey.md](benchmarks/007-user-role-management-survey.md) | Study 18 — user & role management across 10 platforms (informed CAP-F05/CAP-O01/CAP-P02) |
+| [benchmarks/008-ui-workflow-interaction-benchmark.md](benchmarks/008-ui-workflow-interaction-benchmark.md) | UI task-interaction patterns across all 21 cases — 5 clusters admitted (CAP-V14 Tier 2, CAP-V15–V19), 5 reviewed and rejected |
+| [benchmarks/009-in-app-navigation-benchmark.md](benchmarks/009-in-app-navigation-benchmark.md) | In-app navigation patterns — produced CAP-O03 Tier 2 (persistent sub-navigation) |
+| [benchmarks/010-gamification-flow-audit.md](benchmarks/010-gamification-flow-audit.md) | Gamification flow audit — three disconnected proofs, no unified action→points→reward chain; integration debt recorded, no new capability |
 | [benchmarks/011-metadata-workflow-orchestration-brd-benchmark.md](benchmarks/011-metadata-workflow-orchestration-brd-benchmark.md) | Study 19 — comparator "Metadata-Based Workflow Orchestration Application" BRD mapped against Menata Runtime's emergent (Event+Constraint+Permission+Action) workflow model; full comparator BRD preserved verbatim in its Appendix |
 | [benchmarks/012-process-model-synthesis.md](benchmarks/012-process-model-synthesis.md) | Study 20 — deeper re-examination of Study 19: both concepts graded against all 21 portfolio cases (21/21 vs 10/21), server-economy analysis (~3–6 vs ~10–13 statements/transition), and the synthesis — Concept C, the **Process Overlay** ("declared process, emergent execution") |
 

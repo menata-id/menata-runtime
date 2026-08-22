@@ -11,7 +11,11 @@
 > The full comparator BRD is preserved verbatim in the Appendix so it can be re-read without
 > depending on the conversation that produced this study.
 >
-> Status: v1.0 | Created: 2026-08-22
+> Status: v1.1 — partially revised by Study 20 (`012-process-model-synthesis.md`), same day: the
+> 30-concept mapping and the verbatim Appendix stand; §6's framing of CAP-W01–W05 as five
+> independent additive layers is superseded (they are now compile products of one Process Overlay
+> mechanism), and CAP-W02's blanket version pinning is superseded as a target by CAP-W07's
+> effective-dated change policy | Created: 2026-08-22
 
 ---
 
