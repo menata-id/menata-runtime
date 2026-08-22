@@ -141,7 +141,7 @@ express work with no predefined step sequence?
 
 | Target | Capability | Pattern |
 |--------|-----------|---------|
-| No `activate_next` anywhere — any permitted event fires in any order, gated by Status | — | **The CMMN boundary finding**, not a capability: Menata's flat `When X` + CAP-E06 expresses CMMN's *bounded* flexibility (many predefined paths, no fixed Sequence) but not its *unbounded* flexibility (a case worker inventing a new task type at runtime) — stated explicitly, not a gap |
+| No `activate_next` anywhere — any permitted event fires in any order, gated by Status | — | **The CMMN boundary finding**, not a capability: Menata's flat `When X` + CAP-E06 expresses CMMN's *bounded* flexibility (many predefined paths, no fixed Sequence) but not its *unbounded* flexibility (a case worker inventing a new task type at runtime) — stated explicitly, not a gap. **Re-examined in full against every CMMN construct and all 21 portfolio cases in `benchmarks/014-cmmn-case-management-benchmark.md` (Study 22):** this case's own actual targets turn out to be entirely within CMMN's *bounded* half (fixed permitted Events, order-free) — the line above was correct in spirit but overstated as applied to this case specifically |
 | `SLA Due Date` set by Priority at Triage | CAP-A11 | Date arithmetic — priority-keyed offset, a new sub-pattern |
 | `Every Day 08:00` + compound condition → auto-`Escalate` | CAP-E02 + CAP-A09 + CAP-E05 | Time-driven event, compound condition, system-triggered (same-record self-trigger, a new CAP-E05 sub-pattern) |
 | `Priority` raised one level on Escalate | **CAP-A12 (new)** | Ordinal/enum stepping in actions |
