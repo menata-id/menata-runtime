@@ -440,6 +440,27 @@ The runtime's capability is being built and verified through a deliberate discov
 | [benchmarks/019-decompile-lift-proof.md](benchmarks/019-decompile-lift-proof.md) | Study 27 — B6, CAP-W05 backward direction (decompile-lift), implemented and conformance-proven (T165–T166), built deliberately ahead of case evidence per explicit user direction after the admission-discipline gap was surfaced |
 | [benchmarks/020-ui-interaction-cluster-proof.md](benchmarks/020-ui-interaction-cluster-proof.md) | Study 28 — Track D UI/Interaction cluster (CAP-V16/V17/V18/V14 Tier 2/V15/V19), one phase per capability, growing incrementally as each lands |
 
+## Where does a new document go?
+
+A decision rule, not just a description of what's already here — for a human contributor or an
+AI agent deciding where to put something new:
+
+| The document is about... | Goes in... |
+|---|---|
+| The Runtime Metadata format/spec itself, or a concept every prototype should honor | Root, **Tier 1** (`001`–`006`) if genuinely normative and stable, or **Tier 2** (`runtime-metadata-schema.md`-style) if it elaborates one with concrete detail |
+| Discovering or tracking a capability — a case, a benchmark, a registry row, an NFR posture | Root — `case-portfolio.md` / `benchmarks/` / `capability-registry.md` / `nfr-standards.md` (**Tier 3/4**). This machinery is root-level even though most of its evidence today cites `prototype/go` internals — see `capability-registry.md`'s own "Status reflects the Go prototype runtime" caveat. Don't move it under `prototype/go/` just because Go is currently the only prototype deep enough to check status against it. |
+| An architecture/implementation decision specific to *one* prototype's own code | That prototype's own `docs/decisions/`, as a numbered ADR (see `prototype/go/docs/decisions/`) |
+| Onboarding for working *in* one prototype's own codebase (setup, layer model, house patterns) | That prototype's own top level (`README.md` / `ARCHITECTURE.md` / `DEVELOPMENT.md` / `CLAUDE.md`) — **not** its `docs/` subfolder, which is reserved for deeper reference material (ADRs, worked examples), not onboarding. `CLAUDE.md` specifically must stay at that top level: Claude Code auto-loads `CLAUDE.md` from the current working directory and its ancestors, never its descendants, so nesting it under `docs/` would silently stop it from loading for anyone working from that prototype's own root. |
+| A worked example / translation exercise (`.menata` → Runtime Metadata → running app) | That prototype's own `docs/examples/` |
+
+**Established convention: append, don't rewrite.** Several documents here (`roadmap.md`'s dated
+status blocks, `capability-registry.md`'s per-row notes, the ADRs under
+`prototype/go/docs/decisions/`) record history by *appending* a dated correction/status-update
+note when reality moves past what was written, rather than silently rewriting the original text —
+see `prototype/go/ARCHITECTURE.md`'s "Corrected 2026-08-22" blocks or `prototype/go/docs/
+decisions/`'s ADR-002/ADR-004 "Status update" sections for the pattern to copy. This keeps the *why* of a past decision visible even after it's
+superseded.
+
 ## Reference Implementation
 
 | Location | What it is |
