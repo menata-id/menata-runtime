@@ -227,15 +227,26 @@ Running applications remain stable during reload failures.
 
 ## Prototype Constraints
 
-This prototype intentionally simplifies some runtime concepts.
+**Corrected 2026-08-22** — this section described the prototype's very first cut (Cases 1–2) and
+had gone stale: a real background scheduler (CAP-E02/E03), external webhook ingestion (CAP-E04),
+and an auto-generated JSON API (CAP-X07) have all existed and been conformance-proven since
+2026-07-12. Kept here, corrected, rather than deleted, so the history of what this prototype
+originally scoped out (and later built) stays visible.
 
-- No background job scheduler (events are request- or same-request-cascade-triggered only —
-  CAP-E05's `trigger_event` fires another event from within the same request, but nothing fires
-  on a timer; CAP-E02 time-driven events remain unimplemented)
-- No external integrations
-- No API exposure
+Remaining genuine simplifications, as of this correction:
 
-These limitations exist to keep the prototype focused on validating the core interpretation model.
+- No object storage — uploaded files (CAP-F06) live on local disk, not S3/GCS/etc.
+- No message queue / async job runner — every action (including slow ones: notification
+  fan-out, cross-machine subscription dispatch, batch generation) still runs inline inside the
+  triggering request's own transaction. Named as a real, not-yet-closed gap — CAP-W06 in
+  `../capability-registry.md`, motivated by `../brd-menata-runtime-v2.md`'s Concept C analysis.
+- No metadata live-reload — a metadata/seed change needs a server restart to take effect
+  (CAP-X04).
+- Single-process, single-host deployment — no horizontal scaling story built yet (Study 8,
+  `../benchmarks/004-scale-architecture-study.md`, designs one; not implemented).
+
+These remaining limitations exist to keep the prototype focused on validating the core
+interpretation model before taking on production-operations concerns.
 
 ---
 

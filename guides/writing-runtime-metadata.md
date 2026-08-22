@@ -862,6 +862,41 @@ Event saat runtime, bukan cuma diam-diam tidak melakukan apa-apa seperti sebelum
 
 ---
 
+## Process Overlay — jalan pintas menulis proses (CAP-W01/W05, 2026-08-22)
+
+Ada cara kedua menulis proses berbasis-state selain menulis `events`/`permissions`/Field Status
+satu per satu seperti contoh Leave Request di atas: blok `process` pada Machine. Loader
+**meng-compile**-nya menjadi persis Events/Permissions/Field yang sama seperti kalau ditulis
+tangan — jadi hasil akhirnya identik, ini murni jalan pintas menulis, bukan mekanisme baru di
+runtime. Referensi lengkap grammar-nya (compile mapping, aturan validasi, contoh penuh): bagian
+"Process Overlay" di `../runtime-metadata-schema.md`.
+
+```yaml
+machine:
+  id: mch_corrective_action
+  process:
+    states: [Open, Assigned, Submitted, Closed]
+    transitions:
+      - { name: Assign, from: Open, to: Assigned, actor: { role: Supervisor } }
+      - { name: Submit, from: Assigned, to: Submitted, actor: { role: Worker },
+          requirements: [ { type: evidence, target: mch_ca_photo, cardinality: "2..*" } ] }
+      - { name: Close, from: Submitted, to: Closed, actor: { role: Supervisor } }
+```
+
+**Kapan pakai yang mana:** kalau prosesnya murni state-guard (kondisi `equals` pada satu Field
+Status, actor role/owner_field) — pakai `process`, jauh lebih ringkas, dan tervalidasi sebagai
+graph (state tak terjangkau, transition menggantung terdeteksi saat load, bukan saat runtime).
+Kalau butuh kondisi yang lebih kaya (multi-field, `AggregateCondition`, `Schedule`,
+`InputFields` untuk delegasi, dan lain-lain di luar cakupan `process`) — tulis `events` tangan
+seperti biasa. **Satu Machine tidak boleh mendeklarasikan keduanya** — loader menolak load kalau
+`process` dan `events` sama-sama ada, supaya tidak ada penggabungan ambigu yang ditebak diam-diam.
+
+`requirements` baru mendukung `type: evidence` (jumlah record child Machine yang mereferensikan
+balik ke Machine ini, lewat Field `reference`) — enam tipe lain versi BRD pembanding (form,
+entity, task, approval, document, decision) belum ada padanannya, jangan ditulis seolah jalan.
+
+---
+
 ## Referensi
 
 - [`menata-id/menata` guides](https://github.com/menata-id/menata/tree/main/guides) — cara menulis

@@ -187,6 +187,94 @@ machine:
 
 ---
 
+## Process Overlay (CAP-W01/W05, Process Overlay B1–B3, 2026-08-22)
+
+A Machine may declare `process` instead of hand-authoring its own `events`/`permissions`/Status
+Field — a compact state-machine declaration the loader **compiles** at boot into exactly the
+same Events/Permissions/Fields a hand-authored Machine would have
+(`internal/metadata/compile.go`'s `compileProcess`; the concept: `brd-menata-runtime-v2.md`,
+proof: `benchmarks/013-overlay-compiler-proof.md`). Downstream — Router, Guard, Executor,
+Constraint Engine — never sees `process` at all, only its compiled result: "declared process,
+emergent execution."
+
+```yaml
+machine:
+  id: mch_corrective_action
+  fields:
+    - { id: fld_ca_notes, name: Notes, type: rich_text }
+  process:
+    states: [Open, Assigned, In_Progress, Submitted, Review, Verified, Closed]
+    transitions:
+      - name: Assign
+        from: Open
+        to: Assigned
+        actor: { role: Supervisor }
+      - name: Start
+        from: Assigned
+        to: In_Progress
+        actor: { role: Worker, owner_field: fld_ca_assignee }   # CAP-P02 — narrows the role to the specific assignee
+      - name: Submit
+        from: In_Progress
+        to: Submitted
+        actor: { role: Worker, owner_field: fld_ca_assignee }
+        on_transition:                                          # optional -- extra actions, same {type, params} shape event_actions rows already use
+          - { type: notify, params: { role: Reviewer } }
+        requirements:                                            # optional -- CAP-W01, see below
+          - { type: evidence, target: mch_ca_photo, cardinality: "2..*" }
+      - name: Approve
+        from: Review
+        to: Verified
+        actor: { role: Reviewer }
+      - name: Close
+        from: Verified
+        to: Closed
+        actor: { role: Supervisor }
+    auto:                                                        # optional -- system-performed, chained via CAP-E05 the instant a record lands on `from`
+      - { from: Submitted, to: Review }
+```
+
+**Compiles to:**
+
+| Declared | Compiles to | Mechanism |
+|---|---|---|
+| `states` | the Status `value_list` Field's `values` — generated (`fld_<machine>_status`) unless the Machine already has its own `value_list` Field literally named `Status`, in which case its own declared `values` must already cover every process state | first-value-is-default convention already governs the initial state |
+| `transitions[].{name,from,to}` | one `Event` per transition, id `evt_<machine>_<slug(name)>`, `condition: {status equals from}`, first action `set_field {status: to}` | CAP-E06 |
+| `transitions[].actor` | one `Permission` per distinct `{role, owner_field}` pair across all transitions, granting every Event that pair authors | CAP-P01/CAP-P02 |
+| `transitions[].on_transition` | appended as further `EventAction`s on the same compiled Event, in declared order | ordinary Executor action vocabulary — no second grammar |
+| `transitions[].requirements` | a generated `number` counter Field (`fld_<machine>_<target>_count`, default `"0"`) + a gating `Constraint` (`condition: {status equals to}`, `expression: {counter >= min}` [+ `<= max`]) | CAP-C09 re-validates it unchanged — see below |
+| `auto` | a `System`-actor `Event` of the same shape, chained onto every compiled Event landing on its `from` state via `trigger_event` (no human Permission grants it — deny-by-default keeps it off every button) | CAP-E05 |
+
+**`requirements[].type` is `"evidence"` only, so far** (CAP-W01) — `target` names a *child* Machine
+that must itself hold a `reference` Field pointing back at this Machine (validated at load time,
+same "Unknown = explicit" discipline as `child_lines`/CAP-F16); `cardinality` is `"N"` (exact),
+`"N..*"` (at least N), or `"N..M"` (a bounded range). **The count is never computed by a query at
+transition time** — it is maintained by *write-time fan-in*: every time a `target`-Machine record
+is `Create`d referencing the parent, the parent's counter increments on the spot
+(`internal/handler/requirement.go`'s `stampRequirementCounters`, wired into the plain HTTP
+`Create` route only — `create_record`/CSV import/the JSON API do not stamp it yet, a named gap).
+Two transitions naming the same `(type, target)` share one counter; naming it with two
+*different* `to` states is a load-time error (no OR-condition support).
+
+**Rules enforced at load time (fail-loud, same posture as everywhere else in this document):**
+
+- A Machine declares `process` **or** hand-authored `events` — never both. Mixing the two is
+  undefined on purpose (ambiguous-merge avoidance), not silently guessed at.
+- Every `states` entry must be non-empty and declared once; every `transitions[].from`/`to` and
+  `auto[].from`/`to` must name a declared state; every state must be reachable from `states[0]`
+  (the initial state) via some transition or auto step — an unreachable state fails the load.
+  Two `transitions` compiling to the same event id (a name collision after slugging) also fails.
+- `actor.role` is required — a transition nobody may perform is a declaration error.
+  `actor.owner_field`, when set, must name a real `type: user` Field on the same Machine (same
+  check `permissions.owner_field` already gets elsewhere in this document).
+- `auto` may not form a cycle (`A→B`, `B→A` chained through `trigger_event` would loop forever
+  at runtime), and at most one `auto` entry may leave any given state.
+- A `requirements[].target` must exist and hold a `reference` Field back to the declaring
+  Machine — checked once every Application has loaded (`metadata.validateReferences`), not
+  inside the process compiler itself, since a Requirement may target a Machine in an Application
+  that hasn't loaded yet at the point its own Machine compiles.
+
+---
+
 ## Field Types
 
 | Type | Description | Example | Required `options` key |
