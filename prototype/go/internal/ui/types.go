@@ -89,6 +89,18 @@ type FormField struct {
 type ChildLinesData struct {
 	Title string
 	Rows  [][]FormField
+
+	// SumFieldA/B (CAP-V15) are set only when the parent Machine declares a
+	// CrossRecord{Kind:"aggregate"} Constraint against this SAME child
+	// Machine (handler.buildChildLinesData) -- when set, the rendered
+	// section shows a live, client-side running total for each, purely
+	// presentational; the real gate stays the server-side check (CAP-C10)
+	// unchanged. SumFieldB/BLabel are empty when the constraint compares
+	// FieldA's sum against a literal Value instead of a second field.
+	SumFieldA      string
+	SumFieldALabel string
+	SumFieldB      string
+	SumFieldBLabel string
 }
 
 // DetailField is a resolved name-value pair for the detail view.

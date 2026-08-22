@@ -34,7 +34,7 @@ templ Form(identity, csrfToken string, isAdmin bool, machine *model.Machine, rec
 						@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel)
 					}
 					if childLines != nil {
-						@ChildLinesSection(childLines.Title, childLines.Rows)
+						@ChildLinesSection(childLines.Title, childLines.Rows, childLines.SumFieldA, childLines.SumFieldALabel, childLines.SumFieldB, childLines.SumFieldBLabel)
 					}
 					<div class="flex items-center gap-3 border-t border-slate-100 pt-5">
 						<button

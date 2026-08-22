@@ -79,7 +79,14 @@ INSERT INTO views (id, machine_id, name, type, position, config) VALUES
     ('vw_c9fp_list', 'mch_c9_fiscal_period', 'Fiscal Periods', 'list', 0, '{"columns":["fld_c9fp_name","fld_c9fp_status"]}'),
     ('vw_c9fp_form', 'mch_c9_fiscal_period', 'New Fiscal Period', 'form', 1, '{"fields":["fld_c9fp_name"]}'),
     ('vw_c9je_list', 'mch_c9_journal_entry', 'Journal Entries', 'list', 0, '{"columns":["fld_c9je_memo","fld_c9je_status"]}'),
-    ('vw_c9je_form', 'mch_c9_journal_entry', 'New Journal Entry', 'form', 1, '{"fields":["fld_c9je_memo","fld_c9je_period"]}'),
+    -- CAP-V15 (added same day as the batch this fixture proves CAP-C08/C10/
+    -- C11 with): child_lines embeds Journal Entry Line rows directly in
+    -- this form (CAP-F16) -- purely additive to the view already used by
+    -- T161-T164, which POST to mch_c9_journal_entry_line's own separate
+    -- form directly and are unaffected by what this parent's OWN form
+    -- also offers.
+    ('vw_c9je_form', 'mch_c9_journal_entry', 'New Journal Entry', 'form', 1,
+     '{"fields":["fld_c9je_memo","fld_c9je_period"],"child_lines":{"machine":"mch_c9_journal_entry_line","parent_field":"fld_c9jel_entry","fields":["fld_c9jel_debit","fld_c9jel_credit"],"max_rows":4}}'),
     ('vw_c9jel_list', 'mch_c9_journal_entry_line', 'Journal Entry Lines', 'list', 0, '{"columns":["fld_c9jel_entry","fld_c9jel_debit","fld_c9jel_credit"]}'),
     ('vw_c9jel_form', 'mch_c9_journal_entry_line', 'New Journal Entry Line', 'form', 1, '{"fields":["fld_c9jel_entry","fld_c9jel_debit","fld_c9jel_credit"]}')
 ON CONFLICT (id) DO NOTHING;

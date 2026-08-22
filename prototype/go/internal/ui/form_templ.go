@@ -135,7 +135,7 @@ func Form(identity, csrfToken string, isAdmin bool, machine *model.Machine, reco
 				}
 			}
 			if childLines != nil {
-				templ_7745c5c3_Err = ChildLinesSection(childLines.Title, childLines.Rows).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = ChildLinesSection(childLines.Title, childLines.Rows, childLines.SumFieldA, childLines.SumFieldALabel, childLines.SumFieldB, childLines.SumFieldBLabel).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

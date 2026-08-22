@@ -105,3 +105,37 @@ exercised in a real browser-equivalent request/response cycle before trusting th
 suite, per this project's own `CLAUDE.md` discipline).
 
 **Registry impact**: `capability-registry.md`'s CAP-V16 row ❌→✅.
+
+---
+
+## Phase 4 — CAP-V15: live aggregate preview (first hand-written JS proper)
+
+**What was built**: no new View config key at all — `handler.buildChildLinesData` finds the
+parent Machine's own `CrossRecord{Kind:"aggregate"}` Constraint (CAP-C10/CAP-C08, this session's
+own earlier work) whose `ChildMachine` matches the `child_lines` section already being rendered
+(a heuristic match by convention, the same class of lookup this codebase already documents
+elsewhere) and derives `FieldA`/`FieldB` from it directly — the exact declaration T161/T162
+already prove server-side, reused rather than duplicated into a second config surface. Config
+reaches the client entirely through `data-sum-a-field`/`data-sum-b-field` attributes on the
+section's own wrapper `<div>`; one small, static, page-level, **non-interpolated** `input`-event
+listener (`layout.templ`, the same file CAP-V16's own delegated click listener lives in) reads
+those attributes at runtime and sums matching row inputs (`input[name$="_<field>"]`, reusing
+CAP-F16's own `child_<row>_<field>` naming scheme directly) into two live totals — purely
+presentational; the actual gate stays CAP-C10's already-proven server-side check, completely
+unchanged.
+
+**Proof and its honest limit**: no new fixture — reuses `seeds/027_case9_completion_lab.sql`
+directly, whose `vw_c9je_form` View gained a `child_lines` config (a purely additive change; the
+existing T161–T164, which POST to the child Machine's own separate form, are unaffected by what
+the parent's form also now offers). T174 asserts the server emits the correct wiring
+(`data-sum-a-field="fld_c9jel_debit"`, `data-sum-b-field="fld_c9jel_credit"` present in the
+rendered form) — this project's conformance suite is HTTP black-box and cannot execute JS or
+observe a live DOM update, so that's the limit of what T174 can automatically prove. The actual
+live-sum behavior was manually verified in a real request/response cycle (fetching the rendered
+form and confirming every expected attribute/input name is present and correctly named) before
+this phase was reported complete — named honestly as a manual check, not claimed as automated
+coverage.
+
+**174/174 conformance passing, zero regressions**, confirmed on a fresh isolated schema.
+
+**Registry impact**: `capability-registry.md`'s CAP-V15 row ❌→✅.

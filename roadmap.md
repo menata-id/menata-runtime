@@ -1728,7 +1728,7 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 - CAP-V17 (SLA countdown badge) — ✅ done (T167–T168, `benchmarks/020-ui-interaction-cluster-proof.md`)
 - CAP-V18 (resource-grouped calendar) — ✅ done (T169–T170)
 - CAP-V14 Tier 2 (kanban board drag-and-drop) — READY, independent, extends already-✅ CAP-V14
-- CAP-V15 (live aggregate preview) — Track C done (CAP-C10 ✅), READY now
+- CAP-V15 (live aggregate preview) — ✅ done (T174)
 - CAP-V19 (live cross-record balance preview) — Track C done (CAP-C08 ⚠️/reference_field kind ✅), READY now
 
 ### Track E — Independent, no dependency, pick up per Prio when convenient

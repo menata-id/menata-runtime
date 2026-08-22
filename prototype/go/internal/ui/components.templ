@@ -229,8 +229,22 @@ templ FieldInput(f *model.Field, name, value string, refOptions []ReferenceOptio
 // for a form's embedded child Machine -- Journal Entry Lines inside the
 // Journal Entry form, submitted and validated atomically with the parent.
 // Empty rows are simply ignored by the handler on submit, not rejected.
-templ ChildLinesSection(title string, rows [][]FormField) {
-	<div class="mt-2 space-y-3 border-t border-slate-100 pt-5">
+//
+// CAP-V15: sumFieldA/B (empty = no live total shown) name the two Fields a
+// live, client-side running total is kept for -- purely presentational,
+// read by layout.templ's one static, page-level, non-interpolated 'input'
+// listener via this element's own data-sum-a-field/data-sum-b-field
+// attributes, not by any per-render script (same discipline CAP-V16's own
+// TypeaheadPicker already established: config flows through data-*
+// attributes, never string-concatenated into JS source).
+templ ChildLinesSection(title string, rows [][]FormField, sumFieldA, sumFieldALabel, sumFieldB, sumFieldBLabel string) {
+	<div
+		class="mt-2 space-y-3 border-t border-slate-100 pt-5"
+		if sumFieldA != "" {
+			data-sum-a-field={ sumFieldA }
+			data-sum-b-field={ sumFieldB }
+		}
+	>
 		<h2 class="text-sm font-semibold text-slate-700">{ title }</h2>
 		for _, row := range rows {
 			<div class="grid grid-cols-1 gap-3 rounded-md border border-slate-200 p-3 sm:grid-cols-2">
@@ -240,5 +254,13 @@ templ ChildLinesSection(title string, rows [][]FormField) {
 			</div>
 		}
 		<p class="text-xs text-slate-400">Leave a row blank to skip it.</p>
+		if sumFieldA != "" {
+			<div class="flex flex-wrap justify-end gap-6 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">
+				<span>Total { sumFieldALabel }: <span class="js-sum-a font-semibold">0</span></span>
+				if sumFieldB != "" {
+					<span>Total { sumFieldBLabel }: <span class="js-sum-b font-semibold">0</span></span>
+				}
+			</div>
+		}
 	</div>
 }

@@ -134,7 +134,32 @@ func (h *Handler) buildChildLinesData(ctx context.Context, machine *model.Machin
 		}
 		rows[i] = row
 	}
-	return &ui.ChildLinesData{Title: childMachine.Name, Rows: rows}
+	data := &ui.ChildLinesData{Title: childMachine.Name, Rows: rows}
+
+	// CAP-V15: if this parent declares an aggregate cross-record check
+	// (CAP-C10, internal/handler/crossrecord.go) against this SAME child
+	// Machine, surface FieldA/FieldB for a live client-side running total
+	// -- purely presentational, the real gate stays the already-proven
+	// server-side check unchanged. Matched by convention (ChildMachine ==
+	// ChildLinesConfig.Machine on the same parent), the same class of
+	// heuristic this codebase already documents elsewhere (CLAUDE.md).
+	for _, c := range machine.Constraints {
+		if c.CrossRecord == nil || c.CrossRecord.Kind != "aggregate" || c.CrossRecord.ChildMachine != cl.Machine {
+			continue
+		}
+		data.SumFieldA = c.CrossRecord.FieldA
+		if fa, ok := fieldByID[c.CrossRecord.FieldA]; ok {
+			data.SumFieldALabel = fa.Name
+		}
+		if c.CrossRecord.FieldB != "" {
+			data.SumFieldB = c.CrossRecord.FieldB
+			if fb, ok := fieldByID[c.CrossRecord.FieldB]; ok {
+				data.SumFieldBLabel = fb.Name
+			}
+		}
+		break
+	}
+	return data
 }
 
 // validateChildRows (CAP-F16) reads every non-empty row the fixed-slot

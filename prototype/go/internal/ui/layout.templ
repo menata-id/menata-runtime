@@ -50,6 +50,29 @@ templ Page(title, identity, csrfToken string, isAdmin bool, unreadCount int, sub
 					if (search) search.value = opt.dataset.label;
 					if (list) list.innerHTML = '';
 				});
+				// CAP-V15: a live, client-side running total over a
+				// ChildLinesSection's own repeated row inputs -- purely
+				// presentational (the real gate is the server-side CAP-C10
+				// check, unchanged); config (which two fields to sum) comes
+				// from the section's own data-sum-a-field/data-sum-b-field
+				// attributes, never interpolated into this script.
+				document.addEventListener('input', function(e) {
+					var section = e.target.closest('[data-sum-a-field]');
+					if (!section) return;
+					var fa = section.dataset.sumAField, fb = section.dataset.sumBField;
+					var sumA = 0, sumB = 0;
+					section.querySelectorAll('input[name$="_' + fa + '"]').forEach(function(i) {
+						sumA += parseFloat(i.value) || 0;
+					});
+					if (fb) {
+						section.querySelectorAll('input[name$="_' + fb + '"]').forEach(function(i) {
+							sumB += parseFloat(i.value) || 0;
+						});
+					}
+					var elA = section.querySelector('.js-sum-a'), elB = section.querySelector('.js-sum-b');
+					if (elA) elA.textContent = sumA.toFixed(2);
+					if (elB) elB.textContent = sumB.toFixed(2);
+				});
 			</script>
 		</body>
 	</html>
