@@ -280,3 +280,30 @@ capability-triggered migration plan, the original reasoning, and the correction 
 [docs/decisions/004-internal-package-architecture.md](docs/decisions/004-internal-package-architecture.md);
 the split that actually happened is recorded in
 [docs/decisions/006-handler-file-split.md](docs/decisions/006-handler-file-split.md).
+
+---
+
+## Extension Seams — where each grammar area actually dispatches
+
+**Added 2026-08-22.** `capability-lifecycle.md` §4 describes a *target* extension architecture —
+one registry per seam (`fieldtype.Register(...)`, `action.Register(...)`, etc.), per ADR-004. That
+registry layer does not exist in this tree. What actually dispatches a new Field type / Action
+type / Constraint operator / View type today is an ordinary Go `switch`, one per seam, each in one
+place — adding a new case to the right `switch` (plus the other Definition-of-Done layers,
+`CLAUDE.md`'s implementation-loop table) *is* how a capability's code gets added here:
+
+| Grammar area | Where the `switch` lives | What a new case needs |
+|---|---|---|
+| Field type | `internal/metadata/loader.go` (validate at load) + `internal/ui/components.templ`'s `FieldInput` (render) | A `model.FieldType*` constant (`model/model.go`) and a case in both switches — loader validation and UI rendering are separate concerns, both required |
+| Action type | `internal/executor/executor.go`'s `Simulate`/`Persist` (single-record) **or** `internal/handler/events.go`'s `runWorkflowActions` (cross-record — needs `interp`/`records`, which Executor deliberately can't reach) | An `model.ActionType*` constant + a case in exactly one of the two, decided by whether the action needs to look outside the triggering record |
+| Constraint operator | `internal/constraint`'s `Eval` | A case matching the operator string; pure function, no DB access (cross-record constraints live in `internal/handler/validation.go` instead, checked separately from `Eval`) |
+| View type | One handler method per type (`internal/handler/record_crud.go`, `views.go`, …), routed in `internal/router/router.go` | A new `GET`/`POST` route + handler method; `model.ViewConfig` grows the new type's own config keys |
+| Event source | `cmd/server/main.go`'s `runScheduler` (time-driven) or a new route (external, like `Webhook` in `events.go`) — both call into `triggerEvent`, never a separate guard path | A new firing mechanism, but it must end by calling the existing `triggerEvent` so CAP-E06/CAP-A07/CAP-C09's guards still apply |
+| Workspace service | A new handler + route, workspace-scoped (see `internal/handler/search.go`/`admin.go` for the shape) | No shared registry — each service so far is its own small, focused set of routes |
+
+This flat, `switch`-per-seam shape has held for ~90 capabilities without the registry indirection
+ADR-004 anticipated needing — see that ADR's own status update for why. If you're implementing a
+new capability, this table plus `CLAUDE.md`'s "The capability implementation loop" and
+"Established patterns" sections (`triggerEvent` as the one path every event runs through,
+`Simulate`/`Persist` split, never swallow an error inside an action loop, atomic-INSERT dedupe,
+heuristics named explicitly) are the actual, current guide — not `capability-lifecycle.md` §4.
