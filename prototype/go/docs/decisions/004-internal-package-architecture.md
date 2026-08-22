@@ -1,7 +1,32 @@
 # ADR-004: Internal Package Architecture for Extensible Metadata-Driven Runtime
 
-**Status:** Accepted — target architecture, migration is incremental (see Migration Strategy)
+**Status:** Accepted as a candidate direction — migration not executed (see Status update below)
 **Date:** 2026-07-05
+
+## Status update (2026-08-22)
+
+Every trigger condition in the Migration Strategy table below has since fired — CAP-F13, CAP-A07/
+A08, CAP-E02, CAP-V13, CAP-O01–O06, CAP-X02, and CAP-X05 are all `capability-registry.md` ✅ — yet
+none of the target packages (`core/`, `engine/`, `metadata/validator/`, `security/`, `web/`,
+`platform/`) exist; `internal/` is still the flat layout this ADR's own Context section describes.
+Field types, action types, and view types are still dispatched through `switch` statements, not the
+`Register()` seams sketched here.
+
+ADR-006 (2026-08-22), auditing this repo's file/folder structure independently, reached the
+opposite operational conclusion: the flat layout "matches the de-facto `golang-standards/project-
+layout` convention and needed no change," and the one real scaling problem found (`handler.go` at
+3,244 lines) was solved by splitting it into domain-scoped files **within the same `handler`
+package** — not by carving out `web/httpapi/` per this ADR's target layout.
+
+Reading both together: this ADR's target layout is still a legitimate candidate for if/when the
+registry indirection actually earns its cost (many independent teams touching the same seam,
+plugin-loaded capabilities, etc.) — none of which has happened yet, ~90 capabilities in. The
+predicted trigger ("capability X begins implementation") turned out not to be the real trigger;
+file-count/line-count pressure within the existing flat packages (ADR-006's actual bar) is what
+this codebase has hit instead, and switch-statement dispatch has scaled past every checkpoint this
+ADR named without the predicted pain. Kept on record rather than marked Rejected/Superseded — no
+capability has yet demonstrated the registry indirection is actually needed, but none has
+demonstrated it never will be either.
 
 ## Context
 

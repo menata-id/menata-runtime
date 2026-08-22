@@ -7,7 +7,9 @@
 > is a designed experiment — and surprises (patterns the case reveals that
 > were not targeted) are themselves findings.
 >
-> Status: v0.2 — Cases 5–9 field-level design complete (7 of 10 cases now documented) | Created: 2026-07-04 | Updated: 2026-07-10
+> Status: v0.3 — full 21-case portfolio documented (Cases 1–10 original + Cases 11–21 Extended
+> Portfolio); Cases 1–2 ✅ done, the remaining 19 ⚠️ documented with targets/gaps registered against
+> `capability-registry.md` | Created: 2026-07-04 | Updated: 2026-08-22
 
 ---
 

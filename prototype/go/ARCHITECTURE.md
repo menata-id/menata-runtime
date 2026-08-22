@@ -240,8 +240,12 @@ Remaining genuine simplifications, as of this correction:
   fan-out, cross-machine subscription dispatch, batch generation) still runs inline inside the
   triggering request's own transaction. Named as a real, not-yet-closed gap — CAP-W06 in
   `../capability-registry.md`, motivated by `../brd-menata-runtime-v2.md`'s Concept C analysis.
-- No metadata live-reload — a metadata/seed change needs a server restart to take effect
-  (CAP-X04).
+- No *automatic* metadata live-reload — a metadata/seed change still needs a server restart or an
+  explicit `POST /admin/reload` to take effect. **Corrected 2026-08-22**: an admin-triggered reload
+  (ADR-002 Option A) is implemented and conformance-proven (CAP-X04, `benchmarks/015-metadata-live-
+  reload-proof.md`) — the atomic-swap interpreter this bullet used to describe as entirely missing
+  now exists; what remains missing is Option C (`LISTEN/NOTIFY`, automatic on any metadata write,
+  CAP-X11, still ❌).
 - Single-process, single-host deployment — no horizontal scaling story built yet (Study 8,
   `../benchmarks/004-scale-architecture-study.md`, designs one; not implemented).
 
@@ -252,15 +256,27 @@ interpretation model before taking on production-operations concerns.
 
 ## Package Structure
 
-The current `internal/` layout is flat — one package per concern (`config`, `constraint`, `db`,
-`executor`, `handler`, `interpreter`, `metadata`, `model`, `permission`, `router`, `store`, `ui`).
-This is correct for what the prototype validates today (Cases 1–2). It is not the final shape.
+**Corrected 2026-08-22** — this section still described the prototype's very first cut (Cases 1–2)
+and a target-layout migration that, in practice, never happened despite every capability
+ADR-004 named as a migration trigger (CAP-F13, CAP-A07/A08, CAP-E02, CAP-V13, CAP-O01–O06, CAP-X02,
+CAP-X05) having long since shipped. See ADR-004's own status update and ADR-006 for the reconciled
+story — the short version: the flat layout, split into more files per package as any one package
+grows past ~1,000 lines (ADR-006), has been the actual scaling strategy, not ADR-004's registry-
+based `core/`/`engine/`/`security/`/`web/`/`platform/` restructuring.
 
-As the runtime grows to support the capabilities tracked in `../capability-registry.md` — reference
-fields, pluggable actions, time-driven events, report views, workspace services — the package
-structure evolves into layered seams (`core/`, `engine/`, `metadata/`, `store/`, `security/`,
-`web/`, `platform/`) so that new capabilities are additive (register a plugin) rather than edits to
-existing `switch` statements.
+The current `internal/` layout is flat — one package per concern: `auth`, `config`, `constraint`,
+`db`, `executor`, `handler`, `interpreter`, `metadata`, `model`, `permission`, `router`, `store`,
+`ui` — with the largest packages (`handler`, at ~90 capabilities' worth of HTTP surface) split into
+several domain-scoped files within that same package (ADR-006), not separate packages. This now
+covers the full 21-case portfolio (`../case-portfolio.md`) and roughly 90 registered capabilities
+(`../capability-registry.md`), not just Cases 1–2 — switch-statement dispatch (field types, action
+types, view types) has scaled this far without the registry indirection ADR-004 anticipated needing
+by now.
 
-The target layout, the reasoning, and the capability-triggered migration plan (no big-bang refactor)
-are recorded in [docs/decisions/004-internal-package-architecture.md](docs/decisions/004-internal-package-architecture.md).
+ADR-004's target layout (`core/`, `engine/`, `metadata/`, `store/`, `security/`, `web/`,
+`platform/`) remains on record as a candidate direction, not a plan actively being executed — its
+own migration-trigger table and the reconciliation note now on that ADR explain why. The
+capability-triggered migration plan, the original reasoning, and the correction are recorded in
+[docs/decisions/004-internal-package-architecture.md](docs/decisions/004-internal-package-architecture.md);
+the split that actually happened is recorded in
+[docs/decisions/006-handler-file-split.md](docs/decisions/006-handler-file-split.md).

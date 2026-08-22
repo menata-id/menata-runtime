@@ -1,7 +1,22 @@
 # ADR-002: Metadata Loading Strategy
 
-**Status:** Prototype decision — deferred  
+**Status:** Option A implemented (see Status update below); Option C still deferred
 **Date:** 2026-07-04
+
+## Status update (2026-08-22)
+
+Option A (admin-triggered reload) is implemented and conformance-proven — `CAP-X04` in
+`../../../../capability-registry.md`, proof in `../../../../benchmarks/015-metadata-live-reload-
+proof.md` (T151–T153). `POST /admin/reload` re-runs `loader.LoadAll` and swaps the interpreter via
+`atomic.Pointer[Interpreter]` (`internal/interpreter/store.go`) exactly as the "Constraint on swap"
+section below anticipated; a failed reload leaves the old interpreter serving untouched, surfaced
+to the admin as a 500. This was prompted directly by CAP-W07 (`change_policy`) turning out to
+depend architecturally on live reload existing first, not the other way around.
+
+Option C (`LISTEN/NOTIFY`, still this ADR's own recommended long-term answer) remains unbuilt —
+tracked as `CAP-X11` (❌), bundled with the lazy per-workspace loading it would naturally pair with.
+Option B was never built and is still not recommended, unchanged from the original recommendation
+below.
 
 ## Context
 
