@@ -12,13 +12,16 @@ type Engine struct{}
 
 // Violations returns human-readable messages for every constraint the data breaks.
 // An empty slice means the data satisfies all constraints. "unique" constraints
-// (CAP-C12) are skipped here -- they need cross-record access this Engine
-// deliberately doesn't have (same Executor/Handler boundary as everywhere
-// else in this codebase); see handler.uniquenessViolations for those.
+// (CAP-C12) and CrossRecord constraints (CAP-C08) are skipped here -- both
+// need cross-record access this Engine deliberately doesn't have (same
+// Executor/Handler boundary as everywhere else in this codebase); see
+// handler.uniquenessViolations/crossRecordViolations for those. A
+// CrossRecord constraint's own Expression is a placeholder (never evaluated
+// by anything) -- the real check lives entirely in crossRecordViolations.
 func (e *Engine) Violations(machine *model.Machine, data map[string]any) []string {
 	var out []string
 	for _, c := range machine.Constraints {
-		if c.Expression.Operator == "unique" {
+		if c.Expression.Operator == "unique" || c.CrossRecord != nil {
 			continue
 		}
 		if c.Condition != nil && !Eval(*c.Condition, data) {

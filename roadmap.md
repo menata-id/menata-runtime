@@ -1646,6 +1646,16 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 >
 > Registry: `capability-registry.md`'s CAP-W03 row moved ⚠️→✅ (both core and declarative form now done). One named, deferred limitation carried forward: at most one `approval` requirement per Machine this pass — no dedup/merge across multiple transitions the way `evidence` has, no case has needed a second yet. Full write-up: `benchmarks/017-quorum-declarative-form-proof.md`.
 
+> **Status update (2026-08-22, same day) — Case 9 completion batch: CAP-C08/C10/C11, implemented and conformance-proven.** One new Constraint shape, `CrossRecord` (`constraints.cross_record` JSONB) — `constraint.Eval` deliberately never touches storage, the same boundary `"unique"` already respects (`Engine.Violations` now also skips any Constraint with `CrossRecord` set, alongside `"unique"`), so a new `handler.crossRecordViolations` checks it separately. This row's own note already said the shape: "both directions fall under the same capability, not two" — `Kind: "aggregate"` (compares `SUM(FieldA)` against `SUM(FieldB)`/a literal across every child referencing this record) realizes CAP-C10; `Kind: "reference_field"` (looks up a referenced record, compares one of its fields) realizes CAP-C11. Gating ("only check at Post") needed no new mechanism — it's the Constraint's own ordinary `Condition`, evaluated the same way for every other Constraint.
+>
+> One real, easy-to-miss trap caught by design, not by a failing test: `constraint.Eval`'s `"equals"` is a **string** comparison (`str == resolveCompareValue(...)`) — debit `"100"` and credit `"100.00"` would compare unequal even though numerically identical. The aggregate check does its own numeric comparison (`compareNumeric`, an epsilon-tolerant float compare) instead of reusing `Eval` for that half.
+>
+> `crossRecordViolations` is called at the same three tiers `uniquenessViolations` already is (Create, Update, CSV import) **plus `triggerEvent`/CAP-C09** — a genuinely new call site, added because this capability's whole point (block *posting*, not editing header fields) only fires on an Event trigger against an already-existing Draft record, a path `uniquenessViolations` itself was never extended to (named as a discovered, out-of-scope asymmetry, not silently fixed for it too).
+>
+> Proof: new, self-contained `seeds/027_case9_completion_lab.sql` (`mch_c9_fiscal_period`/`mch_c9_journal_entry`/`mch_c9_journal_entry_line`) — the existing, already-conformance-tested `seeds/008_journal_entry.sql` deliberately left untouched (its own header comment already disclaimed CAP-C10 for exactly this regression-risk reason). T161/T162: an unbalanced entry is rejected on Post, a balanced one succeeds. T163/T164: posting into a Closed Fiscal Period is rejected even when balanced, posting into an Open one succeeds. **164/164 passing, zero regressions**, confirmed on a fresh isolated schema.
+>
+> Registry: CAP-C10/C11 both ❌→✅. CAP-C08 moved ❌→⚠️, not ✅ — one shape named in this row's own "both directions" framing (a universal/for-all check across every child, illustrated by its own `Fiscal Period.Close` example — checking that *every* Journal Entry in a period is already Posted before letting the period close) is a third, structurally different mechanism this pass didn't build, because no case in `case-portfolio.md` actually declares it as a target (Case 9's own two declared rows — debit=credit, no-posting-into-closed-period — are both fully covered). Full write-up: `benchmarks/018-case9-completion-batch-proof.md`.
+
 ---
 
 # Sequencing Guide — Prerequisite Map for What's Next (added 2026-08-22)
@@ -1696,11 +1706,11 @@ Each item is tagged:
 
 Correction to the 2026-08-22 B2 status update above: this batch was originally assumed to be a B3 prerequisite ("pulled in exactly when B3 needs the write-time-fan-in counters they provide") — B3's own same-day implementation note found that assumption wrong: CAP-C10/C11/C08 are read-time SQL-aggregate constraints, the *opposite* of the write-time-fan-in keystone B3 actually needed. This batch is real, valuable, independent v1 work — it does not gate, and is not gated by, anything in Track B.
 
-1. **CAP-C10** (`sum(debit) = sum(credit)`) — READY, its only named dependency (CAP-F16) is already ✅
-2. **CAP-C11** (no posting into a closed period) — READY, no dependency
-3. **CAP-C08** (cross-record constraint, generalized) — READY, no dependency
+1. **CAP-C10** (`sum(debit) = sum(credit)`) — ✅ done (T161–T162, `benchmarks/018-case9-completion-batch-proof.md`)
+2. **CAP-C11** (no posting into a closed period) — ✅ done (T163–T164)
+3. **CAP-C08** (cross-record constraint, generalized) — ⚠️ two of the two shapes named as this row's own "both directions" are done (aggregate compare, reference-field lookup); a third, structurally different shape (a universal/for-all check across every child, illustrated by this row's own `Fiscal Period.Close` example) is not built, named explicitly — no case declares it as an actual target
 
-No required order among the three — grouped only because Case 9 (Accounting) is the shared forcing case. Downstream, once these land: CAP-V15 (live aggregate preview, follows CAP-C10) and CAP-V19 (live cross-record balance preview, follows CAP-C08) become buildable — both currently ❌ with no Prio, both explicitly named against these as their forcing constraint.
+Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C10) and CAP-V19 (live cross-record balance preview, follows CAP-C08) become buildable — both currently ❌ with no Prio, both explicitly named against these as their forcing constraint. Neither attempted this pass (UI work, a separate track).
 
 ### Track D — UI/Interaction cluster (`benchmarks/008-ui-workflow-interaction-benchmark.md`)
 
@@ -1733,7 +1743,7 @@ No required order among the three — grouped only because Case 9 (Accounting) i
 2. ~~B5, `change_policy`~~ — ✅ done (T154–T158)
 3. ~~Quorum's declarative form~~ — ✅ done (T159–T160)
 4. B6 / decompile-lift (Track B) — low risk, can slot in anytime
-5. **Case 9 completion batch: CAP-C10 → CAP-C11 → CAP-C08** (Track C) — no required order among the three
+5. ~~Case 9 completion batch: CAP-C10, CAP-C11~~ — ✅ done (T161–T164); CAP-C08 ⚠️ (the two shapes it named done, a third — universal/for-all across children — not built, no case demands it)
 6. CAP-W06 async outbox (Track B) — anytime, independent
 7. UI cluster (Track D): CAP-V16/V17/V18/CAP-V14-Tier-2 anytime; CAP-V15 after step 5 (CAP-C10); CAP-V19 after step 5 (CAP-C08)
 8. CAP-X08 import completion (Track E) — ready now, X04 done

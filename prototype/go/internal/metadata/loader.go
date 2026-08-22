@@ -185,6 +185,64 @@ func validateReferences(workspaces []*model.Workspace) error {
 					}
 				}
 
+				// CAP-C08: a Constraint's cross_record must resolve cleanly --
+				// same "wait until everything's loaded" reasoning as CAP-W01's
+				// requirement-target check right below (a ChildMachine or a
+				// reference_field's target machine may not have loaded yet if
+				// checked any earlier).
+				for _, c := range m.Constraints {
+					cr := c.CrossRecord
+					if cr == nil {
+						continue
+					}
+					if !model.SupportedOperators[cr.Operator] {
+						return fmt.Errorf("constraint %s on machine %s: cross_record operator %q is not supported", c.ID, m.ID, cr.Operator)
+					}
+					switch cr.Kind {
+					case "aggregate":
+						child, ok := machineByID[cr.ChildMachine]
+						if !ok {
+							return fmt.Errorf("constraint %s on machine %s: cross_record aggregate child_machine %q does not exist", c.ID, m.ID, cr.ChildMachine)
+						}
+						childFieldByID := make(map[string]*model.Field, len(child.Fields))
+						for _, cf := range child.Fields {
+							childFieldByID[cf.ID] = cf
+						}
+						if sf, ok := childFieldByID[cr.ScopeField]; !ok || sf.Type != model.FieldTypeReference || sf.Options.TargetMachine != m.ID {
+							return fmt.Errorf("constraint %s on machine %s: cross_record scope_field %q must be a reference field on %s pointing back at %s", c.ID, m.ID, cr.ScopeField, cr.ChildMachine, m.ID)
+						}
+						if fa, ok := childFieldByID[cr.FieldA]; !ok || fa.Type != model.FieldTypeNumber {
+							return fmt.Errorf("constraint %s on machine %s: cross_record field_a %q must be a number field on %s", c.ID, m.ID, cr.FieldA, cr.ChildMachine)
+						}
+						if cr.FieldB != "" {
+							if fb, ok := childFieldByID[cr.FieldB]; !ok || fb.Type != model.FieldTypeNumber {
+								return fmt.Errorf("constraint %s on machine %s: cross_record field_b %q must be a number field on %s", c.ID, m.ID, cr.FieldB, cr.ChildMachine)
+							}
+						}
+					case "reference_field":
+						refField, ok := fieldByID[cr.ReferenceField]
+						if !ok || refField.Type != model.FieldTypeReference {
+							return fmt.Errorf("constraint %s on machine %s: cross_record reference_field %q must be a reference field on this machine", c.ID, m.ID, cr.ReferenceField)
+						}
+						target, ok := machineByID[refField.Options.TargetMachine]
+						if !ok {
+							return fmt.Errorf("constraint %s on machine %s: cross_record reference_field %q targets a machine that does not exist", c.ID, m.ID, cr.ReferenceField)
+						}
+						found := false
+						for _, tf := range target.Fields {
+							if tf.ID == cr.TargetField {
+								found = true
+								break
+							}
+						}
+						if !found {
+							return fmt.Errorf("constraint %s on machine %s: cross_record target_field %q does not name a Field on %s", c.ID, m.ID, cr.TargetField, target.ID)
+						}
+					default:
+						return fmt.Errorf("constraint %s on machine %s: cross_record has unrecognized kind %q", c.ID, m.ID, cr.Kind)
+					}
+				}
+
 				// CAP-W01 (Process Overlay B3): a Requirement's target must
 				// name a real Machine, and that Machine must itself declare
 				// a `reference` Field pointing back at m -- same "Unknown =
@@ -902,7 +960,7 @@ func (l *Loader) loadEventActions(ctx context.Context, eventID string) ([]*model
 
 func (l *Loader) loadConstraints(ctx context.Context, machineID string) ([]*model.Constraint, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, machine_id, rule, expression::text, condition::text, position, change_policy::text
+		`SELECT id, machine_id, rule, expression::text, condition::text, position, change_policy::text, cross_record::text
 		 FROM constraints WHERE machine_id = $1 ORDER BY position`,
 		machineID)
 	if err != nil {
@@ -916,7 +974,8 @@ func (l *Loader) loadConstraints(ctx context.Context, machineID string) ([]*mode
 		var exprJSON string
 		var condJSON *string
 		var changePolicyJSON *string
-		if err := rows.Scan(&c.ID, &c.MachineID, &c.Rule, &exprJSON, &condJSON, &c.Position, &changePolicyJSON); err != nil {
+		var crossRecordJSON *string
+		if err := rows.Scan(&c.ID, &c.MachineID, &c.Rule, &exprJSON, &condJSON, &c.Position, &changePolicyJSON, &crossRecordJSON); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal([]byte(exprJSON), &c.Expression); err != nil {
@@ -932,6 +991,12 @@ func (l *Loader) loadConstraints(ctx context.Context, machineID string) ([]*mode
 			c.ChangePolicy = &model.ChangePolicy{}
 			if err := json.Unmarshal([]byte(*changePolicyJSON), c.ChangePolicy); err != nil {
 				return nil, fmt.Errorf("parse change_policy for constraint %s: %w", c.ID, err)
+			}
+		}
+		if crossRecordJSON != nil {
+			c.CrossRecord = &model.CrossRecordCheck{}
+			if err := json.Unmarshal([]byte(*crossRecordJSON), c.CrossRecord); err != nil {
+				return nil, fmt.Errorf("parse cross_record for constraint %s: %w", c.ID, err)
 			}
 		}
 		out = append(out, c)

@@ -437,7 +437,8 @@ type Constraint struct {
 	Expression   ConstraintExpression
 	Condition    *ConstraintExpression // nil = always applies
 	Position     int
-	ChangePolicy *ChangePolicy // CAP-W07 -- compiled into Condition at load time, see compileChangePolicies
+	ChangePolicy *ChangePolicy     // CAP-W07 -- compiled into Condition at load time, see compileChangePolicies
+	CrossRecord  *CrossRecordCheck // CAP-C08 -- checked by handler.crossRecordViolations, never by constraint.Eval (needs storage access)
 }
 
 // ConstraintExpression is the evaluatable part of a Constraint.
@@ -481,6 +482,38 @@ type ChangePolicy struct {
 	AppliesTo     string   `json:"applies_to"`               // "new_records" | "records_in_states" | "all_records"
 	States        []string `json:"states,omitempty"`         // records_in_states only
 	EffectiveFrom string   `json:"effective_from,omitempty"` // new_records only, "2006-01-02"
+}
+
+// CrossRecordCheck (CAP-C08 -- benchmarks/018-....md, case-portfolio.md Case 9) is a Constraint
+// whose truth depends on OTHER records -- constraint.Eval deliberately never touches storage
+// (the same boundary "unique" already respects, see handler.uniquenessViolations), so this is
+// checked separately, by handler.crossRecordViolations. Kind picks which shape is active; the
+// registry's own CAP-C08 note treats both as the same capability, not two:
+//
+//	"aggregate"       (CAP-C10, e.g. sum(debit) = sum(credit)) -- compares SUM(FieldA) against
+//	                  SUM(FieldB), or a literal Value if FieldB is empty, across every
+//	                  ChildMachine record whose ScopeField (a `reference` Field on ChildMachine)
+//	                  points back at this record.
+//	"reference_field" (CAP-C11, e.g. no posting into a closed period) -- looks up the record
+//	                  THIS record's own ReferenceField (a `reference` Field on this Machine)
+//	                  points to, reads its TargetField, compares against Value.
+//
+// Gating ("only check at Post") needs no new mechanism -- it's the Constraint's own existing
+// Condition, evaluated the same way Engine.Violations already does for every other Constraint.
+type CrossRecordCheck struct {
+	Kind string `json:"kind"` // "aggregate" | "reference_field"
+
+	// aggregate (CAP-C10)
+	ChildMachine string `json:"child_machine,omitempty"`
+	ScopeField   string `json:"scope_field,omitempty"`
+	FieldA       string `json:"field_a,omitempty"`
+	FieldB       string `json:"field_b,omitempty"` // omit to compare FieldA's sum against Value instead
+	Operator     string `json:"operator"`          // reuses SupportedOperators; compared NUMERICALLY, not string-equal like constraint.Eval
+	Value        string `json:"value,omitempty"`   // used when FieldB is empty
+
+	// reference_field (CAP-C11)
+	ReferenceField string `json:"reference_field,omitempty"`
+	TargetField    string `json:"target_field,omitempty"`
 }
 
 // SupportedOperators is every constraint/condition operator this runtime

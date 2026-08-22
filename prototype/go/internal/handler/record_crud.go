@@ -576,6 +576,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	violations = append(violations, uniqueViolations...)
+	crossRecViolations, err := h.crossRecordViolations(r.Context(), machine, data, "")
+	if err != nil {
+		http.Error(w, "failed to validate cross-record constraints", http.StatusInternalServerError)
+		return
+	}
+	violations = append(violations, crossRecViolations...)
 
 	// CAP-F16: a form with embedded child rows validates them together with
 	// the parent -- one combined violations list, so a bad child row blocks
@@ -811,6 +817,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	violations = append(violations, uniqueViolations...)
+	crossRecViolations, err := h.crossRecordViolations(r.Context(), machine, data, recordID)
+	if err != nil {
+		http.Error(w, "failed to validate cross-record constraints", http.StatusInternalServerError)
+		return
+	}
+	violations = append(violations, crossRecViolations...)
 
 	if len(violations) > 0 {
 		role := h.roleForApp(r, applicationID)

@@ -203,6 +203,10 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T158 | CAP-W07 | `new_records` rejects a blank Approval Reference on a record created after the effective date |
 | T159 | CAP-W03 | declarative quorum (`process.requirements[].type: approval`): 2-of-3 reaches Approved without waiting for the 3rd |
 | T160 | CAP-W03 | declarative quorum: 2-of-3 reaches Rejected once quorum is mathematically impossible |
+| T161 | CAP-C08 | an unbalanced entry (debit != credit) is rejected on Post (CAP-C10) |
+| T162 | CAP-C08 | a balanced entry (debit = credit) posts successfully (CAP-C10) |
+| T163 | CAP-C08 | posting into a Closed Fiscal Period is rejected, even when balanced (CAP-C11) |
+| T164 | CAP-C08 | posting into an Open Fiscal Period succeeds (CAP-C11) |
 
 ---
 

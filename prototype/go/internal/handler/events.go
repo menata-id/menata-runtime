@@ -301,6 +301,17 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 	if violations := h.engine.Violations(machine, withChangePolicyCreatedAt(machine, newData, rec.CreatedAt)); len(violations) > 0 {
 		return &ruleViolation{strings.Join(violations, " ")}
 	}
+	// CAP-C08: cross-record constraints (e.g. debit=credit, period-open) need
+	// the SAME re-check CAP-C09 already gives ordinary Constraints, but at
+	// this specific site -- uniquenessViolations/referenceViolations are
+	// only called from Create/Update/CSV-import, never here, because this is
+	// the first cross-record check that actually needs to fire on a plain
+	// state transition (Post), not just when a record's own fields change.
+	if crossViolations, err := h.crossRecordViolations(ctx, machine, newData, rec.ID); err != nil {
+		return err
+	} else if len(crossViolations) > 0 {
+		return &ruleViolation{strings.Join(crossViolations, " ")}
+	}
 
 	if err := h.exec.Persist(ctx, machine, event, rec, newData, machine.Name, actorRole, actorIdentity, workspaceID, holidays); err != nil {
 		return err

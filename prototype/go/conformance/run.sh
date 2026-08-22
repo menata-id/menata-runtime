@@ -1822,6 +1822,55 @@ post_status "$DVB2_URL/events/evt_ql2v_reject" "" "$DV2" > /dev/null
 body_contains "$DREQ_B_URL" ">Rejected<" "$RANI2"
 check T160 "CAP-W03" "declarative quorum: 2-of-3 reaches Rejected once 2 votes are rejected (quorum mathematically impossible)" $?
 
+# --- CAP-C08 (Case 9 completion batch: CAP-C10 debit=credit, CAP-C11 no
+# posting into a closed period) -- seeds/027, boot-time, no DATABASE_URL
+# needed. The Fiscal Period's own Close event (evt_c9fp_close) gets one of
+# the two seeded periods to Closed entirely through HTTP.
+
+C9ACCT=$(session_for case9.accountant@example.com password)
+
+FP_OPEN_URL=$(post_redirect "$BASE_URL/mch_c9_fiscal_period" "fld_c9fp_name=FY2026+Q1+$$" "$C9ACCT")
+FP_OPEN_ID="${FP_OPEN_URL##*/}"
+FP_CLOSED_URL=$(post_redirect "$BASE_URL/mch_c9_fiscal_period" "fld_c9fp_name=FY2025+Q4+$$" "$C9ACCT")
+FP_CLOSED_ID="${FP_CLOSED_URL##*/}"
+post_status "$FP_CLOSED_URL/events/evt_c9fp_close" "" "$C9ACCT" > /dev/null
+
+# T161 -- an unbalanced entry (100 debit, 50 credit) is rejected on Post.
+JE_A_URL=$(post_redirect "$BASE_URL/mch_c9_journal_entry" "fld_c9je_memo=Unbalanced+$$&fld_c9je_period=$FP_OPEN_ID" "$C9ACCT")
+JE_A_ID="${JE_A_URL##*/}"
+post_redirect "$BASE_URL/mch_c9_journal_entry_line" "fld_c9jel_entry=$JE_A_ID&fld_c9jel_debit=100&fld_c9jel_credit=0" "$C9ACCT" > /dev/null
+post_redirect "$BASE_URL/mch_c9_journal_entry_line" "fld_c9jel_entry=$JE_A_ID&fld_c9jel_debit=0&fld_c9jel_credit=50" "$C9ACCT" > /dev/null
+post_body_contains "$JE_A_URL/events/evt_c9je_post" "" "Total Debit must equal Total Credit before posting." "$C9ACCT"
+check T161 "CAP-C08" "an unbalanced entry (debit != credit) is rejected on Post (CAP-C10)" $?
+
+# T162 -- a balanced entry (100/100) posts successfully -- the positive case,
+# proving T161 isn't vacuously always-reject.
+JE_B_URL=$(post_redirect "$BASE_URL/mch_c9_journal_entry" "fld_c9je_memo=Balanced+$$&fld_c9je_period=$FP_OPEN_ID" "$C9ACCT")
+JE_B_ID="${JE_B_URL##*/}"
+post_redirect "$BASE_URL/mch_c9_journal_entry_line" "fld_c9jel_entry=$JE_B_ID&fld_c9jel_debit=100&fld_c9jel_credit=0" "$C9ACCT" > /dev/null
+post_redirect "$BASE_URL/mch_c9_journal_entry_line" "fld_c9jel_entry=$JE_B_ID&fld_c9jel_debit=0&fld_c9jel_credit=100" "$C9ACCT" > /dev/null
+CODE=$(post_status "$JE_B_URL/events/evt_c9je_post" "" "$C9ACCT")
+[ "$CODE" = "303" ]
+check T162 "CAP-C08" "a balanced entry (debit = credit) posts successfully (CAP-C10)" $?
+
+# T163 -- posting into a Closed Fiscal Period is rejected, even when balanced.
+JE_C_URL=$(post_redirect "$BASE_URL/mch_c9_journal_entry" "fld_c9je_memo=ClosedPeriod+$$&fld_c9je_period=$FP_CLOSED_ID" "$C9ACCT")
+JE_C_ID="${JE_C_URL##*/}"
+post_redirect "$BASE_URL/mch_c9_journal_entry_line" "fld_c9jel_entry=$JE_C_ID&fld_c9jel_debit=100&fld_c9jel_credit=0" "$C9ACCT" > /dev/null
+post_redirect "$BASE_URL/mch_c9_journal_entry_line" "fld_c9jel_entry=$JE_C_ID&fld_c9jel_debit=0&fld_c9jel_credit=100" "$C9ACCT" > /dev/null
+post_body_contains "$JE_C_URL/events/evt_c9je_post" "" "Fiscal Period must be Open to post entries." "$C9ACCT"
+check T163 "CAP-C08" "posting into a Closed Fiscal Period is rejected, even when balanced (CAP-C11)" $?
+
+# T164 -- posting into an Open Fiscal Period succeeds -- same positive-case
+# pairing as T162.
+JE_D_URL=$(post_redirect "$BASE_URL/mch_c9_journal_entry" "fld_c9je_memo=OpenPeriod+$$&fld_c9je_period=$FP_OPEN_ID" "$C9ACCT")
+JE_D_ID="${JE_D_URL##*/}"
+post_redirect "$BASE_URL/mch_c9_journal_entry_line" "fld_c9jel_entry=$JE_D_ID&fld_c9jel_debit=100&fld_c9jel_credit=0" "$C9ACCT" > /dev/null
+post_redirect "$BASE_URL/mch_c9_journal_entry_line" "fld_c9jel_entry=$JE_D_ID&fld_c9jel_debit=0&fld_c9jel_credit=100" "$C9ACCT" > /dev/null
+CODE=$(post_status "$JE_D_URL/events/evt_c9je_post" "" "$C9ACCT")
+[ "$CODE" = "303" ]
+check T164 "CAP-C08" "posting into an Open Fiscal Period succeeds (CAP-C11)" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

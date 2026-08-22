@@ -186,6 +186,9 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 		if uniqueV, err := h.uniquenessViolations(r.Context(), machine, data, ""); err == nil {
 			violations = append(violations, uniqueV...)
 		}
+		if crossV, err := h.crossRecordViolations(r.Context(), machine, data, ""); err == nil {
+			violations = append(violations, crossV...)
+		}
 
 		if len(violations) > 0 {
 			results = append(results, ui.ImportRowResult{Row: rowNum, Success: false, Message: strings.Join(violations, "; ")})
