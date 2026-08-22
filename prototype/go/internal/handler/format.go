@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"menata.id/runtime/internal/model"
 )
@@ -77,6 +78,33 @@ func computedValue(f *model.Field, data map[string]any) string {
 		}
 	}
 	return strconv.FormatFloat(n*multiplier, 'f', -1, 64)
+}
+
+// slaUrgency (CAP-V17) computes a countdown badge's label and urgency
+// bucket from a `date`-typed field's raw string value, at render time --
+// same "computed at render time, nothing stored" precedent as CAP-F14's
+// computedValue above and CAP-V13's Report. No existing date-subtraction
+// helper covers this: CAP-A11's own resolveDateArithmetic/addBusinessDays
+// (internal/executor/executor.go) only add a forward offset to a base
+// date, never compare two dates -- this is the reverse operation, small
+// enough not to warrant reusing/generalizing those.
+//
+// ok=false means dueDate didn't parse (blank field, bad data) -- render
+// nothing, not a broken badge.
+func slaUrgency(dueDate string, warningDays int) (label, urgency string, ok bool) {
+	due, err := time.Parse("2006-01-02", dueDate)
+	if err != nil {
+		return "", "", false
+	}
+	days := int(time.Until(due).Hours() / 24)
+	switch {
+	case days < 0:
+		return fmt.Sprintf("Overdue by %d day(s)", -days), "overdue", true
+	case warningDays > 0 && days <= warningDays:
+		return fmt.Sprintf("%d day(s) left", days), "warning", true
+	default:
+		return fmt.Sprintf("%d day(s) left", days), "ok", true
+	}
 }
 
 func displayLabel(machine *model.Machine, data map[string]any) string {

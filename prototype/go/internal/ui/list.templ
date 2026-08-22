@@ -77,7 +77,9 @@ templ List(identity, csrfToken string, isAdmin bool, machine *model.Machine, col
 							<tr class="transition-colors hover:bg-slate-50">
 								for _, cell := range row.Cells {
 									<td class="px-4 py-3 text-slate-700">
-										if cell.IsStatusBadge && cell.Value != "" {
+										if cell.SlaUrgency != "" {
+											@SlaBadge(cell.Value, cell.SlaUrgency)
+										} else if cell.IsStatusBadge && cell.Value != "" {
 											@StatusBadge(cell.Value)
 										} else if cell.Link != "" {
 											<a href={ templ.SafeURL(cell.Link) } class="text-blue-600 hover:text-blue-800 hover:underline">{ cell.Value }</a>

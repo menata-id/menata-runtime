@@ -631,6 +631,15 @@ type ViewConfig struct {
 	Steps       [][]string         `json:"steps,omitempty"`        // form: CAP-V12 multi-step wizard -- each entry is a Fields subset shown one step at a time; unset means single-step (existing behavior)
 	ManualOrder bool               `json:"manual_order,omitempty"` // list: CAP-V14 -- sort by the free-standing sort_order column (migrations/011) and render Up/Down controls, instead of DefaultSort/created_at
 	Template    string             `json:"template,omitempty"`     // document: CAP-F21 -- html/template source, {{.fld_x}} placeholders resolved against one record's Data
+
+	// SlaField (CAP-V17) names a `date`-typed Field whose value, on
+	// list/detail, renders as an urgency-colored countdown badge (via
+	// slaUrgency, internal/handler/record_crud.go) instead of the raw
+	// date -- computed at render time, same precedent as CAP-F14/CAP-V13,
+	// nothing stored. SlaWarningDays is the "due soon" threshold (0 = no
+	// warning bucket, just overdue/ok).
+	SlaField       string `json:"sla_field,omitempty"`
+	SlaWarningDays int    `json:"sla_warning_days,omitempty"`
 }
 
 // ReportConfig (CAP-V13) declares a "report" View as a grouped aggregate

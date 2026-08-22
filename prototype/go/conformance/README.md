@@ -209,6 +209,8 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 | T164 | CAP-C08 | posting into an Open Fiscal Period succeeds (CAP-C11) |
 | T165 | CAP-W05 | `GET .../process-lift` returns valid Process JSON for an Admin, denies a non-Admin |
 | T166 | CAP-W05 | a lifted Process JSON, applied to a fresh Machine and reloaded, drives an identical lifecycle to the hand-authored/compiled pair (B6, decompile-lift) |
+| T167 | CAP-V17 | a ticket due in the past renders the overdue countdown badge |
+| T168 | CAP-V17 | a ticket due far in the future does not render the overdue badge |
 
 ---
 

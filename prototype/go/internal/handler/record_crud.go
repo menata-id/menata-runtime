@@ -199,10 +199,17 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 			case cols[j].Type == model.FieldTypeComputed:
 				val = computedValue(fieldByID[id], rec.Data) // CAP-F14
 			}
+			urgency := ""
+			if view != nil && id == view.Config.SlaField {
+				if label, u, ok := slaUrgency(val, view.Config.SlaWarningDays); ok { // CAP-V17
+					val, urgency = label, u
+				}
+			}
 			cells[j] = ui.ListCell{
 				Value:         val,
 				IsStatusBadge: cols[j].Type == model.FieldTypeValueList,
 				Link:          link,
+				SlaUrgency:    urgency,
 			}
 		}
 		rows = append(rows, ui.ListRow{ID: rec.ID, Cells: cells})
@@ -875,6 +882,7 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	// CAP-P06: a field this role's Permission hides never reaches the
 	// Detail page.
 	hidden := h.hiddenFields(machine, role)
+	detailView := h.interp.Get().DetailView(machineID) // CAP-V17: nil if none declared, same as every other optional View lookup
 	fields := make([]ui.DetailField, 0, len(machine.Fields))
 	for _, f := range machine.Fields {
 		if hidden[f.ID] {
@@ -906,7 +914,13 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		case f.Type == model.FieldTypeComputed:
 			val = computedValue(f, rec.Data) // CAP-F14
 		}
-		fields = append(fields, ui.DetailField{Name: f.Name, Value: val, Link: link})
+		urgency := ""
+		if detailView != nil && f.ID == detailView.Config.SlaField {
+			if label, u, ok := slaUrgency(val, detailView.Config.SlaWarningDays); ok { // CAP-V17
+				val, urgency = label, u
+			}
+		}
+		fields = append(fields, ui.DetailField{Name: f.Name, Value: val, Link: link, SlaUrgency: urgency})
 	}
 
 	childLists := h.childLists(r.Context(), machine, recordID)

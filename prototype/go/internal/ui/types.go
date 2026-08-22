@@ -47,6 +47,7 @@ type ListCell struct {
 	Value         string
 	IsStatusBadge bool
 	Link          string // non-empty for a `reference` field: link to the referenced record
+	SlaUrgency    string // CAP-V17: "overdue" | "warning" | "ok", empty = not an SLA-badged cell
 }
 
 // ListRow is one row in the list view.
@@ -84,9 +85,10 @@ type ChildLinesData struct {
 // DetailField is a resolved name-value pair for the detail view.
 // Link is non-empty for a `reference` field: the referenced record's URL.
 type DetailField struct {
-	Name  string
-	Value string
-	Link  string
+	Name       string
+	Value      string
+	Link       string
+	SlaUrgency string // CAP-V17: "overdue" | "warning" | "ok", empty = not an SLA-badged field
 }
 
 // ChildList is a sub-list on a parent's detail page (CAP-V06): every record

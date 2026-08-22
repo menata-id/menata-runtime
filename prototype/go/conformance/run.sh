@@ -1915,6 +1915,24 @@ else
     printf 'SKIP  T166 %-22s %s\n' "CAP-W05" "DATABASE_URL not set -- seed-mid-run fixture unavailable"
 fi
 
+# --- CAP-V17 (SLA countdown badge) -- seeds/029, boot-time, no DATABASE_URL
+# needed. Computed at render time (handler.slaUrgency), same "computed at
+# render time, nothing stored" precedent as CAP-F14/CAP-V13 -- no mid-run
+# seed application, no reload.
+
+SLA_AGENT=$(session_for sla.agent@example.com password)
+
+# T167 -- a ticket due far in the past renders the overdue countdown badge.
+OVERDUE_URL=$(post_redirect "$BASE_URL/mch_sla_ticket" "fld_slat_title=Overdue+$$&fld_slat_due=2020-01-01" "$SLA_AGENT")
+body_contains "$OVERDUE_URL" "Overdue by" "$SLA_AGENT"
+check T167 "CAP-V17" "a ticket due in the past renders the overdue countdown badge" $?
+
+# T168 -- a ticket due far in the future does NOT render the overdue badge
+# -- the positive/negative pairing proving T167 isn't vacuously always-true.
+FUTURE_URL=$(post_redirect "$BASE_URL/mch_sla_ticket" "fld_slat_title=Future+$$&fld_slat_due=2099-01-01" "$SLA_AGENT")
+! body_contains "$FUTURE_URL" "Overdue by" "$SLA_AGENT"
+check T168 "CAP-V17" "a ticket due far in the future does not render the overdue badge" $?
+
 echo "--------------------------------------------------------------------"
 echo "Result: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

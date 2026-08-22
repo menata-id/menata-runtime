@@ -30,6 +30,20 @@ templ StatusBadge(status string) {
 	}
 }
 
+// SlaBadge (CAP-V17) renders a countdown-badge pill, keyed on urgency
+// ("overdue"/"warning"/"ok" -- handler.slaUrgency) rather than a hardcoded
+// status string, same pill convention as StatusBadge above.
+templ SlaBadge(label, urgency string) {
+	switch urgency {
+	case "overdue":
+		<span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">{ label }</span>
+	case "warning":
+		<span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{ label }</span>
+	default:
+		<span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">{ label }</span>
+	}
+}
+
 // FieldInput renders the correct input element for a field type.
 // refOptions is used for FieldTypeReference's and FieldTypeUser's picker
 // choices (CAP-F05 — a `user` field is reference-sugar over the workspace's
