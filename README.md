@@ -422,6 +422,7 @@ The runtime's capability is being built and verified through a deliberate discov
 | [benchmarks/005-field-modeling-decision-framework.md](benchmarks/005-field-modeling-decision-framework.md) | Study 15 — field type selection: reference vs. value_list vs. primitive (§"Final Recap" has the settled answer per type, no re-derivation needed) |
 | [benchmarks/006-inventory-warehouse-benchmark.md](benchmarks/006-inventory-warehouse-benchmark.md) | Case 5 supporting benchmark — six-stage WMS flow + APICS/ASCM inventory-control concepts |
 | [benchmarks/011-metadata-workflow-orchestration-brd-benchmark.md](benchmarks/011-metadata-workflow-orchestration-brd-benchmark.md) | Study 19 — comparator "Metadata-Based Workflow Orchestration Application" BRD mapped against Menata Runtime's emergent (Event+Constraint+Permission+Action) workflow model; full comparator BRD preserved verbatim in its Appendix |
+| [benchmarks/012-process-model-synthesis.md](benchmarks/012-process-model-synthesis.md) | Study 20 — deeper re-examination of Study 19: both concepts graded against all 21 portfolio cases (21/21 vs 10/21), server-economy analysis (~3–6 vs ~10–13 statements/transition), and the synthesis — Concept C, the **Process Overlay** ("declared process, emergent execution") |
 
 ## Reference Implementation
 
