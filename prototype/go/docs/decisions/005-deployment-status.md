@@ -3,6 +3,15 @@
 **Status:** Accepted
 **Date:** 2026-07-12
 
+> **Correction (2026-08-22):** the owner has since clarified directly — there is no production
+> deployment yet, `menata.app` is a **development** deployment (`prototype/go/DEVELOPMENT.md`'s
+> "Dev Deployment" section, corrected the same day). This ADR's own framing already avoided
+> flatly asserting production status ("does not decide 'is this production' as a business
+> question"), so its decision stands unchanged; this note exists so a reader doesn't come away
+> assuming production-level stakes from the ADR's title/tone alone. The itemized NFR coverage
+> below remains accurate and worth maintaining regardless of deployment label — real security
+> coverage is worth having whether or not a real user is on the other end yet.
+
 ## Context
 
 `nfr-standards.md` was written 2026-07-04 as a study-only document: *"Status: v0.3 — study

@@ -366,7 +366,7 @@ This directory mixes documents that change on different rhythms. To read the num
 
 - **Numbered `001`–`006`** — the core specification. Stable, read in sequence, changes rarely (mirrors `specification/000`–`006` at the repo root — same convention, one level down).
 - **Unnumbered, at this level** — supporting reference or governance documents. Two different kinds, distinguished below.
-- **`benchmarks/` — numbered `000`–`012`** — evidence studies, numbered by production order (Study 1 → `000`, Study 2 → `001`, …), not a required reading sequence.
+- **`benchmarks/` — numbered `000`–`013`** — evidence studies, numbered by production order (Study 1 → `000`, Study 2 → `001`, …), not a required reading sequence.
 
 This stable/evolving split mirrors the pattern Portal GA v3 uses for its own domain-integration framework (`01-CONSTITUTIONAL-BRD.md` + `02-IMPLEMENTATION-GUIDE.md` as STABLE, `appendices/` as EVOLVING) — see `benchmarks/002-portal-ga-cross-domain-survey.md`.
 
