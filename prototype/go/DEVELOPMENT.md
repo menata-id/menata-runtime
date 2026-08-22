@@ -180,17 +180,21 @@ prototype/go/
 │   └── server/
 │       └── main.go          ← entry point
 ├── internal/
+│   ├── auth/                  ← password hashing, session tokens, CSRF (CAP-X02)
 │   ├── config/               ← env/config loading
 │   ├── db/                   ← pgx pool setup
-│   ├── interpreter/          ← indexed lookups over the Application Model
+│   ├── interpreter/          ← indexed lookups over the Application Model;
+│   │                            atomic swap on admin reload (CAP-X04)
 │   ├── router/                ← HTTP routing (chi), routes derived from metadata
 │   ├── handler/               ← HTTP handlers + cross-record orchestration
-│   │                            (reference lookups, workflow actions, guards)
+│   │                            (reference lookups, workflow actions, guards) --
+│   │                            split into domain-scoped files, see ADR-006
 │   ├── executor/               ← single-record event simulation + persistence
 │   ├── constraint/             ← constraint/guard expression evaluation
 │   ├── permission/             ← role → event authorization
 │   ├── metadata/                ← Runtime Metadata loading + load-time validation
 │   ├── model/                   ← Application Model (in-memory)
+│   ├── store/                   ← Postgres-backed record/notification/user stores
 │   └── ui/                      ← Templ templates (.templ + generated _templ.go)
 ├── web/
 │   └── static/
