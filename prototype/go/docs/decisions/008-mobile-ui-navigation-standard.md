@@ -1,10 +1,27 @@
 # ADR-008: Mobile-First UI Navigation & Component Standard
 
-**Status:** Accepted (design-prototype phase) — the standard below is settled; **not yet
-implemented** in `internal/ui/*.templ`. Implementation is Track G's own next step, gated on this
-document existing, per the owner's direct instruction recorded in
-`../../../../benchmarks/009-in-app-navigation-benchmark.md`'s follow-on finding.
+**Status:** Accepted and implemented, with one decision corrected before it shipped — see
+"Correction (2026-08-23)" below before reading Decision #1 as originally written.
 **Date:** 2026-08-23
+
+**Update (2026-08-23, same day, before implementation): Decision #1 corrected.** The owner asked
+directly, mid-implementation: if an organization runs several Applications (Document Approval,
+Design Request, Project Management, ...) under one system, does a bottom tab bar that renames
+itself every time a user crosses an Application boundary actually feel like one system? Checked
+against world-class practice (`../../../../benchmarks/022-bottom-nav-consistency-benchmark.md`,
+Study 30) — Material Design, Apple HIG, and Slack all hold a bottom bar's own identity **fixed**;
+Salesforce's one partial exception is gated behind an explicit App Launcher action, not a passive
+side effect of ordinary navigation. **The bottom tab bar does NOT carry `subNavFor`'s
+per-Application data.** It is a fixed, global 3-item set — Home / Search / Notifications —
+identical on every page, mirroring `navBar`'s own existing links; "Home" is this system's own App
+Launcher (the pre-existing workspace home, `handler.Apps`). `subNavFor`'s cross-Machine data stays
+exactly where it already worked: the existing top `subNavBar` strip, unchanged in scope. Every
+other decision below (the within-Machine view pill, Detail/Form rules, Dashboard's exception, the
+public-page exception) is unaffected — implemented as designed. **Implementation status: done**
+— `Handler.viewNavFor` (`internal/handler/views.go`) + `ui.viewNavPill`
+(`internal/ui/components.templ`) for the pill, `ui.shellBottomBar` (`internal/ui/layout.templ`)
+for the corrected global bar. Conformance T186–T188
+(`../../conformance/tests/090_mobile_nav.sh`).
 
 ## Context
 
@@ -72,6 +89,11 @@ directly.
    is `capability-registry.md`'s own process, a separate step from this design standard.
 
 ## Implementation Strategy
+
+**Superseded by the correction above — `subNav` does NOT feed the bottom tab bar.** What was
+actually built: `subNavBar` (top strip) unchanged; a new, separate, unconditional
+`shellBottomBar(unreadCount)` — Home/Search/Notifications, no `[]SubNavLink` input at all. Left
+below for the record of what was originally planned.
 
 - `ui.Page`'s existing `subNav []SubNavLink` parameter is the right data source for the new
   bottom tab bar — no new query, a responsive rendering change: render `subNavBar`'s current

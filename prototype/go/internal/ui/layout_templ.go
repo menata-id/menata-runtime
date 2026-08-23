@@ -20,6 +20,16 @@ import "strconv"
 // request. subNav (CAP-O03 Tier 2) is the current Machine's own sibling
 // Machines in the same Application -- nil/empty for a page that doesn't
 // belong to any one Machine, which renders no strip at all.
+//
+// Mobile bottom bar (`shellBottomBar`, ADR-008 corrected by
+// benchmarks/022-bottom-nav-consistency-benchmark.md, Study 30) is a fixed,
+// GLOBAL 3-item set -- Home/Search/Notifications, identical on every page --
+// not subNav's per-Application data. World-class bottom tab bars (Material
+// Design, Apple HIG, Slack) hold their identity fixed; content that
+// legitimately varies by Application belongs in the existing top subNavBar
+// strip instead, same as it already did before this bar existed. Rendered
+// unconditionally at phone width, on every page -- unlike subNav, this
+// bar has nothing to be empty about.
 func Page(title, identity, csrfToken string, isAdmin bool, unreadCount int, subNav []SubNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -48,7 +58,7 @@ func Page(title, identity, csrfToken string, isAdmin bool, unreadCount int, subN
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 21, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 31, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -68,7 +78,7 @@ func Page(title, identity, csrfToken string, isAdmin bool, unreadCount int, subN
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"mx-auto max-w-5xl px-4 py-6\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"mx-auto max-w-5xl px-4 py-6 pb-20 sm:pb-6\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -76,7 +86,15 @@ func Page(title, identity, csrfToken string, isAdmin bool, unreadCount int, subN
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div><script>\n\t\t\t\tdocument.addEventListener('click', function(e) {\n\t\t\t\t\tvar opt = e.target.closest('.field-option');\n\t\t\t\t\tif (!opt) return;\n\t\t\t\t\tvar target = opt.dataset.target;\n\t\t\t\t\tvar hidden = document.getElementById(target);\n\t\t\t\t\tvar search = document.getElementById(target + '_search');\n\t\t\t\t\tvar list = document.getElementById(target + '_opts');\n\t\t\t\t\tif (hidden) hidden.value = opt.dataset.id;\n\t\t\t\t\tif (search) search.value = opt.dataset.label;\n\t\t\t\t\tif (list) list.innerHTML = '';\n\t\t\t\t});\n\t\t\t\t// CAP-V15: a live, client-side running total over a\n\t\t\t\t// ChildLinesSection's own repeated row inputs -- purely\n\t\t\t\t// presentational (the real gate is the server-side CAP-C10\n\t\t\t\t// check, unchanged); config (which two fields to sum) comes\n\t\t\t\t// from the section's own data-sum-a-field/data-sum-b-field\n\t\t\t\t// attributes, never interpolated into this script.\n\t\t\t\tdocument.addEventListener('input', function(e) {\n\t\t\t\t\tvar section = e.target.closest('[data-sum-a-field]');\n\t\t\t\t\tif (!section) return;\n\t\t\t\t\tvar fa = section.dataset.sumAField, fb = section.dataset.sumBField;\n\t\t\t\t\tvar sumA = 0, sumB = 0;\n\t\t\t\t\tsection.querySelectorAll('input[name$=\"_' + fa + '\"]').forEach(function(i) {\n\t\t\t\t\t\tsumA += parseFloat(i.value) || 0;\n\t\t\t\t\t});\n\t\t\t\t\tif (fb) {\n\t\t\t\t\t\tsection.querySelectorAll('input[name$=\"_' + fb + '\"]').forEach(function(i) {\n\t\t\t\t\t\t\tsumB += parseFloat(i.value) || 0;\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t\tvar elA = section.querySelector('.js-sum-a'), elB = section.querySelector('.js-sum-b');\n\t\t\t\t\tif (elA) elA.textContent = sumA.toFixed(2);\n\t\t\t\t\tif (elB) elB.textContent = sumB.toFixed(2);\n\t\t\t\t});\n\t\t\t\t// CAP-V19: a live preview of a referenced record's own\n\t\t\t\t// field, fetched from CAP-X07's existing GET\n\t\t\t\t// /api/{machine}/{record} (no new route) as soon as a\n\t\t\t\t// reference picker's selection changes -- purely\n\t\t\t\t// presentational; the real gate is the server-side CAP-C11\n\t\t\t\t// check, unchanged. Config (which API to call, which field\n\t\t\t\t// to read) comes from the select's own data-preview-url/\n\t\t\t\t// data-preview-field attributes, never interpolated into\n\t\t\t\t// this script.\n\t\t\t\tdocument.addEventListener('change', function(e) {\n\t\t\t\t\tvar el = e.target;\n\t\t\t\t\tvar url = el.dataset.previewUrl, field = el.dataset.previewField;\n\t\t\t\t\tif (!url || !field) return;\n\t\t\t\t\tvar preview = el.parentElement.querySelector('.js-live-preview');\n\t\t\t\t\tif (!preview) return;\n\t\t\t\t\tif (!el.value) { preview.textContent = '—'; return; }\n\t\t\t\t\tfetch(url + el.value)\n\t\t\t\t\t\t.then(function(r) { return r.json(); })\n\t\t\t\t\t\t.then(function(data) {\n\t\t\t\t\t\t\tvar v = data && data.data ? data.data[field] : null;\n\t\t\t\t\t\t\tpreview.textContent = (v === null || v === undefined || v === '') ? '—' : v;\n\t\t\t\t\t\t})\n\t\t\t\t\t\t.catch(function() { preview.textContent = '—'; });\n\t\t\t\t});\n\t\t\t\t// CAP-V14 Tier 2: native HTML5 drag-and-drop for the\n\t\t\t\t// kanban board -- the drag gesture itself is unavoidably\n\t\t\t\t// client-side, but the write it triggers is an ordinary\n\t\t\t\t// POST (BoardMove), fully provable without executing this\n\t\t\t\t// script (conformance T177). Config (machine id, CSRF\n\t\t\t\t// token) comes from the board wrapper's own\n\t\t\t\t// data-board-machine/data-board-csrf attributes, the\n\t\t\t\t// target lane from the drop zone's own data-lane -- never\n\t\t\t\t// interpolated into this script.\n\t\t\t\tdocument.addEventListener('dragstart', function(e) {\n\t\t\t\t\tvar card = e.target.closest('.board-card');\n\t\t\t\t\tif (!card) return;\n\t\t\t\t\te.dataTransfer.setData('text/plain', card.dataset.recordId);\n\t\t\t\t});\n\t\t\t\tdocument.addEventListener('dragover', function(e) {\n\t\t\t\t\tif (e.target.closest('.board-lane-body')) e.preventDefault();\n\t\t\t\t});\n\t\t\t\tdocument.addEventListener('drop', function(e) {\n\t\t\t\t\tvar body = e.target.closest('.board-lane-body');\n\t\t\t\t\tif (!body) return;\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tvar recordId = e.dataTransfer.getData('text/plain');\n\t\t\t\t\tvar lane = body.closest('.board-lane').dataset.lane;\n\t\t\t\t\tvar board = body.closest('[data-board-machine]');\n\t\t\t\t\tif (!recordId || !lane || !board) return;\n\t\t\t\t\tfetch('/' + board.dataset.boardMachine + '/' + recordId + '/board-move', {\n\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\theaders: { 'Content-Type': 'application/x-www-form-urlencoded' },\n\t\t\t\t\t\tbody: 'lane=' + encodeURIComponent(lane) + '&csrf_token=' + encodeURIComponent(board.dataset.boardCsrf)\n\t\t\t\t\t}).then(function() { location.reload(); });\n\t\t\t\t});\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = shellBottomBar(unreadCount).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<script>\n\t\t\t\tdocument.addEventListener('click', function(e) {\n\t\t\t\t\tvar opt = e.target.closest('.field-option');\n\t\t\t\t\tif (!opt) return;\n\t\t\t\t\tvar target = opt.dataset.target;\n\t\t\t\t\tvar hidden = document.getElementById(target);\n\t\t\t\t\tvar search = document.getElementById(target + '_search');\n\t\t\t\t\tvar list = document.getElementById(target + '_opts');\n\t\t\t\t\tif (hidden) hidden.value = opt.dataset.id;\n\t\t\t\t\tif (search) search.value = opt.dataset.label;\n\t\t\t\t\tif (list) list.innerHTML = '';\n\t\t\t\t});\n\t\t\t\t// CAP-V15: a live, client-side running total over a\n\t\t\t\t// ChildLinesSection's own repeated row inputs -- purely\n\t\t\t\t// presentational (the real gate is the server-side CAP-C10\n\t\t\t\t// check, unchanged); config (which two fields to sum) comes\n\t\t\t\t// from the section's own data-sum-a-field/data-sum-b-field\n\t\t\t\t// attributes, never interpolated into this script.\n\t\t\t\tdocument.addEventListener('input', function(e) {\n\t\t\t\t\tvar section = e.target.closest('[data-sum-a-field]');\n\t\t\t\t\tif (!section) return;\n\t\t\t\t\tvar fa = section.dataset.sumAField, fb = section.dataset.sumBField;\n\t\t\t\t\tvar sumA = 0, sumB = 0;\n\t\t\t\t\tsection.querySelectorAll('input[name$=\"_' + fa + '\"]').forEach(function(i) {\n\t\t\t\t\t\tsumA += parseFloat(i.value) || 0;\n\t\t\t\t\t});\n\t\t\t\t\tif (fb) {\n\t\t\t\t\t\tsection.querySelectorAll('input[name$=\"_' + fb + '\"]').forEach(function(i) {\n\t\t\t\t\t\t\tsumB += parseFloat(i.value) || 0;\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t\tvar elA = section.querySelector('.js-sum-a'), elB = section.querySelector('.js-sum-b');\n\t\t\t\t\tif (elA) elA.textContent = sumA.toFixed(2);\n\t\t\t\t\tif (elB) elB.textContent = sumB.toFixed(2);\n\t\t\t\t});\n\t\t\t\t// CAP-V19: a live preview of a referenced record's own\n\t\t\t\t// field, fetched from CAP-X07's existing GET\n\t\t\t\t// /api/{machine}/{record} (no new route) as soon as a\n\t\t\t\t// reference picker's selection changes -- purely\n\t\t\t\t// presentational; the real gate is the server-side CAP-C11\n\t\t\t\t// check, unchanged. Config (which API to call, which field\n\t\t\t\t// to read) comes from the select's own data-preview-url/\n\t\t\t\t// data-preview-field attributes, never interpolated into\n\t\t\t\t// this script.\n\t\t\t\tdocument.addEventListener('change', function(e) {\n\t\t\t\t\tvar el = e.target;\n\t\t\t\t\tvar url = el.dataset.previewUrl, field = el.dataset.previewField;\n\t\t\t\t\tif (!url || !field) return;\n\t\t\t\t\tvar preview = el.parentElement.querySelector('.js-live-preview');\n\t\t\t\t\tif (!preview) return;\n\t\t\t\t\tif (!el.value) { preview.textContent = '—'; return; }\n\t\t\t\t\tfetch(url + el.value)\n\t\t\t\t\t\t.then(function(r) { return r.json(); })\n\t\t\t\t\t\t.then(function(data) {\n\t\t\t\t\t\t\tvar v = data && data.data ? data.data[field] : null;\n\t\t\t\t\t\t\tpreview.textContent = (v === null || v === undefined || v === '') ? '—' : v;\n\t\t\t\t\t\t})\n\t\t\t\t\t\t.catch(function() { preview.textContent = '—'; });\n\t\t\t\t});\n\t\t\t\t// CAP-V14 Tier 2: native HTML5 drag-and-drop for the\n\t\t\t\t// kanban board -- the drag gesture itself is unavoidably\n\t\t\t\t// client-side, but the write it triggers is an ordinary\n\t\t\t\t// POST (BoardMove), fully provable without executing this\n\t\t\t\t// script (conformance T177). Config (machine id, CSRF\n\t\t\t\t// token) comes from the board wrapper's own\n\t\t\t\t// data-board-machine/data-board-csrf attributes, the\n\t\t\t\t// target lane from the drop zone's own data-lane -- never\n\t\t\t\t// interpolated into this script.\n\t\t\t\tdocument.addEventListener('dragstart', function(e) {\n\t\t\t\t\tvar card = e.target.closest('.board-card');\n\t\t\t\t\tif (!card) return;\n\t\t\t\t\te.dataTransfer.setData('text/plain', card.dataset.recordId);\n\t\t\t\t});\n\t\t\t\tdocument.addEventListener('dragover', function(e) {\n\t\t\t\t\tif (e.target.closest('.board-lane-body')) e.preventDefault();\n\t\t\t\t});\n\t\t\t\tdocument.addEventListener('drop', function(e) {\n\t\t\t\t\tvar body = e.target.closest('.board-lane-body');\n\t\t\t\t\tif (!body) return;\n\t\t\t\t\te.preventDefault();\n\t\t\t\t\tvar recordId = e.dataTransfer.getData('text/plain');\n\t\t\t\t\tvar lane = body.closest('.board-lane').dataset.lane;\n\t\t\t\t\tvar board = body.closest('[data-board-machine]');\n\t\t\t\t\tif (!recordId || !lane || !board) return;\n\t\t\t\t\tfetch('/' + board.dataset.boardMachine + '/' + recordId + '/board-move', {\n\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\theaders: { 'Content-Type': 'application/x-www-form-urlencoded' },\n\t\t\t\t\t\tbody: 'lane=' + encodeURIComponent(lane) + '&csrf_token=' + encodeURIComponent(board.dataset.boardCsrf)\n\t\t\t\t\t}).then(function() { location.reload(); });\n\t\t\t\t});\n\t\t\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -112,7 +130,7 @@ func subNavBar(links []SubNavLink) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<nav class=\"bg-slate-100 border-b border-slate-200\"><div class=\"mx-auto max-w-5xl px-4 flex items-center gap-1 h-9 overflow-x-auto\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<nav class=\"bg-slate-100 border-b border-slate-200\"><div class=\"mx-auto max-w-5xl px-4 flex items-center gap-1 h-9 overflow-x-auto\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -124,20 +142,20 @@ func subNavBar(links []SubNavLink) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 templ.SafeURL
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + l.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 148, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 159, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -150,25 +168,89 @@ func subNavBar(links []SubNavLink) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(l.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 153, Col: 13}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 164, Col: 13}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</a>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</a>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div></nav>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div></nav>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// shellBottomBar is a fixed, GLOBAL bottom tab bar at phone width -- Home /
+// Search / Notifications, identical on every page regardless of which
+// Application or Machine is open. Corrects ADR-008's original decision to
+// put subNavFor's per-Application data here instead
+// (benchmarks/022-bottom-nav-consistency-benchmark.md, Study 30): Material
+// Design, Apple HIG, and Slack all hold a bottom bar's own identity fixed --
+// content that legitimately varies by Application belongs in subNavBar's
+// existing top strip, not here. Mirrors navBar's own existing global links
+// (Home is the "/" workspace-home App Launcher, already CAP-O03's own
+// mechanism) -- no new route. Deliberately no active-tab highlighting yet
+// (Page doesn't carry the current request path) -- a known simplification
+// for this first cut, not an oversight.
+func shellBottomBar(unreadCount int) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var8 == nil {
+			templ_7745c5c3_Var8 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<nav class=\"sm:hidden fixed inset-x-0 bottom-0 z-10 flex bg-white border-t border-slate-200\"><a href=\"/\" class=\"flex-1 py-3 text-center text-xs font-medium text-slate-600\">Home</a> <a href=\"/search\" class=\"flex-1 py-3 text-center text-xs font-medium text-slate-600\">Search</a> <a href=\"/notifications\" class=\"flex-1 py-3 text-center text-xs font-medium text-slate-600\">Notifications ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if unreadCount > 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<span class=\"ml-1 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var9 string
+			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(unreadCount))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 195, Col: 32}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</a></nav>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -192,63 +274,63 @@ func navBar(identity, csrfToken string, isAdmin bool, unreadCount int) templ.Com
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var8 == nil {
-			templ_7745c5c3_Var8 = templ.NopComponent
+		templ_7745c5c3_Var10 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var10 == nil {
+			templ_7745c5c3_Var10 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<header class=\"sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm\"><div class=\"mx-auto max-w-5xl px-4 flex items-center gap-4 h-12\"><a href=\"/\" class=\"font-semibold text-sm text-slate-900 hover:text-blue-600 transition-colors\">Menata Runtime</a><div class=\"flex-1\"></div><a href=\"/search\" class=\"text-xs text-slate-500 hover:text-slate-700 transition-colors\">Search</a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<header class=\"sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm\"><div class=\"mx-auto max-w-5xl px-4 flex items-center gap-4 h-12\"><a href=\"/\" class=\"font-semibold text-sm text-slate-900 hover:text-blue-600 transition-colors\">Menata Runtime</a><div class=\"flex-1\"></div><a href=\"/search\" class=\"text-xs text-slate-500 hover:text-slate-700 transition-colors\">Search</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if isAdmin {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<a href=\"/admin/users\" class=\"text-xs text-slate-500 hover:text-slate-700 transition-colors\">Manage users</a> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<a href=\"/admin/users\" class=\"text-xs text-slate-500 hover:text-slate-700 transition-colors\">Manage users</a> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<a href=\"/notifications\" class=\"text-xs text-slate-500 hover:text-slate-700 transition-colors\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<a href=\"/notifications\" class=\"text-xs text-slate-500 hover:text-slate-700 transition-colors\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if unreadCount > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "Notifications <span class=\"ml-1 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "Notifications <span class=\"ml-1 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var9 string
-			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(unreadCount))
+			var templ_7745c5c3_Var11 string
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(unreadCount))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 179, Col: 33}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 221, Col: 33}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "Notifications")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "Notifications")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</a> <span class=\"inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</a> <span class=\"inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(identity)
+		var templ_7745c5c3_Var12 string
+		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(identity)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 186, Col: 14}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/layout.templ`, Line: 228, Col: 14}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</span><form method=\"POST\" action=\"/logout\" class=\"inline\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</span><form method=\"POST\" action=\"/logout\" class=\"inline\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -256,7 +338,7 @@ func navBar(identity, csrfToken string, isAdmin bool, unreadCount int) templ.Com
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<button type=\"submit\" class=\"text-xs text-slate-500 hover:text-slate-700 transition-colors\">Logout</button></form></div></header>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<button type=\"submit\" class=\"text-xs text-slate-500 hover:text-slate-700 transition-colors\">Logout</button></form></div></header>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -11,11 +11,14 @@ import "menata.id/runtime/internal/model"
 // itself needs no htmx/JS to render correctly -- only the drag gesture
 // needs the script; a client with JS disabled still sees every card in its
 // correct lane, just without the ability to move one.
-templ Board(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName, groupField string, columns []ColumnDef, lanes []BoardLane, unreadCount int, subNav []SubNavLink) {
+templ Board(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName, groupField string, columns []ColumnDef, lanes []BoardLane, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) {
 	@Page(viewName, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
 		</div>
+		if len(viewNav) > 0 {
+			@viewNavPill(viewNav)
+		}
 		<div
 			class="flex gap-4 overflow-x-auto pb-4"
 			data-board-machine={ machine.ID }

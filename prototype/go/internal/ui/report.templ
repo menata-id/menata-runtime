@@ -6,11 +6,14 @@ import "menata.id/runtime/internal/model"
 // Report (CAP-V13) renders a grouped aggregate -- e.g. a Trial Balance
 // grouping Journal Entry Line by Account, summing Debit/Credit. sumLabels
 // names each summed column, in the same order as each ReportRow.Sums.
-templ Report(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, sumLabels []string, rows []ReportRow, unreadCount int, subNav []SubNavLink) {
+templ Report(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, sumLabels []string, rows []ReportRow, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) {
 	@Page(viewName, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
 		</div>
+		if len(viewNav) > 0 {
+			@viewNavPill(viewNav)
+		}
 		<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
 			<table class="w-full text-sm">
 				<thead class="border-b border-slate-200 bg-slate-50">

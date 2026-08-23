@@ -224,7 +224,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		TotalPages:  totalPages,
 	}
 	a := h.auth(r)
-	page := ui.List(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine))
+	page := ui.List(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(machineID, model.ViewTypeList))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render list", "error", err)
 	}

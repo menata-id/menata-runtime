@@ -13,6 +13,40 @@ import (
 	"menata.id/runtime/internal/ui"
 )
 
+// viewNavFor (CAP-O03 Tier 3) resolves the within-Machine view-type nav
+// pill for a collection-level page -- List/Report/Board/Calendar/Timeline
+// -- linking to this same Machine's own other declared View types,
+// active-highlighting whichever one is being rendered. Distinct from
+// subNavFor's cross-Machine axis: every candidate here lives on the same
+// Machine the caller already passed a CanRead check for, so (unlike
+// subNavFor) no separate permission trim is needed. Detail/Form/WizardForm
+// never call this -- ADR-008 (docs/decisions/008-mobile-ui-navigation-
+// standard.md): a single record isn't a "view" to switch between, and a
+// Form is a focused task.
+func (h *Handler) viewNavFor(machineID string, active model.ViewType) []ui.ViewNavLink {
+	interp := h.interp.Get()
+	var links []ui.ViewNavLink
+	if interp.DefaultListView(machineID) != nil {
+		links = append(links, ui.ViewNavLink{ID: "list", Name: "List", Path: "/" + machineID, Active: active == model.ViewTypeList})
+	}
+	if interp.ReportView(machineID) != nil {
+		links = append(links, ui.ViewNavLink{ID: "report", Name: "Report", Path: "/" + machineID + "/report", Active: active == model.ViewTypeReport})
+	}
+	if interp.BoardView(machineID) != nil {
+		links = append(links, ui.ViewNavLink{ID: "board", Name: "Board", Path: "/" + machineID + "/board", Active: active == model.ViewTypeBoard})
+	}
+	if interp.CalendarView(machineID) != nil {
+		links = append(links, ui.ViewNavLink{ID: "calendar", Name: "Calendar", Path: "/" + machineID + "/calendar", Active: active == model.ViewTypeCalendar})
+	}
+	if interp.TimelineView(machineID) != nil {
+		links = append(links, ui.ViewNavLink{ID: "timeline", Name: "Timeline", Path: "/" + machineID + "/timeline", Active: active == model.ViewTypeTimeline})
+	}
+	if len(links) < 2 {
+		return nil // nothing to switch to
+	}
+	return links
+}
+
 func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	machine, ok := h.interp.Get().GetMachine(machineID)
@@ -65,7 +99,7 @@ func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.Report(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, sumLabels, rows, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	page := ui.Report(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, sumLabels, rows, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, model.ViewTypeReport))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render report", "error", err)
 	}
@@ -116,7 +150,7 @@ func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view 
 	a := h.auth(r)
 	if view.Config.ResourceField == "" {
 		groups := groupByDate(records, view.Config.DateField, colIDs, cols)
-		page := ui.CalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, groups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+		page := ui.CalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, groups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, view.Type))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render calendar/timeline", "error", err)
 		}
@@ -166,7 +200,7 @@ func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view 
 		})
 	}
 
-	page := ui.ResourceCalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, resGroups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	page := ui.ResourceCalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, resGroups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, view.Type))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render resource calendar/timeline", "error", err)
 	}
@@ -364,7 +398,7 @@ func (h *Handler) Board(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.Board(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, view.Config.GroupField, cols, lanes, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	page := ui.Board(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, view.Config.GroupField, cols, lanes, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, model.ViewTypeBoard))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render board", "error", err)
 	}

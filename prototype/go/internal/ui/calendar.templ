@@ -7,11 +7,14 @@ import "menata.id/runtime/internal/model"
 // same grouped-list shape read chronologically top to bottom; both are the
 // same rendering, only the heading and empty-state copy differ, so one
 // templ backs both rather than duplicating the table markup.
-templ CalendarTimeline(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, groups []CalendarGroup, unreadCount int, subNav []SubNavLink) {
+templ CalendarTimeline(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, groups []CalendarGroup, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) {
 	@Page(viewName, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
 		</div>
+		if len(viewNav) > 0 {
+			@viewNavPill(viewNav)
+		}
 		if len(groups) == 0 {
 			<div class="rounded-lg border border-slate-200 bg-white py-16 text-center text-sm text-slate-400 shadow-sm">
 				No dated records yet.
@@ -62,11 +65,14 @@ templ CalendarTimeline(identity, csrfToken string, isAdmin bool, machine *model.
 // sibling -- one section per resource (even an idle one with zero dated
 // records), each containing its own date-grouped table, reusing the exact
 // same per-date table markup CalendarTimeline renders inline above.
-templ ResourceCalendarTimeline(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, resGroups []ResourceCalendarGroup, unreadCount int, subNav []SubNavLink) {
+templ ResourceCalendarTimeline(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, resGroups []ResourceCalendarGroup, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) {
 	@Page(viewName, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
 		</div>
+		if len(viewNav) > 0 {
+			@viewNavPill(viewNav)
+		}
 		if len(resGroups) == 0 {
 			<div class="rounded-lg border border-slate-200 bg-white py-16 text-center text-sm text-slate-400 shadow-sm">
 				No resources found.

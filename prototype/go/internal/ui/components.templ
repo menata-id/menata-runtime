@@ -44,6 +44,28 @@ templ SlaBadge(label, urgency string) {
 	}
 }
 
+// viewNavPill (CAP-O03 Tier 3) renders a segmented pill switching between a
+// Machine's own collection-level View types (List/Report/Board/Calendar/
+// Timeline) -- the within-Machine nav axis, distinct from subNavBar's
+// cross-Machine strip (layout.templ). Only List/Report/Board/
+// CalendarTimeline's own templ callers ever pass a non-empty slice --
+// Detail/Form/WizardForm pass nothing, per ADR-008 (a single record isn't a
+// "view" to switch between, and a Form is a focused task).
+templ viewNavPill(links []ViewNavLink) {
+	<div class="mb-4 flex w-fit gap-1 rounded-md bg-slate-100 p-1">
+		for _, l := range links {
+			<a
+				href={ templ.SafeURL(l.Path) }
+				class={ "rounded px-3 py-1 text-xs font-medium transition-colors",
+					templ.KV("bg-white text-slate-900 shadow-sm", l.Active),
+					templ.KV("text-slate-500 hover:text-slate-800", !l.Active) }
+			>
+				{ l.Name }
+			</a>
+		}
+	</div>
+}
+
 // TypeaheadPicker (CAP-V16) replaces the eager <select> for a reference/user
 // field once its candidate pool exceeds handler.typeaheadThreshold -- an
 // HTMX search-as-you-type fragment swap (url returns FieldOptionField

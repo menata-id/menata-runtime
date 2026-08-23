@@ -1940,6 +1940,24 @@ drops both axes for Cancel/Save, Dashboard has no pill, public pages drop the au
 entirely. **Track G is unblocked** — CAP-O03 Tier 3 implementation against ADR-008 is the next
 real step, no longer gated on a design-prototype pass.
 
+**Correction, before implementation (2026-08-23, Study 30,
+`benchmarks/022-bottom-nav-consistency-benchmark.md`)**: ADR-008's original bottom-tab-bar
+decision was wrong and never shipped as designed. The owner asked directly, mid-implementation:
+if an org runs several Applications (Document Approval, Design Request, Project Management, ...),
+does a bottom bar that renames itself per app actually feel like one system? World-class
+reference (Material Design, Apple HIG, Slack, Salesforce's own App-Launcher-gated exception) says
+no — a bottom tab bar's identity should stay fixed; content that legitimately varies by
+Application belongs in the existing top `subNavBar` strip instead. Corrected before any of it was
+committed: the mobile bottom bar is now a fixed, global Home/Search/Notifications set (mirroring
+`navBar`'s own links), with Home doubling as this system's own App Launcher (the pre-existing
+workspace home) — not a re-rendering of `subNavFor`'s per-Application data.
+
+**CAP-O03 Tier 3 implemented 2026-08-23**, same day, against the corrected standard:
+`Handler.viewNavFor` (within-Machine pill, List/Report/Board/Calendar/Timeline only) +
+`shellBottomBar` (global, fixed). Conformance T186–T188
+(`conformance/tests/090_mobile_nav.sh`); full suite re-verified clean (193/193) on a fresh
+isolated schema. Track G's own implementation step is done — no longer just unblocked.
+
 ## Recommended order for upcoming sessions
 
 1. ~~CAP-X04~~ — ✅ done (Option A). CAP-X11 demoted to Track A/#2 below, no longer a co-requisite.
@@ -1952,7 +1970,7 @@ real step, no longer gated on a design-prototype pass.
 8. ~~CAP-X08 import completion (Track E)~~ — ✅ done (T181–T185), scoped narrower than a full round-trip (Process Overlay/`change_policy` excluded, named)
 9. CAP-X11 (Track A/#2) and remaining Prio-tagged items (Track E) opportunistically, no measured urgency
 10. Leave Track F alone until a real case names the need
-11. ~~Track G design-prototype pass~~ — ✅ done (Study 29, ADR-008). **Track G (CAP-O03 Tier 3 implementation)** — build against `prototype/go/docs/decisions/008-mobile-ui-navigation-standard.md` directly; no longer blocked
+11. ~~Track G design-prototype pass~~ — ✅ done (Study 29, ADR-008, corrected by Study 30). ~~Track G (CAP-O03 Tier 3 implementation)~~ — ✅ done (T186–T188)
 
 ---
 

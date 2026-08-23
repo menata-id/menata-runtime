@@ -4,8 +4,11 @@ import "fmt"
 import "net/url"
 import "menata.id/runtime/internal/model"
 
-templ List(identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink) {
+templ List(identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink, viewNav []ViewNavLink) {
 	@Page(machine.Name, identity, csrfToken, isAdmin, unreadCount, subNav) {
+		if len(viewNav) > 0 {
+			@viewNavPill(viewNav)
+		}
 		<div class="mb-4 flex items-center gap-3">
 			<h1 class="flex-1 text-xl font-semibold text-slate-900">
 				{ machine.Name }

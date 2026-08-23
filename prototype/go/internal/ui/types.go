@@ -26,6 +26,19 @@ type SubNavLink struct {
 	Active bool // this is the Machine the current page already belongs to
 }
 
+// ViewNavLink (CAP-O03 Tier 3) is one entry in the within-Machine view-type
+// nav pill rendered on a Machine's own collection-level pages (List/Report/
+// Board/Calendar/Timeline) -- links to this same Machine's own other
+// declared View types, distinct from SubNavLink's cross-Machine axis above.
+// Empty/nil slice = no pill (fewer than 2 View types on this Machine, or a
+// Detail/Form page, which never receives one at all -- see ADR-008).
+type ViewNavLink struct {
+	ID     string
+	Name   string
+	Path   string
+	Active bool // this is the View type the current page already renders
+}
+
 // SearchResult (CAP-O04) is one match from the workspace-wide search --
 // which Machine it's on (permission-trimmed: only Machines the searching
 // role can read are ever scanned) and a link to its own Detail page.

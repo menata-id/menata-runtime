@@ -12,6 +12,16 @@ import "strconv"
 // request. subNav (CAP-O03 Tier 2) is the current Machine's own sibling
 // Machines in the same Application -- nil/empty for a page that doesn't
 // belong to any one Machine, which renders no strip at all.
+//
+// Mobile bottom bar (`shellBottomBar`, ADR-008 corrected by
+// benchmarks/022-bottom-nav-consistency-benchmark.md, Study 30) is a fixed,
+// GLOBAL 3-item set -- Home/Search/Notifications, identical on every page --
+// not subNav's per-Application data. World-class bottom tab bars (Material
+// Design, Apple HIG, Slack) hold their identity fixed; content that
+// legitimately varies by Application belongs in the existing top subNavBar
+// strip instead, same as it already did before this bar existed. Rendered
+// unconditionally at phone width, on every page -- unlike subNav, this
+// bar has nothing to be empty about.
 templ Page(title, identity, csrfToken string, isAdmin bool, unreadCount int, subNav []SubNavLink) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -27,9 +37,10 @@ templ Page(title, identity, csrfToken string, isAdmin bool, unreadCount int, sub
 			if len(subNav) > 0 {
 				@subNavBar(subNav)
 			}
-			<div class="mx-auto max-w-5xl px-4 py-6">
+			<div class="mx-auto max-w-5xl px-4 py-6 pb-20 sm:pb-6">
 				{ children... }
 			</div>
+			@shellBottomBar(unreadCount)
 			// CAP-V16: the one static, page-level script this project needs --
 			// a delegated click listener filling a TypeaheadPicker's hidden
 			// field from whichever .field-option the user clicked. Reads
@@ -154,6 +165,37 @@ templ subNavBar(links []SubNavLink) {
 				</a>
 			}
 		</div>
+	</nav>
+}
+
+// shellBottomBar is a fixed, GLOBAL bottom tab bar at phone width -- Home /
+// Search / Notifications, identical on every page regardless of which
+// Application or Machine is open. Corrects ADR-008's original decision to
+// put subNavFor's per-Application data here instead
+// (benchmarks/022-bottom-nav-consistency-benchmark.md, Study 30): Material
+// Design, Apple HIG, and Slack all hold a bottom bar's own identity fixed --
+// content that legitimately varies by Application belongs in subNavBar's
+// existing top strip, not here. Mirrors navBar's own existing global links
+// (Home is the "/" workspace-home App Launcher, already CAP-O03's own
+// mechanism) -- no new route. Deliberately no active-tab highlighting yet
+// (Page doesn't carry the current request path) -- a known simplification
+// for this first cut, not an oversight.
+templ shellBottomBar(unreadCount int) {
+	<nav class="sm:hidden fixed inset-x-0 bottom-0 z-10 flex bg-white border-t border-slate-200">
+		<a href="/" class="flex-1 py-3 text-center text-xs font-medium text-slate-600">
+			Home
+		</a>
+		<a href="/search" class="flex-1 py-3 text-center text-xs font-medium text-slate-600">
+			Search
+		</a>
+		<a href="/notifications" class="flex-1 py-3 text-center text-xs font-medium text-slate-600">
+			Notifications
+			if unreadCount > 0 {
+				<span class="ml-1 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
+					{ strconv.Itoa(unreadCount) }
+				</span>
+			}
+		</a>
 	</nav>
 }
 
