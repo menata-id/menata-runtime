@@ -20,6 +20,7 @@ import (
 //	POST /admin/reload                       re-load metadata without restart, Admin-only (CAP-X04)
 //	/notifications                           in-app notification inbox (CAP-A10)
 //	/apps/{applicationID}/export             Application metadata export, Admin-only (CAP-X08)
+//	POST /apps/import                        Application metadata import, Admin-only (CAP-X08)
 //	GET  /api/{machineID}                    JSON list (CAP-X07)
 //	GET  /api/{machineID}/{recordID}         JSON detail (CAP-X07)
 //	POST /api/{machineID}                    JSON create (CAP-X07)
@@ -39,6 +40,7 @@ func Mount(r chi.Router, h *handler.Handler) {
 	r.Get("/", h.Apps)
 	r.Get("/apps/{applicationID}", h.AppMachines)
 	r.Get("/apps/{applicationID}/export", h.APIExportApplication) // CAP-X08, Admin-only
+	r.Post("/apps/import", h.APIImportApplication)                // CAP-X08, Admin-only
 
 	r.Get("/login", h.LoginForm)
 	r.Post("/login", h.Login)

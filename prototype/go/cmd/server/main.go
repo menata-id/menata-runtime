@@ -74,7 +74,7 @@ func main() {
 	outbox := store.NewOutboxStore(pool)
 	sessions := store.NewSessionStore(pool)
 	users := store.NewUserStore(pool)
-	h := handler.New(interpStore, loader, records, notifications, outbox, sessions, users, cfg.SecureCookies)
+	h := handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, cfg.SecureCookies)
 
 	r := chi.NewRouter()
 	// RequestID before the access logger: gives every access log line a

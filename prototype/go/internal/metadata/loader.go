@@ -8,16 +8,28 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
 	"menata.id/runtime/internal/model"
 )
 
-// Loader reads Runtime Metadata from the database.
-type Loader struct {
-	db *pgxpool.Pool
+// querier is the one method Loader actually calls -- satisfied by both
+// *pgxpool.Pool (boot-time LoadAll, POST /admin/reload) and pgx.Tx (CAP-X08
+// import: LoadAll run inside the still-open transaction that just inserted
+// a new package, so a validation failure can roll the whole thing back
+// before anything commits). Same "abstract over pool and tx" shape
+// internal/store's own querier interface already uses, kept local here
+// rather than shared, since metadata has no other reason to depend on
+// package store.
+type querier interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
-func NewLoader(db *pgxpool.Pool) *Loader {
+// Loader reads Runtime Metadata from the database.
+type Loader struct {
+	db querier
+}
+
+func NewLoader(db querier) *Loader {
 	return &Loader{db: db}
 }
 

@@ -1718,6 +1718,58 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > this prototype actually runs, no measured pressure for it yet, same "Infer Before
 > Configure" posture CAP-X10/CAP-X11 already use.
 
+> **Status update (2026-08-23) — CAP-X08 import half implemented and conformance-proven,
+> scoped narrower than a full round-trip.** Next unblocked item per the Sequencing Guide
+> below once CAP-X04 landed. Reading `internal/metadata/loader.go` end to end before
+> implementing (not guessing from the registry row's own one-line "worth its own dedicated
+> pass" note) surfaced the real reason this needed its own pass: `compileProcess`/
+> `compileChangePolicies`/`compileApprovalRequirements` mutate a Machine's Events/
+> Permissions/Constraints **in memory at load time and never persist the generated
+> result** — so `GET /apps/{id}/export`'s own output (the post-compile in-memory struct)
+> is not a safe verbatim import source for any Machine using the Process Overlay or a
+> `change_policy` Constraint: reimporting it would either double-generate the same
+> deterministic-ID content on the next load, or (for `change_policy`) permanently fail to
+> load at all, since the loader's own rule rejects a Constraint carrying both a Condition
+> and a change_policy — exactly the shape a compiled export has.
+>
+> **Decision: import rejects upfront (400, before touching the DB) any package containing
+> a Process-Overlay Machine or a `change_policy` Constraint, named explicitly.** The same
+> "escalate only when evidence demands it" call this registry has made repeatedly
+> (CAP-F19, CAP-X04-vs-X11, CAP-W06's own recent scope cut). Every other piece of the
+> model — Fields, ordinary Events/Actions/Constraints (incl. CAP-C08's `CrossRecordCheck`),
+> Permissions (incl. CAP-P06/CAP-P02), Views, Subscriptions (CAP-I01/I03), `Machine.Config`,
+> Event `Schedule`/`InputFields`/`AggregateCondition` — round-trips safely and is fully
+> supported.
+>
+> New `POST /apps/import` (Admin-only), body shaped like export's own output, always
+> targets the importing admin's own current workspace (the body's `WorkspaceID`, reflecting
+> wherever it was exported *from*, is ignored for placement — "one knowledge, many
+> runtimes"). Design's key move: `internal/metadata/materialize.go`'s
+> `MaterializeApplication` (mechanical inverse of `loader.go`'s own `load*` functions) and
+> `metadata.Loader.LoadAll` both run inside ONE explicit transaction, on `Handler`'s own new
+> `pool` field — deliberately not the request-scoped transaction `workspaceTx` already
+> opened, since that one commits on any non-5xx response including a 400, which would
+> silently persist a rejected import. `Loader.db` generalized from a concrete
+> `*pgxpool.Pool` to a local `querier` interface so a *second* Loader can be built directly
+> on the open transaction — `metadata.NewLoader(tx).LoadAll(ctx)` then re-runs the exact
+> production validate path (dangling references, unsupported operators, every existing
+> capability's own load-time checks) against data that already includes the
+> freshly-inserted package (a transaction always sees its own writes), zero duplicated
+> validation logic. Failure rolls back everything; success commits, then reuses the
+> already-validated result to swap the live Interpreter the same way CAP-X04's own
+> `/admin/reload` does — servable immediately, no restart. No `ON CONFLICT` anywhere: a
+> colliding id fails loudly with Postgres's own unique-violation, never a silent overwrite.
+>
+> Manually verified across two genuinely separate isolated schemas (export from one,
+> import into the other, `jq`+`sed` id-renaming — same technique T166's own lift-then-
+> reapply test established) before trusting conformance. T181–T185: non-Admin denial,
+> immediate live-Interpreter visibility (a 404→403 shift needing no role grant), full
+> functional round-trip via a DB-gated role-grant fixture (same class of exception as
+> T19/T151 — no HTTP surface exists for per-application role assignment either), the
+> Process-Overlay rejection, and collision-fails-loudly. **185/185 passing, zero
+> regressions**, confirmed on a fresh isolated schema. Registry: CAP-X08 row stays ⚠️ (not
+> ✅) — the Process-Overlay/change_policy exclusion is real, named, not attempted this pass.
+
 ---
 
 # Sequencing Guide — Prerequisite Map for What's Next (added 2026-08-22)
@@ -1810,7 +1862,7 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 
 - CAP-F20 (many-to-many join machine), Prio 5
 - CAP-X09 (organizational unit scoping), Prio 6 — needs its own Study-level design pass, same rigor CAP-O01 got, not a batch item
-- CAP-X08 import half, Prio 9 — **READY** (Track A/CAP-X04 done, Option A — "a real reload story" now exists)
+- **CAP-X08 import half, Prio 9 — ✅ done** (T181–T185), scoped: rejects Process-Overlay/`change_policy` packages, named explicitly — everything else round-trips
 - CAP-X10 (metadata-driven index management), Prio 10 — deliberately deferred until real load pressure exists (own row: building ahead of measured need contradicts "Infer Before Configure")
 - CAP-I04 SLO half, Prio 10
 - CAP-O07 (Groups/Teams), Prio 14 — cheap to retrofit whenever needed
@@ -1897,7 +1949,7 @@ real step, no longer gated on a design-prototype pass.
 5. ~~Case 9 completion batch: CAP-C10, CAP-C11~~ — ✅ done (T161–T164); CAP-C08 ⚠️ (the two shapes it named done, a third — universal/for-all across children — not built, no case demands it)
 6. ~~CAP-W06 async outbox (Track B)~~ — ✅ done (T178–T180), scoped to notify + CAP-I01 subscription fan-out
 7. ~~UI cluster (Track D): CAP-V16/V17/V18/V14-Tier-2/V15/V19~~ — ✅ done, all six (T167–T177)
-8. CAP-X08 import completion (Track E) — ready now, X04 done
+8. ~~CAP-X08 import completion (Track E)~~ — ✅ done (T181–T185), scoped narrower than a full round-trip (Process Overlay/`change_policy` excluded, named)
 9. CAP-X11 (Track A/#2) and remaining Prio-tagged items (Track E) opportunistically, no measured urgency
 10. Leave Track F alone until a real case names the need
 11. ~~Track G design-prototype pass~~ — ✅ done (Study 29, ADR-008). **Track G (CAP-O03 Tier 3 implementation)** — build against `prototype/go/docs/decisions/008-mobile-ui-navigation-standard.md` directly; no longer blocked

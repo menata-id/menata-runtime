@@ -90,6 +90,31 @@ without a per-item savepoint, that takes the item's own subsequent `MarkFailed` 
 other already-succeeded item in the same batch down with it (caught live 2026-08-23, see
 `capability-registry.md`'s CAP-W06 row for the full story).
 
+**A capability that mutates a Machine's Events/Permissions/Constraints in memory at load
+time (`compileProcess`/`compileChangePolicies`/`compileApprovalRequirements`,
+`internal/metadata/compile.go`) never writes that generated content back to the database —
+the DB only ever holds the raw, hand-authored declaration.** `GET /apps/{id}/export`
+(CAP-X08) dumps the POST-compile in-memory struct, so it is NOT a safe verbatim source for
+re-inserting as if it were raw data — a Process Overlay Machine or a `change_policy`
+Constraint round-tripped through export→import would either double-generate the same
+deterministic-ID content on the next load, or (change_policy) permanently fail to load at
+all (the loader's own rule rejects a Constraint carrying both a Condition and a
+change_policy, which is exactly the shape a compiled export has). CAP-X08's import half
+(`internal/handler/api.go`'s `APIImportApplication`) rejects a package containing either
+upfront, named explicitly — if you add a new load-time-compiled capability in the future,
+add its own exclusion to `rejectCompiledContent` too, or import will silently corrupt it
+the same way.
+
+**Validating a freshly-written package before committing it can mean building a SECOND
+`metadata.Loader` bound to the same open transaction, not re-deriving the validation rules.**
+`Loader.db` is a local `querier` interface (`Query` only), satisfied by both
+`*pgxpool.Pool` (boot, `/admin/reload`) and `pgx.Tx` — `metadata.NewLoader(tx).LoadAll(ctx)`
+inside a still-open transaction sees that transaction's own uncommitted writes (Postgres
+always does) and runs the exact production `validateReferences`/`validateOperators`/compile
+path against them, zero duplicated logic. CAP-X08 import uses this to validate a
+newly-materialized package before commit; reuse it for any future "write then verify
+atomically" mechanism rather than writing a second validator.
+
 **Every HTTP request already runs inside one real Postgres transaction — a store method
 swallowing its own error instead of returning it silently breaks that guarantee.**
 `cmd/server/main.go`'s `workspaceTx` middleware (built for CAP-X06's RLS cutover) wraps every

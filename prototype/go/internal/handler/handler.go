@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"menata.id/runtime/internal/constraint"
 	"menata.id/runtime/internal/executor"
@@ -21,6 +22,7 @@ import (
 type Handler struct {
 	interp        *interpreter.Store // CAP-X04: atomic, swapped by Reload -- call .Get() fresh at point of use, never cache across a request
 	loader        *metadata.Loader   // CAP-X04: re-run by Reload to build a fresh Interpreter
+	pool          *pgxpool.Pool      // CAP-X08 import: its own explicit transaction, separate from workspaceTx's per-request one -- see APIImportApplication's doc comment for why
 	records       *store.RecordStore
 	notifications *store.NotificationStore
 	outbox        *store.OutboxStore // CAP-W06: notify/subscription fan-out enqueue here, runOutboxDispatcher performs the write
@@ -32,10 +34,11 @@ type Handler struct {
 	exec          *executor.Executor
 }
 
-func New(interp *interpreter.Store, loader *metadata.Loader, records *store.RecordStore, notifications *store.NotificationStore, outbox *store.OutboxStore, sessions *store.SessionStore, users *store.UserStore, secureCookies bool) *Handler {
+func New(interp *interpreter.Store, loader *metadata.Loader, pool *pgxpool.Pool, records *store.RecordStore, notifications *store.NotificationStore, outbox *store.OutboxStore, sessions *store.SessionStore, users *store.UserStore, secureCookies bool) *Handler {
 	return &Handler{
 		interp:        interp,
 		loader:        loader,
+		pool:          pool,
 		records:       records,
 		notifications: notifications,
 		outbox:        outbox,

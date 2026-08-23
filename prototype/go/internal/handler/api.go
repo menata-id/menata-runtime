@@ -2,12 +2,17 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
+	"menata.id/runtime/internal/interpreter"
+	"menata.id/runtime/internal/metadata"
 	"menata.id/runtime/internal/model"
 )
 
@@ -229,4 +234,125 @@ func (h *Handler) APIExportApplication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	apiJSON(w, http.StatusOK, app)
+}
+
+// APIImportApplication handles POST /apps/import (CAP-X08 import half) --
+// the counterpart to APIExportApplication above: a JSON body shaped exactly
+// like that endpoint's own output, materialized into the importing admin's
+// OWN current workspace (h.workspace(r) -- the body's own WorkspaceID
+// reflects wherever it was exported FROM and is deliberately ignored for
+// placement; "one knowledge, many runtimes" means the destination is always
+// the operator's choice).
+//
+// Rejects upfront (before touching the DB) any package containing a Machine
+// with a Process Overlay (CAP-W... Process Overlay) or a Constraint with a
+// change_policy (CAP-W07) -- both are compiled in memory at load time
+// (compileProcess/compileChangePolicies, internal/metadata/compile.go) and
+// never written back to the DB, so the EXPORTED struct already reflects
+// compiled-in content that isn't safe to reinsert as if it were raw
+// hand-authored data -- it would double-generate on the very next load
+// (Process) or permanently fail to load at all (change_policy, since the
+// loader's own rule rejects a Constraint carrying both a Condition and a
+// change_policy, which is exactly the shape a compiled export has).
+// Distinguishing hand-authored from compiler-generated content well enough
+// to import it safely needs its own mechanism (something like B6's
+// liftProcess two-pass detection) -- real future work, not attempted here;
+// capability-registry.md's CAP-X08 row names this explicitly.
+//
+// Materialize + validate run inside ONE explicit transaction on h.pool --
+// deliberately NOT the request-scoped transaction workspaceTx already
+// opened (cmd/server/main.go): that one commits on any non-5xx response,
+// including a 400, which would silently persist a rejected import's rows.
+// metadata.NewLoader(tx) then re-runs the exact production load/validate
+// path (validateReferences, validateOperators, every existing capability's
+// own load-time checks) against data that -- because a Postgres transaction
+// always sees its own uncommitted writes -- already includes the
+// freshly-inserted package, with zero duplicated validation logic. A
+// failure at either step rolls back the whole transaction; nothing partial
+// is ever left behind. Success commits, then reuses the already-validated
+// result to swap the live Interpreter (interpreter.Store.Swap) the same way
+// CAP-X04's own POST /admin/reload does -- the import is servable
+// immediately, no restart.
+func (h *Handler) APIImportApplication(w http.ResponseWriter, r *http.Request) {
+	if !h.isWorkspaceAdmin(r) {
+		apiJSON(w, http.StatusForbidden, map[string]string{"error": "not permitted"})
+		return
+	}
+	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		apiJSON(w, http.StatusBadRequest, map[string]string{"error": "expected application/json"})
+		return
+	}
+	var app model.Application
+	if err := json.NewDecoder(r.Body).Decode(&app); err != nil {
+		apiJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+		return
+	}
+
+	if err := rejectCompiledContent(&app); err != nil {
+		apiJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	ctx := r.Context()
+	tx, err := h.pool.Begin(ctx)
+	if err != nil {
+		slog.Error("import: begin transaction", "correlation_id", middleware.GetReqID(ctx), "error", err)
+		apiJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	workspaceID := h.workspace(r)
+	if err := metadata.MaterializeApplication(ctx, tx, workspaceID, &app); err != nil {
+		apiJSON(w, http.StatusBadRequest, map[string]string{"error": "import failed: " + err.Error()})
+		return
+	}
+
+	workspaces, err := metadata.NewLoader(tx).LoadAll(ctx)
+	if err != nil {
+		apiJSON(w, http.StatusBadRequest, map[string]string{"error": "import failed validation: " + err.Error()})
+		return
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.Error("import: commit transaction", "correlation_id", middleware.GetReqID(ctx), "error", err)
+		apiJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
+	committed = true
+
+	newInterp := interpreter.New(workspaces)
+	h.interp.Swap(newInterp)
+
+	a := h.auth(r)
+	slog.Info("metadata imported",
+		"correlation_id", middleware.GetReqID(ctx),
+		"actor", a.User.Name,
+		"application", app.ID,
+		"machines", len(app.Machines),
+	)
+	apiJSON(w, http.StatusCreated, map[string]any{"application_id": app.ID, "machines": len(app.Machines)})
+}
+
+// rejectCompiledContent is APIImportApplication's upfront guard -- see its
+// own doc comment for the full reasoning. Named after what it rejects, not
+// after either individual capability, since the underlying trap (in-memory
+// compile-time content, never persisted) is the same for both.
+func rejectCompiledContent(app *model.Application) error {
+	for _, m := range app.Machines {
+		if m.Process != nil {
+			return fmt.Errorf("machine %s declares a Process Overlay -- import doesn't support compiled/generated content yet, see capability-registry.md's CAP-X08 row", m.ID)
+		}
+		for _, c := range m.Constraints {
+			if c.ChangePolicy != nil {
+				return fmt.Errorf("constraint %s on machine %s has a change_policy -- import doesn't support compiled/generated content yet, see capability-registry.md's CAP-X08 row", c.ID, m.ID)
+			}
+		}
+	}
+	return nil
 }
