@@ -1858,9 +1858,16 @@ from "just this navigation gap" to all 21 `case-portfolio.md` cases, clustered b
 case-by-case) so the mockups prove component reuse rather than producing 21 one-off screens.
 Selects 7 representative cases (9, 19, 20, 7, 6, 12, 13) covering every real cluster, phased
 mobile-first (core chrome → auxiliary views → Form/List decoration → extracted shared vocabulary
-→ owner review), tooling decision (`design`-skill canvas Artifacts, not static wireframes). No
-mockups produced yet — Phase 1 (Case 9 core chrome) is the ready-to-start next step, per that
-study's own closing section.
+→ owner review), tooling decision (`design`-skill canvas Artifacts, not static wireframes).
+
+**Update (2026-08-23): Phase 1 done.** Case 9 List/Detail/Form/Report mobile mockups built and
+published to the existing "Menata Apps Builder" canvas (new page, "Runtime UI — Case 9") —
+owner chose a direction (utilitarian, matches the real Tailwind app) out of three sketched
+options, resolving CAP-O03 Tier 3's open questions: bottom tab bar for cross-Machine nav, a
+segmented pill for within-Machine view nav (List/Report pages only, not Detail/Form), Form drops
+the tab bar for explicit Cancel/Save. See `benchmarks/021-design-system-prototype-plan.md`'s own
+2026-08-23 update for the full writeup. Phases 2–4 (other 6 representative cases, then the
+extracted written standard) remain to do.
 
 ## Recommended order for upcoming sessions
 
