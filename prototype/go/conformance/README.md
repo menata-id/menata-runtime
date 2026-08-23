@@ -222,6 +222,13 @@ see `docs/decisions/007-conformance-suite-split.md`).
 | T175 | CAP-V19 | the Journal Entry form's Fiscal Period picker is wired for a live status preview |
 | T176 | CAP-V14 | the board groups records into their current lane, and an unused lane still renders empty |
 | T177 | CAP-V14 | `POST .../board-move` updates the group field and appends the record to the target lane |
+| T186 | CAP-O03 | a Machine with both List and Report renders a within-Machine view-type pill on each, active-highlighting whichever is being viewed (Tier 3) |
+| T187 | CAP-O03 | a Machine with only one collection-level View type renders no within-Machine pill |
+| T188 | CAP-O03 | the mobile bottom bar (Home/Search/Notifications) is identical across two different Applications, not reconfigured per app — the Study 30 correction to ADR-008's original plan |
+
+*(T178–T185 — CAP-W06 async outbox, CAP-X08 import — exist in `tests/070_action_outbox.sh`/
+`tests/080_metadata_import.sh` but predate this table catching up to them; not added by this
+change, noting the gap rather than silently leaving it unexplained.)*
 
 ---
 
