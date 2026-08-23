@@ -27,7 +27,7 @@ codebase specifically, the layers map to:
 | 4. Model | `internal/model/model.go` — new struct field or `ActionType`/`FieldType` constant |
 | 5. Engine | Single-record logic → `internal/executor/executor.go` (`Simulate`/`Persist`). Cross-record logic (needs `interp` + `records` together) → package `handler`, not Executor — Executor deliberately has no access to the Interpreter, so anything requiring "look up another Machine" or "list sibling records" belongs in Handler. **Since ADR-006 (2026-08-22) split `handler.go` into domain files, land it in the file matching the domain, not `handler.go` itself** (now trimmed to construction/session/identity only) — event-trigger/workflow-action logic goes in `events.go` (`doAggregateStatus`, `sequentialGuardViolation`, `separationOfDutiesViolation`), form/reference-lookup logic in `formfields.go` (`childLists`, `buildFormFields`), calendar/dashboard/report rendering in `views.go`; see that ADR's own table for the full file-to-domain map before adding a new one |
 | 6. UI | `internal/ui/*.templ`, regenerate with `make generate` before `go build` |
-| 7. Conformance | New `T##` in `conformance/run.sh` + a row in `conformance/README.md`'s test map — positive **and** negative case |
+| 7. Conformance | New `T##` in the right `conformance/tests/NNN_*.sh` file (append to the last one if it's the same batch/theme, or a new `tests/NNN_*.sh` — increment by 10 — if it's a new one; see ADR-007) + a row in `conformance/README.md`'s test map — positive **and** negative case |
 | 9. Registry | Update the row in `../capability-registry.md`: status, Proof column (`conformance T##`), and a note describing what was actually built and what was deliberately deferred |
 
 Also update `../roadmap.md` with a dated status paragraph (append, don't rewrite prior entries —
@@ -36,7 +36,7 @@ capability in the Implementation Order table.
 
 ## Established patterns
 
-**`triggerEvent` is the one path every event runs through.** `internal/handler/handler.go`'s
+**`triggerEvent` is the one path every event runs through.** `internal/handler/events.go`'s
 `triggerEvent(ctx, machine, event, rec, actorRole)` is called both by the HTTP handler
 (`TriggerEvent`) and internally by `doAggregateStatus` when a workflow action needs to fire an
 event on a *different* record (e.g. a Step's decision cascading to its parent Document). Guards
@@ -141,6 +141,31 @@ to add actions to an *already-seeded* event (not a fresh install), write a scope
 the new rows (and a position-renumbering `UPDATE` if you're inserting before an existing action) —
 don't re-run the whole seed file. See the git history of `seeds/002_leave_request.sql` around the
 CAP-A02 change for a worked example.
+
+**The same `ON CONFLICT (id) DO NOTHING` guarantee has a sharper edge for `views`/`fields`/etc: it
+protects against re-running a seed file, but not against *editing* an already-seeded row's own
+content later while keeping the same `id`.** Found live 2026-08-23: `seeds/027_case9_completion_
+lab.sql`'s `vw_c9je_form` row was edited in place to add a `child_lines` key (for CAP-V15) after
+that exact `id` had already been seeded once on the shared dev database — every later `make seed`
+silently kept serving the OLD config, because `ON CONFLICT (id) DO NOTHING` doesn't care that the
+`INSERT`'s own values changed. Nothing in the loader or the conformance suite catches this (the
+suite ran against a *fresh* schema in CI-equivalent fashion, where the row is inserted correctly
+the first time — the drift only shows up on a long-lived, already-seeded database, exactly the
+shared dev deployment). If you edit an already-seeded row's content in an existing seed file
+(not just append new rows), you need a companion `UPDATE ... WHERE id = '...'` for it to actually
+reach a database that already ran the old version — or accept that only a fresh schema will ever
+see the new content.
+
+**When a file's own concerns keep accumulating and nothing forces them apart, split it — two
+worked examples exist, follow their pattern rather than re-deriving one.** `internal/handler/
+handler.go` (3,244 lines, ADR-006) and `conformance/run.sh` (2,128 lines, ADR-007) both grew this
+way — one commit at a time, every batch adding a little more, no single change ever big enough to
+trigger a rewrite on its own. Both splits were a **pure move** (no logic changed) verified
+mechanically (function-inventory equality, and for the conformance suite, byte-identical
+behavior on two independent fresh schemas) rather than trusted by inspection alone. Rough
+trigger, not a hard rule: a file north of ~1,000 lines covering more than one clearly-separable
+concern is a candidate; read ADR-006/ADR-007's own Context sections for the file-length
+guidelines they surveyed before deciding whether a given file has actually crossed that line.
 
 ## Local dev loop that actually works here
 
