@@ -1,7 +1,16 @@
 # ADR-008: Mobile-First UI Navigation & Component Standard
 
 **Status:** Accepted and implemented, with one decision corrected before it shipped — see
-"Correction (2026-08-23)" below before reading Decision #1 as originally written.
+"Correction (2026-08-23)" below before reading Decision #1 as originally written. **Superseded in part (2026-08-23)** — `../../../../benchmarks/023-bottom-bar-necessity-benchmark.md`
+(Study 31) found that `shellBottomBar`'s own existence as a *fixed, unconditional default* doesn't
+survive scrutiny: every domain-analogous precedent (Odoo, ERPNext, Google Workspace) places its
+app-switcher as a small icon inside the header it already has, never as a dedicated bottom region,
+and `navBar` here is already sticky and already carries all three functions the bottom bar
+duplicates. Owner-directed resolution: the bottom bar **component stays supported** (real apps —
+WeChat, Alipay, Slack — do need one), but only when an Application's own metadata declares it,
+never as a runtime-wide default. Registered as `CAP-O08` (❌ not yet built, awaiting a real case) in
+`../../../../capability-registry.md`. Not yet implemented — `shellBottomBar` as written below still
+matches what's actually in the code today.
 **Date:** 2026-08-23
 
 **Update (2026-08-23, same day, before implementation): Decision #1 corrected.** The owner asked
@@ -9,9 +18,11 @@ directly, mid-implementation: if an organization runs several Applications (Docu
 Design Request, Project Management, ...) under one system, does a bottom tab bar that renames
 itself every time a user crosses an Application boundary actually feel like one system? Checked
 against world-class practice (`../../../../benchmarks/022-bottom-nav-consistency-benchmark.md`,
-Study 30) — Material Design, Apple HIG, and Slack all hold a bottom bar's own identity **fixed**;
-Salesforce's one partial exception is gated behind an explicit App Launcher action, not a passive
-side effect of ordinary navigation. **The bottom tab bar does NOT carry `subNavFor`'s
+Study 30) — Salesforce (cross-Lightning-App), Google Workspace, WeChat, Alipay, Odoo, and ERPNext
+all keep only a small, genuinely universal set of functions (search, notifications, identity, a
+jump point between modules) **fixed**; every module-specific nav region varies completely per
+module and lives in its own separate slot, never the same one as the universal functions.
+**The bottom tab bar does NOT carry `subNavFor`'s
 per-Application data.** It is a fixed, global 3-item set — Home / Search / Notifications —
 identical on every page, mirroring `navBar`'s own existing links; "Home" is this system's own App
 Launcher (the pre-existing workspace home, `handler.Apps`). `subNavFor`'s cross-Machine data stays

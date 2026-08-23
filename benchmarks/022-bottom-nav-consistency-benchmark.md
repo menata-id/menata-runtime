@@ -9,7 +9,7 @@
 > organization's system? And if so, what should the bottom bar actually hold, and how do top bar
 > + bottom bar together keep the multi-app system feeling like one system?
 >
-> Status: v0.1 | Created: 2026-08-23
+> Status: v0.2 (revised) | Created: 2026-08-23 | Revised: 2026-08-23
 
 ---
 
@@ -28,41 +28,47 @@ twice?
 
 ---
 
-# World-class reference — what a bottom tab bar is actually for
+# World-class reference — what actually applies to a multi-Application system
 
-| Source | Finding |
-|---|---|
-| Material Design (Google) — Bottom navigation | Destinations are **fixed** — they don't scroll, don't reorder, don't change identity. 3–5 top-level destinations of **equal, permanent importance**. [Bottom navigation — Material Design](https://m2.material.io/develop/flutter/components/bottom-navigation/), [The Golden Rules Of Bottom Navigation Design — Smashing Magazine](https://www.smashingmagazine.com/2016/11/the-golden-rules-of-mobile-navigation-design/) |
-| Apple Human Interface Guidelines — Tab bars | A tab bar is **persistent** across an app's sections; hidden only under a full-screen modal. **"Frequent changes to tab visibility can make the app feel unstable."** [Tab bars — Apple Developer Documentation](https://developer.apple.com/design/human-interface-guidelines/tab-bars) |
-| Slack (mobile) | Bottom bar is **four fixed tabs — Home, DM, @mention, You** — identical regardless of which workspace is open. Switching workspaces is a **separate, deliberate gesture** (swipe/tap to open a workspace list), never a change to what the four tabs mean. [A simpler, more organized Slack on your phone](https://slack.com/blog/productivity/simpler-more-organized-slack-mobile-app), [Switch between workspaces — Slack](https://slack.com/help/articles/1500002200741-Switch-between-workspaces) |
-| Salesforce (mobile) | Bottom bar holds **the four most-important quick-access items** — mostly fixed. Its own documentation names one exception: item content can change **"unless users switch to a Lightning app,"** and app-switching itself happens through the **App Launcher** (a distinct grid control), never as a silent side effect of ordinary navigation. Even the exception is gated behind an explicit, top-level switch action. [Customize the Mobile Only Navigation Menu — Salesforce Help](https://help.salesforce.com/s/articleView?id=salesforce_app_customize_nav_menu.htm) |
-| Google Workspace (Gmail/Drive/Calendar/Docs) | Not one shell app at all — **each is a genuinely separate installed app**, each with its own fixed bottom bar. There is no single super-app bottom bar that reconfigures per module; "switching apps" is an OS-level action (home screen), not an in-app one. Owner's own instinct, confirmed: this is the cleanest version of "don't reuse one bar for different meanings," achieved by not sharing a bar at all. |
+A source only counts as evidence here if it describes the same shape of problem Menata actually
+has: **one login/session genuinely hosting several distinct applications or modules**, each with
+its own unrelated structure — not a single application's own internal sections, and not a single
+application with multiple tenants of itself.
 
-**The pattern is unanimous across every source surveyed, with one partial, gated exception**
-(Salesforce) that only reinforces the same rule rather than breaking it: **a bottom tab bar's own
-identity should stay fixed.** Content that legitimately varies by context (which app, which
-record, which view) belongs in a *different, secondary* navigation region — one users don't hold
-to the same "this never changes" expectation a bottom bar earns through consistent repetition.
+| Source | What's actually being compared | Applicable to Menata's case? | Finding |
+|---|---|---|---|
+| Salesforce | Switching between genuinely different **Lightning Apps** (Sales, Service, Marketing) | ✅ Analogous | Nav changes completely per Lightning App; the App Launcher is only the jump point between them, not evidence that nav stays fixed |
+| Google Workspace | Gmail/Drive/Calendar/Docs — genuinely separate installed apps | ✅ Analogous | No shared bottom bar at all; unification happens at the OS home-screen level, outside any single app's own shell |
+| WeChat / Alipay | One persistent session hosting many structurally unrelated mini-programs | ✅ Closely analogous — same "one login, many distinct sub-experiences" shape as Menata | The shell keeps a small set of universal functions fixed (Chats/Discover/Me); each mini-program gets its own navigation inside its own screen, never inserted into the shared tab bar |
+| Odoo | One login, many modules (Sales, Inventory, Accounting, CRM, HR, Manufacturing) — the same ERP/business-suite shape as Menata | ✅ Closely analogous, same domain as Menata | Only the App switcher, Discuss, notification bell, and avatar stay fixed across every module; the entire top-nav menu changes per module |
+| ERPNext (Frappe) | Same shape as Odoo | ✅ Closely analogous, same domain as Menata | Only global search, create, notifications, and avatar stay fixed in the top navbar; the entire workspace sidebar changes per module |
+
+**Across every source that actually matches Menata's shape of problem, the pattern is
+consistent: only a small set of genuinely universal functions — search, notifications,
+identity/profile, and a jump point to switch modules — stay fixed. Everything module-specific
+changes completely, and lives in its own separate, contextual region, never forced into the same
+slot as the universal functions.**
 
 ---
 
-# Why this matters more, not less, for a system spanning several Applications
+# Why this matters for a system spanning several Applications
 
 The owner's own framing — Document Approval + Design Request + Project Management are all one
-organization's system — is exactly the case Slack's workspace model and Salesforce's App
-Launcher both solve for, and exactly what ADR-008's original bottom-bar decision would have
-undermined. A bottom bar whose meaning resets every time a user crosses an Application boundary
-doesn't read as "one system, several modules" — it reads as **three different systems that happen
-to share a color scheme**, the opposite of the "unifying" outcome the owner is asking for.
+organization's system — matches the shape of Odoo/ERPNext (a multi-module business suite) and
+WeChat/Alipay (a super-app hosting distinct sub-experiences) far more closely than it matches a
+single chat app's own multi-tenant model. In every closely-analogous system surveyed above, the
+resolution is the same: keep a small, genuinely universal set of functions fixed in the outer
+shell, and let each module's own navigation vary freely in a separate region — not "make the
+whole bottom bar generic because switching otherwise feels disorienting."
 
 The fix is not a new mechanism — every piece already exists in this codebase:
 
 | Layer | Role | Already built? |
 |---|---|---|
 | **Top bar** (`navBar`) | The one constant across every page, every Application — brand identity ("Menata Runtime"), global Search, Notifications, identity. Never changes. | ✅ already exists, untouched by this correction |
-| **Bottom bar** (mobile, this correction) | A small, **fixed**, global set — Home / Search / Notifications — identical on every page, exactly like Slack's four tabs or Salesforce's default set. Reinforces "one system" the same way the top bar already does, just reachable one-thumb on mobile. | Corrected by this study — was about to be built as a per-Application Machine list instead |
-| **"Home" = the app switcher** | Tapping Home lands on the workspace home (`handler.Apps`), which already lists every Application as a card — this **is** this system's own App Launcher / workspace switcher, Salesforce's and Slack's own pattern, just not named that until now. Switching from Document Approval to Project Management is a deliberate top-level action through Home, never a passive side effect of scrolling. | ✅ already exists (`CAP-O03`), just not previously framed as the answer to "how do I switch apps" |
-| **Sub-nav strip** (`subNavBar`, top, contextual) | Once inside one Application, its own sibling Machines (Chart of Account/Journal Entry/Fiscal Period, or whatever that Application declares) — legitimately different per Application, same way Slack's own channel list or a website's breadcrumb legitimately changes per section. This is the *secondary* nav region users don't expect to stay fixed. | ✅ already exists (`CAP-O03 Tier 2`) — unaffected by this correction, already horizontally scrollable |
+| **Bottom bar** (mobile, this correction) | A small, **fixed**, global set — Home / Search / Notifications — identical on every page, matching the universal-functions-only set that Odoo, ERPNext, WeChat, Alipay, and Salesforce's own App Launcher all keep fixed. Reinforces "one system" the same way the top bar already does, just reachable one-thumb on mobile. | Corrected by this study — was about to be built as a per-Application Machine list instead |
+| **"Home" = the app switcher** | Tapping Home lands on the workspace home (`handler.Apps`), which already lists every Application as a card — this **is** this system's own App Launcher / Odoo-style Apps grid, just not named that until now. Switching from Document Approval to Project Management is a deliberate top-level action through Home, never a passive side effect of scrolling. | ✅ already exists (`CAP-O03`), just not previously framed as the answer to "how do I switch apps" |
+| **Sub-nav strip** (`subNavBar`, top, contextual) | Once inside one Application, its own sibling Machines (Chart of Account/Journal Entry/Fiscal Period, or whatever that Application declares) — legitimately different per Application, the same way Odoo's own top-nav menu or ERPNext's own sidebar legitimately changes per module. This is the *module-specific* nav region, the one that's allowed to vary. | ✅ already exists (`CAP-O03 Tier 2`) — unaffected by this correction, already horizontally scrollable |
 | **View-type pill** (this session's own work) | Within one Machine, switch List/Report/Board/Calendar — the narrowest, most contextual layer of all. | ✅ this session's `CAP-O03 Tier 3` work, unaffected by this correction |
 
 Nothing above requires new metadata or a new concept — it is a **re-assignment of which existing
@@ -90,7 +96,7 @@ correction section for the precise diff against what shipped in code.
 
 | # | Criterion | Result |
 |---|-----------|--------|
-| A1 | Dual evidence | ✅ — 5 named platforms/guideline sources across mobile OS vendors (Apple, Google), a workspace-collaboration product (Slack), an enterprise CRM (Salesforce), and a genuine multi-app suite (Google Workspace) + the owner's own direct concern as the forcing case |
+| A1 | Dual evidence | ✅ — 5 sources whose own shape genuinely matches "one login hosting several distinct applications/modules" (Salesforce cross-Lightning-App, Google Workspace, WeChat, Alipay, Odoo, ERPNext) + the owner's own direct concern as the forcing case |
 | A2–A5 | No conflict with an existing capability | ✅ — corrects an in-flight implementation before it shipped; no capability with a different shape is displaced |
 
 **Verdict: ADMITTED as a correction to `CAP-O03 Tier 3`'s implementation, applied before that
