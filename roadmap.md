@@ -1824,6 +1824,12 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 
 ### Track G — Blocked on a design-prototype pass, not on case evidence (owner-held)
 
+**Update (2026-08-23): unblocked.** The design-prototype pass this section held implementation
+for is done — `benchmarks/021-design-system-prototype-plan.md` (Study 29, all 4 phases) and its
+resulting standard, `prototype/go/docs/decisions/008-mobile-ui-navigation-standard.md`. The
+"blocked" framing below is now historical context for *why* the standard looks the way it does,
+not a live hold — CAP-O03 Tier 3 can be implemented against ADR-008 directly.
+
 Distinct from Track F: these items are NOT evidence-thin — the gap is real and directly surfaced
 by the owner — but implementation is explicitly withheld until a design-prototype pass exists
 first, per direct owner instruction (2026-08-22). Do not implement any of these straight into
@@ -1873,8 +1879,14 @@ need, added on direct request, not just cluster coverage) plus Cases 19/20/12/13
 resource-Calendar/Dashboard/public landing); two real deviations found and named (Dashboard has
 no within-Machine pill, public pages drop all authenticated chrome, not just hide it). Phase 3
 (Cases 7/6 — SLA badge, live balance preview) confirmed the standard without needing new rules.
-All 8 representative cases now have at least one mobile mockup on the canvas. Only Phase 4
-(writing the standard up as a doc) remains before Track G's implementation can start.
+All 8 representative cases now have at least one mobile mockup on the canvas.
+
+**Phase 4 done, Study 29 complete (2026-08-23)**: the standard is written up as
+`prototype/go/docs/decisions/008-mobile-ui-navigation-standard.md` — bottom tab bar (cross-Machine)
++ within-Machine view pill (List/Report/Board/Calendar only), Detail/Form drop the pill, Form
+drops both axes for Cancel/Save, Dashboard has no pill, public pages drop the authenticated shell
+entirely. **Track G is unblocked** — CAP-O03 Tier 3 implementation against ADR-008 is the next
+real step, no longer gated on a design-prototype pass.
 
 ## Recommended order for upcoming sessions
 
@@ -1888,7 +1900,7 @@ All 8 representative cases now have at least one mobile mockup on the canvas. On
 8. CAP-X08 import completion (Track E) — ready now, X04 done
 9. CAP-X11 (Track A/#2) and remaining Prio-tagged items (Track E) opportunistically, no measured urgency
 10. Leave Track F alone until a real case names the need
-11. Track G (CAP-O03 Tier 3 + mobile-first design standard) — do the design-prototype pass first, not implementation; see Track G's own section above for the open questions to resolve
+11. ~~Track G design-prototype pass~~ — ✅ done (Study 29, ADR-008). **Track G (CAP-O03 Tier 3 implementation)** — build against `prototype/go/docs/decisions/008-mobile-ui-navigation-standard.md` directly; no longer blocked
 
 ---
 

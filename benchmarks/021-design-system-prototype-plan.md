@@ -268,3 +268,22 @@ canvas.
 standard document lives" section already names the likely location, `prototype/go/docs/decisions/`
 as a new ADR). Phases 1–3 are the design work; Phase 4 is the only remaining step before Track G's
 CAP-O03 Tier 3 implementation can start.
+
+---
+
+# Update (2026-08-23) — Phase 4 done: Study 29 complete
+
+Standard written up as `prototype/go/docs/decisions/008-mobile-ui-navigation-standard.md`, per
+this file's own earlier prediction of where it belongs (Go-prototype implementation guidance, not
+root governance). Covers: the two-axis nav model (bottom tab bar / within-Machine pill), the three
+named exceptions found across Phases 1–3 (pill absent on Detail/Form, absent entirely on
+Dashboard, authenticated chrome absent entirely on public pages), the mobile row-card list
+pattern, and the one new unregistered component (Case 3's Approval Progress stepper, explicitly
+left for `capability-registry.md`'s own separate admission process rather than self-registered
+inside a design ADR).
+
+**Study 29 is now complete end to end**: Phase 0 (this file's own clustering + representative-
+case selection) → Phase 1 (Case 9 core chrome, direction chosen) → Phase 2 (Case 3/19/20/12/13,
+two deviations found) → Phase 3 (Case 7/6, standard confirmed) → Phase 4 (the ADR above). Track G
+is unblocked — `CAP-O03 Tier 3` implementation is the next real step, against ADR-008, and is a
+separate piece of work from this study.
