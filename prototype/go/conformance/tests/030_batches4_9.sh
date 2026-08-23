@@ -312,6 +312,15 @@ ORD1_DATA="fld_into_customer=SmallCust$$&fld_into_total=50"
 ORD1_URL=$(post_redirect "$BASE_URL/mch_int_order" "$ORD1_DATA" "$THEO")
 ORD1_ID="${ORD1_URL##*/}"
 post_status "$BASE_URL/mch_int_order/$ORD1_ID/events/evt_into_placed" "" "$THEO" >/dev/null
+# CAP-W06 (2026-08-23): Subscription fan-out is now dispatcher-mediated
+# (enqueued atomically with the publisher's own write, performed off the
+# request path shortly after) rather than synchronous within this POST --
+# give the dispatcher's ~2s tick time to run before asserting on delivery,
+# the same "sleep past the known tick interval" style T99/T100 already use
+# for the scheduler's own async nature. T105 is a negative case that must
+# wait too, or it would trivially pass for the wrong reason (dispatcher
+# hasn't run yet, not "Contract correctly skipped this Subscription").
+sleep 3
 body_contains "$BASE_URL/mch_int_audit_log" "SmallCust$$" "$THEO"
 check T104 "CAP-I01" "a cross-machine Subscription creates a record on a Machine the publisher's own metadata never names" $?
 
@@ -327,6 +336,7 @@ ORD2_DATA="fld_into_customer=BigCust$$&fld_into_total=150"
 ORD2_URL=$(post_redirect "$BASE_URL/mch_int_order" "$ORD2_DATA" "$THEO")
 ORD2_ID="${ORD2_URL##*/}"
 post_status "$BASE_URL/mch_int_order/$ORD2_ID/events/evt_into_placed" "" "$THEO" >/dev/null
+sleep 3
 body_contains "$BASE_URL/mch_int_points" "BigCust$$" "$THEO"
 check T106 "CAP-I03" "a Subscription's Contract being satisfied lets its own action fire" $?
 
@@ -338,6 +348,7 @@ REF_DATA="fld_intr_referrer=Referrer$$"
 REF_URL=$(post_redirect "$BASE_URL/mch_int_referral" "$REF_DATA" "$THEO")
 REF_ID="${REF_URL##*/}"
 post_status "$BASE_URL/mch_int_referral/$REF_ID/events/evt_intr_completed" "" "$THEO" >/dev/null
+sleep 3
 body_contains "$BASE_URL/mch_int_points" "Referrer$$" "$THEO" && body_contains "$BASE_URL/mch_int_points" "BigCust$$" "$THEO"
 check T107 "CAP-I05" "the same shared Machine accumulates contributions from two different, unrelated publisher Events" $?
 

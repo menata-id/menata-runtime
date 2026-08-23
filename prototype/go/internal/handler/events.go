@@ -338,6 +338,14 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 // is processed regardless of whether an earlier one failed; every failure
 // is logged, never silently dropped; every Subscription sees the same
 // final data, never a partial view.
+//
+// CAP-W06 (2026-08-23): the contract check and field resolution above are
+// unchanged -- a Subscription still sees the exact same post-event data
+// every other Subscription in this loop does. Only the final step changes:
+// the already-resolved fields are enqueued as an action_outbox row (atomic
+// with the publisher's own record write, same transaction) instead of
+// creating the subscriber record inline. runOutboxDispatcher performs the
+// real Create shortly after, off the request path.
 func (h *Handler) processSubscriptions(ctx context.Context, event *model.Event, data map[string]any, actorRole, actorIdentity, workspaceID string, holidays map[string]bool) {
 	for _, sub := range h.interp.Get().SubscriptionsFor(event.ID) {
 		violated := false
@@ -352,8 +360,12 @@ func (h *Handler) processSubscriptions(ctx context.Context, event *model.Event, 
 			continue
 		}
 		fields := h.exec.ResolveFields(sub.Fields, data, actorRole, actorIdentity, holidays)
-		if _, err := h.records.Create(ctx, sub.MachineID, workspaceID, fields); err != nil {
-			slog.Error("subscription failed", "subscription", sub.ID, "publisher_event", event.ID, "machine", sub.MachineID, "error", err)
+		params := map[string]any{
+			"machine_id": sub.MachineID,
+			"fields":     fields,
+		}
+		if err := h.outbox.Enqueue(ctx, workspaceID, "subscription", params, middleware.GetReqID(ctx)); err != nil {
+			slog.Error("enqueue subscription outbox row", "subscription", sub.ID, "publisher_event", event.ID, "machine", sub.MachineID, "error", err)
 		}
 	}
 }

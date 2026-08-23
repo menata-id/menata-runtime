@@ -17,12 +17,12 @@ import (
 )
 
 type Executor struct {
-	records       *store.RecordStore
-	notifications *store.NotificationStore
+	records *store.RecordStore
+	outbox  *store.OutboxStore
 }
 
-func New(records *store.RecordStore, notifications *store.NotificationStore) *Executor {
-	return &Executor{records: records, notifications: notifications}
+func New(records *store.RecordStore, outbox *store.OutboxStore) *Executor {
+	return &Executor{records: records, outbox: outbox}
 }
 
 // ResolveFields exports resolveActionFields (CAP-A06's own field-mapping
@@ -329,6 +329,13 @@ func (e *Executor) Persist(ctx context.Context, machine *model.Machine, event *m
 // most existing metadata declares). CAP-A10 in-app delivery: the resolved
 // recipient is written as a real Notification row a matching role-cookie
 // session can list and mark read, not just logged.
+//
+// CAP-W06 (2026-08-23): the actual write is no longer inline here — the
+// recipient/message resolution above is unchanged, but the final step
+// enqueues an action_outbox row (atomic with this event's own record write,
+// same transaction) instead of calling e.notifications.Create directly.
+// runOutboxDispatcher (cmd/server/main.go) performs the real write shortly
+// after, off the request path.
 func (e *Executor) doNotify(ctx context.Context, action *model.EventAction, event *model.Event, record *store.Record, newData map[string]any, machineName, workspaceID string) {
 	role, _ := action.Params["role"].(string)
 	recipientFieldID, _ := action.Params["recipient_field"].(string)
@@ -347,12 +354,18 @@ func (e *Executor) doNotify(ctx context.Context, action *model.EventAction, even
 
 	slog.Info("notify", "event", event.ID, "recipient", recipient, "record", record.ID)
 
-	if e.notifications == nil {
+	if e.outbox == nil {
 		return
 	}
 	message := fmt.Sprintf("%s: %s", machineName, event.Name)
-	if err := e.notifications.Create(ctx, recipient, message, record.MachineID, record.ID, workspaceID); err != nil {
-		slog.Error("create notification", "event", event.ID, "recipient", recipient, "error", err)
+	params := map[string]any{
+		"recipient":  recipient,
+		"message":    message,
+		"machine_id": record.MachineID,
+		"record_id":  record.ID,
+	}
+	if err := e.outbox.Enqueue(ctx, workspaceID, "notify", params, middleware.GetReqID(ctx)); err != nil {
+		slog.Error("enqueue notify outbox row", "event", event.ID, "recipient", recipient, "error", err)
 	}
 }
 

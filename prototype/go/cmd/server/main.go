@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -70,9 +71,10 @@ func main() {
 
 	records := store.NewRecordStore(pool)
 	notifications := store.NewNotificationStore(pool)
+	outbox := store.NewOutboxStore(pool)
 	sessions := store.NewSessionStore(pool)
 	users := store.NewUserStore(pool)
-	h := handler.New(interpStore, loader, records, notifications, sessions, users, cfg.SecureCookies)
+	h := handler.New(interpStore, loader, records, notifications, outbox, sessions, users, cfg.SecureCookies)
 
 	r := chi.NewRouter()
 	// RequestID before the access logger: gives every access log line a
@@ -112,6 +114,16 @@ func main() {
 	// exactly like a real request's queries would), just not attached to
 	// one -- there is no request here to scope it to.
 	go runScheduler(context.Background(), pool, interpStore, h)
+
+	// CAP-W06: a background tick, independent of any HTTP request, that
+	// performs the notify/subscription actions Executor.Persist/
+	// processSubscriptions only enqueue now (atomic with the triggering
+	// request's own write, same transaction) -- cutting a slow fan-out's
+	// cost out of the request's own latency and lock-hold time. Same
+	// per-workspace transaction shape as runScheduler, for the same reason:
+	// action_outbox has FORCE ROW LEVEL SECURITY, so a single query can't
+	// see rows across every workspace at once.
+	go runOutboxDispatcher(context.Background(), pool, interpStore, outbox, notifications, records)
 
 	addr := ":" + cfg.Port
 	slog.Info("menata runtime listening", "addr", addr)
@@ -223,6 +235,114 @@ func runScheduler(ctx context.Context, pool *pgxpool.Pool, interpStore *interpre
 				}
 			}()
 		}
+	}
+}
+
+// outboxBatchSize is how many action_outbox rows one dispatcher tick claims
+// per workspace -- large enough that a normal fan-out (a handful of notify
+// recipients, a handful of Subscriptions) always drains in one tick, small
+// enough that one workspace's backlog can't starve the others in the same
+// sweep.
+const outboxBatchSize = 20
+
+// runOutboxDispatcher (CAP-W06) ticks every 2 seconds for the life of the
+// process, performing the notify/subscription actions Executor.Persist and
+// Handler.processSubscriptions only enqueue now. Same per-workspace
+// transaction shape as runScheduler, for the same reason: action_outbox has
+// FORCE ROW LEVEL SECURITY, so a single query can't see rows across every
+// workspace at once. A 2-second tick (vs. the scheduler's 1 minute) is the
+// point of this loop -- it exists to cut a slow fan-out out of the
+// triggering request's own latency, not to track calendar time.
+//
+// One claimed row's failure is logged and marked failed_at, not retried --
+// no case forces automatic reclaim/retry yet (a single dispatcher instance,
+// in one process, is what this prototype actually runs), the same "Infer
+// Before Configure" posture CAP-X10/CAP-X11 already use elsewhere in this
+// registry. See capability-registry.md's CAP-W06 row for the full note.
+func runOutboxDispatcher(ctx context.Context, pool *pgxpool.Pool, interpStore *interpreter.Store, outbox *store.OutboxStore, notifications *store.NotificationStore, records *store.RecordStore) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		for _, workspaceID := range interpStore.Get().AllWorkspaceIDs() {
+			func() {
+				tx, err := pool.Begin(ctx)
+				if err != nil {
+					slog.Error("outbox dispatcher: begin transaction", "workspace", workspaceID, "error", err)
+					return
+				}
+				defer func() { _ = tx.Rollback(ctx) }()
+				if _, err := tx.Exec(ctx, `SELECT set_config('app.workspace_id', $1, true)`, workspaceID); err != nil {
+					slog.Error("outbox dispatcher: set workspace context", "workspace", workspaceID, "error", err)
+					return
+				}
+				txCtx := store.WithTx(ctx, tx)
+				items, err := outbox.ClaimBatch(txCtx, outboxBatchSize)
+				if err != nil {
+					slog.Error("outbox dispatcher: claim batch", "workspace", workspaceID, "error", err)
+					return
+				}
+				for _, item := range items {
+					// A dispatch failure (e.g. a Postgres constraint
+					// violation) aborts whatever transaction it ran in --
+					// every subsequent command on that same transaction,
+					// including the MarkFailed UPDATE below, would fail
+					// with "current transaction is aborted" otherwise.
+					// Each item therefore gets its own pgx nested
+					// transaction (a real Postgres SAVEPOINT under the
+					// hood) so a failed item's own attempted write rolls
+					// back without poisoning the outer per-workspace
+					// transaction the rest of the batch, and this item's
+					// own MarkFailed call, still depend on.
+					itemTx, err := tx.Begin(ctx)
+					if err != nil {
+						slog.Error("outbox dispatcher: begin item savepoint", "id", item.ID, "error", err)
+						continue
+					}
+					dispatchErr := dispatchOutboxItem(store.WithTx(ctx, itemTx), item, notifications, records, workspaceID)
+					if dispatchErr != nil {
+						_ = itemTx.Rollback(ctx)
+						slog.Error("outbox dispatcher: item failed", "id", item.ID, "action_type", item.ActionType, "correlation_id", item.CorrelationID, "error", dispatchErr)
+						if err := outbox.MarkFailed(txCtx, item.ID, dispatchErr.Error()); err != nil {
+							slog.Error("outbox dispatcher: mark failed", "id", item.ID, "error", err)
+						}
+						continue
+					}
+					if err := itemTx.Commit(ctx); err != nil {
+						slog.Error("outbox dispatcher: commit item savepoint", "id", item.ID, "error", err)
+						continue
+					}
+					if err := outbox.MarkCompleted(txCtx, item.ID); err != nil {
+						slog.Error("outbox dispatcher: mark completed", "id", item.ID, "error", err)
+					}
+				}
+				if err := tx.Commit(ctx); err != nil {
+					slog.Error("outbox dispatcher: commit transaction", "workspace", workspaceID, "error", err)
+				}
+			}()
+		}
+	}
+}
+
+// dispatchOutboxItem performs the already-resolved action a synchronous
+// caller enqueued -- no metadata lookup, no re-derivation, just the write
+// doNotify/processSubscriptions would have made directly before CAP-W06.
+func dispatchOutboxItem(ctx context.Context, item *store.OutboxItem, notifications *store.NotificationStore, records *store.RecordStore, workspaceID string) error {
+	switch item.ActionType {
+	case "notify":
+		recipient, _ := item.Params["recipient"].(string)
+		message, _ := item.Params["message"].(string)
+		machineID, _ := item.Params["machine_id"].(string)
+		recordID, _ := item.Params["record_id"].(string)
+		return notifications.Create(ctx, recipient, message, machineID, recordID, workspaceID)
+
+	case "subscription":
+		machineID, _ := item.Params["machine_id"].(string)
+		fields, _ := item.Params["fields"].(map[string]any)
+		_, err := records.Create(ctx, machineID, workspaceID, fields)
+		return err
+
+	default:
+		return fmt.Errorf("unknown outbox action_type %q", item.ActionType)
 	}
 }
 

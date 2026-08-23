@@ -23,6 +23,7 @@ type Handler struct {
 	loader        *metadata.Loader   // CAP-X04: re-run by Reload to build a fresh Interpreter
 	records       *store.RecordStore
 	notifications *store.NotificationStore
+	outbox        *store.OutboxStore // CAP-W06: notify/subscription fan-out enqueue here, runOutboxDispatcher performs the write
 	sessions      *store.SessionStore
 	users         *store.UserStore
 	secureCookies bool
@@ -31,18 +32,19 @@ type Handler struct {
 	exec          *executor.Executor
 }
 
-func New(interp *interpreter.Store, loader *metadata.Loader, records *store.RecordStore, notifications *store.NotificationStore, sessions *store.SessionStore, users *store.UserStore, secureCookies bool) *Handler {
+func New(interp *interpreter.Store, loader *metadata.Loader, records *store.RecordStore, notifications *store.NotificationStore, outbox *store.OutboxStore, sessions *store.SessionStore, users *store.UserStore, secureCookies bool) *Handler {
 	return &Handler{
 		interp:        interp,
 		loader:        loader,
 		records:       records,
 		notifications: notifications,
+		outbox:        outbox,
 		sessions:      sessions,
 		users:         users,
 		secureCookies: secureCookies,
 		engine:        &constraint.Engine{},
 		guard:         &permission.Guard{},
-		exec:          executor.New(records, notifications),
+		exec:          executor.New(records, outbox),
 	}
 }
 

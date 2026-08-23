@@ -42,6 +42,7 @@ migrate-up:
 	psql "$(DB_URL)" -f migrations/019_process_overlay.sql
 	psql "$(DB_URL)" -f migrations/020_change_policy.sql
 	psql "$(DB_URL)" -f migrations/021_cross_record_check.sql
+	psql "$(DB_URL)" -f migrations/022_action_outbox.sql
 
 # CAP-X06 enforcement flip -- deliberately NOT part of migrate-up. Apply only
 # at final cutover, in the same deploy window as restarting with the binary

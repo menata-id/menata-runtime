@@ -69,6 +69,27 @@ Subscription's own failure can't roll back the publisher (it only ever runs afte
 succeeds), and independent Subscriptions on the same publisher Event don't affect each other —
 this fell out of reusing the existing call site rather than needing new isolation logic.
 
+**A "slow, best-effort, already-resolved" action enqueues onto `action_outbox` (CAP-W06)
+instead of performing its own write inline.** `doNotify` (CAP-A03/A04) and
+`processSubscriptions` (CAP-I01) both keep their existing resolution logic completely
+unchanged — recipient/message, or Contract check + `ResolveFields` — only their final step
+changed, from calling the store directly to `outbox.Enqueue(ctx, workspaceID, kind, payload,
+middleware.GetReqID(ctx))`. `Enqueue` runs against whatever `dbFromContext` returns, so it's
+atomic with the caller's own already-open transaction for free (same mechanism CAP-X12 already
+gets from `workspaceTx`). `runOutboxDispatcher` (`cmd/server/main.go`) performs the real write
+later, off the request path, on the exact same per-workspace-per-tick transaction shape
+`runScheduler` uses (`action_outbox` has `FORCE ROW LEVEL SECURITY`, so a single query can't
+see rows across every workspace at once). **Only use this for an action whose failure was
+already isolated/best-effort before CAP-W06 existed** — `create_record`/`cross_set_field`/
+`batch_generate` are deliberately NOT here: CAP-X12 hardened those to abort the whole event on
+failure, a guarantee an async dispatcher (running after the triggering transaction already
+committed) can't provide. **A claimed batch must dispatch each item inside its own nested
+transaction (`tx.Begin(ctx)`, a real Postgres `SAVEPOINT`), never all in one shared
+transaction** — one item's dispatch error aborts whatever Postgres transaction it ran in, and
+without a per-item savepoint, that takes the item's own subsequent `MarkFailed` call and every
+other already-succeeded item in the same batch down with it (caught live 2026-08-23, see
+`capability-registry.md`'s CAP-W06 row for the full story).
+
 **Every HTTP request already runs inside one real Postgres transaction — a store method
 swallowing its own error instead of returning it silently breaks that guarantee.**
 `cmd/server/main.go`'s `workspaceTx` middleware (built for CAP-X06's RLS cutover) wraps every

@@ -5,6 +5,15 @@
 # --- CAP-A03 (notify to role), CAP-A04 (notify to dynamic recipient),
 # CAP-A10 (in-app notification delivery channel) ---
 
+# CAP-W06 (2026-08-23): notify delivery is now dispatcher-mediated (enqueued
+# atomically with the triggering event's own write, performed off the
+# request path shortly after) rather than synchronous within the request --
+# give the dispatcher's ~2s tick time to run before asserting on delivery,
+# the same "sleep past the known tick interval" style T99/T100 already use
+# for the scheduler's own async nature. Covers T31 and T34/T35 below (their
+# own triggering events, T12/T24, already ran earlier in the suite).
+sleep 3
+
 # T31 — CAP-A03 + CAP-A10: a static `notify: {role: ...}` action delivers a
 # real in-app Notification, not just a log line. Reuses $REC_ID's Approve
 # (T12), which fired `notify: {role: Employee}` -- Dave holds Employee in
@@ -279,6 +288,10 @@ AL_TASK_URL=$(post_redirect "$BASE_URL/mch_al_task" "fld_alt_title=Ship+the+thin
 AL_TASK_ID="${AL_TASK_URL##*/}"
 AL_TASKS_BEFORE=$(count_all_pages "$BASE_URL/mch_al_task" "Follow-up" "$PAM")
 post_status "$BASE_URL/mch_al_task/$AL_TASK_ID/events/evt_al_task_complete" "" "$PAM" >/dev/null
+# CAP-W06 (2026-08-23): T67 below asserts on notify delivery, now
+# dispatcher-mediated -- give the ~2s tick time to run first (same style
+# T99/T100 already use for the scheduler's own async nature).
+sleep 3
 
 # T65 -- CAP-A12: Stage steps to the next declared value_list option (Todo ->
 # Doing) -- checked on the Detail page as plain rendered text (StatusBadge),
@@ -319,6 +332,10 @@ NOTIF_COUNT_BEFORE=$(get_body "$BASE_URL/notifications" "$PAM" | grep -o "Task: 
 AL_TASK2_URL=$(post_redirect "$BASE_URL/mch_al_task" "fld_alt_title=Quiet+Task&fld_alt_priority=Normal&fld_alt_stage=Todo" "$PAM")
 AL_TASK2_ID="${AL_TASK2_URL##*/}"
 post_status "$BASE_URL/mch_al_task/$AL_TASK2_ID/events/evt_al_task_complete" "" "$PAM" >/dev/null
+# CAP-W06: must wait here too, or this negative case would trivially pass
+# for the wrong reason (dispatcher hasn't ticked yet), not because CAP-A09's
+# "if" correctly skipped the action -- same reasoning as T105.
+sleep 3
 NOTIF_COUNT_AFTER=$(get_body "$BASE_URL/notifications" "$PAM" | grep -o "Task: Complete" | wc -l)
 [ "$NOTIF_COUNT_AFTER" = "$NOTIF_COUNT_BEFORE" ]
 check T71 "CAP-A09" "a Normal-priority Task's Complete does not also notify (count stayed $NOTIF_COUNT_BEFORE)" $?

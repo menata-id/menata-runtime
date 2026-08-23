@@ -1666,6 +1666,58 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 >
 > Registry: CAP-W05 row ⚠️→✅ (both directions now done).
 
+> **Status update (2026-08-23) — CAP-W06 (async action outbox) implemented and
+> conformance-proven, scoped narrower than the row's own three-way list.** Roadmap-audit
+> pass first (this session opened by checking whether `roadmap.md`/`capability-registry.md`
+> were still in sync with the code — they were; the two most recent commits at the time
+> were pure conformance-suite refactor/docs, no capability drift) confirmed CAP-W06 as the
+> next unblocked item per the Sequencing Guide below. A plan-mode research pass before
+> implementing found the row's own "notify + subscription + batch generation" list glosses
+> over a real asymmetry: `notify`/CAP-I01 subscription dispatch already had "best-effort,
+> log-and-continue" failure semantics before this pass, so deferring them to a durable
+> outbox only changes *when* they run; `create_record`/`cross_set_field`/`batch_generate`
+> were deliberately hardened by CAP-X12 (✅) to abort the whole event on failure, so moving
+> `batch_generate` off the synchronous path would have regressed an already-✅,
+> conformance-guarded capability. **Scoped to notify + CAP-I01 subscription fan-out only**,
+> named explicitly in the registry row, the same "escalate only when evidence demands it"
+> call as CAP-F19/CAP-O07/CAP-X04-vs-CAP-X11.
+>
+> New `action_outbox` table (`migrations/022_action_outbox.sql`, RLS from creation — CAP-X06
+> was already fully cut over by the time this table existed, unlike `notifications`' own
+> original two-phase 005/009 rollout), `internal/store/outbox_store.go` (`Enqueue` on the
+> caller's own already-open transaction, `ClaimBatch` via `FOR UPDATE SKIP LOCKED`).
+> `runOutboxDispatcher` (`cmd/server/main.go`) copies `runScheduler`'s exact per-workspace-
+> per-tick transaction shape (`action_outbox` has `FORCE ROW LEVEL SECURITY`, so one query
+> can't see rows across every workspace at once), ticking every 2s. `doNotify` and
+> `processSubscriptions` keep their existing resolution logic unchanged — only their final
+> write becomes an enqueue instead of a direct store call.
+>
+> **One real bug caught by manual testing, not by inspection**: the first version ran an
+> entire tick's batch (claim + dispatch + mark) inside one shared Postgres transaction — a
+> single item's dispatch error aborted that whole transaction, so the very next command
+> (that same item's own `MarkFailed`) failed with "current transaction is aborted," which
+> silently rolled back every other item in the same batch too, including ones that had
+> already succeeded, and the row went back to unclaimed and retried forever. Fixed by
+> giving each item its own pgx nested transaction (`tx.Begin(ctx)`, a real Postgres
+> `SAVEPOINT`): a failed item rolls back to its own savepoint without poisoning the outer
+> transaction the rest of the batch and that item's own `MarkFailed` call still need —
+> verified by hand (a deliberately malformed row alongside a legitimate one in the same
+> tick) before conformance T180 encoded the same proof.
+>
+> Existing tests T31–T35, T67/T71, and T104–T107 were updated (a bounded `sleep 3` before
+> asserting on delivery, same style T99/T100 already use for the scheduler's own async
+> nature) rather than left to flake — T71/T105's own negative cases needed the wait too, or
+> they'd trivially pass for the wrong reason. New conformance T178–T180 prove what's
+> actually new here: the outbox row exists atomically with the triggering write (queried
+> with zero sleep, before any tick could run), the dispatcher completes it on its own tick,
+> and one row's failure doesn't block another in the same batch. **180/180 passing, zero
+> regressions**, confirmed on a fresh isolated schema. Registry: CAP-W06 row ❌→✅.
+>
+> **Named, deferred limitation**: no automatic reclaim of an orphaned `claimed_at` row if
+> the dispatcher process crashes mid-item — one dispatcher instance in one process is what
+> this prototype actually runs, no measured pressure for it yet, same "Infer Before
+> Configure" posture CAP-X10/CAP-X11 already use.
+
 ---
 
 # Sequencing Guide — Prerequisite Map for What's Next (added 2026-08-22)
@@ -1709,7 +1761,7 @@ Each item is tagged:
 5. B4 Part 2, Quorum (CAP-W03) — ✅ done, both core (hand-authored `min_approvals`, T149–T150) and declarative form (`process.requirements[].type == "approval"`, T159–T160, `benchmarks/017-quorum-declarative-form-proof.md`)
 6. **B5, `change_policy` (CAP-W07) — ✅ done** (T154–T158, `benchmarks/016-change-policy-proof.md`)
 7. B6, decompiler/lift (CAP-W05 backward direction) — same item as "B2 backward" above; ✅ done, built ahead of case evidence per explicit user direction (`benchmarks/019-decompile-lift-proof.md`)
-8. CAP-W06, async action outbox — READY, independent of the Overlay entirely (already evidenced by Cases 3/10/12 regardless of whether the Overlay exists) — named "Fase 0" in `brd-menata-runtime-v2.md` §13 for that reason
+8. **CAP-W06, async action outbox — ✅ done** (T178–T180), scoped to notify + CAP-I01 subscription fan-out — `create_record`/`cross_set_field`/`batch_generate` deliberately excluded (would have regressed CAP-X12), named explicitly in the registry row
 9. CAP-W08, Compound Sentry — **PARKED (HOLD)**, evidence-thin, no case demands it (Study 22)
 
 ### Track C — Case 9 completion batch (v1 substrate, independent of the Overlay)
@@ -1800,6 +1852,16 @@ controls generally, not just this one gap) before writing any `internal/ui/*.tem
 it. This is a design task, not an implementation task — flagged here so it isn't silently dropped,
 per this registry's own "silence is not a decision" rule.
 
+**Update (2026-08-23):** the plan itself now exists —
+`benchmarks/021-design-system-prototype-plan.md` (Study 29), broadened per direct owner request
+from "just this navigation gap" to all 21 `case-portfolio.md` cases, clustered by UI shape (not
+case-by-case) so the mockups prove component reuse rather than producing 21 one-off screens.
+Selects 7 representative cases (9, 19, 20, 7, 6, 12, 13) covering every real cluster, phased
+mobile-first (core chrome → auxiliary views → Form/List decoration → extracted shared vocabulary
+→ owner review), tooling decision (`design`-skill canvas Artifacts, not static wireframes). No
+mockups produced yet — Phase 1 (Case 9 core chrome) is the ready-to-start next step, per that
+study's own closing section.
+
 ## Recommended order for upcoming sessions
 
 1. ~~CAP-X04~~ — ✅ done (Option A). CAP-X11 demoted to Track A/#2 below, no longer a co-requisite.
@@ -1807,7 +1869,7 @@ per this registry's own "silence is not a decision" rule.
 3. ~~Quorum's declarative form~~ — ✅ done (T159–T160)
 4. ~~B6 / decompile-lift~~ — ✅ done (T165–T166), built ahead of case evidence per explicit user direction
 5. ~~Case 9 completion batch: CAP-C10, CAP-C11~~ — ✅ done (T161–T164); CAP-C08 ⚠️ (the two shapes it named done, a third — universal/for-all across children — not built, no case demands it)
-6. CAP-W06 async outbox (Track B) — anytime, independent
+6. ~~CAP-W06 async outbox (Track B)~~ — ✅ done (T178–T180), scoped to notify + CAP-I01 subscription fan-out
 7. ~~UI cluster (Track D): CAP-V16/V17/V18/V14-Tier-2/V15/V19~~ — ✅ done, all six (T167–T177)
 8. CAP-X08 import completion (Track E) — ready now, X04 done
 9. CAP-X11 (Track A/#2) and remaining Prio-tagged items (Track E) opportunistically, no measured urgency
