@@ -1866,8 +1866,15 @@ owner chose a direction (utilitarian, matches the real Tailwind app) out of thre
 options, resolving CAP-O03 Tier 3's open questions: bottom tab bar for cross-Machine nav, a
 segmented pill for within-Machine view nav (List/Report pages only, not Detail/Form), Form drops
 the tab bar for explicit Cancel/Save. See `benchmarks/021-design-system-prototype-plan.md`'s own
-2026-08-23 update for the full writeup. Phases 2–4 (other 6 representative cases, then the
-extracted written standard) remain to do.
+2026-08-23 update for the full writeup.
+
+**Phases 2 and 3 also done same day.** Phase 2 added Case 3 (Document Approval — a real user
+need, added on direct request, not just cluster coverage) plus Cases 19/20/12/13 (Board/
+resource-Calendar/Dashboard/public landing); two real deviations found and named (Dashboard has
+no within-Machine pill, public pages drop all authenticated chrome, not just hide it). Phase 3
+(Cases 7/6 — SLA badge, live balance preview) confirmed the standard without needing new rules.
+All 8 representative cases now have at least one mobile mockup on the canvas. Only Phase 4
+(writing the standard up as a doc) remains before Track G's implementation can start.
 
 ## Recommended order for upcoming sessions
 

@@ -246,3 +246,25 @@ structurally different shell, not the same shell with elements hidden.
 Canvas updated in place (same artifact, page "Runtime UI — Case 9", two new rows). **Not yet
 done**: Phase 3 (Cases 7/6 — SLA badge, live balance preview), Phase 4 (write the standard up,
 now with 8 cases' worth of evidence instead of 1).
+
+---
+
+# Update (2026-08-23) — Phase 3 done
+
+Two decoration-level screens, smaller in scope than Phases 1–2 (neither adds a route, both
+decorate an existing List/Form):
+
+| Case | Screen | Result |
+|---|---|---|
+| 7 | List with SLA badge (CAP-V17) | **Confirms an existing rule, doesn't add one**: Complaint has no sibling Machine (`case-portfolio.md`'s own note — "one Machine"), so the real `subNavFor` already returns `nil` and no tab bar renders; no within-Machine pill either, since Complaint declares no auxiliary View beyond List. The mockup's chrome is bare on purpose |
+| 6 | Form with live cross-record balance preview (CAP-V19) + typeahead Fund picker (CAP-V16) | Shown deliberately PAST the limit it warns about (Amount > Fund's Current Balance) — proves the preview surfaces the CAP-C08 violation before submit, not just the happy path. Same focused-task Form rule as Phase 1: no tab bar, Cancel/Save |
+
+No new deviations from the standard — both screens land exactly where Phase 1's own rules
+already predicted (single-Machine → no tab bar; Form → no tab bar regardless). All 8
+representative cases (3, 6, 7, 9, 12, 13, 19, 20) now have at least one mobile mockup on the
+canvas.
+
+**Not yet done**: Phase 4 — write the standard up as a doc (this file's own "Where the resulting
+standard document lives" section already names the likely location, `prototype/go/docs/decisions/`
+as a new ADR). Phases 1–3 are the design work; Phase 4 is the only remaining step before Track G's
+CAP-O03 Tier 3 implementation can start.
