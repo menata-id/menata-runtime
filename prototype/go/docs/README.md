@@ -43,3 +43,4 @@ Dokumentasi di folder ini khusus untuk prototype Go. Panduan bahasa dan Runtime 
 | [decisions/004-internal-package-architecture.md](decisions/004-internal-package-architecture.md) | Target layout `internal/` untuk extension seams (migrasi capability-triggered) |
 | [decisions/005-deployment-status.md](decisions/005-deployment-status.md) | Status deployment `menata.app` — cakupan NFR yang sudah live |
 | [decisions/006-handler-file-split.md](decisions/006-handler-file-split.md) | Audit panjang baris/file + split `handler.go` per domain |
+| [decisions/007-conformance-suite-split.md](decisions/007-conformance-suite-split.md) | Split `conformance/run.sh` (2128 baris) menjadi `lib.sh` + `tests/NNN_*.sh`, verifikasi behavioral equivalence di dua schema fresh terisolasi |

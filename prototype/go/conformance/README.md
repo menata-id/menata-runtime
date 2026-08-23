@@ -34,7 +34,9 @@ actually been applied.
 the resulting cookie jar; `csrf_for` scrapes that session's CSRF token once and appends it to
 every POST. Which seeded account plays "the Employee" or "the Approver" for a given test is
 whoever `seeds/007` actually assigned that role to, in that Application (CAP-O01 — role is
-per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block for the map.
+per-`(user, application)`, not global) — see `lib.sh`'s ACCOUNTS comment block for the map
+(shared by every `tests/*.sh` file — `run.sh` split into `lib.sh` + `tests/NNN_*.sh` 2026-08-22,
+see `docs/decisions/007-conformance-suite-split.md`).
 
 ---
 
@@ -227,7 +229,7 @@ per-`(user, application)`, not global) — see `run.sh`'s ACCOUNTS comment block
 
 - **HTTP black-box** — tests exercise the runtime exactly as a user would; no DB inspection. Capabilities that are DB-only (e.g. CAP-R04 audit log) stay on manual evidence until a UI exposes them. **T19 is a deliberate, documented exception**: it uses `psql` to backdate a date field as test-fixture setup (simulating time passing without waiting years), not to inspect runtime behavior — the assertion itself is still a plain HTTP response check.
 - **Data pollution accepted** — each run creates a few `ConformanceBot` records. Acceptable for the prototype; a future version should use a disposable workspace.
-- **Adding a test:** new ✅ capability → add a `T##` here and in `run.sh`, then set the registry's Proof column to `conformance T##`.
+- **Adding a test:** new ✅ capability → add a `T##` here and to the right `tests/NNN_*.sh` file (the last-numbered one if it's the same batch/theme, or a new `tests/NNN_*.sh` — increment by 10 — if it's a new one; see `docs/decisions/007-conformance-suite-split.md`), then set the registry's Proof column to `conformance T##`.
 - **State-guard caveat resolved (2026-07-11)** — CAP-E06 landed; T17/T18 assert rejection of out-of-state transitions, including the exact "Approved record still Rejectable" gap Study 1 found.
 - **T99–T101 wait for a real clock, not a stand-in (2026-07-12)** — CAP-E02/E03's background scheduler ticks once a minute; the suite creates the qualifying records, sleeps ~65s once for all three tests together (not once each), then asserts. Slower than every other test here, deliberately: CAP-E05's own T38 used a manual stand-in for this exact gap before the real scheduler existed — now that it does, it gets proven against the real thing, not a simulation of it.
 - **T115's holiday-skip half is manual, not automated (2026-07-12)** — CAP-O06's `"N Business Days"` unit skips both weekends and any date in the acting Workspace's own `workspace_holidays`. T115 only asserts the universal weekend-skip rule (reimplemented independently in bash, same precedent as T66's plain-day arithmetic) because a *seeded* holiday date would go stale relative to whenever this suite is actually run — a fixed "2026-08-17 is a holiday" row eventually stops being a useful assertion. The holiday-specific behavior is verified the same documented, DB-inspection way as T19/T42/T43/T52: insert a row into `workspace_holidays` directly, restart the server (holidays load once at boot, same as everything else the Interpreter caches), and confirm the same date arithmetic shifts around it — done manually during Batch 9's own verification, not part of this automated suite.
