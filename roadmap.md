@@ -1770,6 +1770,39 @@ Workspace/Cloud IAM, GitHub, Notion, AWS IAM/Azure Entra ID).
 > regressions**, confirmed on a fresh isolated schema. Registry: CAP-X08 row stays ⚠️ (not
 > ✅) — the Process-Overlay/change_policy exclusion is real, named, not attempted this pass.
 
+> **Status update (2026-08-23) — CAP-F20 (many-to-many join Machine) implemented, as pure
+> composition, no dedicated mechanism.** Next Track E item per user direction after CAP-X08.
+> Reading the actual code before assuming a new mechanism was needed (the same discipline
+> CAP-F17/CAP-F19 already established) found: `RecordStore.ExistsWithFieldValues`/
+> `handler.uniquenessViolations` (CAP-C12) are completely field-type-agnostic, and CAP-F05
+> (`user` field, landed 2026-07-12) already provides the real reference-sugar Case 11's own
+> `social-follow.yaml` sketch wanted from a never-built `$identity` flavor of CAP-F13 back
+> when it was written (2026-07-04). So a many-to-many relationship needs nothing new: an
+> ordinary Machine with two `user` fields + a composite `unique` Constraint spanning both +
+> two CAP-V05/V09 `$current_user`-filtered Views (one per direction, addressed via
+> `?view=<id>`) — one real gap found and named along the way: CAP-V06's `childLists` only
+> walks `reference`-typed fields, so it would NOT auto-discover a `user`-field join Machine
+> the way it does for CAP-F16 child tables; the two dedicated filtered Views are the real
+> bidirectional-lookup path for this shape, not V06.
+>
+> Proven on a new `Follow` Machine (`seeds/033_follow_lab.sql`, `app_follow_lab`) — a pair
+> creates normally, the exact same (Follower, Followee) pair is rejected as a duplicate, the
+> REVERSED pair is *not* blocked (proves the composite check is direction-sensitive), and
+> both directional Views correctly show the relationship from each side. Conformance
+> T189–T193 (renumbered from an initial T186–T190 draft to avoid colliding with a
+> concurrently-in-progress session's own new `090_mobile_nav.sh` file, both independently
+> claiming the same next-available slot — a real hazard of two sessions computing "next
+> `NNN`/`T##`" at the same time with neither committed yet; resolved by simply picking the
+> next free numbers, no functional conflict). **193/193 passing, zero regressions**,
+> confirmed on a fresh isolated schema — one run mid-session was killed by external
+> interference on this shared host (`signal: terminated`, most likely collateral from that
+> same concurrent session's own test server work), producing a wall of unrelated `000`
+> failures; re-run cleanly to confirm it was purely environmental, not a real regression,
+> before trusting the result. Registry: CAP-F20 row ❌→✅. **Named, deferred, not attempted
+> this pass**: Case 11/12/21's own `.menata`/`.yaml` sketches still carry stale pre-CAP-F05
+> `[NOT YET]` annotations — a documentation-sync pass, same class of cleanup the
+> 2026-07-11 example-corpus sweep already did once before.
+
 ---
 
 # Sequencing Guide — Prerequisite Map for What's Next (added 2026-08-22)
@@ -1860,7 +1893,7 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 
 ### Track E — Independent, no dependency, pick up per Prio when convenient
 
-- CAP-F20 (many-to-many join machine), Prio 5
+- **CAP-F20 (many-to-many join machine), Prio 5 — ✅ done** (T189–T193), pure composition (CAP-F05+CAP-C12+CAP-V05/V09), no dedicated mechanism
 - CAP-X09 (organizational unit scoping), Prio 6 — needs its own Study-level design pass, same rigor CAP-O01 got, not a batch item
 - **CAP-X08 import half, Prio 9 — ✅ done** (T181–T185), scoped: rejects Process-Overlay/`change_policy` packages, named explicitly — everything else round-trips
 - CAP-X10 (metadata-driven index management), Prio 10 — deliberately deferred until real load pressure exists (own row: building ahead of measured need contradicts "Infer Before Configure")
