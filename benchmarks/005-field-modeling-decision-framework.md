@@ -508,6 +508,16 @@ entirely. Mixing the third group into a "field types" table would misrepresent w
 | `reference` | General mechanism | Target has independent identity and is a workspace-authored (or master-data-designated) Machine | CAP-F13 (❌, Prio 1) |
 | `Quantity` (count + Unit of Measure) — **confirmed by Case 5 (2026-07-10), registered as CAP-F19** | **Default is simple — declaring the field stays one line, same as any other type.** Only the *conversion schema*, if actually needed, is tiered — a metadata-authoring decision made once, never the same thing as the conversion *values*, which are business data entered later through the resulting application (out of scope here). | Tier 1 (the common case): two flat fields on the referencing Machine's metadata, no reference at all — as easy to declare as any primitive. Tier 2 (multiple unit pairs for one item): a child table (CAP-F16). Tier 3 (factor needs history): a dedicated Machine. Whichever tier, CAP-X05 should reject metadata that declares `money`/`quantity` without its required companion. | Case 5 (`inventory-item.menata`) exercised Tier 1 (Rice, flat KG↔SAK pair) and Tier 2 (Cement, BOX/DOZEN/PCS child table) directly; Tier 3 deliberately not exercised — no case has evidenced factor history yet |
 
+> **Correction (2026-08-23):** the `date`/`time`/`date_time` row above says timezone is
+> "contextual (org-level, CAP-X09), not a per-field hidden reference." CAP-X09 closed without
+> being built (`capability-registry.md`), and the timezone need it was meant to cover landed
+> somewhere closer to the opposite of what this row predicted: a `timezone_field` option on
+> CAP-A02's environment-value resolution, deliberately shaped like `money`'s own
+> `currency_field` — i.e. it *does* end up looking like a per-field reference-shaped mechanism,
+> just attached to environment-value resolution rather than to `date`/`time`/`date_time`
+> themselves as a type. The classification itself (pure primitive, no identity) still holds —
+> what changed is where the "contextual" behavior actually attaches.
+
 ## Worked Examples — Applying These Types to Real Fields
 
 These rows are not new field types — they are field *usages* already covered by `reference` above,

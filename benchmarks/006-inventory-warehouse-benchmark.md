@@ -70,6 +70,16 @@ proving the Quantity tiering framework in full (Tier 1 and Tier 2), and explicit
 follow-on case candidates (lot/serial + FEFO, reservation/allocation, multi-location balance, costed
 valuation) instead of silently declaring the vertical "done."
 
+> **Correction (2026-08-23):** the two `CAP-X09` references above (line 43's "parallel... at the
+> physical-location grain" and this table's "already registered from Study 5 and awaiting
+> implementation; revisit together") assumed CAP-X09 would land as one buildable capability.
+> Design review closed CAP-X09 without building it — see `capability-registry.md`'s CAP-X09 row
+> and `roadmap.md`'s 2026-08-23 Track E update — it dissolved into composition of other
+> capabilities (CAP-F13 for the org-context data model, CAP-O07+CAP-P02 for permission scoping,
+> a session cookie + CAP-V09 filter for selectors, CAP-A02 for timezone). "Revisit together" no
+> longer has a single row to revisit against: if a future case needs multi-location/bin-level
+> balance, evaluate it on its own admission evidence rather than waiting on CAP-X09.
+
 ---
 
 # New registry candidates surfaced by this benchmark

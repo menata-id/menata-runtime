@@ -150,6 +150,23 @@ New capability area **Cross-Machine Integration** + additions (registry v0.3):
 
 ---
 
+# Correction (2026-08-23) — CAP-X09 closed, not built
+
+The `CAP-X09` row above (and the "Major gap" callouts at Angle 1/3) named the finding correctly —
+`BranchPeriodSelector`/RULE #11 and the timezone RULE #12 are real, and this survey was right to
+flag them. But a design-review pass on 2026-08-23 (`roadmap.md`'s Track E status update of the
+same date, `capability-registry.md`'s CAP-X09 row) found the *capability* framing was wrong: the
+four surfaces this row bundled together (org context on records, permission scoping, selector
+propagation, per-unit timezone) are not one capability. Three dissolve into composition of
+already-registered or already-deferred capabilities (CAP-F13; CAP-O07+CAP-P02; a `menata_*`
+cookie + CAP-V09 filter); only the timezone half survives, moved to CAP-A02 as a narrow
+`timezone_field` addendum. This page's own findings stand as accurate evidence — the error was in
+how the roadmap later structured that evidence into a registry row, not in what this survey saw
+in Portal GA. Left here rather than edited away, per this repo's own append-don't-rewrite
+convention.
+
+---
+
 # Maintenance
 
 Revisit when implementing CAP-I01…I05 — the Canonical Event Schema and Consumer Contract Registry are the richest available test corpus for Menata's integration metadata design.

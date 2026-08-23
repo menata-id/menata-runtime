@@ -36,6 +36,13 @@ One employee, Ibu Sari (branch Bekasi), in a single morning: approves a leave re
 
 Composition of already-registered capabilities: CAP-F13 (cross-machine references), CAP-I01–I05 (integration), CAP-X09 (org scoping), CAP-V10 (composed dashboard), CAP-P05 (CRUD permissions).
 
+> **Correction (2026-08-23):** CAP-X09 closed without being built (`capability-registry.md`) —
+> Ibu Sari's branch (Bekasi) still needs to be representable, and the narrative above still
+> holds, but not through one "org scoping" capability. It composes from CAP-F13 (Bekasi as an
+> ordinary referenced Machine), a session-scoped selector + CAP-V09 filter if a page needs to
+> scope by it, and CAP-A02's `timezone_field` addendum if a business-logic date/time needs to be
+> Bekasi-anchored. See `roadmap.md`'s 2026-08-23 Track E update for the full reasoning.
+
 **Hypothesis to test:** new capabilities emerge that no single case surfaced.
 
 ---

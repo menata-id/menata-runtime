@@ -1894,12 +1894,52 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 ### Track E — Independent, no dependency, pick up per Prio when convenient
 
 - **CAP-F20 (many-to-many join machine), Prio 5 — ✅ done** (T189–T193), pure composition (CAP-F05+CAP-C12+CAP-V05/V09), no dedicated mechanism
-- CAP-X09 (organizational unit scoping), Prio 6 — needs its own Study-level design pass, same rigor CAP-O01 got, not a batch item
+- ~~CAP-X09 (organizational unit scoping), Prio 6~~ — **closed 2026-08-23, not built** — the Study-level design pass this line called for happened as a design conversation and found the capability dissolves into pieces that either already exist (CAP-F13) or belong to other rows (CAP-O07/CAP-P02, CAP-A02); see `capability-registry.md`'s CAP-X09 row and the dated update after this list for the full reasoning
 - **CAP-X08 import half, Prio 9 — ✅ done** (T181–T185), scoped: rejects Process-Overlay/`change_policy` packages, named explicitly — everything else round-trips
 - CAP-X10 (metadata-driven index management), Prio 10 — deliberately deferred until real load pressure exists (own row: building ahead of measured need contradicts "Infer Before Configure")
 - CAP-I04 SLO half, Prio 10
 - CAP-O07 (Groups/Teams), Prio 14 — cheap to retrofit whenever needed
 - CAP-F17 real Currency Machine, CAP-F21 binary PDF/image render — both deferred, no case forcing either yet
+
+> **Status update (2026-08-23) — CAP-X09 closed by design review, never built.** Picked up as
+> "the next priority" per this section's own Prio-6 ordering; the design-pass conversation the
+> row had called for since 2026-07-12 found the capability doesn't survive contact with the
+> registry's own admission test (`capability-lifecycle.md` A4, non-composability). Its four named
+> surfaces (records/permissions/selectors/timezone) split apart under scrutiny instead of forming
+> one capability:
+> - **Records having an org context** — already fully served by CAP-F13. "Cabang"/"Region"/
+>   whatever a workspace calls it is an ordinary workspace-authored Machine, referenced like any
+>   other; no tree/hierarchy mechanism needed unless a real case shows nested units (none does).
+> - **Permissions** (record's org-unit vs. acting user's org-unit) — reduces to CAP-O07's own
+>   group-membership primitive, generalized one small step past CAP-P02's existing `owner_field`
+>   exact-match. Not a mechanism this row owns, and not worth building now since CAP-O07 itself
+>   is still deliberately deferred at Prio 14 ("not worth building at this runtime's current
+>   scale") — bundling the two together was floated mid-review and then retracted once it became
+>   clear the only shared surface (enforcement) had already been scoped out for lack of evidence;
+>   there was nothing left to actually share.
+> - **Selectors** (a session-scoped org-unit context auto-flowing into every List/Report query —
+>   Portal GA's `BranchPeriodSelector`) — already composable today from a `menata_*`-style cookie
+>   (CAP-P02/CAP-O01 precedent) plus a CAP-V09 declarative filter reading it. CAP-X06 is the
+>   proof this project *will* pay for centrally-enforced, non-optional scoping once the evidence
+>   demands it (the same way DB-level RLS replaced "developer remembers to filter by
+>   `workspace_id`") — but no case here has yet supplied evidence equivalent to Portal GA's own
+>   RULE #11 incident. Composable-today stands until one does.
+> - **Per-unit timezone** — the one surface that is genuinely new, and doesn't need "org unit" as
+>   a concept at all: any record referencing any entity that happens to carry a timezone Field
+>   should be able to resolve `today`/`now` against it for business-logic purposes (period
+>   boundaries, "is this branch's day closed") that a client-side rendering fix cannot reach,
+>   since the determination is made server-side. Moved to **CAP-A02**'s own row as a
+>   `timezone_field` addendum, deliberately mirroring CAP-F17's already-proven `currency_field`
+>   shape rather than inventing a new mechanism — not implemented, no case forces it yet, named
+>   so it isn't lost.
+>
+> Net effect: three of the four surfaces were never a capability — they were composition the
+> admission test should have caught on first pass — and the fourth is real but belongs to CAP-A02,
+> not to a standalone "organizational scoping" area. CAP-X09's row stays in the registry (ID never
+> reused, ratchet/ledger convention) but carries no further Prio. This is a genuine methodology
+> finding for the roadmap's own dual-track discovery process, not just a housekeeping close: a
+> benchmark-sourced finding (Study 5) can still fail admission on closer design review even after
+> years sitting `❌` with a Prio number — Prio ordering is not itself proof a row survives A4.
 
 ### Track F — Parked (HOLD), do not schedule without new case evidence
 
