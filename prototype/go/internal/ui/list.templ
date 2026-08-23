@@ -4,8 +4,8 @@ import "fmt"
 import "net/url"
 import "menata.id/runtime/internal/model"
 
-templ List(identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink, viewNav []ViewNavLink) {
-	@Page(machine.Name, identity, csrfToken, isAdmin, unreadCount, subNav) {
+templ List(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink, viewNav []ViewNavLink) {
+	@Page(machine.Name, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		if len(viewNav) > 0 {
 			@viewNavPill(viewNav)
 		}

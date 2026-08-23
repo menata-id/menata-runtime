@@ -22,18 +22,18 @@ import "strconv"
 // strip instead, same as it already did before this bar existed. Rendered
 // unconditionally at phone width, on every page -- unlike subNav, this
 // bar has nothing to be empty about.
-templ Page(title, identity, csrfToken string, isAdmin bool, unreadCount int, subNav []SubNavLink) {
+templ Page(title, workspaceName, identity, csrfToken string, isAdmin bool, unreadCount int, subNav []SubNavLink) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-			<title>{ title } — Menata Runtime</title>
+			<title>{ title } — { workspaceName }</title>
 			<link rel="stylesheet" href="/static/css/output.css"/>
 			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 		</head>
 		<body class="bg-slate-50 min-h-screen text-slate-900 antialiased">
-			@navBar(identity, csrfToken, isAdmin, unreadCount)
+			@navBar(workspaceName, identity, csrfToken, isAdmin, unreadCount)
 			if len(subNav) > 0 {
 				@subNavBar(subNav)
 			}
@@ -199,11 +199,11 @@ templ shellBottomBar(unreadCount int) {
 	</nav>
 }
 
-templ navBar(identity, csrfToken string, isAdmin bool, unreadCount int) {
+templ navBar(workspaceName, identity, csrfToken string, isAdmin bool, unreadCount int) {
 	<header class="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
 		<div class="mx-auto max-w-5xl px-4 flex items-center gap-4 h-12">
 			<a href="/" class="font-semibold text-sm text-slate-900 hover:text-blue-600 transition-colors">
-				Menata Runtime
+				{ workspaceName }
 			</a>
 			<div class="flex-1"></div>
 			<a href="/search" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">

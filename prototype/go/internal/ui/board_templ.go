@@ -19,7 +19,7 @@ import "menata.id/runtime/internal/model"
 // itself needs no htmx/JS to render correctly -- only the drag gesture
 // needs the script; a client with JS disabled still sees every card in its
 // correct lane, just without the ability to move one.
-func Board(identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName, groupField string, columns []ColumnDef, lanes []BoardLane, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) templ.Component {
+func Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName, groupField string, columns []ColumnDef, lanes []BoardLane, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -223,7 +223,7 @@ func Board(identity, csrfToken string, isAdmin bool, machine *model.Machine, vie
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page(viewName, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

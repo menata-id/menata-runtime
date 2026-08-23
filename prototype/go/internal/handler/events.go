@@ -75,7 +75,7 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := h.triggerEvent(r.Context(), machine, event, rec, role, identity, h.identityID(r), eventInput); err != nil {
+	if err := h.triggerEvent(r.Context(), machine, event, rec, strings.Join(role, ","), identity, h.identityID(r), eventInput); err != nil {
 		var rv *ruleViolation
 		if errors.As(err, &rv) {
 			h.logRuleViolation(r.Context(), "trigger", machineID, eventID, role, identity, rv.Error())
@@ -175,7 +175,7 @@ func (h *Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 	if err := h.triggerEvent(r.Context(), machine, event, rec, "System", "Webhook", "", eventInput); err != nil {
 		var rv *ruleViolation
 		if errors.As(err, &rv) {
-			h.logRuleViolation(r.Context(), "webhook", machineID, eventID, "System", "Webhook", rv.Error())
+			h.logRuleViolation(r.Context(), "webhook", machineID, eventID, []string{"System"}, "Webhook", rv.Error())
 			http.Error(w, rv.Error(), http.StatusBadRequest)
 		} else {
 			http.Error(w, "event failed", http.StatusInternalServerError)
@@ -203,7 +203,12 @@ func (e *ruleViolation) Error() string { return e.msg }
 // correlated. eventID is empty for non-event actions (read/create/edit).
 // workspace/application (006-runtime-model.md's hierarchy) are resolved
 // here, not passed in, so every call site stays a one-liner.
-func (h *Handler) logPermissionDenied(ctx context.Context, action, machineID, eventID, role, identity string) {
+// role accepts a full held-role set (CAP-O07) so a denial log line shows
+// EVERY role the acting person held, not just the one (if any) that would
+// have granted it -- more informative for security auditing on a denial,
+// not less, joined into one field the same way a comma-separated log value
+// already reads elsewhere in this codebase.
+func (h *Handler) logPermissionDenied(ctx context.Context, action, machineID, eventID string, role []string, identity string) {
 	workspaceID, appID := h.interp.Get().ScopeFor(machineID)
 	slog.Warn("permission denied",
 		"correlation_id", middleware.GetReqID(ctx),
@@ -212,7 +217,7 @@ func (h *Handler) logPermissionDenied(ctx context.Context, action, machineID, ev
 		"action", action,
 		"machine", machineID,
 		"event", eventID,
-		"role", role,
+		"role", strings.Join(role, ","),
 		"identity", identity,
 	)
 }
@@ -222,7 +227,7 @@ func (h *Handler) logPermissionDenied(ctx context.Context, action, machineID, ev
 // validation failures" — separate from logPermissionDenied's access-control
 // failures: this is a request that *was* permitted but rejected on the
 // data/state it carried.
-func (h *Handler) logRuleViolation(ctx context.Context, action, machineID, eventID, role, identity, reason string) {
+func (h *Handler) logRuleViolation(ctx context.Context, action, machineID, eventID string, role []string, identity, reason string) {
 	workspaceID, appID := h.interp.Get().ScopeFor(machineID)
 	slog.Warn("rule violation",
 		"correlation_id", middleware.GetReqID(ctx),
@@ -231,7 +236,7 @@ func (h *Handler) logRuleViolation(ctx context.Context, action, machineID, event
 		"action", action,
 		"machine", machineID,
 		"event", eventID,
-		"role", role,
+		"role", strings.Join(role, ","),
 		"identity", identity,
 		"reason", reason,
 	)

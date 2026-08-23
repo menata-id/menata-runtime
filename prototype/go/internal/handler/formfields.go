@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -14,14 +15,40 @@ import (
 	"menata.id/runtime/internal/ui"
 )
 
-func (h *Handler) hiddenFields(machine *model.Machine, role string) map[string]bool {
-	out := map[string]bool{}
+// hiddenFields (CAP-P06/CAP-O07): a field is hidden only if EVERY held
+// role's own matching Permission row hides it -- visible if ANY held role
+// reveals it. Same union-favors-access posture as
+// Guard.CanRead/CanCreate/CanEdit (holding more roles only ever grants
+// more, never less) applied to this narrower, opt-in restriction: a role
+// with no Permission row on this machine at all doesn't count towards
+// hiding (CAP-P05's deny-by-default already governs whether it can see the
+// Machine at all).
+func (h *Handler) hiddenFields(machine *model.Machine, roles []string) map[string]bool {
+	var hiddenSets []map[string]bool
 	for _, perm := range machine.Permissions {
-		if perm.Role == role {
-			for _, id := range perm.HiddenFields {
-				out[id] = true
+		if !slices.Contains(roles, perm.Role) {
+			continue
+		}
+		set := make(map[string]bool, len(perm.HiddenFields))
+		for _, id := range perm.HiddenFields {
+			set[id] = true
+		}
+		hiddenSets = append(hiddenSets, set)
+	}
+	if len(hiddenSets) == 0 {
+		return map[string]bool{}
+	}
+	out := map[string]bool{}
+	for id := range hiddenSets[0] {
+		hiddenByAll := true
+		for _, set := range hiddenSets[1:] {
+			if !set[id] {
+				hiddenByAll = false
+				break
 			}
-			break
+		}
+		if hiddenByAll {
+			out[id] = true
 		}
 	}
 	return out

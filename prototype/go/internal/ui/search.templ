@@ -5,8 +5,8 @@ import "fmt"
 // Search (CAP-O04) renders the workspace-wide search page -- results are
 // already permission-trimmed by the caller (handler.Search only ever scans
 // Machines the searching role can read), so nothing here re-checks access.
-templ Search(identity, csrfToken string, isAdmin bool, query string, results []SearchResult, unreadCount int) {
-	@Page("Search", identity, csrfToken, isAdmin, unreadCount, nil) {
+templ Search(workspaceName, identity, csrfToken string, isAdmin bool, query string, results []SearchResult, unreadCount int) {
+	@Page("Search", workspaceName, identity, csrfToken, isAdmin, unreadCount, nil) {
 		<div class="mx-auto max-w-2xl">
 			<div class="mb-5">
 				<h1 class="mb-3 text-xl font-semibold text-slate-900">Search</h1>

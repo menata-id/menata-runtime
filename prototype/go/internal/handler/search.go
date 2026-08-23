@@ -83,7 +83,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	page := ui.Search(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), query, results, h.unreadCount(r.Context(), a))
+	page := ui.Search(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), query, results, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render search", "error", err)
 	}
@@ -134,7 +134,7 @@ func (h *Handler) Notifications(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	page := ui.Notifications(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), items, groups, a.User.NotificationPreference, h.unreadCount(r.Context(), a))
+	page := ui.Notifications(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), items, groups, a.User.NotificationPreference, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render notifications", "error", err)
 	}

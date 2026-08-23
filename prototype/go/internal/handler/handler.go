@@ -28,13 +28,14 @@ type Handler struct {
 	outbox        *store.OutboxStore // CAP-W06: notify/subscription fan-out enqueue here, runOutboxDispatcher performs the write
 	sessions      *store.SessionStore
 	users         *store.UserStore
+	groups        *store.GroupStore // CAP-O07
 	secureCookies bool
 	engine        *constraint.Engine
 	guard         *permission.Guard
 	exec          *executor.Executor
 }
 
-func New(interp *interpreter.Store, loader *metadata.Loader, pool *pgxpool.Pool, records *store.RecordStore, notifications *store.NotificationStore, outbox *store.OutboxStore, sessions *store.SessionStore, users *store.UserStore, secureCookies bool) *Handler {
+func New(interp *interpreter.Store, loader *metadata.Loader, pool *pgxpool.Pool, records *store.RecordStore, notifications *store.NotificationStore, outbox *store.OutboxStore, sessions *store.SessionStore, users *store.UserStore, groups *store.GroupStore, secureCookies bool) *Handler {
 	return &Handler{
 		interp:        interp,
 		loader:        loader,
@@ -44,6 +45,7 @@ func New(interp *interpreter.Store, loader *metadata.Loader, pool *pgxpool.Pool,
 		outbox:        outbox,
 		sessions:      sessions,
 		users:         users,
+		groups:        groups,
 		secureCookies: secureCookies,
 		engine:        &constraint.Engine{},
 		guard:         &permission.Guard{},
@@ -88,15 +90,33 @@ func (h *Handler) workspace(r *http.Request) string {
 	return h.auth(r).User.WorkspaceID
 }
 
-// roleForApp (CAP-O01): the acting person's role for one specific
-// Application. Role is no longer a single session-wide value — the same
+// workspaceName resolves the current session's Workspace to its own Name --
+// 006-runtime-model.md's "highest organizational boundary" is the identity
+// a person actually gathers under (a company, a department, an event, a
+// committee), not the runtime product itself. Used to brand the UI shell
+// instead of a fixed "Menata Runtime" string. "Menata Runtime" itself is
+// kept as the fallback for the rare case a session's Workspace can't be
+// resolved (never expected in practice -- login already requires a valid
+// workspace_id), so the nav bar never renders blank.
+func (h *Handler) workspaceName(r *http.Request) string {
+	if ws, ok := h.interp.Get().GetWorkspace(h.workspace(r)); ok {
+		return ws.Name
+	}
+	return "Menata Runtime"
+}
+
+// roleForApp (CAP-O01/CAP-O07): the acting person's full held-role SET for
+// one specific Application — their own direct assignment plus every role
+// any Group they belong to holds there (union semantics, merged once in
+// sessionAuth). Role is no longer a single session-wide value — the same
 // person can be "Requester" in one Application and "Submitter" in another,
 // simultaneously, with no manual role switch — so every call site names
 // which Application it means, usually via Interpreter.ScopeFor(machineID)'s
-// second return value. "" (no user_application_roles assignment for that
-// Application) flows into Guard.CanRead/CanCreate/CanEdit/CanTrigger the
-// same way an absent Permissions row already denies by default.
-func (h *Handler) roleForApp(r *http.Request, applicationID string) string {
+// second return value. nil/empty (no direct assignment and no Group
+// membership granting one for that Application) flows into
+// Guard.CanRead/CanCreate/CanEdit/CanTrigger the same way an absent
+// Permissions row already denies by default.
+func (h *Handler) roleForApp(r *http.Request, applicationID string) []string {
 	return h.auth(r).ApplicationRoles[applicationID]
 }
 
@@ -145,7 +165,7 @@ func (h *Handler) Apps(w http.ResponseWriter, r *http.Request) {
 			Description: fmt.Sprintf("%d machine(s)", readable),
 		})
 	}
-	page := ui.CardGrid("Home", a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), "Applications", "Select an application to view its machines.", "/apps/", "", cards, h.unreadCount(r.Context(), a))
+	page := ui.CardGrid("Home", h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), "Applications", "Select an application to view its machines.", "/apps/", "", cards, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render apps", "error", err)
 	}
@@ -179,7 +199,7 @@ func (h *Handler) AppMachines(w http.ResponseWriter, r *http.Request) {
 			Description: fmt.Sprintf("%d fields · %d events", len(m.Fields), len(m.Events)),
 		})
 	}
-	page := ui.CardGrid(app.Name, a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), app.Name, "Select a machine to view its records.", "/", "/", cards, h.unreadCount(r.Context(), a))
+	page := ui.CardGrid(app.Name, h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), app.Name, "Select a machine to view its records.", "/", "/", cards, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render app machines", "error", err)
 	}

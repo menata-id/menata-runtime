@@ -986,6 +986,15 @@ same person can hold a different role in a different Application at the same tim
 "Requester" here, "Approver" over there) with no "switch role" step — their role for a given
 page resolves from which Application that page belongs to.
 
+**Addendum (2026-08-23, CAP-O07):** `user_application_roles` is no longer the only path to
+holding a role — a role may also be granted to a **Group** (`groups`/`group_application_roles`),
+with people added to and removed from that Group's membership instead of touching each person's
+own row. A real person's *effective* role set for an Application is the union of their direct
+`user_application_roles` assignment and every role any Group they belong to holds there — holding
+a role through either path grants it identically; nothing in this file's own vocabulary
+declaration changes because of where an assignment came from. Managed the same place as the
+direct half, `/admin/users`' own Groups section.
+
 ---
 
 ## Views

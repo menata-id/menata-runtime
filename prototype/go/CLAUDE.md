@@ -254,7 +254,7 @@ CAP-P05, CAP-R04, CAP-I04, CAP-O03, CAP-X02, CAP-O01, CAP-C05, CAP-C07, CAP-C12,
 CAP-A06, CAP-A09, CAP-A11, CAP-A12, CAP-A13, CAP-A14, CAP-A15, CAP-V05, CAP-V07, CAP-V08, CAP-V09,
 CAP-V10, CAP-V11, CAP-V12, CAP-V14, CAP-R03, CAP-R05, CAP-R06, CAP-R07, CAP-R08, CAP-P03, CAP-P04,
 CAP-P06, CAP-P07, CAP-E02, CAP-E03, CAP-E04, CAP-I01, CAP-I02, CAP-I03, CAP-I05, CAP-O02, CAP-O04,
-CAP-O05, CAP-O06) was manually exercised end-to-end against a
+CAP-O05, CAP-O06, CAP-O07) was manually exercised end-to-end against a
 real Postgres instance before its conformance test was written, and manual testing caught real bugs (a `Create`
 default-value rule hardcoded to fields named "Status" that silently broke Approval Step's
 "Decision" field; a conformance-helper missing a cookie parameter that made a test pass for the

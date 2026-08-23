@@ -224,7 +224,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		TotalPages:  totalPages,
 	}
 	a := h.auth(r)
-	page := ui.List(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(machineID, model.ViewTypeList))
+	page := ui.List(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(machineID, model.ViewTypeList))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render list", "error", err)
 	}
@@ -469,14 +469,14 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 	// CAP-V12: a FormView declaring Steps renders as a multi-step wizard
 	// instead of the single Form -- step 0, no carried-forward values yet.
 	if fv := h.interp.Get().FormView(machine.ID); fv != nil && len(fv.Config.Steps) > 0 {
-		page := ui.WizardForm(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, 0, len(fv.Config.Steps), h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[0], nil), nil, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+		page := ui.WizardForm(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, 0, len(fv.Config.Steps), h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[0], nil), nil, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render wizard form", "error", err)
 		}
 		return
 	}
 
-	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, nil), nil, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine), h.subNavFor(r, machine))
+	page := ui.Form(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, nil), nil, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render form", "error", err)
 	}
@@ -531,7 +531,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			a := h.auth(r)
-			page := ui.WizardForm(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, step+1, len(fv.Config.Steps),
+			page := ui.WizardForm(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, step+1, len(fv.Config.Steps),
 				h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[step+1], nil), carried, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 			if err := page.Render(r.Context(), w); err != nil {
 				slog.Error("render wizard form", "error", err)
@@ -682,14 +682,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
-			page := ui.WizardForm(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, last, len(fv.Config.Steps),
+			page := ui.WizardForm(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, last, len(fv.Config.Steps),
 				h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[last], data), carried, violations, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 			if err := page.Render(r.Context(), w); err != nil {
 				slog.Error("render wizard form (violations)", "error", err)
 			}
 			return
 		}
-		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine), h.subNavFor(r, machine))
+		page := ui.Form(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine), h.subNavFor(r, machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
@@ -759,7 +759,7 @@ func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a := h.auth(r)
-	page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil, h.unreadCount(r.Context(), a), nil, h.subNavFor(r, machine))
+	page := ui.Form(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil, h.unreadCount(r.Context(), a), nil, h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render edit form", "error", err)
 	}
@@ -890,7 +890,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		role := h.roleForApp(r, applicationID)
 		h.logRuleViolation(r.Context(), "update", machineID, "", role, h.identity(r), strings.Join(violations, "; "))
 		a := h.auth(r)
-		page := ui.Form(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), nil, h.subNavFor(r, machine))
+		page := ui.Form(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), nil, h.subNavFor(r, machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
@@ -992,7 +992,7 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a := h.auth(r)
-	page := ui.Detail(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	page := ui.Detail(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render detail", "error", err)
 	}

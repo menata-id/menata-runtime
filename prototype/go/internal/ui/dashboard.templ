@@ -7,8 +7,8 @@ import "strconv"
 // Deliberately count-based, not charts -- a real, useful "at a glance"
 // summary without a charting dependency, matching this prototype's
 // no-heavy-frontend-framework posture.
-templ Dashboard(identity, csrfToken string, isAdmin bool, viewName string, tiles []DashboardTile, unreadCount int, subNav []SubNavLink) {
-	@Page(viewName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+templ Dashboard(workspaceName, identity, csrfToken string, isAdmin bool, viewName string, tiles []DashboardTile, unreadCount int, subNav []SubNavLink) {
+	@Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
 		</div>

@@ -617,6 +617,15 @@ Admin workspace. Orang yang sama bisa pegang role berbeda di Application berbeda
 bersamaan (mis. "Requester" di sini, "Approver" di sana) tanpa langkah "ganti role" — role-nya
 untuk suatu halaman resolve dari Application mana halaman itu berada.
 
+**Tambahan (2026-08-23, CAP-O07):** `user_application_roles` bukan lagi satu-satunya jalur untuk
+memegang suatu role — role juga bisa diberikan ke sebuah **Group** (`groups`/
+`group_application_roles`), dengan orang ditambah/dikeluarkan dari keanggotaan Group itu, bukan
+menyentuh baris masing-masing orang. Himpunan role *efektif* seseorang untuk satu Application
+adalah gabungan dari assignment langsungnya (`user_application_roles`) dan setiap role yang
+dipegang oleh Group manapun yang dia ikuti di situ — role lewat jalur mana pun memberi akses yang
+sama persis; kosakata role yang dideklarasikan file ini tidak berubah karena asal assignment-nya.
+Dikelola di tempat yang sama dengan jalur langsung, bagian Groups di `/admin/users`.
+
 ---
 
 ### Views

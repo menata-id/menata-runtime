@@ -177,6 +177,37 @@ type AdminUserRow struct {
 	AppRoles      map[string]string
 }
 
+// AdminGroupRow (CAP-O07) is one row on /admin/users' Groups section -- a
+// compact summary linking to that Group's own edit page, not an inline
+// editable form the way AdminUserRow is (membership needs a checkbox list,
+// too wide for a table row).
+type AdminGroupRow struct {
+	ID          string
+	Name        string
+	MemberNames []string
+	AppRoles    map[string]string // application id -> role, direct-only (this Group's own grants)
+}
+
+// GroupMemberOption is one selectable workspace user on the Group edit page
+// (/admin/groups/{id}) -- Checked reflects this Group's current membership.
+type GroupMemberOption struct {
+	ID      string
+	Name    string
+	Email   string
+	Checked bool
+}
+
+// GroupDetailData is everything the Group edit page needs to render: the
+// Group itself, every workspace user as a checkable membership option, and
+// this Group's own current per-Application role selects (same appGroups/
+// AppRoles shape AdminUsers already uses, one Group instead of one user).
+type GroupDetailData struct {
+	ID       string
+	Name     string
+	Members  []GroupMemberOption
+	AppRoles map[string]string
+}
+
 // ReportRow (CAP-V13) is one grouped row of an aggregate report View --
 // Group is the report's group_field value, Sums is one formatted total per
 // declared sum_field, in the same order as the View's own columns.
@@ -230,10 +261,10 @@ type BoardLane struct {
 // Total is the section's overall record count, Breakdown is populated only
 // when the section declared a group_field (count per distinct value).
 type DashboardTile struct {
-	Title      string
-	MachineID  string
-	Total      int
-	Breakdown  []DashboardBreakdown
+	Title     string
+	MachineID string
+	Total     int
+	Breakdown []DashboardBreakdown
 }
 
 type DashboardBreakdown struct {

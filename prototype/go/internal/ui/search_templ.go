@@ -13,7 +13,7 @@ import "fmt"
 // Search (CAP-O04) renders the workspace-wide search page -- results are
 // already permission-trimmed by the caller (handler.Search only ever scans
 // Machines the searching role can read), so nothing here re-checks access.
-func Search(identity, csrfToken string, isAdmin bool, query string, results []SearchResult, unreadCount int) templ.Component {
+func Search(workspaceName, identity, csrfToken string, isAdmin bool, query string, results []SearchResult, unreadCount int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -165,7 +165,7 @@ func Search(identity, csrfToken string, isAdmin bool, query string, results []Se
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page("Search", identity, csrfToken, isAdmin, unreadCount, nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page("Search", workspaceName, identity, csrfToken, isAdmin, unreadCount, nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

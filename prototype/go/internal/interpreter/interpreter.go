@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 
 	"menata.id/runtime/internal/model"
@@ -11,6 +12,7 @@ import (
 // Handlers and the Router use it for fast lookups — no DB access at request time.
 type Interpreter struct {
 	workspaces          []*model.Workspace
+	workspacesByID      map[string]*model.Workspace
 	apps                map[string]*model.Application
 	machines            map[string]*model.Machine
 	subscriptionsByPub  map[string][]*model.Subscription
@@ -20,12 +22,14 @@ type Interpreter struct {
 func New(workspaces []*model.Workspace) *Interpreter {
 	i := &Interpreter{
 		workspaces:          workspaces,
+		workspacesByID:      make(map[string]*model.Workspace, len(workspaces)),
 		apps:                make(map[string]*model.Application),
 		machines:            make(map[string]*model.Machine),
 		subscriptionsByPub:  make(map[string][]*model.Subscription),
 		holidaysByWorkspace: make(map[string]map[string]bool),
 	}
 	for _, ws := range workspaces {
+		i.workspacesByID[ws.ID] = ws
 		holidays := make(map[string]bool, len(ws.Holidays))
 		for _, d := range ws.Holidays {
 			holidays[d] = true
@@ -92,6 +96,19 @@ func (i *Interpreter) ScopeFor(machineID string) (workspaceID, applicationID str
 func (i *Interpreter) GetApplication(id string) (*model.Application, bool) {
 	app, ok := i.apps[id]
 	return app, ok
+}
+
+// GetWorkspace looks up a Workspace by id -- the session's own
+// workspace_id, used to brand the UI shell with the Workspace's own Name
+// (006-runtime-model.md: "Workspace is the highest organizational
+// boundary") instead of a fixed "Menata Runtime" string. Every runtime
+// deployment hosts one or more real organizations (ws_acme/"Acme Corp"
+// alongside ws_default already proves this) -- the org a person actually
+// gathers under is the Workspace they're logged into, not the runtime
+// product itself.
+func (i *Interpreter) GetWorkspace(id string) (*model.Workspace, bool) {
+	ws, ok := i.workspacesByID[id]
+	return ws, ok
 }
 
 // ApplicationsForWorkspace returns one Workspace's own Applications, sorted
@@ -218,16 +235,18 @@ func (i *Interpreter) GetEvent(machineID, eventID string) (*model.Event, bool) {
 	return nil, false
 }
 
-// PermittedEvents returns the events this role may trigger on the machine,
-// in the order they appear in the machine definition.
-func (i *Interpreter) PermittedEvents(machineID, role string) []*model.Event {
+// PermittedEvents returns the events this role set may trigger on the
+// machine, in the order they appear in the machine definition. CAP-O07:
+// roles is the acting person's full held-role set (direct + Group-derived,
+// union semantics) — see Guard.CanTrigger's own doc comment.
+func (i *Interpreter) PermittedEvents(machineID string, roles []string) []*model.Event {
 	m, ok := i.machines[machineID]
 	if !ok {
 		return nil
 	}
 	allowed := make(map[string]bool)
 	for _, perm := range m.Permissions {
-		if perm.Role == role {
+		if slices.Contains(roles, perm.Role) {
 			for _, eid := range perm.Events {
 				allowed[eid] = true
 			}
@@ -249,14 +268,14 @@ func (i *Interpreter) PermittedEvents(machineID, role string) []*model.Event {
 // assigned to the viewer, even though the POST was already blocked either
 // way. identityID is the acting user's account id (CAP-F05, same
 // ID-not-name comparison Guard.CanTrigger makes), not their display name.
-func (i *Interpreter) PermittedEventsForRecord(machineID, role, identityID string, recordData map[string]any) []*model.Event {
+func (i *Interpreter) PermittedEventsForRecord(machineID string, roles []string, identityID string, recordData map[string]any) []*model.Event {
 	m, ok := i.machines[machineID]
 	if !ok {
 		return nil
 	}
 	allowed := make(map[string]bool)
 	for _, perm := range m.Permissions {
-		if perm.Role != role {
+		if !slices.Contains(roles, perm.Role) {
 			continue
 		}
 		for _, eid := range perm.Events {

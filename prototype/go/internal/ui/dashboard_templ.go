@@ -15,7 +15,7 @@ import "strconv"
 // Deliberately count-based, not charts -- a real, useful "at a glance"
 // summary without a charting dependency, matching this prototype's
 // no-heavy-frontend-framework posture.
-func Dashboard(identity, csrfToken string, isAdmin bool, viewName string, tiles []DashboardTile, unreadCount int, subNav []SubNavLink) templ.Component {
+func Dashboard(workspaceName, identity, csrfToken string, isAdmin bool, viewName string, tiles []DashboardTile, unreadCount int, subNav []SubNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -169,7 +169,7 @@ func Dashboard(identity, csrfToken string, isAdmin bool, viewName string, tiles 
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page(viewName, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

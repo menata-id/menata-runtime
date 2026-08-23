@@ -8,8 +8,8 @@ package ui
 // the Machine has no Status value_list Field at all -- nothing to derive
 // a map from (handler.ProcessMap 404s before this ever renders, but the
 // flag stays here too as a defensive, honest empty state).
-templ ProcessMap(identity, csrfToken string, isAdmin bool, viewName string, states []string, initial string, edges []ProcessEdge, hasShape bool, unreadCount int, subNav []SubNavLink) {
-	@Page(viewName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+templ ProcessMap(workspaceName, identity, csrfToken string, isAdmin bool, viewName string, states []string, initial string, edges []ProcessEdge, hasShape bool, unreadCount int, subNav []SubNavLink) {
+	@Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
 		</div>

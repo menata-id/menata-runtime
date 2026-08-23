@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -74,7 +75,8 @@ func main() {
 	outbox := store.NewOutboxStore(pool)
 	sessions := store.NewSessionStore(pool)
 	users := store.NewUserStore(pool)
-	h := handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, cfg.SecureCookies)
+	groups := store.NewGroupStore(pool) // CAP-O07
+	h := handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, groups, cfg.SecureCookies)
 
 	r := chi.NewRouter()
 	// RequestID before the access logger: gives every access log line a
@@ -90,7 +92,7 @@ func main() {
 	// anything else runs -- workspaceTx's own workspace_id now comes from
 	// the authenticated User (store.AuthFromContext), not a client-suppliable
 	// cookie, so this must run first.
-	r.Use(sessionAuth(sessions, users, interpStore, &permission.Guard{}))
+	r.Use(sessionAuth(sessions, users, groups, interpStore, &permission.Guard{}))
 	// CAP-X02: CSRF check, after sessionAuth (needs the session's stored
 	// token from ctx) and before workspaceTx (a rejected request shouldn't
 	// pay for opening a transaction).
@@ -423,13 +425,13 @@ func visitorAuth(r *http.Request, interp *interpreter.Interpreter, guard *permis
 	if !ok {
 		return nil, false
 	}
-	if !guard.CanRead(machine, "Visitor") {
+	if !guard.CanRead(machine, []string{"Visitor"}) {
 		return nil, false
 	}
 	_, applicationID := interp.ScopeFor(segment)
 	return &store.Auth{
 		User:             &store.User{Name: "Visitor", WorkspaceID: "ws_default"},
-		ApplicationRoles: map[string]string{applicationID: "Visitor"},
+		ApplicationRoles: map[string][]string{applicationID: {"Visitor"}},
 	}, true
 }
 
@@ -449,7 +451,7 @@ func visitorAuth(r *http.Request, interp *interpreter.Interpreter, guard *permis
 // as before -- there's no useful page to redirect a form submission to,
 // and CAP-P07 is deliberately read-only: no anonymous Create/Update/
 // TriggerEvent, only GET.
-func sessionAuth(sessions *store.SessionStore, users *store.UserStore, interpStore *interpreter.Store, guard *permission.Guard) func(http.Handler) http.Handler {
+func sessionAuth(sessions *store.SessionStore, users *store.UserStore, groups *store.GroupStore, interpStore *interpreter.Store, guard *permission.Guard) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if isPublicPath(r.URL.Path) {
@@ -488,11 +490,37 @@ func sessionAuth(sessions *store.SessionStore, users *store.UserStore, interpSto
 				deny()
 				return
 			}
-			appRoles, err := users.ApplicationRoles(r.Context(), user.ID)
+			// CAP-O07: a session's effective ApplicationRoles is the UNION of
+			// this person's own direct user_application_roles assignment and
+			// every role any Group they belong to holds -- resolved fresh
+			// here, same "no separate cache to invalidate" discipline the
+			// direct half already had. Two small queries, not one join, so
+			// UserStore.ApplicationRoles keeps its own existing
+			// map[string]string shape unchanged (still used as-is by the
+			// admin per-user edit form, which must only ever show/write a
+			// DIRECT assignment, never a Group-inherited one).
+			directRoles, err := users.ApplicationRoles(r.Context(), user.ID)
 			if err != nil {
 				slog.Error("load application roles", "correlation_id", middleware.GetReqID(r.Context()), "error", err)
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
+			}
+			groupRoles, err := groups.RolesForUser(r.Context(), user.ID)
+			if err != nil {
+				slog.Error("load group-derived roles", "correlation_id", middleware.GetReqID(r.Context()), "error", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			appRoles := make(map[string][]string, len(directRoles)+len(groupRoles))
+			for appID, role := range directRoles {
+				appRoles[appID] = append(appRoles[appID], role)
+			}
+			for appID, roles := range groupRoles {
+				for _, role := range roles {
+					if !slices.Contains(appRoles[appID], role) {
+						appRoles[appID] = append(appRoles[appID], role)
+					}
+				}
 			}
 
 			// Sliding expiration: an active session never expires mid-use.

@@ -156,6 +156,21 @@ user_option_id() {
         | tr -d '"'
 }
 
+# group_member_checkbox_id <group_detail_url> <jar> <display_name> -> echoes
+# the real user id backing a member checkbox on /admin/groups/{id} whose
+# visible text is exactly display_name (CAP-O07) -- same scraping
+# discipline as user_option_id, just a checkbox+label pair instead of an
+# <option>, since GroupDetail's own membership list is real workspace user
+# ids, not a separate vocabulary.
+group_member_checkbox_id() {
+    local url="$1" jar="$2" name="$3"
+    curl -s -b "$jar" "$url" \
+        | grep -oE "value=\"[a-f0-9-]+\"> $name</label>" \
+        | head -1 \
+        | grep -oE '"[a-f0-9-]+"' \
+        | tr -d '"'
+}
+
 add_business_days() { # <n> -> echoes YYYY-MM-DD, n business days from today (weekends only)
     local n=$1 d wd
     d=$(date +%Y-%m-%d)

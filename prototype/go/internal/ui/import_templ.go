@@ -15,7 +15,7 @@ import "menata.id/runtime/internal/model"
 // ImportCSV (CAP-R06) renders both the upload form and, once results is
 // non-nil, the per-row outcome -- one page, not two, so a re-upload after
 // fixing a bad row is a single click back.
-func ImportCSV(identity, csrfToken string, isAdmin bool, machine *model.Machine, fieldIDs []string, results []ImportRowResult, unreadCount int, subNav []SubNavLink) templ.Component {
+func ImportCSV(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, fieldIDs []string, results []ImportRowResult, unreadCount int, subNav []SubNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -214,7 +214,7 @@ func ImportCSV(identity, csrfToken string, isAdmin bool, machine *model.Machine,
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page("Import "+machine.Name, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page("Import "+machine.Name, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

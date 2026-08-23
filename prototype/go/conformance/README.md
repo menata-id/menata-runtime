@@ -225,6 +225,18 @@ see `docs/decisions/007-conformance-suite-split.md`).
 | T186 | CAP-O03 | a Machine with both List and Report renders a within-Machine view-type pill on each, active-highlighting whichever is being viewed (Tier 3) |
 | T187 | CAP-O03 | a Machine with only one collection-level View type renders no within-Machine pill |
 | T188 | CAP-O03 | the mobile bottom bar (Home/Search/Notifications) is identical across two different Applications, not reconfigured per app — the Study 30 correction to ADR-008's original plan |
+| T194 | CAP-O07 | a non-Admin is denied `POST /admin/groups` |
+| T195 | CAP-O07 | Admin creates a Group, listed on `/admin/users` |
+| T196 | CAP-O07 | a user with no direct role and no Group membership is denied read |
+| T197 | CAP-O07 | a direct (non-Group) Application-role assignment still works unaffected |
+| T198 | CAP-O07 | a direct role alone does not grant an Event a Group-only role would be needed for |
+| T199 | CAP-O07 | a Group's own Application-role assignment persists and shows selected on its edit page |
+| T200 | CAP-O07 | a Group's own membership persists and shows checked on its edit page |
+| T201 | CAP-O07 | UNION: a direct role + a Group-granted role together permit an action neither alone would |
+| T202 | CAP-O07 | a Group's grant does not leak to a non-member |
+| T203 | CAP-O07 | `notify(role=...)` (CAP-A03) reaches a user who holds that role only via Group membership |
+| T204 | CAP-O07 | (setup) a second record exists, still eligible, before the revocation check below |
+| T205 | CAP-O07 | removing a member from a Group revokes its granted role immediately, no restart |
 
 *(T178–T185 — CAP-W06 async outbox, CAP-X08 import — exist in `tests/070_action_outbox.sh`/
 `tests/080_metadata_import.sh` but predate this table catching up to them; not added by this

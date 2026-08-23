@@ -15,7 +15,7 @@ import "menata.id/runtime/internal/model"
 // separate "edit form" view declared in metadata. recordID == "" selects
 // Create mode (POST /{machine}); a non-empty recordID selects Edit mode
 // (POST /{machine}/{recordID}), matching the router's two POST routes.
-func Form(identity, csrfToken string, isAdmin bool, machine *model.Machine, recordID string, fields []FormField, errors []string, unreadCount int, childLines *ChildLinesData, subNav []SubNavLink) templ.Component {
+func Form(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, recordID string, fields []FormField, errors []string, unreadCount int, childLines *ChildLinesData, subNav []SubNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -172,7 +172,7 @@ func Form(identity, csrfToken string, isAdmin bool, machine *model.Machine, reco
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page(formTitle(machine, recordID), identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page(formTitle(machine, recordID), workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

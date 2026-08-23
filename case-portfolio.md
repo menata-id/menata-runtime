@@ -7,9 +7,11 @@
 > is a designed experiment — and surprises (patterns the case reveals that
 > were not targeted) are themselves findings.
 >
-> Status: v0.3 — full 21-case portfolio documented (Cases 1–10 original + Cases 11–21 Extended
-> Portfolio); Cases 1–2 ✅ done, the remaining 19 ⚠️ documented with targets/gaps registered against
-> `capability-registry.md` | Created: 2026-07-04 | Updated: 2026-08-22
+> Status: v0.31 — Case 3 gains a 2026-08-23 extension note (PDF signature placement, Study 32,
+> `benchmarks/024-pdf-signature-approval-study.md`), new CAP-F22 registered. Previously v0.3 — full
+> 21-case portfolio documented (Cases 1–10 original + Cases 11–21 Extended Portfolio); Cases 1–2 ✅
+> done, the remaining 19 ⚠️ documented with targets/gaps registered against `capability-
+> registry.md` | Created: 2026-07-04 | Updated: 2026-08-23
 
 ---
 
@@ -28,7 +30,7 @@
 |---|------|------------------|----------------------|--------|
 | 1 | Design Request | CRUD + simple state machine | F01–F04, E01, A01, C01–C04, P01, V01–V03 | ✅ done |
 | 2 | Leave Request | Domain portability (same cluster, different domain) | same as Case 1 | ✅ done |
-| 3 | Document Approval | Multi-instance workflow: sequence, synchronization, resource allocation | F13, A07, A08, X03, P02, E05 | ⚠️ documented, gaps registered |
+| 3 | Document Approval | Multi-instance workflow: sequence, synchronization, resource allocation | F13, A07, A08, X03, P02, E05 | ⚠️ documented, gaps registered — extended 2026-08-23, see note below |
 | 4 | Maintenance Reminder | **Time-driven behavior**: schedules, escalation, environment data | E02, E03, A02, A09, A11 | ⚠️ documented (this study) |
 | 5 | Inventory / Stock Movement | Calculation & multi-record transaction: quantity math, balance updates | F07, F13, F14, F16, F19, A02, A06, C05, C07, C08, X12 | ⚠️ documented, gaps registered |
 | 6 | Petty Cash Ledger | Numeric aggregation & immutability: running balance, append-only, period close | F08, F13, F14, A02, C08, C10, P03, E06+R07, R04 | ⚠️ documented, gaps registered |
@@ -38,6 +40,41 @@
 | 10 | Organization Composite | Emergent capabilities at composition: shared identity, master data, cross-app navigation, org-wide reporting | F13+I01–I05+X09+V10+P05 composition test | ⚠️ documented (Study 7) — 6 `[COMPOSITION FINDING]` → CAP-O01…O06 |
 
 Sequencing follows the registry's implementation order: Case 4 (time) precedes Case 5–6 (calculation) because escalation and scheduling appear in Cases 6–7 too; external events (Case 8) come last because they depend on API surface (X07).
+
+---
+
+# Case 3 — extension note (2026-08-23): PDF signature placement
+
+Case 3's original P1–P6 gaps are all ✅ (see `capability-registry.md`'s CAP-F13/A07/A08/X03/P02/E05
+rows) — the workflow itself (sequential/parallel approval, per-step ownership) has been done since
+2026-07-11. A new, real requirement extends it, requested directly by the owner: the approved
+artifact must be an actual PDF, each approver's own signature **image** must be composited onto a
+position on that PDF decided *before* submission (not a generic stamp), and approvers are drawn
+from a work group rather than assigned one at a time.
+
+Full write-up, page-by-page screen design, and gap analysis: `benchmarks/024-pdf-signature-
+approval-study.md` (Study 32). Headline findings, in brief: a genuinely new capability is needed
+(**CAP-F22**, binary PDF signature compositing — neither CAP-F06's plain file storage nor
+CAP-F21's HTML-only template render covers opening an existing uploaded PDF and editing it),
+registered ❌ Proposed; coordinate storage and the per-user signature image need no new
+capability, pure composition from CAP-F07/CAP-F05/CAP-F06/CAP-F13, same precedent as CAP-F19/F20;
+and the group-based approver picker leans on **CAP-O07** (Groups/Teams), which remains ❌ and
+deliberately deferred — not "in development" as initially assumed, though this case is real new
+pressure toward building it eventually. Four new mockup screens were added to the existing
+Menata Apps Builder design canvas (Study 29/30/31's artifact), matching its established visual
+system with no new chrome introduced.
+
+**Correction (2026-08-23, later the same day)**: CAP-O07 moved ❌→✅ the same day, implemented and
+conformance-proven (T194–T205) in a separate concurrent session — see `capability-registry.md`'s
+CAP-O07 row. `SignaturePlacement.dc.html`'s group-sourced approver list can now be built against
+the real `groups`/`group_members` mechanism directly, not just a future one.
+
+**Same-day views-configurability check**: two of the four screens are already fully declarable
+via today's `views` metadata (plain `form`, and `detail` over an ordinary `file` field once
+CAP-F22 exists); the other two are not, registering two more previously-untracked View-type
+gaps — **CAP-V20** (sequential decision stepper — a Study 29 design sketch that had never been
+given a registry row until now) and **CAP-V21** (coordinate-placement editor, the signature-pin
+screen itself). Full reasoning in Study 32 §5.
 
 ---
 

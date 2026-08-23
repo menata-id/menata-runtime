@@ -25,7 +25,7 @@ type HiddenField struct {
 // step" vs. "this is the final step, actually create the record." No
 // session state: every prior step's answer travels as a hidden input on
 // each subsequent step's page, so the browser IS the state.
-func WizardForm(identity, csrfToken string, isAdmin bool, machine *model.Machine, stepIndex, totalSteps int, fields []FormField, hidden []HiddenField, errors []string, unreadCount int, subNav []SubNavLink) templ.Component {
+func WizardForm(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, stepIndex, totalSteps int, fields []FormField, hidden []HiddenField, errors []string, unreadCount int, subNav []SubNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -253,7 +253,7 @@ func WizardForm(identity, csrfToken string, isAdmin bool, machine *model.Machine
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page("New "+machine.Name, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page("New "+machine.Name, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

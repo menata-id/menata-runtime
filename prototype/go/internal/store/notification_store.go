@@ -75,6 +75,11 @@ func (s *NotificationStore) Create(ctx context.Context, recipient, message, mach
 // query time with "operator does not exist: uuid = text" (SQLSTATE 42883),
 // caught during CAP-F05's isolated-port verification, not left as a
 // silent landmine for the next person who removes an "unnecessary" cast.
+// CAP-O07 (2026-08-23) added the fourth OR clause: a role broadcast also
+// reaches someone who holds that role only through Group membership, not
+// just a direct user_application_roles row -- same "for that notification's
+// own Application" scoping the direct clause already enforces, joined
+// through group_members -> group_application_roles instead.
 const recipientMatch = `(
 	n.recipient = $1
 	OR n.recipient = $2::text
@@ -82,6 +87,12 @@ const recipientMatch = `(
 		SELECT 1 FROM machines m
 		JOIN user_application_roles uar ON uar.application_id = m.application_id
 		WHERE m.id = n.machine_id AND uar.role = n.recipient AND uar.user_id = $2::uuid
+	)
+	OR EXISTS (
+		SELECT 1 FROM machines m
+		JOIN group_application_roles gar ON gar.application_id = m.application_id
+		JOIN group_members gm ON gm.group_id = gar.group_id
+		WHERE m.id = n.machine_id AND gar.role = n.recipient AND gm.user_id = $2::uuid
 	)
 )`
 

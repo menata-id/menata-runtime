@@ -1898,7 +1898,7 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 - **CAP-X08 import half, Prio 9 — ✅ done** (T181–T185), scoped: rejects Process-Overlay/`change_policy` packages, named explicitly — everything else round-trips
 - CAP-X10 (metadata-driven index management), Prio 10 — deliberately deferred until real load pressure exists (own row: building ahead of measured need contradicts "Infer Before Configure")
 - CAP-I04 SLO half, Prio 10
-- CAP-O07 (Groups/Teams), Prio 14 — cheap to retrofit whenever needed
+- ~~CAP-O07 (Groups/Teams), Prio 14~~ — **✅ done 2026-08-23**, per direct owner request (see dated status update below) — was "cheap to retrofit whenever needed"; retrofitted
 - CAP-F17 real Currency Machine, CAP-F21 binary PDF/image render — both deferred, no case forcing either yet
 
 > **Status update (2026-08-23) — CAP-X09 closed by design review, never built.** Picked up as
@@ -1940,6 +1940,59 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 > finding for the roadmap's own dual-track discovery process, not just a housekeeping close: a
 > benchmark-sourced finding (Study 5) can still fail admission on closer design review even after
 > years sitting `❌` with a Prio number — Prio ordering is not itself proof a row survives A4.
+
+> **Status update (2026-08-23) — CAP-O07 (Groups/Teams) implemented, out of Prio-14 sequence, per
+> direct owner request.** The owner asked for this specifically, alongside a real, related UX
+> observation: the runtime's own top-level branding was a hardcoded "Menata Runtime" string
+> instead of reflecting whichever organization (company, department, event, committee, volunteer
+> group) a person is actually logged into — 006-runtime-model.md's own "Workspace is the highest
+> organizational boundary" already names that concept, and `workspaces.name` already existed in
+> the schema, just never wired into the UI shell. Closed first, as a small, separate, zero-risk fix
+> (not CAP-O07 itself — Groups are a narrower, sub-Application role-assignment mechanism, not a
+> branding/identity concept): `Interpreter.GetWorkspace`/`Handler.workspaceName` resolve the
+> session's own Workspace, threaded through `ui.Page`/`navBar` and all 14 dependent page templates
+> (mechanical, ~15 files) — verified live, two seeded workspaces (`ws_default`/"Default Workspace",
+> `ws_acme`/"Acme Corp") rendering distinctly from the same running server. Manual verification
+> plus a full conformance pass (193/193) confirmed zero regressions before CAP-O07 itself began.
+>
+> **CAP-O07 design decisions, resolved via `AskUserQuestion` before implementation** (this row's
+> own scope had real ripple-radius choices, the same "focused plan-mode session before
+> implementing" discipline B1–B4/CAP-X04 already established): **(1) union semantics** — a person
+> holding a role both directly and via a Group holds both at once (Google/AWS/Azure IAM precedent,
+> not "direct overrides Group"); **(2) full admin UI in the same pass**, not seed-only for a first
+> cut. Both chosen by the owner directly.
+>
+> Implementation: `groups`/`group_members`/`group_application_roles` (migrations/023) mirror
+> `user_application_roles`' own shape one level removed. `store.Auth.ApplicationRoles` changed from
+> `map[string]string` to `map[string][]string` — `sessionAuth` (`cmd/server/main.go`) merges a
+> person's direct assignment (`UserStore.ApplicationRoles`, unchanged, still what the per-user admin
+> form reads/writes) with their Group-derived roles (new `GroupStore.RolesForUser`) into one
+> effective set, resolved fresh every request, no separate cache to invalidate — Group membership
+> changes take effect on the very next request, same as a direct assignment always has.
+> `Guard.CanRead/CanCreate/CanEdit/CanDelete/CanTrigger`, `Interpreter.PermittedEvents`/
+> `PermittedEventsForRecord`, and `hiddenFields` (CAP-P06) all moved from single-role equality to
+> `slices.Contains` membership — mechanical across roughly 30 call sites, `go build` itself
+> surfacing every site that needed the change, the same exhaustiveness CAP-X04's own 91-site
+> `Store.Get()` sweep already relied on; the handful of sites instead feeding a *single* string
+> downstream (`triggerEvent`'s audit-trail `actorRole`, the three admin.go call sites logging
+> `WorkspaceRole`) were left as single strings, joined or wrapped explicitly at those call sites,
+> not force-fit into the new set type. `NotificationStore.recipientMatch` (CAP-A03) gained a fourth
+> `OR EXISTS` clause so a role broadcast also reaches someone who holds it only through Group
+> membership. Full admin UI: `/admin/users` gained a "Groups" section (list + create) and a new
+> `/admin/groups/{id}` page (membership checkboxes + per-Application role selects, reusing the
+> exact vocabulary/validation `AdminUpdateUser`'s existing per-user form already applies).
+>
+> Proof: `seeds/034_groups_lab.sql` deliberately seeds no Group at all — only an Application, a
+> Machine gated on role "Approver", and a user holding a *different* role ("Editor") directly — so
+> conformance T194–T205 drives the entire `/admin/groups` UI end-to-end, not just the underlying
+> data model: group creation (admin-gated), the role/membership forms actually persisting, a direct
+> role alone being insufficient (T198) but direct+Group together succeeding (T201 — the union proof
+> itself), a Group's grant not leaking to a non-member (T202), `notify(role=...)` reaching a
+> Group-only holder (T203), and revocation taking effect immediately on membership removal, no
+> restart (T205). **205/205 passing, zero regressions** on the prior 193, confirmed on a fresh
+> isolated schema. Registry: `capability-registry.md`'s CAP-O07 row moved ❌→✅. One scope note
+> carried forward, not attempted this pass: no Group rename/delete UI (create + edit only) — no
+> case has asked for either yet, cheap to add later the same way this whole capability was.
 
 ### Track F — Parked (HOLD), do not schedule without new case evidence
 
@@ -2044,6 +2097,48 @@ isolated schema. Track G's own implementation step is done — no longer just un
 9. CAP-X11 (Track A/#2) and remaining Prio-tagged items (Track E) opportunistically, no measured urgency
 10. Leave Track F alone until a real case names the need
 11. ~~Track G design-prototype pass~~ — ✅ done (Study 29, ADR-008, corrected by Study 30). ~~Track G (CAP-O03 Tier 3 implementation)~~ — ✅ done (T186–T188)
+
+---
+
+## Study 32 — Document Approval: PDF Signature Placement (2026-08-23)
+
+Owner-requested extension of Case 3 (Document Approval): the approved artifact must be a real
+PDF, with each approver's own signature image composited onto a position fixed before
+submission, approvers drawn from a work group. Page-by-page screen design (four new mockups
+added to the Study 29/30/31 design canvas, no new visual vocabulary) plus gap analysis in
+`benchmarks/024-pdf-signature-approval-study.md`. One new capability registered, **CAP-F22**
+(binary PDF signature compositing) ❌ Proposed — distinct from CAP-F06 (opaque file storage) and
+CAP-F21 (HTML-only template render, whose own row already named a binary PDF/image renderer as a
+separate deferred concern this study is the first to name concretely). Coordinate storage and the
+per-user signature image need no new capability (pure composition, CAP-F07/F05/F06/F13). CAP-O07
+(Groups/Teams) stays ❌ — named as real new pressure, not built, and not "in development" as
+initially assumed; CAP-F22 can ship first against today's flat per-approver picker. No code
+implemented this pass — design + capability admission only, per standing discipline (a capability
+is real only once a case exercises it AND a test verifies it).
+
+**Addendum (2026-08-23, same day) — views-configurability assessment.** Owner asked directly
+whether the study's four screens can be declared through the existing `views` metadata mechanism
+the way `vw_ad_form`/`vw_ad_detail` already are. Screen-by-screen: Upload (✅ already is, plain
+`type: form`) and Final Signed Document (✅ once CAP-F22 exists — the composited PDF is just an
+ordinary `file` field, existing `detail` rendering handles the rest) need nothing new. Signature
+Placement and the Decision screen's stepper do not — two real, previously-untracked View-type
+gaps, now registered: **CAP-V20** (sequential decision stepper — existed only as a `Case3Approval.
+dc.html` design sketch since Study 29, never given a registry row until now, a documentation-debt
+catch by the registry's own "silence is not a decision" rule) and **CAP-V21** (coordinate-
+placement editor — closest precedent CAP-V14 Tier 2's board drag/drop). Full reasoning in
+`benchmarks/024-pdf-signature-approval-study.md` §5. Also clarified same day: CAP-F22 is mode-
+agnostic — Sequential's existing hard-block guard and Parallel's existing no-gate behavior
+(CAP-A07/CAP-A08) both compose with it unchanged, though Parallel does mean concurrent stamps onto
+one shared PDF file value need the same atomic-claim discipline CAP-X12 established for
+cross-record writes — named as a build-time constraint, not solved here.
+
+**Correction (2026-08-23, later the same day):** CAP-O07 moved ❌→✅, implemented and
+conformance-proven (T194–T205, full suite 205/205) in a separate concurrent session on direct
+owner request — see this file's own CAP-O07 status block above and `capability-registry.md`'s
+CAP-O07 row for the full build. The "CAP-O07 stays ❌" line two paragraphs up is kept as written
+per the append-don't-rewrite convention but is stale as of this correction: Study 32's
+group-sourced approver screen can now be built against the real `groups`/`group_members`
+mechanism directly.
 
 ---
 

@@ -10,8 +10,8 @@ package ui
 // delivery channel (no email infrastructure exists in this prototype),
 // just two ways of reading it. The toggle form posts to
 // /notifications/preference and redirects back here.
-templ Notifications(identity, csrfToken string, isAdmin bool, items []NotificationItem, groups []NotificationGroup, preference string, unreadCount int) {
-	@Page("Notifications", identity, csrfToken, isAdmin, unreadCount, nil) {
+templ Notifications(workspaceName, identity, csrfToken string, isAdmin bool, items []NotificationItem, groups []NotificationGroup, preference string, unreadCount int) {
+	@Page("Notifications", workspaceName, identity, csrfToken, isAdmin, unreadCount, nil) {
 		<div class="mx-auto max-w-xl">
 			<div class="mb-5 flex items-center gap-3">
 				<h1 class="flex-1 text-xl font-semibold text-slate-900">Notifications</h1>

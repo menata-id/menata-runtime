@@ -93,7 +93,7 @@ func (h *Handler) ImportCSVForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a := h.auth(r)
-	page := ui.ImportCSV(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, h.csvFieldIDs(machine), nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	page := ui.ImportCSV(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, h.csvFieldIDs(machine), nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render import form", "error", err)
 	}
@@ -203,7 +203,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.ImportCSV(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, h.csvFieldIDs(machine), results, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	page := ui.ImportCSV(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, h.csvFieldIDs(machine), results, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render import results", "error", err)
 	}

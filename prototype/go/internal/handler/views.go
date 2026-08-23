@@ -99,7 +99,7 @@ func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.Report(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, sumLabels, rows, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, model.ViewTypeReport))
+	page := ui.Report(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, sumLabels, rows, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, model.ViewTypeReport))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render report", "error", err)
 	}
@@ -150,7 +150,7 @@ func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view 
 	a := h.auth(r)
 	if view.Config.ResourceField == "" {
 		groups := groupByDate(records, view.Config.DateField, colIDs, cols)
-		page := ui.CalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, groups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, view.Type))
+		page := ui.CalendarTimeline(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, groups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, view.Type))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render calendar/timeline", "error", err)
 		}
@@ -200,7 +200,7 @@ func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view 
 		})
 	}
 
-	page := ui.ResourceCalendarTimeline(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, resGroups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, view.Type))
+	page := ui.ResourceCalendarTimeline(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, resGroups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, view.Type))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render resource calendar/timeline", "error", err)
 	}
@@ -312,7 +312,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.Dashboard(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), view.Name, tiles, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	page := ui.Dashboard(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), view.Name, tiles, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render dashboard", "error", err)
 	}
@@ -398,7 +398,7 @@ func (h *Handler) Board(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.Board(a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, view.Config.GroupField, cols, lanes, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, model.ViewTypeBoard))
+	page := ui.Board(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, view.Config.GroupField, cols, lanes, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, model.ViewTypeBoard))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render board", "error", err)
 	}
