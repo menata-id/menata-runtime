@@ -90,6 +90,8 @@ func Mount(r chi.Router, h *handler.Handler) {
 	r.Post("/{machineID}/{recordID}/events/{eventID}", h.TriggerEvent)
 	r.Post("/{machineID}/{recordID}/move/{direction}", h.MoveRecord) // CAP-V14
 	r.Post("/{machineID}/{recordID}/board-move", h.BoardMove)        // CAP-V14 Tier 2
+	r.Get("/{machineID}/{recordID}/place", h.CoordPlace)             // CAP-V21
+	r.Post("/{machineID}/{recordID}/place", h.SetCoordPlace)         // CAP-V21
 	r.Post("/{machineID}/{recordID}/archive", h.Archive)             // CAP-R03
 	r.Post("/{machineID}/{recordID}/restore", h.Restore)             // CAP-R03
 	r.Get("/{machineID}/export.csv", h.ExportCSV)                    // CAP-R06

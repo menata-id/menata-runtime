@@ -81,8 +81,14 @@ The "Final Signed Document" screen named above (✅ once CAP-F22 exists) is now 
 Step's Approve composites the acting approver's own registered Signature image onto the Document's
 current file (the original upload on the first approval, the previous approver's own output on
 every one after) at the coordinates declared on that Step. Full build notes:
-`capability-registry.md`'s CAP-F22 row. CAP-V20/CAP-V21 (this note's own two screens above) remain
-unbuilt — placement is set via plain `number` fields for now, not a drag-to-place UI.
+`capability-registry.md`'s CAP-F22 row.
+
+**CAP-V21 implemented 2026-08-29, same day** — conformance T209–T211, full suite 211/211, zero
+regressions. The Signature Placement screen this note's own §3 designed is now real: Approval
+Step's Detail page gains a "Set Position" link to a new `/{machineID}/{recordID}/place` page
+previewing the Document's PDF with a draggable pin, defaulting to center until moved. Full build
+notes: `capability-registry.md`'s CAP-V21 row. **CAP-V20** (the Decision screen's own stepper)
+remains unbuilt.
 
 ---
 

@@ -439,6 +439,36 @@ func validateReferences(workspaces []*model.Workspace) error {
 						}
 					}
 
+					// CAP-V21: reference_field must be a real `reference`
+					// Field on THIS machine; preview_field must name a real
+					// Field on whatever machine that reference points to
+					// (not necessarily `file` -- a workspace could legally
+					// preview any field's own value, though the UI only
+					// makes sense for one). page_field/x_field/y_field must
+					// each name a real Field on THIS machine.
+					if cp := v.Config.CoordPlacement; cp != nil {
+						refField, ok := fieldByID[cp.ReferenceField]
+						if !ok || refField.Type != model.FieldTypeReference {
+							return fmt.Errorf("view %s on machine %s: coord_placement.reference_field %q does not name a reference Field on this machine", v.ID, m.ID, cp.ReferenceField)
+						}
+						target, ok := machineByID[refField.Options.TargetMachine]
+						if !ok {
+							return fmt.Errorf("view %s on machine %s: coord_placement.reference_field %q targets an unknown machine", v.ID, m.ID, cp.ReferenceField)
+						}
+						targetFields := make(map[string]bool, len(target.Fields))
+						for _, tf := range target.Fields {
+							targetFields[tf.ID] = true
+						}
+						if !targetFields[cp.PreviewField] {
+							return fmt.Errorf("view %s on machine %s: coord_placement.preview_field %q does not name a Field on machine %s", v.ID, m.ID, cp.PreviewField, refField.Options.TargetMachine)
+						}
+						for label, fid := range map[string]string{"page_field": cp.PageField, "x_field": cp.XField, "y_field": cp.YField} {
+							if _, ok := fieldByID[fid]; !ok {
+								return fmt.Errorf("view %s on machine %s: coord_placement.%s %q does not name a Field on this machine", v.ID, m.ID, label, fid)
+							}
+						}
+					}
+
 					// CAP-V10: each dashboard section's machine must exist,
 					// and its group_field (if any) must be a real Field on
 					// THAT section's own machine.

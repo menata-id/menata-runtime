@@ -627,6 +627,15 @@ const (
 	// CAP-V14's own core (Up/Down buttons, still the accessible/keyboard
 	// fallback on the ordinary List view, untouched by this).
 	ViewTypeBoard ViewType = "board"
+	// ViewTypeCoordPlacement (CAP-V21) renders a preview of another
+	// Machine's own `file` field (a page image or PDF) with one draggable
+	// pin, writing (page, x%, y%) back to THIS record's own declared
+	// fields on drop -- not signature-specific, "mark a point on an image
+	// and store where" generically (capability-registry.md's CAP-V21 row).
+	// Read-only (no drag) whenever the acting role has no CanEdit on this
+	// Machine -- the same component covers both modes, no second View
+	// type or route.
+	ViewTypeCoordPlacement ViewType = "coord_placement"
 )
 
 // ViewConfig holds view-specific presentation configuration.
@@ -666,6 +675,27 @@ type ViewConfig struct {
 	// Lists" model: lanes are the Field's own fixed option set, not a
 	// second CRUD surface -- see capability-registry.md's CAP-V14 row.
 	GroupField string `json:"group_field,omitempty"`
+
+	// CoordPlacement (CAP-V21) configures a "coord_placement" View -- see
+	// CoordPlacementConfig's own doc comment.
+	CoordPlacement *CoordPlacementConfig `json:"coord_placement,omitempty"`
+}
+
+// CoordPlacementConfig (CAP-V21) declares a "coord_placement" View:
+// ReferenceField names a `reference` Field on THIS record pointing to
+// another record whose PreviewField (a `file` Field on that OTHER Machine)
+// is what gets shown -- served via the existing public /files/{key} route
+// (CAP-F06), no new file-serving mechanism. PageField/XField/YField name
+// three `number` Fields on THIS record that the pin's dropped position
+// writes to. All five are validated at load time to name real Fields (see
+// metadata/loader.go), same "Unknown = explicit" discipline as
+// ReportConfig/ChildLinesConfig.
+type CoordPlacementConfig struct {
+	ReferenceField string `json:"reference_field"`
+	PreviewField   string `json:"preview_field"`
+	PageField      string `json:"page_field"`
+	XField         string `json:"x_field"`
+	YField         string `json:"y_field"`
 }
 
 // ReportConfig (CAP-V13) declares a "report" View as a grouped aggregate

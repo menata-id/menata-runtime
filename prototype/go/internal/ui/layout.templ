@@ -139,6 +139,39 @@ templ Page(title, workspaceName, identity, csrfToken string, isAdmin bool, unrea
 						body: 'lane=' + encodeURIComponent(lane) + '&csrf_token=' + encodeURIComponent(board.dataset.boardCsrf)
 					}).then(function() { location.reload(); });
 				});
+				// CAP-V21: native HTML5 drag-and-drop for the
+				// coordinate-placement pin, same gesture/POST-then-reload
+				// shape as the board's own drag/drop above. Read-only mode
+				// renders the identical markup with no data-coordplace-*
+				// attributes at all, so these listeners naturally find
+				// nothing to act on -- not a second code path. The preview
+				// element itself carries pointer-events:none in editable
+				// mode (coordplace.templ) specifically so a drop anywhere
+				// over it still reaches .coordplace-preview here, not an
+				// embedded PDF viewer's own internal event handling.
+				document.addEventListener('dragstart', function(e) {
+					var pin = e.target.closest('.coordplace-pin');
+					if (!pin) return;
+					e.dataTransfer.setData('text/plain', 'pin');
+				});
+				document.addEventListener('dragover', function(e) {
+					if (e.target.closest('.coordplace-preview')) e.preventDefault();
+				});
+				document.addEventListener('drop', function(e) {
+					var wrap = e.target.closest('.coordplace-preview');
+					if (!wrap || !wrap.dataset.coordplaceMachine) return;
+					e.preventDefault();
+					var rect = wrap.getBoundingClientRect();
+					var x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+					var y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+					fetch('/' + wrap.dataset.coordplaceMachine + '/' + wrap.dataset.coordplaceRecord + '/place', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+						body: 'page=' + encodeURIComponent(wrap.dataset.coordplacePage) +
+							'&x=' + x.toFixed(2) + '&y=' + y.toFixed(2) +
+							'&csrf_token=' + encodeURIComponent(wrap.dataset.coordplaceCsrf)
+					}).then(function() { location.reload(); });
+				});
 			</script>
 		</body>
 	</html>

@@ -240,6 +240,9 @@ see `docs/decisions/007-conformance-suite-split.md`).
 | T206 | CAP-F22 | an approver registers their own Signature record (real image upload) |
 | T207 | CAP-F22 | approving a Step with a registered Signature composites a real new PDF onto the Document (byte-different, `%PDF` magic bytes) |
 | T208 | CAP-F22 | an Approver with no Signature record fails cleanly (500, consistent with every other cross-record action's own failure path), Step decision left Pending, not half-applied |
+| T209 | CAP-V21 | the assigned Approver reaches `/place` from Detail, sees a centered default pin, and a position write persists |
+| T210 | CAP-V21 | a same-role Approver who is NOT this Step's own sees the read-only variant (no drag markers), not a 403 or a crash |
+| T211 | CAP-V21 | a same-role Approver who is NOT this Step's own is denied POST `/place` outright, position unchanged |
 
 *(T178–T185 — CAP-W06 async outbox, CAP-X08 import — exist in `tests/070_action_outbox.sh`/
 `tests/080_metadata_import.sh` but predate this table catching up to them; not added by this

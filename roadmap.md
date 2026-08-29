@@ -2135,13 +2135,17 @@ isolated schema. Track G's own implementation step is done — no longer just un
 15. Governance-enforcement gap (Study 33's F5 — no CI-backed fitness functions, no second
     reviewer) needs no action now; re-examine only once #12 exists and/or this project gains a
     second contributor.
-16. ~~CAP-F22~~ (Document Approval PDF signature extension, Study 32) — ✅ **done (2026-08-29)**,
-    conformance T206–T208 (`conformance/tests/120_pdf_signature.sh`), full suite 208/208, zero
-    regressions. New `composite_pdf_signature` action type (`internal/executor/executor.go`),
-    `github.com/pdfcpu/pdfcpu` dependency, `seeds/035_pdf_signature_lab.sql`. Full build notes in
-    `capability-registry.md`'s CAP-F22 row. **CAP-V20/CAP-V21 remain ❌**, not attempted this
-    pass — coordinates are set via plain `number` form fields for now (same shape every other
-    `number` field already uses), no drag-to-place UI yet. Full gap analysis:
+16. ~~CAP-F22~~ ~~CAP-V21~~ (Document Approval PDF signature extension, Study 32) — **CAP-F22 done
+    (2026-08-29)**, conformance T206–T208 (`conformance/tests/120_pdf_signature.sh`), full suite
+    208/208, zero regressions. New `composite_pdf_signature` action type (`internal/executor/
+    executor.go`), `github.com/pdfcpu/pdfcpu` dependency, `seeds/035_pdf_signature_lab.sql`.
+    **CAP-V21 done, same day**, conformance T209–T211 (`conformance/tests/130_coord_placement.sh`),
+    full suite 211/211, zero regressions. New `coord_placement` View type
+    (`internal/handler/coordplace.go`, `internal/ui/coordplace.templ`), reusing CAP-V14 board's own
+    drag-and-drop JS pattern; found and closed a real authorization gap BoardMove's own precedent
+    never had to (per-record ownership on top of machine-level `CanEdit`). Full build notes in
+    `capability-registry.md`'s CAP-F22/CAP-V21 rows. **CAP-V20 remains ❌**, not attempted this
+    pass — the decision stepper, next in this sequence. Full gap analysis:
     `benchmarks/024-pdf-signature-approval-study.md`.
 17. **CAP-O08 (Application-declared mobile bottom navigation bar, Study 31)** — an owner-directed
     target (2026-08-23) with no roadmap mention until now (found during a 2026-08-29 documentation

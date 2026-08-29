@@ -342,6 +342,11 @@ func (i *Interpreter) BoardView(machineID string) *model.View {
 	return i.viewOfType(machineID, model.ViewTypeBoard)
 }
 
+// CoordPlacementView (CAP-V21) -- same "first View of this Type" lookup.
+func (i *Interpreter) CoordPlacementView(machineID string) *model.View {
+	return i.viewOfType(machineID, model.ViewTypeCoordPlacement)
+}
+
 func (i *Interpreter) viewOfType(machineID string, t model.ViewType) *model.View {
 	m, ok := i.machines[machineID]
 	if !ok {
