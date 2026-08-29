@@ -90,6 +90,7 @@ seed:
 	psql "$(DB_URL)" -f seeds/034_groups_lab.sql
 	psql "$(DB_URL)" -f seeds/035_pdf_signature_lab.sql
 	psql "$(DB_URL)" -f seeds/036_coord_placement_lab.sql
+	psql "$(DB_URL)" -f seeds/037_decision_stepper_lab.sql
 
 # The real test suite (there are no Go unit tests in this codebase -- every
 # capability's proof is here, per capability-registry.md's Proof column).

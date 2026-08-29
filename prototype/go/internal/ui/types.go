@@ -137,6 +137,30 @@ type DetailField struct {
 	SlaUrgency string // CAP-V17: "overdue" | "warning" | "ok", empty = not an SLA-badged field
 }
 
+// DetailLink is one extra action link a Detail page renders next to its
+// built-in Edit link, gated on some capability declaring a record-scoped
+// View for this Machine (e.g. CAP-V21's "Set Position", CAP-V20's "View
+// Progress") -- a generic slot rather than a new single-purpose parameter
+// on Detail's own signature per capability that wants one.
+type DetailLink struct {
+	Label string
+	URL   string
+}
+
+// StepperStep (CAP-V20) is one child record's own row on a decision
+// stepper. State is "done" | "current" | "pending" -- computed at render
+// time from the child's own decision field + the parent's approval mode,
+// never stored. Triggers is empty except on a "current" step the acting
+// identity can actually decide (PermittedEventsForRecord's own CAP-P02
+// ownership filter already applied before this is built).
+type StepperStep struct {
+	Label         string
+	State         string
+	Triggers      []EventTrigger
+	StepMachineID string
+	RecordID      string
+}
+
 // ChildList is a sub-list on a parent's detail page (CAP-V06): every record
 // on another Machine whose `reference` field points back to this one. Title
 // names both the source Machine and which Field references it, since Menata

@@ -707,6 +707,7 @@ INSERT INTO views (id, machine_id, name, type, position, config) VALUES
 | `dashboard` | `sections` (CAP-V10 ✅) | Array `{title, machine, group_field?}` — tiap section bisa dari Machine berbeda-beda, itu inti CAP-V10 dibanding `list`/`report` biasa yang cuma satu Machine |
 | `report` | `report: {machine, group_field, sum_fields}` (CAP-V13 ✅) | Rollup/group-by atas record Machine LAIN, dihitung saat render, tidak disimpan (mis. Trial Balance) |
 | `coord_placement` | `coord_placement: {reference_field, preview_field, page_field, x_field, y_field}` (CAP-V21 ✅, 2026-08-29) | Preview file (PDF atau gambar biasa) milik record LAIN yang dirujuk lewat `reference_field`, dengan satu pin yang bisa di-drag menulis `page_field`/`x_field`/`y_field` (persen posisi terhadap halaman) balik ke record INI sendiri saat dilepas. Tidak spesifik ke tanda tangan — generik untuk "tandai satu titik di gambar, simpan di mana" |
+| `decision_stepper` | `decision_stepper: {sequence_field, decision_field}` (CAP-V20 ✅, 2026-08-29) | Indikator progres done/current/pending atas child record Machine INI (dicari lewat `Machine.config.steps_machine`/`steps_parent_field` yang sudah ada, bukan key baru di `config` View ini), dengan tombol Approve/Reject asli pada step yang sedang `current`, di-scope ke identitas yang bertindak (reuse `PermittedEventsForRecord`, bukan mekanisme baru) |
 
 **Catatan (2026-08-29):** tabel ini juga belum mencakup `board` (CAP-V14 Tier 2), `document`
 (CAP-F21), dan `process_map` (CAP-W05) — ketiganya sudah ✅ sejak sebelum baris CAP-V21 ini

@@ -347,6 +347,11 @@ func (i *Interpreter) CoordPlacementView(machineID string) *model.View {
 	return i.viewOfType(machineID, model.ViewTypeCoordPlacement)
 }
 
+// DecisionStepperView (CAP-V20) -- same "first View of this Type" lookup.
+func (i *Interpreter) DecisionStepperView(machineID string) *model.View {
+	return i.viewOfType(machineID, model.ViewTypeDecisionStepper)
+}
+
 func (i *Interpreter) viewOfType(machineID string, t model.ViewType) *model.View {
 	m, ok := i.machines[machineID]
 	if !ok {

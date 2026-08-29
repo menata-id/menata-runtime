@@ -991,12 +991,18 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 			permittedEvents[i].Inputs = h.buildFormFieldsFor(r.Context(), machine, evt.InputFields, nil)
 		}
 	}
-	coordPlaceURL := "" // CAP-V21: only linked when this Machine declares one
-	if h.interp.Get().CoordPlacementView(machineID) != nil {
-		coordPlaceURL = "/" + machineID + "/" + recordID + "/place"
+	// Extra action links, each gated on this Machine declaring the
+	// relevant record-scoped View -- a generic slot (ui.DetailLink) rather
+	// than a new single-purpose parameter per capability.
+	var extraLinks []ui.DetailLink
+	if h.interp.Get().CoordPlacementView(machineID) != nil { // CAP-V21
+		extraLinks = append(extraLinks, ui.DetailLink{Label: "Set Position", URL: "/" + machineID + "/" + recordID + "/place"})
+	}
+	if h.interp.Get().DecisionStepperView(machineID) != nil { // CAP-V20
+		extraLinks = append(extraLinks, ui.DetailLink{Label: "View Progress", URL: "/" + machineID + "/" + recordID + "/progress"})
 	}
 	a := h.auth(r)
-	page := ui.Detail(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), coordPlaceURL)
+	page := ui.Detail(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), extraLinks)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render detail", "error", err)
 	}

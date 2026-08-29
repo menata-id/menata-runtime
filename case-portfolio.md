@@ -87,8 +87,13 @@ every one after) at the coordinates declared on that Step. Full build notes:
 regressions. The Signature Placement screen this note's own §3 designed is now real: Approval
 Step's Detail page gains a "Set Position" link to a new `/{machineID}/{recordID}/place` page
 previewing the Document's PDF with a draggable pin, defaulting to center until moved. Full build
-notes: `capability-registry.md`'s CAP-V21 row. **CAP-V20** (the Decision screen's own stepper)
-remains unbuilt.
+notes: `capability-registry.md`'s CAP-V21 row.
+
+**CAP-V20 implemented 2026-08-29, same session — Study 32's entire plan is now closed** (CAP-F22,
+CAP-V21, CAP-V20 all done). The Decision screen's own stepper is real: Approval Document's Detail
+page gains a "View Progress" link to `/{machineID}/{recordID}/progress`, an ordered done/current/
+pending list over its Steps with the current step's real Approve/Reject buttons inline, scoped to
+whoever actually owns that step. Full build notes: `capability-registry.md`'s CAP-V20 row.
 
 ---
 

@@ -636,6 +636,16 @@ const (
 	// Machine -- the same component covers both modes, no second View
 	// type or route.
 	ViewTypeCoordPlacement ViewType = "coord_placement"
+	// ViewTypeDecisionStepper (CAP-V20) renders an ordered done/current/
+	// pending progress indicator over THIS record's own child records
+	// (found via Machine.Config's existing steps_machine/steps_parent_
+	// field, CAP-X03 -- seeded since Case 3's original build but unread by
+	// any code until this), with the CURRENT child's own real Approve/
+	// Reject buttons -- reuses PermittedEventsForRecord and the existing
+	// event-trigger route verbatim, no new POST route or write mechanism.
+	// Purely presentational, same "computed at render time, no new
+	// metadata concept" precedent as CAP-V13/CAP-W05.
+	ViewTypeDecisionStepper ViewType = "decision_stepper"
 )
 
 // ViewConfig holds view-specific presentation configuration.
@@ -679,6 +689,22 @@ type ViewConfig struct {
 	// CoordPlacement (CAP-V21) configures a "coord_placement" View -- see
 	// CoordPlacementConfig's own doc comment.
 	CoordPlacement *CoordPlacementConfig `json:"coord_placement,omitempty"`
+
+	// DecisionStepper (CAP-V20) configures a "decision_stepper" View -- see
+	// DecisionStepperConfig's own doc comment.
+	DecisionStepper *DecisionStepperConfig `json:"decision_stepper,omitempty"`
+}
+
+// DecisionStepperConfig (CAP-V20) declares a "decision_stepper" View.
+// SequenceField/DecisionField name Fields on the CHILD machine (found via
+// THIS Machine's own Config["steps_machine"]/["steps_parent_field"], CAP-X03
+// -- not duplicated here since that's already how CAP-A07/A08's own
+// sequential-guard code locates a Document's Steps). SequenceField orders
+// the stepper; DecisionField's value ("Pending" vs anything else) drives
+// the done/current/pending state computed at render time.
+type DecisionStepperConfig struct {
+	SequenceField string `json:"sequence_field"`
+	DecisionField string `json:"decision_field"`
 }
 
 // CoordPlacementConfig (CAP-V21) declares a "coord_placement" View:

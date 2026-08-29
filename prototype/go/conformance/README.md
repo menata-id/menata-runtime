@@ -243,6 +243,10 @@ see `docs/decisions/007-conformance-suite-split.md`).
 | T209 | CAP-V21 | the assigned Approver reaches `/place` from Detail, sees a centered default pin, and a position write persists |
 | T210 | CAP-V21 | a same-role Approver who is NOT this Step's own sees the read-only variant (no drag markers), not a 403 or a crash |
 | T211 | CAP-V21 | a same-role Approver who is NOT this Step's own is denied POST `/place` outright, position unchanged |
+| T212 | CAP-V20 | Sequential initial state: Bob's own Current step has a real Approve button, Carol's still-Pending step has none (from her own view of the same page) |
+| T213 | CAP-V20 | approving through the stepper's own rendered button advances Step 1 to Done, Step 2 to Current |
+| T214 | CAP-V20 | once Step 2 becomes current, its real owner (Carol) sees her own Approve button appear |
+| T215 | CAP-V20 | Parallel: both Steps render Current simultaneously, no sequential gating |
 
 *(T178–T185 — CAP-W06 async outbox, CAP-X08 import — exist in `tests/070_action_outbox.sh`/
 `tests/080_metadata_import.sh` but predate this table catching up to them; not added by this

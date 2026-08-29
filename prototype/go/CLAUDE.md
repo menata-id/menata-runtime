@@ -253,6 +253,19 @@ match, since this isn't an event) — found by asking "could two different peopl
 role interfere with each other here?" before shipping, not after a report. Ask that question for
 any new record-scoped write that isn't a `triggerEvent` call.
 
+**Before adding a new write route for a View, check whether an existing one already covers it --
+`PermittedEventsForRecord` (`internal/interpreter/interpreter.go`) and `CanTrigger`
+(`internal/permission/guard.go`) are pure functions of `(machine, roles, identityID, ...)`, not
+tied to "the machine the current page's URL belongs to."** CAP-V20 (decision stepper) renders a
+PARENT record's page but needs to trigger events on CHILD records -- the instinct is to assume
+that needs a new POST route scoped to the parent. It doesn't: calling `PermittedEventsForRecord`
+for the CHILD's own machine ID from a handler whose URL param is the PARENT's machine works
+exactly the same as calling it from the child's own `Detail` handler, and the existing
+`POST /{machineID}/{recordID}/events/{eventID}` route (`TriggerEvent`) already accepts any
+machine/record pair with no coupling to which page rendered the button that posted to it. Ask
+"does an event/write route already exist for the record I actually need to mutate?" before
+scaffolding a new one scoped to the page doing the rendering.
+
 ## Local dev loop that actually works here
 
 Postgres runs locally in this environment already (`pg_isready`). `.env.example`'s
@@ -294,7 +307,7 @@ CAP-P05, CAP-R04, CAP-I04, CAP-O03, CAP-X02, CAP-O01, CAP-C05, CAP-C07, CAP-C12,
 CAP-A06, CAP-A09, CAP-A11, CAP-A12, CAP-A13, CAP-A14, CAP-A15, CAP-V05, CAP-V07, CAP-V08, CAP-V09,
 CAP-V10, CAP-V11, CAP-V12, CAP-V14, CAP-R03, CAP-R05, CAP-R06, CAP-R07, CAP-R08, CAP-P03, CAP-P04,
 CAP-P06, CAP-P07, CAP-E02, CAP-E03, CAP-E04, CAP-I01, CAP-I02, CAP-I03, CAP-I05, CAP-O02, CAP-O04,
-CAP-O05, CAP-O06, CAP-O07, CAP-F22, CAP-V21) was manually exercised end-to-end against a
+CAP-O05, CAP-O06, CAP-O07, CAP-F22, CAP-V21, CAP-V20) was manually exercised end-to-end against a
 real Postgres instance before its conformance test was written, and manual testing caught real bugs (a `Create`
 default-value rule hardcoded to fields named "Status" that silently broke Approval Step's
 "Decision" field; a conformance-helper missing a cookie parameter that made a test pass for the

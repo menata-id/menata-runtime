@@ -3,7 +3,7 @@ package ui
 import "menata.id/runtime/internal/model"
 import "menata.id/runtime/internal/store"
 
-templ Detail(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, fields []DetailField, permittedEvents []EventTrigger, childLists []ChildList, unreadCount int, subNav []SubNavLink, coordPlaceURL string) {
+templ Detail(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, fields []DetailField, permittedEvents []EventTrigger, childLists []ChildList, unreadCount int, subNav []SubNavLink, extraLinks []DetailLink) {
 	@Page(machine.Name + " — Detail", workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mx-auto max-w-2xl">
 			<div class="mb-5 flex items-center gap-3">
@@ -12,11 +12,11 @@ templ Detail(workspaceName, identity, csrfToken string, isAdmin bool, machine *m
 					class="text-sm text-slate-400 hover:text-slate-600 transition-colors"
 				>← Back</a>
 				<h1 class="flex-1 text-xl font-semibold text-slate-900">{ machine.Name }</h1>
-				if coordPlaceURL != "" {
+				for _, link := range extraLinks {
 					<a
-						href={ templ.SafeURL(coordPlaceURL) }
+						href={ templ.SafeURL(link.URL) }
 						class="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
-					>Set Position</a>
+					>{ link.Label }</a>
 				}
 				<a
 					href={ templ.SafeURL("/" + machine.ID + "/" + record.ID + "/edit") }
