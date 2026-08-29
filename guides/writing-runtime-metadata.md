@@ -350,6 +350,7 @@ dipicu dari state mana pun.
 | — | `batch_generate` | membuat N record sekaligus dari satu action, N dari field atau literal — CAP-A15, ✅ |
 | — (lihat §Machine `config`) | `activate_next` | `{"mode_field":"fld_*_approval_mode"}` — CAP-A07 |
 | — (lihat §Machine `config`) | `aggregate_status` | `{"parent_field":"fld_*_document","parent_event_if_all_approved":"evt_*","parent_event_if_any_rejected":"evt_*"}` — CAP-A08 |
+| — | `composite_pdf_signature` | `{"document_field","source_file_field","output_file_field","page_field","x_field","y_field","signature_machine","signature_owner_field","signature_image_field"}` — CAP-F22, ✅ diimplementasikan 2026-08-29. Membuka file PDF yang sudah di-upload (lewat `document_field`, reference ke record lain), menempelkan gambar tanda tangan milik user yang sedang bertindak (dicari di `signature_machine` lewat `signature_owner_field`) di koordinat `page_field`/`x_field`/`y_field` milik record INI sendiri, hasilnya ditulis ke `output_file_field` pada record yang dirujuk |
 
 Setiap action bisa dibungkus `if: {field, operator, value}` (CAP-A09, ✅) supaya hanya jalan kalau
 kondisi itu benar — beda dari `condition` di level Event (yang menentukan boleh-tidaknya Event
@@ -705,6 +706,13 @@ INSERT INTO views (id, machine_id, name, type, position, config) VALUES
 | `calendar`, `timeline` | `columns`, `date_field` (CAP-V07 ✅) | Record dikelompokkan/diurutkan berdasar `date_field` |
 | `dashboard` | `sections` (CAP-V10 ✅) | Array `{title, machine, group_field?}` — tiap section bisa dari Machine berbeda-beda, itu inti CAP-V10 dibanding `list`/`report` biasa yang cuma satu Machine |
 | `report` | `report: {machine, group_field, sum_fields}` (CAP-V13 ✅) | Rollup/group-by atas record Machine LAIN, dihitung saat render, tidak disimpan (mis. Trial Balance) |
+| `coord_placement` | `coord_placement: {reference_field, preview_field, page_field, x_field, y_field}` (CAP-V21 ✅, 2026-08-29) | Preview file (PDF atau gambar biasa) milik record LAIN yang dirujuk lewat `reference_field`, dengan satu pin yang bisa di-drag menulis `page_field`/`x_field`/`y_field` (persen posisi terhadap halaman) balik ke record INI sendiri saat dilepas. Tidak spesifik ke tanda tangan — generik untuk "tandai satu titik di gambar, simpan di mana" |
+
+**Catatan (2026-08-29):** tabel ini juga belum mencakup `board` (CAP-V14 Tier 2), `document`
+(CAP-F21), dan `process_map` (CAP-W05) — ketiganya sudah ✅ sejak sebelum baris CAP-V21 ini
+ditambahkan, gap dokumentasi yang sudah ada sebelum sesi ini, bukan hasil kerja CAP-F22/CAP-V21.
+Dicatat di sini sesuai disiplin "silence is not a decision", bukan diisi ulang sekarang — di luar
+scope kerjaan CAP-F22/CAP-V21.
 
 Pencarian bebas teks (`?q=`, CAP-V08 ✅) selalu tersedia di `list` tanpa config apa pun.
 

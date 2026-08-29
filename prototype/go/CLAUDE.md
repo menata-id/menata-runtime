@@ -213,6 +213,46 @@ trigger, not a hard rule: a file north of ~1,000 lines covering more than one cl
 concern is a candidate; read ADR-006/ADR-007's own Context sections for the file-length
 guidelines they surveyed before deciding whether a given file has actually crossed that line.
 
+**"Cross-record logic belongs in Handler, not Executor" is about needing the Interpreter, not
+about touching another record.** CAP-F22's `doCompositeSignature` looks up a different Machine's
+record (the Document, via a reference field) and scans a third Machine's records (Signature, by
+owner) — cross-record on its face, the same shape as `doAggregateStatus`/`doActivateNext` — but it
+lives in `internal/executor/executor.go`, not `internal/handler/events.go`. The real test is
+narrower than "does it touch another record": `doCrossSetField` already proved a cross-record
+*write* can live in Executor as long as it only needs `RecordStore` (`e.records.Get`/`.Update`),
+never `Interpreter` (to resolve another Machine's own field/event definitions). `doCompositeSignature`
+resolves its target fields from the event action's own declared params, not from Interpreter
+lookups, so it fits the same test — and staying in Executor means a failed composite aborts the
+whole `Persist` call within the *same* transaction (`workspaceTx` rolls back), instead of
+`doAggregateStatus`'s own post-commit-cascade shape. When adding a new cross-record action, ask
+"does this need Interpreter, or just RecordStore?" before defaulting it into Handler — the answer
+changes both which file it belongs in and what transactional guarantee it gets for free.
+
+**`Persist` didn't forward `actorIdentityID` until CAP-F22 needed it — check what identity form an
+action actually needs before trusting `actorIdentity` alone.** `doCreateRecord`/`doBatchGenerate`'s
+existing `current_user` dynamic-value resolution wants the acting person's display NAME
+(`actorIdentity`, e.g. "Bob") for a human-readable text field. A `user`-typed Field never stores a
+name — it stores the same UUID form as `fld_as_approver`/`fld_ad_submitted_by` (CAP-F05) — so
+comparing a `user` field's stored value against `actorIdentity` silently never matches. Caught live
+building CAP-F22 (`Executor.Persist` gained an `actorIdentityID` parameter specifically for this):
+a Signature lookup filtered by `Data[ownerField] == actorIdentity` always returned empty, and the
+resulting 500 had no server-side log to explain why (`TriggerEvent`'s own error branch just returns
+"event failed" — see this file's own `ruleViolation` note above). If a new action needs to compare
+against a `user`-typed field's value, it needs `actorIdentityID`, not `actorIdentity` — verify
+which one an action actually needs rather than assuming the one every existing action already uses.
+
+**`guard.CanEdit`/`CanRead`/`CanCreate` are machine-level only — a capability that needs
+per-record ownership on a plain field write (not an event trigger) has to add that check itself,
+the same way CAP-P02 already does for `CanTrigger`, just without an `eventID` to key off of.**
+`BoardMove`'s own `CanEdit` gate never needed this (a kanban lane has no "owner"), so copying its
+gate verbatim into a capability that DOES have one is a silent authorization gap, not a safe
+precedent to reuse as-is. CAP-V21's `coordPlaceOwnerOK` (`internal/handler/coordplace.go`) is the
+worked example: same `OwnerField` comparison `permission.Guard.CanTrigger` already does
+(`internal/permission/guard.go`), against a Permission row matched by role alone (no `eventID` to
+match, since this isn't an event) — found by asking "could two different people holding the same
+role interfere with each other here?" before shipping, not after a report. Ask that question for
+any new record-scoped write that isn't a `triggerEvent` call.
+
 ## Local dev loop that actually works here
 
 Postgres runs locally in this environment already (`pg_isready`). `.env.example`'s
@@ -254,7 +294,7 @@ CAP-P05, CAP-R04, CAP-I04, CAP-O03, CAP-X02, CAP-O01, CAP-C05, CAP-C07, CAP-C12,
 CAP-A06, CAP-A09, CAP-A11, CAP-A12, CAP-A13, CAP-A14, CAP-A15, CAP-V05, CAP-V07, CAP-V08, CAP-V09,
 CAP-V10, CAP-V11, CAP-V12, CAP-V14, CAP-R03, CAP-R05, CAP-R06, CAP-R07, CAP-R08, CAP-P03, CAP-P04,
 CAP-P06, CAP-P07, CAP-E02, CAP-E03, CAP-E04, CAP-I01, CAP-I02, CAP-I03, CAP-I05, CAP-O02, CAP-O04,
-CAP-O05, CAP-O06, CAP-O07) was manually exercised end-to-end against a
+CAP-O05, CAP-O06, CAP-O07, CAP-F22, CAP-V21) was manually exercised end-to-end against a
 real Postgres instance before its conformance test was written, and manual testing caught real bugs (a `Create`
 default-value rule hardcoded to fields named "Status" that silently broke Approval Step's
 "Decision" field; a conformance-helper missing a cookie parameter that made a test pass for the
