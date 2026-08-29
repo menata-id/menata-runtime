@@ -52,3 +52,16 @@ AS_ID="${AS_URL##*/}"
 CAROL_APPROVE_CODE=$(post_status "$BASE_URL/mch_approval_step/$AS_ID/events/evt_as_approve" "" "$CAROL")
 [ -n "$AS_ID" ] && [ "$CAROL_APPROVE_CODE" = "303" ]
 check T218 "CAP-F23" "a role-holder outside the Group can still be assigned via raw POST and still Approves normally (got $CAROL_APPROVE_CODE) -- the picker is UX-only, not a new authorization mechanism" $?
+
+# T219 -- migrations/024's UNIQUE(workspace_id, name), needed for a
+# reliable GetByName lookup, now rejects a duplicate Group name that used
+# to always succeed before this capability -- must surface as a real,
+# user-actionable 400, not an unexplained 500 (GroupStore.ErrDuplicateName,
+# internal/handler/admin.go's AdminCreateGroup). Caught live before this
+# test existed: the migration's own idempotency check wasn't schema-scoped
+# and silently no-opped on a fresh schema after running once anywhere else
+# -- see migrations/024_group_name_unique.sql's own comment.
+DUP_CODE=$(post_status "$BASE_URL/admin/groups" "name=Duplicate+Name+Check" "$FRANK")
+DUP_AGAIN_CODE=$(post_status "$BASE_URL/admin/groups" "name=Duplicate+Name+Check" "$FRANK")
+[ "$DUP_CODE" = "303" ] && [ "$DUP_AGAIN_CODE" = "400" ]
+check T219 "CAP-F23" "a duplicate Group name is rejected with a clean 400 (got $DUP_AGAIN_CODE), not an unhandled 500" $?

@@ -250,6 +250,7 @@ see `docs/decisions/007-conformance-suite-split.md`).
 | T216 | CAP-F23 | before the named Group exists, the Approver picker is unrestricted (graceful degrade) |
 | T217 | CAP-F23 | once the Group exists with only Bob as a member, the picker offers Bob but not Carol (who still holds the role directly) |
 | T218 | CAP-F23 | a role-holder outside the Group can still be assigned via raw POST and still Approves normally -- the picker is UX-only, not a new authorization mechanism |
+| T219 | CAP-F23 | a duplicate Group name is rejected with a clean 400, not an unhandled 500 (migrations/024's uniqueness constraint) |
 
 *(T178–T185 — CAP-W06 async outbox, CAP-X08 import — exist in `tests/070_action_outbox.sh`/
 `tests/080_metadata_import.sh` but predate this table catching up to them; not added by this

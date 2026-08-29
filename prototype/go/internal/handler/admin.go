@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"menata.id/runtime/internal/interpreter"
+	"menata.id/runtime/internal/store"
 	"menata.id/runtime/internal/ui"
 )
 
@@ -223,6 +225,14 @@ func (h *Handler) AdminCreateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := h.groups.Create(r.Context(), a.User.WorkspaceID, name); err != nil {
+		if errors.Is(err, store.ErrDuplicateName) {
+			// CAP-F23: migrations/024's uniqueness constraint (needed for
+			// a reliable name-based lookup) can now reject a name that
+			// used to always succeed -- a real, user-actionable 400, not
+			// an unexplained 500.
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		slog.Error("create group", "error", err)
 		http.Error(w, "failed to save", http.StatusInternalServerError)
 		return

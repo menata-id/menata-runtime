@@ -289,6 +289,22 @@ blocks specifically so `make migrate-up` is idempotent and safe to run against a
 partially-migrated database -- if something a registry row claims is ✅ doesn't seem to exist,
 check this before assuming the code is wrong.
 
+**A `DO $$ ... IF NOT EXISTS (SELECT ... FROM pg_constraint WHERE conname = '...') ... $$` guard is
+NOT schema-scoped just because the migration itself runs against one schema at a time --
+`conname` isn't unique across schemas, so this check can find a same-named constraint some OTHER
+schema already has and silently skip adding it here.** Caught live building CAP-F23's
+`migrations/024_group_name_unique.sql`: it "passed" (`DO`, no error) against a fresh isolated test
+schema while adding no constraint at all, because an earlier manual run against a different schema
+(this session's own pre-flight check against the shared dev database) had already created a
+same-named constraint there, and the unqualified `WHERE conname = '...'` matched that one instead.
+Fixed by joining `conrelid = '<table>'::regclass`, which resolves through the current
+`search_path` and so actually scopes the check to the schema the migration is running against.
+Every migration in this repo runs against many different schemas over its lifetime (a fresh
+isolated schema per verification pass, `menata_runtime`'s own persistent `public` schema) --
+any idempotency guard added to a migration going forward needs this same schema-qualification,
+not just the `IF NOT EXISTS`/`ADD COLUMN IF NOT EXISTS` forms Postgres already makes safe by
+default.
+
 ## Local dev loop that actually works here
 
 Postgres runs locally in this environment already (`pg_isready`). `.env.example`'s

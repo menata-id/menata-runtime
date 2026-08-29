@@ -2,11 +2,24 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// ErrDuplicateName is returned by Create when migrations/024's
+// UNIQUE(workspace_id, name) constraint rejects a name already used by
+// another Group in the same workspace -- CAP-F23 needs that uniqueness for
+// a reliable name-based lookup (GetByName), so the constraint can now
+// reject a Create that used to always succeed. Detected via the real
+// Postgres error code (23505 unique_violation), not a pre-check SELECT --
+// the same "atomic INSERT, never SELECT-then-INSERT" discipline CAP-X13's
+// webhook idempotency claim already established (a check-then-act pattern
+// races two near-simultaneous requests against each other).
+var ErrDuplicateName = errors.New("a group with that name already exists in this workspace")
 
 // Group is CAP-O07's intermediate role-assignment grouping (migrations/023)
 // -- an indirection between users and user_application_roles: assign a role
@@ -40,6 +53,10 @@ func (s *GroupStore) Create(ctx context.Context, workspaceID, name string) (*Gro
 		 RETURNING id, workspace_id, name, created_at`,
 		workspaceID, name).Scan(&g.ID, &g.WorkspaceID, &g.Name, &g.CreatedAt)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, ErrDuplicateName
+		}
 		return nil, fmt.Errorf("create group: %w", err)
 	}
 	return g, nil
