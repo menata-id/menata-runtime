@@ -7,7 +7,20 @@
 > as Definition-of-Done gates when each capability is implemented
 > (`capability-lifecycle.md` §3b).
 >
-> Status: v0.5 — partially implemented, real deployment | Created: 2026-07-04 | §2.1 refined 2026-07-05 (Study 15 sixth-pass: image/compression dual-path enforcement) | §2.5 refined 2026-07-10 (CAP-P07 public access breaks the identity-scoping premise — Case 13) | §0 Spoofing/Repudiation/Tampering/Information-Disclosure rows partly closed 2026-07-12 (CAP-P05, CAP-R04, CAP-I04) | §0 Spoofing row closed further 2026-07-12, same day (CAP-X02 real authentication + CSRF, CAP-O01 workspace identity/role registry, both now ✅) — see `prototype/go/docs/decisions/005-deployment-status.md` for the itemized status, this document remains the standard those items were checked against | §2.3 gained a timezone convention 2026-08-23 (UTC storage vs. display-timezone vs. operational-timezone split), a byproduct of CAP-X09's design-review closure
+> Status: v0.6 — §2.1–2.6/§2.8 Architecture rows corrected 2026-08-29 (Study 33,
+> `benchmarks/025-architecture-worldclass-audit.md`): they describe a field/action/view-type
+> registry seam as already built; it is not — see the correction notes inline below and
+> `prototype/go/docs/decisions/004-internal-package-architecture.md`'s own 2026-08-22 status
+> update, which this study confirms and quantifies rather than contradicts. Same study also names
+> §2.8's CI/fitness-function line as asserted but unevidenced (no CI pipeline exists in this repo
+> today). Previously v0.5 — partially implemented, real deployment | Created: 2026-07-04 | §2.1
+> refined 2026-07-05 (Study 15 sixth-pass: image/compression dual-path enforcement) | §2.5 refined
+> 2026-07-10 (CAP-P07 public access breaks the identity-scoping premise — Case 13) | §0
+> Spoofing/Repudiation/Tampering/Information-Disclosure rows partly closed 2026-07-12 (CAP-P05,
+> CAP-R04, CAP-I04) | §0 Spoofing row closed further 2026-07-12, same day (CAP-X02 real
+> authentication + CSRF, CAP-O01 workspace identity/role registry, both now ✅) — see
+> `prototype/go/docs/decisions/005-deployment-status.md` for the itemized status, this document
+> remains the standard those items were checked against | §2.3 gained a timezone convention 2026-08-23 (UTC storage vs. display-timezone vs. operational-timezone split), a byproduct of CAP-X09's design-review closure
 
 **External standards used as yardsticks:**
 
@@ -63,6 +76,19 @@ Rule: a synchronous request path may not contain a P4 operation — slow work is
 
 # 2. NFR profiles per capability area
 
+> **Correction (2026-08-29, Study 33, `benchmarks/025-architecture-worldclass-audit.md`):** the
+> Architecture bullets in §2.1, §2.3, §2.5, §2.6 below describe a registered-seam dispatch
+> mechanism (`fieldtype.Register(...)`-style) as the standing standard. In `prototype/go` as it
+> exists today, this seam was never built — field/action/view-type dispatch is still ordinary Go
+> `switch` statements in `internal/metadata/loader.go`, `internal/executor/executor.go`,
+> `internal/handler/*.go`, and `internal/ui/*`. This is not a new discovery — ADR-004's own
+> 2026-08-22 status update already says so — but this document's own Architecture bullets had
+> never been corrected to match. Read each "seam"/"registry" line below as the target this repo is
+> deliberately holding open (ADR-004 vs ADR-006's own recorded disagreement), not as a built gate
+> a capability is currently being checked against. Study 33 quantifies the cost of the gap: adding
+> one new field type today touches at minimum 3 files (`loader.go`, `model.go`, `ui/types.go`)
+> plus whichever executor/handler switch branches on it.
+
 ### 2.1 Field Types (CAP-F*)
 
 - **Security** — ASVS V5 (input validation), V12 (files). All field values validated server-side by *type* (number parses, date parses, value_list value ∈ declared set — currently unchecked!). `rich_text` sanitized on output (allow-list, never raw HTML). File uploads (F06): content-type sniffing not extension, size limits, stored outside webroot with generated names, served with `Content-Disposition`. **Image/compression policy (F06, Study 15 sixth-pass): the server MUST NOT trust that client-side compression happened** — it re-verifies the incoming file against the declared `options` (format, `max_dimension`) and re-applies the same pipeline if it doesn't already comply, exactly the same "client is advisory, server enforces" rule already applied to Constraints (CAP-C09). A client that skips or fails compression (unsupported browser, direct API call) must never be able to store an unprocessed file merely because it bypassed the widget. Reference fields (F13): target existence + *same-workspace* check at write time (IDOR via forged reference ID).
@@ -110,7 +136,7 @@ Rule: a synchronous request path may not contain a P4 operation — slow work is
 
 - **Security** — authn (X02): ASVS V2/V3 (session fixation, rotation, expiry, CSRF tokens on all state-changing requests). Metadata validation (X05) is the **injection firewall**: schema-validate + sanity-check all metadata at load; reject dangling refs, oversized configs, cross-workspace references. API (X07): same guard chokepoint as HTML, token auth, rate limits. Package import (X08): signed/checksummed packages, dry-run diff before apply — a metadata package is executable content (§0).
 - **Performance** — X11 cache: stampede-safe (singleflight), stale-while-revalidate acceptable, P5 budgets; X10 index reconciliation uses `CREATE INDEX CONCURRENTLY` only.
-- **Architecture** — versioned schema; RLS as isolation floor (ADR-003); fitness functions run in CI (Portal GA model).
+- **Architecture** — versioned schema; RLS as isolation floor (ADR-003); fitness functions run in CI (Portal GA model). **Correction (2026-08-29, Study 33):** no CI pipeline existed in this repo when this study ran (no `.github/workflows/`) — this line stated a standard with no evidence, measurement, or waiver behind it, the exact situation `capability-lifecycle.md` §3b says should block Supported status. **Closed same day**: not via GitHub Actions (this repo runs on a free GitHub plan with Actions minutes exhausted, owner instruction) but via a local pre-push git hook (`scripts/pre-push` + `prototype/go/scripts/local-ci.sh`) that runs the full conformance suite against a throwaway isolated schema before any push touching `prototype/go/` reaches `main` — same practical guarantee ("nothing broken reaches main"), no GitHub infrastructure required. See `prototype/go/DEVELOPMENT.md` step 9 for install and `benchmarks/025-architecture-worldclass-audit.md` for the full rationale.
 
 ### 2.9 Cross-Machine Integration (CAP-I*)
 

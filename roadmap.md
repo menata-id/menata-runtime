@@ -2097,6 +2097,33 @@ isolated schema. Track G's own implementation step is done — no longer just un
 9. CAP-X11 (Track A/#2) and remaining Prio-tagged items (Track E) opportunistically, no measured urgency
 10. Leave Track F alone until a real case names the need
 11. ~~Track G design-prototype pass~~ — ✅ done (Study 29, ADR-008, corrected by Study 30). ~~Track G (CAP-O03 Tier 3 implementation)~~ — ✅ done (T186–T188)
+12. ~~New (Study 33, 2026-08-29): add a CI gate~~ — ✅ done, same day, but **not** as GitHub
+    Actions: this repo runs on a free GitHub plan with Actions minutes already exhausted (owner
+    instruction, 2026-08-29), so the gate is a local git pre-push hook instead. `scripts/pre-push`
+    (repo root, tracked) diffs the push against `prototype/go/` and, only if it changed,
+    execs `prototype/go/scripts/local-ci.sh` — creates a throwaway isolated Postgres schema +
+    throwaway server port (never touches the shared dev database/port), runs
+    `migrate-up && seed && build`, boots the server, runs the full 205-test conformance suite, and
+    tears everything down on exit either way (schema dropped, server killed, any files the run
+    uploaded diffed out and removed — upload filenames are content-hashed, not schema-prefixed, so
+    this needed a before/after snapshot, not a name-pattern glob, to actually clean up). Verified
+    live: two consecutive fresh-schema runs, 205 passed / 0 failed each. Install step (`.git/hooks/`
+    isn't tracked): `cp scripts/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push`,
+    documented in `prototype/go/DEVELOPMENT.md` step 9. Escape hatches: `git push --no-verify` or
+    `SKIP_LOCAL_CI=1 git push`. **Same-session bonus finding**: building this surfaced a real bug
+    — `Makefile`'s `migrate-up` target was missing `migrations/023_groups.sql` (CAP-O07's own
+    migration), so a truly fresh `make migrate-up && make seed` would have failed before ever
+    reaching conformance. Fixed in the same commit as this gate.
+13. **New (Study 33): confirm whether `internal/handler/record_crud.go` (999 lines, one line under
+    ADR-006/007's own ~1,000-line split trigger) is still single-concern** — a read, not
+    necessarily a split.
+14. **New (Study 33), opportunistic: unit tests for the documented pure-function heuristics**
+    (`displayLabel`, `findFieldByName`, `findReferenceFieldTo`, CAP-A11 date-arithmetic helpers) —
+    fast feedback loop the 205-test conformance suite alone doesn't give them. Supplements, not
+    replaces, conformance.
+15. Governance-enforcement gap (Study 33's F5 — no CI-backed fitness functions, no second
+    reviewer) needs no action now; re-examine only once #12 exists and/or this project gains a
+    second contributor.
 
 ---
 
@@ -2139,6 +2166,37 @@ CAP-O07 row for the full build. The "CAP-O07 stays ❌" line two paragraphs up i
 per the append-don't-rewrite convention but is stale as of this correction: Study 32's
 group-sourced approver screen can now be built against the real `groups`/`group_members`
 mechanism directly.
+
+---
+
+## Study 33 — Architecture World-Class Benchmark & Structural Gap Audit (2026-08-29)
+
+Owner-requested audit: benchmark this repo's architecture against world-class concepts/best
+practice, and check for remaining gaps in `prototype/go`'s file/code structure. Full write-up:
+`benchmarks/025-architecture-worldclass-audit.md`. Not case-portfolio-driven — a direct self-audit
+of the implementation and governance docs against yardsticks this repo already claims
+(`architecture-benchmark.md`, `nfr-standards.md`'s ASVS/STRIDE/SRE/ISO-25010/Ford-fitness-function
+set), closest in kind to Study 22's CMMN construct audit.
+
+Two findings stand out. **(1)** No CI/CD pipeline exists anywhere in the repo — `nfr-standards.md`
+§2.8 states CI-run fitness functions as the standard (citing the same Portal GA precedent
+`capability-lifecycle.md` cites), but no `.github/workflows/` exists and all 205 conformance tests
+run manually. Unlike almost every other gap in this repo, this one had never been named in any
+document before this study. **(2)** `nfr-standards.md`'s own Architecture rows (§2.1–2.6, §2.8)
+described a field/action/view-type registry seam as already built; `ADR-004`'s 2026-08-22 status
+update already established it isn't (dispatch is still `switch`-based, ~90 capabilities in) —
+Study 33 quantifies the cost (a new field type touches 3+ files today) and corrects
+`nfr-standards.md` to stop contradicting ADR-004 instead of re-litigating the ADR-004/ADR-006 fork
+itself, which stays exactly where those two ADRs left it.
+
+Everything the study confirms is genuinely *not* a gap (package layering, SQL-injection surface,
+the CAP-X12 error-swallow bug class, security primitives, CAP-X10/X11's deliberate deferral) is
+recorded in the study's §4 — a self-audit that only lists problems is as misleading as one that
+lists none. No code changed and no new capability registered (a CI pipeline is a cross-cutting
+process concern, not a Grammar-area capability — fails admission test A3/A5). Remediation plan
+folded into this file's own "Recommended order for upcoming sessions" list above (items 12–15);
+`nfr-standards.md` and `ADR-004` each carry their own dated correction/status-update note pointing
+back to this study.
 
 ---
 

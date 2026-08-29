@@ -28,6 +28,21 @@ ADR named without the predicted pain. Kept on record rather than marked Rejected
 capability has yet demonstrated the registry indirection is actually needed, but none has
 demonstrated it never will be either.
 
+## Status update (2026-08-29, Study 33)
+
+`benchmarks/025-architecture-worldclass-audit.md`, an owner-requested world-class architecture
+audit, independently re-derived this same conclusion from the code rather than from this ADR's own
+text, and adds one number this ADR didn't have: dispatch surface is now 10 `switch`/`case` sites in
+`internal/executor/executor.go`, 24 across `internal/handler/*.go`, 2 in
+`internal/metadata/loader.go`, plus type-name branching in `internal/ui/*` — and a new `FieldType`
+today touches at least 3 files (`loader.go`, `model.go`, `ui/types.go`) plus whichever
+executor/handler switch branches on it. This is offered as a concrete trigger-condition candidate
+for a future re-read of this ADR (e.g. "a single new capability's switch-branch edits span N files"
+crossing some threshold), not as a decision to migrate now — the verdict above still holds. The
+same study also found `nfr-standards.md` §2.1–2.6/§2.8's Architecture rows had never been corrected
+to acknowledge this ADR's own finding; those rows now carry a 2026-08-29 correction note pointing
+back here instead of describing the seam as already built.
+
 ## Context
 
 The current `internal/` layout is flat — one package per concern (`config`, `constraint`, `db`,
