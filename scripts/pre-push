@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Repo-root git pre-push dispatcher -- the local, zero-cost CI gate (Study 33
+# remediation, see roadmap.md item 12 and
+# benchmarks/025-architecture-worldclass-audit.md). No GitHub Actions: this
+# repo runs on a free GitHub plan with Actions minutes exhausted, so the gate
+# runs entirely on this host instead, at push time.
+#
+# Only triggers prototype/go's conformance suite when a push actually touches
+# prototype/go/ -- no point spinning up Postgres + a throwaway server for a
+# docs-only push in a monorepo covering 7 prototypes.
+#
+# Install (this file is tracked; git's own hook slot is not, so it needs a
+# one-time copy after every fresh clone):
+#   cp scripts/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+#
+# Escape hatches: `git push --no-verify` (skips all hooks, standard git),
+# or `SKIP_LOCAL_CI=1 git push` (skips just this gate's logic, still runs
+# any other hook).
+
+set -euo pipefail
+
+if [ "${SKIP_LOCAL_CI:-}" = "1" ]; then
+  echo "pre-push: SKIP_LOCAL_CI=1 set, skipping local conformance gate"
+  exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+ZERO="0000000000000000000000000000000000000000"
+touches_go_prototype=false
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$ZERO" ] && continue   # deleting a ref, nothing to check
+  if [ "$remote_sha" = "$ZERO" ]; then
+    # new branch/ref on the remote -- no common history to diff against yet;
+    # fall back to this branch's merge-base with main (or, failing that, just
+    # be conservative and run the gate).
+    base="$(git merge-base main "$local_sha" 2>/dev/null || echo "")"
+  else
+    base="$remote_sha"
+  fi
+  if [ -z "$base" ] || ! git diff --quiet "$base" "$local_sha" -- prototype/go/ 2>/dev/null; then
+    touches_go_prototype=true
+  fi
+done
+
+if [ "$touches_go_prototype" = false ]; then
+  echo "pre-push: no changes under prototype/go/, skipping local conformance gate"
+  exit 0
+fi
+
+echo "pre-push: prototype/go/ changed -- running local conformance gate"
+echo "pre-push: (SKIP_LOCAL_CI=1 git push, or git push --no-verify, to bypass)"
+exec "$REPO_ROOT/prototype/go/scripts/local-ci.sh"

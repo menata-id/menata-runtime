@@ -91,6 +91,24 @@ make migrate-up
 make seed
 ```
 
+### 9. Install the local pre-push CI gate (2026-08-29, Study 33)
+
+No GitHub Actions here — this repo runs on a free GitHub plan with Actions minutes exhausted, so
+the "nothing broken reaches `main`" check runs locally instead, at push time, against a throwaway
+isolated Postgres schema + throwaway server port (never touches the database or port this
+prototype's own dev deployment uses). The gate script is tracked at `scripts/pre-push`
+(repo root); git's own hook slot (`.git/hooks/`) is not tracked, so it needs a one-time copy after
+every fresh clone:
+
+```bash
+cp scripts/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+```
+
+It only runs (`make local-ci` under the hood — see `prototype/go/scripts/local-ci.sh`) when a push
+actually touches `prototype/go/`; a docs-only push skips it. Bypass with `git push --no-verify`
+(standard git) or `SKIP_LOCAL_CI=1 git push` when you deliberately need to. Full rationale:
+`../../benchmarks/025-architecture-worldclass-audit.md`.
+
 ---
 
 ## Running the Prototype

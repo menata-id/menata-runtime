@@ -2,7 +2,7 @@ BINARY     = bin/server
 TEMPL      = $(shell go env GOPATH)/bin/templ
 DB_URL    ?= $(shell grep DATABASE_URL .env 2>/dev/null | cut -d= -f2-)
 
-.PHONY: build run dev generate build-css migrate-up migrate-rls-cutover seed conformance test
+.PHONY: build run dev generate build-css migrate-up migrate-rls-cutover seed conformance test local-ci
 
 build:
 	go build -o $(BINARY) ./cmd/server
@@ -43,6 +43,7 @@ migrate-up:
 	psql "$(DB_URL)" -f migrations/020_change_policy.sql
 	psql "$(DB_URL)" -f migrations/021_cross_record_check.sql
 	psql "$(DB_URL)" -f migrations/022_action_outbox.sql
+	psql "$(DB_URL)" -f migrations/023_groups.sql
 
 # CAP-X06 enforcement flip -- deliberately NOT part of migrate-up. Apply only
 # at final cutover, in the same deploy window as restarting with the binary
@@ -101,3 +102,13 @@ conformance:
 # Use `make conformance` for the real suite.
 test:
 	go test ./...
+
+# Local, zero-cost CI gate (Study 33 remediation, see ../../roadmap.md item 12
+# and ../../benchmarks/025-architecture-worldclass-audit.md) -- no GitHub
+# Actions involved. Runs the full migrate-up/seed/build/conformance cycle
+# against a throwaway isolated schema + throwaway server port, so it never
+# touches the shared dev database or the shared PORT=4000 dev deployment.
+# Wired as this repo's pre-push hook (see scripts/pre-push at repo root);
+# also runnable directly.
+local-ci:
+	./scripts/local-ci.sh
