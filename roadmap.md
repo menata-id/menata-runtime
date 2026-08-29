@@ -2114,9 +2114,20 @@ isolated schema. Track G's own implementation step is done — no longer just un
     — `Makefile`'s `migrate-up` target was missing `migrations/023_groups.sql` (CAP-O07's own
     migration), so a truly fresh `make migrate-up && make seed` would have failed before ever
     reaching conformance. Fixed in the same commit as this gate.
-13. **New (Study 33): confirm whether `internal/handler/record_crud.go` (999 lines, one line under
-    ADR-006/007's own ~1,000-line split trigger) is still single-concern** — a read, not
-    necessarily a split.
+13. ~~New (Study 33): confirm whether `internal/handler/record_crud.go` is still single-concern~~
+    — ✅ **checked 2026-08-29, no split needed.** All 12 functions in the file (`List`, `Archive`,
+    `Restore`, `setDeleted`, `MoveRecord`, `BoardMove`, `Document`, `NewForm`, `Create`,
+    `EditForm`, `Update`, `Detail`) still match exactly the one domain ADR-006 itself assigned to
+    this file — "Record List/Create/Update/Detail/Archive lifecycle" — which its own Decision
+    section already named as deliberately the package's single biggest domain file. Growth from
+    918 lines (at ADR-006's writing) to 999 today is `BoardMove` (CAP-V14 Tier 2 kanban), added
+    later but the same record-mutation concern family as the pre-existing `MoveRecord`, not
+    concern creep. Spot-checked `Create()` (the largest function, ~241 lines): its complexity is
+    inherent to record creation (permission guard, wizard-step handling, default-value
+    resolution), and it correctly delegates to `formfields.go`/`permission` rather than
+    duplicating their logic inline. Neither of ADR-006/007's two split conditions (>~1,000 lines
+    AND more than one separable concern) holds — no action taken. Worth a re-check if this file
+    grows again; it's the closest file in the package to the threshold.
 14. **New (Study 33), opportunistic: unit tests for the documented pure-function heuristics**
     (`displayLabel`, `findFieldByName`, `findReferenceFieldTo`, CAP-A11 date-arithmetic helpers) —
     fast feedback loop the 205-test conformance suite alone doesn't give them. Supplements, not
