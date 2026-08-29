@@ -2124,6 +2124,17 @@ isolated schema. Track G's own implementation step is done — no longer just un
 15. Governance-enforcement gap (Study 33's F5 — no CI-backed fitness functions, no second
     reviewer) needs no action now; re-examine only once #12 exists and/or this project gains a
     second contributor.
+16. **CAP-F22/CAP-V20/CAP-V21 (Document Approval PDF signature extension, Study 32)** — admitted
+    ❌ Proposed, not yet built. Previously named only in the Study 32 narrative above, not in this
+    checklist — added here (2026-08-29) so it doesn't fall out of view. CAP-F22 (PDF compositing)
+    first, since it can ship against today's flat approver picker; CAP-V21 (coordinate-placement
+    editor) and CAP-V20 (decision stepper) after. Full gap analysis:
+    `benchmarks/024-pdf-signature-approval-study.md`.
+17. **CAP-O08 (Application-declared mobile bottom navigation bar, Study 31)** — an owner-directed
+    target (2026-08-23) with no roadmap mention until now (found during a 2026-08-29 documentation
+    consistency check). Its own registry row already gates it correctly: "needs a real case... none
+    has asked for it yet" — no action implied by adding it here, this only makes the existing gate
+    visible in this checklist instead of only in `capability-registry.md`.
 
 ---
 
