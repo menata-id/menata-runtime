@@ -427,6 +427,12 @@ const (
 	ActionTriggerEvent    ActionType = "trigger_event"    // CAP-E05
 	ActionCrossSetField   ActionType = "cross_set_field"  // CAP-A13
 	ActionBatchGenerate   ActionType = "batch_generate"   // CAP-A15
+
+	// ActionCompositeSignature (CAP-F22): opens an existing uploaded PDF
+	// (or the previously-composited output, if a prior approval already
+	// produced one) and stamps a signature image onto it at declared
+	// (page, x%, y%) coordinates, writing the result as a new stored file.
+	ActionCompositeSignature ActionType = "composite_pdf_signature" // CAP-F22
 )
 
 // Constraint is a business rule enforced before an event is accepted.

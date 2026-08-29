@@ -4,17 +4,28 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
+	pdfapi "github.com/pdfcpu/pdfcpu/pkg/api"
 
+	"menata.id/runtime/internal/auth"
 	"menata.id/runtime/internal/constraint"
 	"menata.id/runtime/internal/model"
 	"menata.id/runtime/internal/store"
 )
+
+// uploadsDir mirrors internal/handler/upload.go's own constant of the same
+// name and value. Duplicated, not imported, deliberately: internal/handler
+// already imports internal/executor (for Persist/Simulate), so the reverse
+// import would be a cycle. One string constant is a small enough price for
+// keeping Executor's existing zero-dependency-on-handler property intact.
+const uploadsDir = "uploads"
 
 type Executor struct {
 	records *store.RecordStore
@@ -288,7 +299,7 @@ func actorLabel(actorRole, actorIdentity string) string {
 // failure -- the caller's non-2xx response is what makes workspaceTx's
 // deferred Rollback discard everything, restoring true all-or-nothing
 // semantics across every Machine an event's actions touch.
-func (e *Executor) Persist(ctx context.Context, machine *model.Machine, event *model.Event, record *store.Record, newData map[string]any, machineName, actorRole, actorIdentity, workspaceID string, holidays map[string]bool) error {
+func (e *Executor) Persist(ctx context.Context, machine *model.Machine, event *model.Event, record *store.Record, newData map[string]any, machineName, actorRole, actorIdentity, actorIdentityID, workspaceID string, holidays map[string]bool) error {
 	snapshot := record.Data
 
 	for _, action := range event.Actions {
@@ -312,6 +323,11 @@ func (e *Executor) Persist(ctx context.Context, machine *model.Machine, event *m
 		case model.ActionBatchGenerate:
 			if err := e.doBatchGenerate(ctx, action, newData, actorRole, actorIdentity, workspaceID, holidays); err != nil {
 				return fmt.Errorf("batch_generate action: %w", err)
+			}
+
+		case model.ActionCompositeSignature:
+			if err := e.doCompositeSignature(ctx, action, newData, actorIdentityID); err != nil {
+				return fmt.Errorf("composite_pdf_signature action: %w", err)
 			}
 		}
 	}
@@ -482,6 +498,182 @@ func (e *Executor) doBatchGenerate(ctx context.Context, action *model.EventActio
 		if _, err := e.records.Create(ctx, targetMachine, workspaceID, data); err != nil {
 			return fmt.Errorf("target machine %s, instance %d: %w", targetMachine, i, err)
 		}
+	}
+	return nil
+}
+
+// toFloat mirrors internal/handler/handler.go's own helper of the same name
+// (private to that package, so not importable here) -- tolerant parse of a
+// number field's data-map value, whether it decoded as JSON float64 or
+// arrived as a form-submitted string.
+func toFloat(v any) float64 {
+	f, _ := strconv.ParseFloat(fmt.Sprintf("%v", v), 64)
+	return f
+}
+
+// isEmptyValue reports whether a data-map value represents "not provided" --
+// nil, or the string it stringifies to being empty or literally "<nil>".
+func isEmptyValue(v any) bool {
+	if v == nil {
+		return true
+	}
+	s := fmt.Sprintf("%v", v)
+	return s == "" || s == "<nil>"
+}
+
+// doCompositeSignature implements CAP-F22: params {"document_field",
+// "source_file_field", "output_file_field", "page_field", "x_field",
+// "y_field", "signature_machine", "signature_owner_field",
+// "signature_image_field"} -- opens the target Document's current file (a
+// prior composite if one already exists on output_file_field, else its
+// original upload on source_file_field), stamps the acting approver's own
+// Signature.Image onto the declared page at (x%, y%) of that page's own
+// dimensions, and writes the result back as a new stored file. Percentage
+// coordinates, not absolute points, so a placement made against one render
+// stays correct regardless of viewport (benchmarks/024-pdf-signature-
+// approval-study.md §4.2). A Step with no placement declared at all (every
+// pre-existing Case 3 flow, since these fields are optional -- see
+// seeds/035_pdf_signature_lab.sql's own note on why they aren't
+// constraint-required) is a deliberate no-op, not an error.
+//
+// actorIdentityID, not actorIdentity (the display name) -- Signature.Owner
+// is a `user` field, which stores the same UUID form as every other `user`
+// field in this codebase (fld_as_approver, fld_ad_submitted_by), never a
+// name. Persist forwards actorIdentityID specifically for this comparison.
+//
+// Like doCrossSetField, this is a trusted-metadata action -- the target
+// Document isn't re-validated against its own Constraints. A failure here
+// (no Signature record for this approver, missing/corrupt PDF) returns a
+// plain error, which surfaces as 500 today, the same as every other
+// cross-record action's own failure path (doCreateRecord/doCrossSetField/
+// doBatchGenerate already behave this way) -- not special-cased into a 400,
+// since the `ruleViolation` type that would give is private to package
+// handler and reachable only from there; reclassifying action-level
+// failures as business-rule rejections is a change belonging to all four
+// actions together, not something to carve out for this one alone.
+//
+// Concurrency (Parallel mode): two Approve requests racing on the SAME
+// Document's output field is a real, accepted lost-update window, named but
+// not solved by the study this implements. Sequential mode's existing
+// hard-block guard already serializes Approves, so this only matters for
+// Parallel; no RecordStore method anywhere in this codebase does a locked
+// read today (checked before writing this), so adding one here would be new
+// plumbing beyond CAP-F22's own scope.
+func (e *Executor) doCompositeSignature(ctx context.Context, action *model.EventAction, sourceData map[string]any, actorIdentityID string) error {
+	documentField, _ := action.Params["document_field"].(string)
+	sourceFileField, _ := action.Params["source_file_field"].(string)
+	outputFileField, _ := action.Params["output_file_field"].(string)
+	pageField, _ := action.Params["page_field"].(string)
+	xField, _ := action.Params["x_field"].(string)
+	yField, _ := action.Params["y_field"].(string)
+	sigMachine, _ := action.Params["signature_machine"].(string)
+	sigOwnerField, _ := action.Params["signature_owner_field"].(string)
+	sigImageField, _ := action.Params["signature_image_field"].(string)
+	if documentField == "" || sourceFileField == "" || outputFileField == "" ||
+		sigMachine == "" || sigOwnerField == "" || sigImageField == "" {
+		return nil
+	}
+
+	// No placement declared on this Step -- CAP-F22 doesn't apply. Approval
+	// Step is a pre-existing Machine (CAP-F13/A07/A08 since 2026-07-11) that
+	// older Case 3 flows create Steps against with no signature fields at
+	// all; those must keep approving exactly as before, not fail because a
+	// capability they never opted into can't find data that was never
+	// theirs to provide.
+	if isEmptyValue(sourceData[pageField]) && isEmptyValue(sourceData[xField]) && isEmptyValue(sourceData[yField]) {
+		return nil
+	}
+
+	documentID := fmt.Sprintf("%v", sourceData[documentField])
+	if documentID == "" || documentID == "<nil>" {
+		return nil
+	}
+	documentRecord, err := e.records.Get(ctx, documentID)
+	if err != nil {
+		return fmt.Errorf("target document %s: %w", documentID, err)
+	}
+
+	srcKey, _ := documentRecord.Data[outputFileField].(string)
+	if srcKey == "" {
+		srcKey, _ = documentRecord.Data[sourceFileField].(string)
+	}
+	if srcKey == "" {
+		return fmt.Errorf("document %s has no source file to composite onto", documentID)
+	}
+
+	// The acting approver's own Signature.Image -- an ordinary CAP-F13-style
+	// lookup, filtered by owner instead of joined via a reference field
+	// (Signature has no reverse link from Approval Step).
+	sigRecords, err := e.records.List(ctx, sigMachine, "", "")
+	if err != nil {
+		return fmt.Errorf("signature lookup: %w", err)
+	}
+	var sigImageKey string
+	for _, sig := range sigRecords {
+		if owner, _ := sig.Data[sigOwnerField].(string); owner == actorIdentityID {
+			sigImageKey, _ = sig.Data[sigImageField].(string)
+			break
+		}
+	}
+	if sigImageKey == "" {
+		return fmt.Errorf("no Signature record found for %s", actorIdentityID)
+	}
+
+	page := int(toFloat(sourceData[pageField]))
+	if page < 1 {
+		page = 1
+	}
+	xPct := toFloat(sourceData[xField])
+	yPct := toFloat(sourceData[yField])
+
+	srcPath := filepath.Join(uploadsDir, srcKey)
+	sigPath := filepath.Join(uploadsDir, sigImageKey)
+
+	dims, err := pdfapi.PageDimsFile(srcPath)
+	if err != nil {
+		return fmt.Errorf("read PDF %s: %w", srcKey, err)
+	}
+	if page > len(dims) {
+		page = len(dims)
+	}
+	if page < 1 {
+		return fmt.Errorf("PDF %s has no pages", srcKey)
+	}
+	d := dims[page-1]
+	dx := d.Width * xPct / 100
+	dy := d.Height * yPct / 100
+
+	sigFile, err := os.Open(sigPath)
+	if err != nil {
+		return fmt.Errorf("open signature image %s: %w", sigImageKey, err)
+	}
+	defer sigFile.Close()
+
+	token, err := auth.NewToken()
+	if err != nil {
+		return fmt.Errorf("generate output key: %w", err)
+	}
+	outKey := token + ".pdf"
+	outPath := filepath.Join(uploadsDir, outKey)
+
+	// pos:bl anchors the offset to the page's bottom-left corner, matching
+	// PDF user-space origin -- so dx/dy computed straight from percentage *
+	// page dimension lands exactly where a top-down design tool's own
+	// coordinate math expects, once CAP-V21 exists to set it interactively.
+	// scale:0.2 abs is a fixed placeholder stamp size -- not declared
+	// anywhere in the study, no case has asked for it to be configurable.
+	desc := fmt.Sprintf("pos:bl, off:%.2f %.2f, scale:0.2 abs", dx, dy)
+	if err := pdfapi.AddImageWatermarksForReaderFile(srcPath, outPath, []string{strconv.Itoa(page)}, true, sigFile, desc, nil); err != nil {
+		return fmt.Errorf("composite signature onto %s: %w", srcKey, err)
+	}
+
+	newData := make(map[string]any, len(documentRecord.Data))
+	for k, v := range documentRecord.Data {
+		newData[k] = v
+	}
+	newData[outputFileField] = outKey
+	if err := e.records.Update(ctx, documentID, newData); err != nil {
+		return fmt.Errorf("target document %s: %w", documentID, err)
 	}
 	return nil
 }

@@ -318,7 +318,7 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 		return &ruleViolation{strings.Join(crossViolations, " ")}
 	}
 
-	if err := h.exec.Persist(ctx, machine, event, rec, newData, machine.Name, actorRole, actorIdentity, workspaceID, holidays); err != nil {
+	if err := h.exec.Persist(ctx, machine, event, rec, newData, machine.Name, actorRole, actorIdentity, actorIdentityID, workspaceID, holidays); err != nil {
 		return err
 	}
 

@@ -237,6 +237,9 @@ see `docs/decisions/007-conformance-suite-split.md`).
 | T203 | CAP-O07 | `notify(role=...)` (CAP-A03) reaches a user who holds that role only via Group membership |
 | T204 | CAP-O07 | (setup) a second record exists, still eligible, before the revocation check below |
 | T205 | CAP-O07 | removing a member from a Group revokes its granted role immediately, no restart |
+| T206 | CAP-F22 | an approver registers their own Signature record (real image upload) |
+| T207 | CAP-F22 | approving a Step with a registered Signature composites a real new PDF onto the Document (byte-different, `%PDF` magic bytes) |
+| T208 | CAP-F22 | an Approver with no Signature record fails cleanly (500, consistent with every other cross-record action's own failure path), Step decision left Pending, not half-applied |
 
 *(T178–T185 — CAP-W06 async outbox, CAP-X08 import — exist in `tests/070_action_outbox.sh`/
 `tests/080_metadata_import.sh` but predate this table catching up to them; not added by this

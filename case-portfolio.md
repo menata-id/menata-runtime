@@ -76,6 +76,14 @@ gaps — **CAP-V20** (sequential decision stepper — a Study 29 design sketch t
 given a registry row until now) and **CAP-V21** (coordinate-placement editor, the signature-pin
 screen itself). Full reasoning in Study 32 §5.
 
+**CAP-F22 implemented 2026-08-29** — conformance T206–T208, full suite 208/208, zero regressions.
+The "Final Signed Document" screen named above (✅ once CAP-F22 exists) is now real: a Sequential
+Step's Approve composites the acting approver's own registered Signature image onto the Document's
+current file (the original upload on the first approval, the previous approver's own output on
+every one after) at the coordinates declared on that Step. Full build notes:
+`capability-registry.md`'s CAP-F22 row. CAP-V20/CAP-V21 (this note's own two screens above) remain
+unbuilt — placement is set via plain `number` fields for now, not a drag-to-place UI.
+
 ---
 
 # Case 4 — Maintenance Reminder (target declaration)
