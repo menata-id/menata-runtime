@@ -79,6 +79,23 @@ func (s *GroupStore) GetByID(ctx context.Context, id string) (*Group, error) {
 	return g, nil
 }
 
+// GetByName (CAP-F23) looks up a Group by its own name, not id -- metadata
+// (a Field's options) has no way to know a Group's DB-generated UUID ahead
+// of time the way it can hand-pick a Machine/Field's own string id, so a
+// group-restricted picker has to resolve by name at request time instead.
+// Relies on migrations/024's UNIQUE(workspace_id, name) to make this a
+// real lookup, not a "first of several" guess.
+func (s *GroupStore) GetByName(ctx context.Context, workspaceID, name string) (*Group, error) {
+	g := &Group{}
+	err := s.db(ctx).QueryRow(ctx,
+		`SELECT id, workspace_id, name, created_at FROM groups WHERE workspace_id = $1 AND name = $2`,
+		workspaceID, name).Scan(&g.ID, &g.WorkspaceID, &g.Name, &g.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return g, nil
+}
+
 // MemberIDs returns every user id currently in groupID -- the admin edit
 // page's own "who's checked" state.
 func (s *GroupStore) MemberIDs(ctx context.Context, groupID string) (map[string]bool, error) {

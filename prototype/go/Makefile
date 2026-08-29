@@ -44,6 +44,7 @@ migrate-up:
 	psql "$(DB_URL)" -f migrations/021_cross_record_check.sql
 	psql "$(DB_URL)" -f migrations/022_action_outbox.sql
 	psql "$(DB_URL)" -f migrations/023_groups.sql
+	psql "$(DB_URL)" -f migrations/024_group_name_unique.sql
 
 # CAP-X06 enforcement flip -- deliberately NOT part of migrate-up. Apply only
 # at final cutover, in the same deploy window as restarting with the binary
@@ -91,6 +92,7 @@ seed:
 	psql "$(DB_URL)" -f seeds/035_pdf_signature_lab.sql
 	psql "$(DB_URL)" -f seeds/036_coord_placement_lab.sql
 	psql "$(DB_URL)" -f seeds/037_decision_stepper_lab.sql
+	psql "$(DB_URL)" -f seeds/038_group_approver_lab.sql
 
 # The real test suite (there are no Go unit tests in this codebase -- every
 # capability's proof is here, per capability-registry.md's Proof column).

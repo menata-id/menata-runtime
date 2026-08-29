@@ -69,6 +69,14 @@ conformance-proven (T194–T205) in a separate concurrent session — see `capab
 CAP-O07 row. `SignaturePlacement.dc.html`'s group-sourced approver list can now be built against
 the real `groups`/`group_members` mechanism directly, not just a future one.
 
+**Correction (2026-08-29, six days later)**: the line above overclaimed. Verified this session,
+directly with the owner: CAP-O07 builds *who holds a role via group membership* (a permission
+concern — `GroupStore.RolesForUser`) — it does not, on its own, narrow a `user` Field's own
+candidate *picker* to a Group's members (a rendering/query-scoping concern). Different mechanisms;
+having CAP-O07 didn't actually give this note's own claim for free. The real gap was admitted and
+closed as **CAP-F23** (see below and `capability-registry.md`'s own row) the same day this
+correction was written.
+
 **Same-day views-configurability check**: two of the four screens are already fully declarable
 via today's `views` metadata (plain `form`, and `detail` over an ordinary `file` field once
 CAP-F22 exists); the other two are not, registering two more previously-untracked View-type
@@ -89,11 +97,21 @@ Step's Detail page gains a "Set Position" link to a new `/{machineID}/{recordID}
 previewing the Document's PDF with a draggable pin, defaulting to center until moved. Full build
 notes: `capability-registry.md`'s CAP-V21 row.
 
-**CAP-V20 implemented 2026-08-29, same session — Study 32's entire plan is now closed** (CAP-F22,
-CAP-V21, CAP-V20 all done). The Decision screen's own stepper is real: Approval Document's Detail
-page gains a "View Progress" link to `/{machineID}/{recordID}/progress`, an ordered done/current/
-pending list over its Steps with the current step's real Approve/Reject buttons inline, scoped to
-whoever actually owns that step. Full build notes: `capability-registry.md`'s CAP-V20 row.
+**CAP-V20 implemented 2026-08-29, same session — Study 32's own capability list is now closed**
+(CAP-F22, CAP-V21, CAP-V20 all done). The Decision screen's own stepper is real: Approval
+Document's Detail page gains a "View Progress" link to `/{machineID}/{recordID}/progress`, an
+ordered done/current/pending list over its Steps with the current step's real Approve/Reject
+buttons inline, scoped to whoever actually owns that step. Full build notes:
+`capability-registry.md`'s CAP-V20 row.
+
+**CAP-F23 implemented 2026-08-29, same day — Case 3 is now actually closed against Study 32's
+original business requirement**, not just its own narrowed capability list. The "approvers are
+drawn from a work group" line at the top of this note was real and had never been built (see the
+correction above, this same file). Approval Step's `fld_as_approver` field now declares
+`{"restrict_to_group":"Document Approvers"}`; its picker offers only that Group's own members,
+by intersection with the Approver role it already required — not a new authorization mechanism,
+the existing role/ownership check at Approve time is completely unchanged. Full build notes and
+admission reasoning: `capability-registry.md`'s CAP-F23 row.
 
 ---
 

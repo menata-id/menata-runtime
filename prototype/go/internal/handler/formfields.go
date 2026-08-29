@@ -92,7 +92,7 @@ func (h *Handler) buildFormFieldsFor(ctx context.Context, machine *model.Machine
 		case model.FieldTypeReference:
 			opts = h.referenceOptions(ctx, f.Options.TargetMachine)
 		case model.FieldTypeUser:
-			opts = h.userFieldOptions(ctx, machine.ApplicationID)
+			opts = h.userFieldOptions(ctx, machine.ID, machine.ApplicationID, f.Options.RestrictToGroup)
 		}
 		ff := ui.FormField{Field: f, Name: f.ID, Value: val, Options: opts}
 		if (f.Type == model.FieldTypeReference || f.Type == model.FieldTypeUser) && len(opts) > typeaheadThreshold {
@@ -175,7 +175,7 @@ func (h *Handler) buildChildLinesData(ctx context.Context, machine *model.Machin
 			case model.FieldTypeReference:
 				opts = h.referenceOptions(ctx, f.Options.TargetMachine)
 			case model.FieldTypeUser:
-				opts = h.userFieldOptions(ctx, childMachine.ApplicationID)
+				opts = h.userFieldOptions(ctx, childMachine.ID, childMachine.ApplicationID, f.Options.RestrictToGroup)
 			}
 			row = append(row, ui.FormField{Field: f, Name: childRowName(i, fid), Options: opts})
 		}
@@ -387,7 +387,7 @@ func (h *Handler) FieldOptions(w http.ResponseWriter, r *http.Request) {
 	case model.FieldTypeReference:
 		opts = h.referenceOptions(r.Context(), f.Options.TargetMachine)
 	case model.FieldTypeUser:
-		opts = h.userFieldOptions(r.Context(), applicationID)
+		opts = h.userFieldOptions(r.Context(), machineID, applicationID, f.Options.RestrictToGroup)
 	default:
 		http.NotFound(w, r)
 		return
@@ -423,14 +423,41 @@ func (h *Handler) referenceLabel(ctx context.Context, targetMachineID, recordID 
 // Application (UserStore.ListForApplicationRole), the CAP-O01-derived
 // query-time filter this capability's own design settled on rather than a
 // new metadata concept (see benchmarks/007-user-role-management-survey.md).
-func (h *Handler) userFieldOptions(ctx context.Context, applicationID string) []ui.ReferenceOption {
+//
+// restrictToGroup (CAP-F23) narrows that same list further, by
+// INTERSECTION not replacement: a candidate must both hold the role AND
+// be a member of the named Group. Picking a group member with no role
+// would create a Step no one could ever legally approve (perm_as_approver's
+// own role check rejects them at Approve time regardless of what the
+// picker offered), so the intersection is a correctness safeguard, not
+// just narrower UX. An empty restrictToGroup, or a name that resolves to
+// no real Group, is the unrestricted list unchanged -- see FieldOptions.
+// RestrictToGroup's own doc comment for why this degrades rather than
+// errors.
+func (h *Handler) userFieldOptions(ctx context.Context, machineID, applicationID, restrictToGroup string) []ui.ReferenceOption {
 	users, err := h.users.ListForApplicationRole(ctx, applicationID)
 	if err != nil {
 		slog.Error("list user field options", "application", applicationID, "error", err)
 		return nil
 	}
+
+	var memberIDs map[string]bool
+	if restrictToGroup != "" {
+		workspaceID, _ := h.interp.Get().ScopeFor(machineID)
+		group, err := h.groups.GetByName(ctx, workspaceID, restrictToGroup)
+		if err != nil {
+			slog.Warn("group-restricted user field: named group not found, falling back to unrestricted", "group", restrictToGroup, "error", err)
+		} else if memberIDs, err = h.groups.MemberIDs(ctx, group.ID); err != nil {
+			slog.Error("list group members", "group", group.ID, "error", err)
+			memberIDs = nil
+		}
+	}
+
 	opts := make([]ui.ReferenceOption, 0, len(users))
 	for _, u := range users {
+		if memberIDs != nil && !memberIDs[u.ID] {
+			continue
+		}
 		opts = append(opts, ui.ReferenceOption{ID: u.ID, Label: u.Name})
 	}
 	return opts

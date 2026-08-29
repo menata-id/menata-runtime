@@ -2152,6 +2152,19 @@ isolated schema. Track G's own implementation step is done — no longer just un
     field` (seeded since Case 3's original build, never read by any code until this).
     Full build notes in `capability-registry.md`'s CAP-F22/CAP-V21/CAP-V20 rows. Full gap analysis:
     `benchmarks/024-pdf-signature-approval-study.md`.
+
+    **Correction, same day (2026-08-29):** closing all three didn't actually close Case 3 — the
+    owner confirmed directly that "approvers are drawn from a work group" (Study 32's own original
+    framing) meant the Approver *picker* should be restricted to a Group's membership, which
+    CAP-O07 (who *holds* a role via group membership) never covered on its own, despite
+    `case-portfolio.md`'s Case 3 note having assumed it did. Admitted and built as **CAP-F23**
+    (new capability, not a footnote on an existing row — see its own registry row for the full
+    A1–A5 admission reasoning), conformance T216–T218
+    (`conformance/tests/150_group_approver_picker.sh`), full suite 218/218, zero regressions. New
+    `FieldOptions.RestrictToGroup` (a Group *name*, not id — Groups have no stable authored id) +
+    `GroupStore.GetByName` + a migration closing a real pre-existing gap found as a byproduct
+    (`groups.name` had no uniqueness constraint). Case 3 is now actually closed against Study 32's
+    original requirement, not just its own later-narrowed capability list.
 17. **CAP-O08 (Application-declared mobile bottom navigation bar, Study 31)** — an owner-directed
     target (2026-08-23) with no roadmap mention until now (found during a 2026-08-29 documentation
     consistency check). Its own registry row already gates it correctly: "needs a real case... none

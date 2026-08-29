@@ -246,6 +246,17 @@ terpisah hanya karena runtime belum punya target-nya:
 | `money` | Currency (kode + kurs) | ⚠️ CAP-F08 sudah render/validasi/hitung dengan benar, tapi `currency`/`currency_field` masih sekadar field `value_list`/`text` biasa berisi kode — Currency sebagai Machine master-data sungguhan (CAP-F17) masih terbuka |
 | `file` | Entitas File/Document terkelola runtime | ⚠️ CAP-F06 — upload tersimpan & tersaji nyata (lihat catatan status di atas), tapi masih field value berbasis disk, belum jadi Machine mandiri dengan identity/lifecycle sendiri |
 
+**Opsional untuk `type: user`: `restrict_to_group` (CAP-F23, ✅ 2026-08-29)** — nama sebuah Group
+(bukan id — Group tidak punya id yang bisa ditulis manual di seed, hanya UUID yang di-generate
+runtime saat dibuat lewat `/admin/groups`), mempersempit pilihan picker ke anggota Group itu saja,
+lewat irisan dengan scope role yang sudah ada (kandidat harus pegang role DAN jadi anggota Group,
+bukan salah satu saja). Contoh: `{"restrict_to_group":"Document Approvers"}`. **Tidak** divalidasi
+saat metadata di-load (beda dari `target_machine`) — Group adalah data runtime independen yang
+mungkin belum ada saat metadata dimuat, atau dibuat/diganti nama belakangan; nama yang tidak
+cocok dengan Group manapun otomatis fallback ke daftar kandidat tanpa batasan, bukan error. Ini
+cuma mempersempit *saran* di picker, bukan mekanisme otorisasi baru — pengecekan role/ownership
+yang sudah ada di Permission tetap jalan seperti biasa.
+
 Detail lengkap pohon keputusan + kalibrasi: `runtime/benchmarks/005-field-modeling-decision-framework.md`.
 
 **Wajib untuk `type: money`:** sertakan `currency` di `options` (contoh: `{"currency":"IDR"}`), atau

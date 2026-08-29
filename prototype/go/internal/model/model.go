@@ -272,6 +272,22 @@ type FieldOptions struct {
 	Values        []string `json:"values,omitempty"`
 	TargetMachine string   `json:"target_machine,omitempty"`
 
+	// RestrictToGroup (CAP-F23) narrows a `user` field's own candidate
+	// picker to a Group's membership -- a Group NAME, not id (Groups have
+	// no stable, human-authored id; they're only ever created at runtime
+	// via /admin/groups, DB-generated UUID, see internal/store/
+	// group_store.go's own GetByName doc comment). Deliberately NOT
+	// validated at metadata load time, unlike TargetMachine -- a Group is
+	// independent runtime data that may not exist yet when this loads, or
+	// may be created/renamed long after. A name that resolves to no real
+	// Group at request time degrades to the unrestricted candidate list,
+	// same "prototype-honest heuristic, graceful degrade" posture this
+	// codebase already uses elsewhere (see displayLabel's own doc
+	// comment) -- this narrows picker SUGGESTIONS only, it is not itself
+	// an authorization boundary; CAP-P02/the Permission's own role check
+	// still gate the real action regardless of what the picker offered.
+	RestrictToGroup string `json:"restrict_to_group,omitempty"`
+
 	// Default (CAP-F15, 2026-07-12): a literal value this field starts at on
 	// Create when the submitter leaves it blank -- the same "first value ="
 	// initial state" convention Status already had, generalized to any

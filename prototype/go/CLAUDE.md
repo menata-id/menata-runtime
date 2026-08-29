@@ -266,6 +266,29 @@ machine/record pair with no coupling to which page rendered the button that post
 "does an event/write route already exist for the record I actually need to mutate?" before
 scaffolding a new one scoped to the page doing the rendering.
 
+**When metadata needs to reference something outside the metadata-load transaction (another
+Machine/Field is fine, a row from a different, independently-managed system isn't), reference it
+by a human-meaningful NAME resolved at request time, not an id assumed to exist at load time --
+the same posture `Permission.Role` strings already have.** CAP-F23's `FieldOptions.
+RestrictToGroup` names a Group by its own `name`, not `id`: unlike Machines/Fields (hand-picked
+string ids, all declared together in the same seed/metadata load, so `validateReferences` can
+check them at load time), a Group only ever gets a DB-generated UUID, created independently at
+runtime via `/admin/groups` -- metadata authored ahead of time has no id to write down, and even
+if it did, the Group might not exist yet when this workspace's metadata first loads. Don't force
+a load-time-validated id reference onto something that isn't load-time data; resolve by name at
+the point of use instead, and degrade gracefully (not an error) when the name doesn't resolve.
+
+**The live dev database can silently drift behind `migrations/` -- `make migrate-up` is safe to
+re-run and cheap, run it before trusting the schema matches what the code expects.** Found live
+building CAP-F23: the shared `menata_runtime` database's `public` schema was missing every
+migration from `022_action_outbox.sql` onward (`groups`, `action_outbox` didn't exist) even though
+CAP-O07/CAP-W06 were both already ✅ in the registry with passing conformance -- those had only
+ever been proven against throwaway isolated schemas (`?options=-csearch_path%3D...`) this session,
+never against the persistent one. Every migration file already uses `IF NOT EXISTS`/guarded `DO`
+blocks specifically so `make migrate-up` is idempotent and safe to run against a
+partially-migrated database -- if something a registry row claims is ✅ doesn't seem to exist,
+check this before assuming the code is wrong.
+
 ## Local dev loop that actually works here
 
 Postgres runs locally in this environment already (`pg_isready`). `.env.example`'s
@@ -307,7 +330,7 @@ CAP-P05, CAP-R04, CAP-I04, CAP-O03, CAP-X02, CAP-O01, CAP-C05, CAP-C07, CAP-C12,
 CAP-A06, CAP-A09, CAP-A11, CAP-A12, CAP-A13, CAP-A14, CAP-A15, CAP-V05, CAP-V07, CAP-V08, CAP-V09,
 CAP-V10, CAP-V11, CAP-V12, CAP-V14, CAP-R03, CAP-R05, CAP-R06, CAP-R07, CAP-R08, CAP-P03, CAP-P04,
 CAP-P06, CAP-P07, CAP-E02, CAP-E03, CAP-E04, CAP-I01, CAP-I02, CAP-I03, CAP-I05, CAP-O02, CAP-O04,
-CAP-O05, CAP-O06, CAP-O07, CAP-F22, CAP-V21, CAP-V20) was manually exercised end-to-end against a
+CAP-O05, CAP-O06, CAP-O07, CAP-F22, CAP-V21, CAP-V20, CAP-F23) was manually exercised end-to-end against a
 real Postgres instance before its conformance test was written, and manual testing caught real bugs (a `Create`
 default-value rule hardcoded to fields named "Status" that silently broke Approval Step's
 "Decision" field; a conformance-helper missing a cookie parameter that made a test pass for the
