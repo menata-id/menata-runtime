@@ -265,7 +265,7 @@ implementing capabilities against this structure — read it before adding a new
 | `make generate` | Run templ generate |
 | `make build-css` | Build Tailwind CSS |
 | `make check-css` | Build Tailwind CSS, then fail if any color utility class referenced in `.templ`/`.go` source didn't make it into the compiled output (also runs as a GitHub Actions check, `.github/workflows/css-gate.yml`, on every push/PR touching `prototype/go/`) |
-| `make test` | `go test ./...` — reports "no test files" today; use `make conformance` |
+| `make test` | `go test ./...` — real unit tests as of 2026-09-05 (`internal/model`, `internal/handler`, `internal/executor`: `displayLabel`, `FindFieldByName`, `FindReferenceFieldTo`, CAP-A11 date arithmetic — the documented pure-function heuristics, fast feedback the HTTP black-box suite below can't give). Most packages still report "no test files" — this covers the heuristics named above, not general coverage; use `make conformance` for everything else |
 
 ---
 

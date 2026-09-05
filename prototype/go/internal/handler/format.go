@@ -9,12 +9,6 @@ import (
 	"menata.id/runtime/internal/model"
 )
 
-// displayLabel picks a human-readable stand-in for a record: the target
-// Machine's `text` field named "Name" if one exists, else its first `text`
-// field, falling back to the record id. Menata Language doesn't (yet) let a
-// business author declare "this is the field people should see when
-// referencing a record" — this heuristic is a prototype stand-in for that
-// missing capability, not a final design.
 // formatAutoNumber (CAP-F18) renders a sequence value as "<prefix><padded
 // number>", e.g. prefix "INV-" + padding 4 + n=7 -> "INV-0007". padding 0
 // (or omitted) means no zero-padding at all -- just the prefix and the

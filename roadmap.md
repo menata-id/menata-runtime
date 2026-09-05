@@ -2128,13 +2128,27 @@ isolated schema. Track G's own implementation step is done — no longer just un
     duplicating their logic inline. Neither of ADR-006/007's two split conditions (>~1,000 lines
     AND more than one separable concern) holds — no action taken. Worth a re-check if this file
     grows again; it's the closest file in the package to the threshold.
-14. **New (Study 33), opportunistic: unit tests for the documented pure-function heuristics**
-    (`displayLabel`, `findFieldByName`, `findReferenceFieldTo`, CAP-A11 date-arithmetic helpers) —
-    fast feedback loop the 205-test conformance suite alone doesn't give them. Supplements, not
-    replaces, conformance.
-15. Governance-enforcement gap (Study 33's F5 — no CI-backed fitness functions, no second
-    reviewer) needs no action now; re-examine only once #12 exists and/or this project gains a
-    second contributor.
+14. ~~New (Study 33), opportunistic: unit tests for the documented pure-function heuristics~~ —
+    ✅ **done (2026-09-05)**. `internal/model/model_test.go` (`FindFieldByName`,
+    `FindReferenceFieldTo`), `internal/handler/format_test.go` (`displayLabel` — 7 cases pinning
+    down the exact fallback contract the same day's own dead-`data["id"]` bug lived in),
+    `internal/executor/executor_test.go` (`resolveDateArithmetic`/`addBusinessDays`, CAP-A11/O06).
+    Real value delivered immediately, not just theoretical: writing the date-arithmetic tests
+    found a second live bug the same way displayLabel's own was found — `dateArithRe` only ever
+    matched a literal `+`, even though `guides/writing-runtime-metadata.md` has documented
+    `"<basis> - N <unit>"` as valid syntax since CAP-A11 shipped; no seed or conformance test
+    exercised the documented `-` form, so it silently wrote the literal string to a record instead
+    of a real date. Fixed in the same pass (regex now captures the operator explicitly). `go test
+    ./...` (`make test`) runs in ~40ms total, zero DB/server needed — exactly the fast loop this
+    item asked for. Also now runs in CI: `.github/workflows/vet-test.yml` (item 15's own note
+    below, closed the same day too).
+15. ~~Governance-enforcement gap (Study 33's F5 — no CI-backed fitness functions)~~ — **✅ closed
+    2026-09-05.** `.github/workflows/vet-test.yml` runs `go build`/`go vet`/`go test ./...` on
+    every push/PR touching `prototype/go/`, closing `benchmarks/025-architecture-worldclass-
+    audit.md`'s own remediation item 1 "broader coverage (lint, go vet, staticcheck) remains open
+    for later" — alongside `conformance.yml` and `css-gate.yml`, three real GitHub-hosted checks
+    now exist where none did before Study 33. The "no second reviewer" half of F5 is unchanged
+    (solo-admin repo) and still needs no action.
 16. ~~CAP-F22~~ ~~CAP-V21~~ ~~CAP-V20~~ (Document Approval PDF signature extension, Study 32) —
     **all three done, same session (2026-08-29) — Study 32's entire plan is now closed.**
     **CAP-F22**: conformance T206–T208 (`conformance/tests/120_pdf_signature.sh`), full suite

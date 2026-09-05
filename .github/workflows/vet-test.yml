@@ -1,0 +1,47 @@
+name: Vet & Unit Tests
+
+# Fast static checks: `go vet` and `go test ./...` (the pure-function unit
+# tests under internal/model, internal/handler, internal/executor --
+# displayLabel, FindFieldByName, FindReferenceFieldTo, CAP-A11 date
+# arithmetic -- roadmap.md item 14's own "fast feedback loop the
+# conformance suite alone doesn't give"). No Postgres needed, so this stays
+# fast even on a shared runner -- closes benchmarks/025-architecture-
+# worldclass-audit.md's remediation item 1 "broader coverage (lint, go vet,
+# staticcheck) remains open for later, opportunistically."
+on:
+  push:
+    paths:
+      - "prototype/go/**"
+      - ".github/workflows/vet-test.yml"
+  pull_request:
+    paths:
+      - "prototype/go/**"
+      - ".github/workflows/vet-test.yml"
+
+concurrency:
+  group: vet-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vet-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prototype/go
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: prototype/go/go.mod
+          cache-dependency-path: prototype/go/go.sum
+
+      # go build/vet/test all compile the whole module graph, including
+      # upload.go's real cgo dependency on the host's libwebp (CAP-F06) --
+      # not guaranteed present on a stock runner image.
+      - name: Install libwebp
+        run: sudo apt-get update && sudo apt-get install -y libwebp-dev
+
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./... -v

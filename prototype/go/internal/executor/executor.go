@@ -129,15 +129,28 @@ func paramsToExpr(v any) (model.ConstraintExpression, bool) {
 	return expr, expr.Field != "" && expr.Operator != ""
 }
 
-var dateArithRe = regexp.MustCompile(`^(.+?)\s*\+\s*(-?\d+)\s*(Day|Days|Week|Weeks|Month|Months|Year|Years|Business Day|Business Days)$`)
+var dateArithRe = regexp.MustCompile(`^(.+?)\s*([+-])\s*(\d+)\s*(Day|Days|Week|Weeks|Month|Months|Year|Years|Business Day|Business Days)$`)
 
-// resolveDateArithmetic (CAP-A11): "today + 1 Month" or "<field_id> + N Unit"
-// — the flat, unkeyed date-arithmetic family (advance a date literal or
-// another field's own value by a fixed offset). Deliberately NOT the
-// priority-keyed variant complaint.yaml's sla_offset(priority) wanted (a
+// resolveDateArithmetic (CAP-A11): "today + 1 Month" or "<field_id> - N Unit"
+// — the flat, unkeyed date-arithmetic family (advance or go back from a date
+// literal or another field's own value by a fixed offset). Deliberately NOT
+// the priority-keyed variant complaint.yaml's sla_offset(priority) wanted (a
 // different, still-unimplemented lookup-by-another-field's-value flavor,
 // noted but not built here). ok=false when value doesn't match this shape
 // at all, or the base doesn't resolve to a real date.
+//
+// Both "+" and "-" are real, distinct operators here (caught live
+// 2026-09-05 writing this function's own first unit test: guides/writing-
+// runtime-metadata.md has documented "<basis> - N <unit>" as valid syntax
+// since CAP-A11 shipped, but the regex only ever matched a literal "+" --
+// "today - 7 Days" silently fell through resolveValue's own final `return
+// value` unevaluated, writing that literal string to the record instead of
+// a real date, exactly the "diam-diam salah, bukan error" failure mode that
+// guide's own "Yang Bikin Loader Gagal..." section warns about elsewhere.
+// No seed or conformance test exercised the documented "-" form to catch
+// this sooner. N is a plain non-negative integer now; the older
+// "+ -N <unit>" double-negative form (never used by any seed) is no longer
+// a separate case to reason about.
 //
 // "N Business Day(s)" (CAP-O06) is the one unit that isn't a fixed
 // calendar step -- it counts only weekdays, additionally skipping any date
@@ -150,11 +163,14 @@ func resolveDateArithmetic(value string, data map[string]any, holidays map[strin
 		return "", false
 	}
 	base := strings.TrimSpace(m[1])
-	n, err := strconv.Atoi(m[2])
+	n, err := strconv.Atoi(m[3])
 	if err != nil {
 		return "", false
 	}
-	unit := m[3]
+	if m[2] == "-" {
+		n = -n
+	}
+	unit := m[4]
 
 	var baseDate time.Time
 	if base == "today" {
