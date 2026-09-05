@@ -323,7 +323,7 @@ func (h *Handler) childLists(ctx context.Context, machine *model.Machine, record
 				}
 				if refID, _ := v.(string); refID == recordID {
 					items = append(items, ui.ChildListItem{
-						Label: displayLabel(m, rec.Data),
+						Label: displayLabel(m, rec.ID, rec.Data),
 						Link:  "/" + m.ID + "/" + rec.ID,
 					})
 				}
@@ -345,7 +345,7 @@ func (h *Handler) referenceOptions(ctx context.Context, targetMachineID string) 
 	targetMachine, _ := h.interp.Get().GetMachine(targetMachineID)
 	opts := make([]ui.ReferenceOption, 0, len(records))
 	for _, rec := range records {
-		opts = append(opts, ui.ReferenceOption{ID: rec.ID, Label: displayLabel(targetMachine, rec.Data)})
+		opts = append(opts, ui.ReferenceOption{ID: rec.ID, Label: displayLabel(targetMachine, rec.ID, rec.Data)})
 	}
 	return opts
 }
@@ -415,7 +415,7 @@ func (h *Handler) referenceLabel(ctx context.Context, targetMachineID, recordID 
 		return "", err
 	}
 	targetMachine, _ := h.interp.Get().GetMachine(targetMachineID)
-	return displayLabel(targetMachine, rec.Data), nil
+	return displayLabel(targetMachine, rec.ID, rec.Data), nil
 }
 
 // userFieldOptions (CAP-F05) is a `user` field's picker candidate pool --

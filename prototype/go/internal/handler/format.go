@@ -107,7 +107,14 @@ func slaUrgency(dueDate string, warningDays int) (label, urgency string, ok bool
 	}
 }
 
-func displayLabel(machine *model.Machine, data map[string]any) string {
+// displayLabel picks a record's own human-readable label: its Name field, or
+// the first plain-text field, or -- for a Machine with neither (e.g. Approval
+// Step: only reference/user/number/value_list/rich_text fields) -- the
+// record's own id, passed in explicitly since a Record's id lives on the
+// store.Record struct itself, never inside its own Data map (caught live:
+// this fallback used to read data["id"], which never exists, so it silently
+// rendered "" for any such Machine instead of ever reaching this branch).
+func displayLabel(machine *model.Machine, id string, data map[string]any) string {
 	if machine != nil {
 		var firstText *model.Field
 		for _, f := range machine.Fields {
@@ -130,8 +137,5 @@ func displayLabel(machine *model.Machine, data map[string]any) string {
 			}
 		}
 	}
-	if id, ok := data["id"]; ok {
-		return fmt.Sprintf("%v", id)
-	}
-	return ""
+	return id
 }

@@ -75,7 +75,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 				if matched {
 					results = append(results, ui.SearchResult{
 						MachineName: m.Name,
-						Label:       displayLabel(m, rec.Data),
+						Label:       displayLabel(m, rec.ID, rec.Data),
 						Link:        "/" + m.ID + "/" + rec.ID,
 					})
 				}

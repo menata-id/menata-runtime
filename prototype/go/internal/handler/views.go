@@ -170,7 +170,7 @@ func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view 
 			resources, err := h.records.List(r.Context(), resourceMachine.ID, "", "")
 			if err == nil {
 				for _, rres := range resources {
-					label := displayLabel(resourceMachine, rres.Data)
+					label := displayLabel(resourceMachine, rres.ID, rres.Data)
 					order = append(order, label)
 					byResource[label] = nil
 				}

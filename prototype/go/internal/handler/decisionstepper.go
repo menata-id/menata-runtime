@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"menata.id/runtime/internal/model"
 	"menata.id/runtime/internal/store"
 	"menata.id/runtime/internal/ui"
 )
@@ -117,7 +119,7 @@ func (h *Handler) DecisionStepper(w http.ResponseWriter, r *http.Request) {
 		}
 
 		steps = append(steps, ui.StepperStep{
-			Label:         displayLabel(stepsMachine, c.Data),
+			Label:         stepLabel(h, r.Context(), stepsMachine, ds, c),
 			State:         state,
 			Triggers:      triggers,
 			StepMachineID: stepsMachineID,
@@ -130,4 +132,36 @@ func (h *Handler) DecisionStepper(w http.ResponseWriter, r *http.Request) {
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render decision stepper", "error", err)
 	}
+}
+
+// stepLabel names one step "Step <sequence> — <assignee>" when it can,
+// falling back to displayLabel's own generic rule otherwise. A step-shaped
+// child Machine (Approval Step and anything else CAP-V20 gets pointed at)
+// never has a plain-text Field of its own -- displayLabel's fallback to the
+// record's own id (a raw UUID) is correct but reads as a technical, not a
+// business, label on a screen whose whole point is to look like a real
+// approval stepper. Prototype-honest heuristic, same posture as CAP-A07's
+// own Sequence/Decision/Approver name-matching: the FIRST `user`-typed Field
+// on the step Machine is assumed to be its assignee, since that's what
+// every case built on this View shape (Approval Step today) actually means
+// by "who this step belongs to" -- not a new metadata concept.
+func stepLabel(h *Handler, ctx context.Context, stepsMachine *model.Machine, ds *model.DecisionStepperConfig, c *store.Record) string {
+	seq, hasSeq := c.Data[ds.SequenceField]
+	if !hasSeq {
+		return displayLabel(stepsMachine, c.ID, c.Data)
+	}
+	for _, f := range stepsMachine.Fields {
+		if f.Type != model.FieldTypeUser {
+			continue
+		}
+		uid, _ := c.Data[f.ID].(string)
+		if uid == "" {
+			continue
+		}
+		if name, err := h.userLabel(ctx, uid); err == nil && name != "" {
+			return fmt.Sprintf("Step %v — %s", seq, name)
+		}
+		break
+	}
+	return fmt.Sprintf("Step %v", seq)
 }
