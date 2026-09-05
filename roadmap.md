@@ -2288,6 +2288,39 @@ back to this study.
 
 ---
 
+## Study 34 — From Prototype/Benchmark Process to a Main Application (2026-09-05)
+
+Owner-initiated decision record, not an external-yardstick benchmark like most of this series —
+raised while documenting routine Group/Approval Document capability work, when two placement/
+naming inconsistencies surfaced: `guides/writing-runtime-metadata.md` (root-level, implying
+every prototype should honor it) is actually Go/Postgres-schema-specific content none of the
+other six prototypes would ever use; and root `README.md`'s own "Reference Implementation"
+section header already contradicts its own body text (still says "prototype") and `prototype/go/`'s
+folder name and every other document referencing it (24+ files). Full write-up, evidence, and the
+decision itself: `benchmarks/026-runtime-graduation-decision.md`.
+
+**The decision**, reframing both findings at once rather than answering either narrowly: `prototype/`
+(all seven) and `benchmarks/` have done their job — proving which capabilities a runtime needs and
+that a real implementation is possible — and need no renaming or restructuring now. **A new
+top-level folder, `app/`, will hold the real Menata Runtime application going forward**, sibling to
+`prototype/`/`benchmarks/`, not nested inside `prototype/`. The whole discovery apparatus (case
+portfolio, benchmarks, capability registry, seven prototypes) is now explicitly framed as *process
+toward* `app/`, not a parallel end state. Consequence: `writing-runtime-metadata.md`'s root
+placement turns out to be correct after all under this frame (`app/` will need exactly this guide)
+— no file move needed on account of the original finding.
+
+**Left open, deliberately**: whether `app/` graduates `prototype/go`'s own codebase (~90
+capabilities ✅, 219-test conformance suite, independently-vetted-twice architecture per ADR-004's
+own status update and Study 33) as its starting point, or begins from zero. Evidence gathered
+favors graduating (the one real architectural concern ever raised has been re-examined twice and
+found not to be a problem at this scale; the codebase's own "prototype-honest" heuristics
+compensate for a Menata Language grammar gap that a Go rewrite wouldn't remove either) — but the
+owner wants further discussion before deciding, so this is named as gathered evidence, not a
+verdict. A future session picking this up should start from `benchmarks/026-runtime-graduation-
+decision.md`'s own §3/§4, not re-litigate the settled parts.
+
+---
+
 # Principles
 
 - **The map before the territory** — benchmark catalogs predict gaps before cases find them.
