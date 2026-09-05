@@ -2170,6 +2170,20 @@ isolated schema. Track G's own implementation step is done — no longer just un
     consistency check). Its own registry row already gates it correctly: "needs a real case... none
     has asked for it yet" — no action implied by adding it here, this only makes the existing gate
     visible in this checklist instead of only in `capability-registry.md`.
+18. **Correction (2026-09-05) to item 12's own "no GitHub Actions" framing**: that decision was
+    made under a private-repo billing assumption — `menata-runtime` is actually a **public**
+    repository, and GitHub's own billing docs state standard GitHub-hosted runner minutes are free
+    and unbounded for public repos regardless of account plan (the Free-plan 2,000 min/month quota
+    is private-repo-only). One GitHub Actions workflow now exists on that corrected basis:
+    `.github/workflows/css-gate.yml` (`make check-css`) — catches a color utility class used in
+    `.templ`/`.go` source that never made it into the compiled `output.css`, exactly the class of
+    bug (`bg-emerald-500`/`text-emerald-600`, CAP-V20's Decision Stepper) the conformance suite's
+    own HTTP-black-box scope can never see, found live the same day setting up a manual Group/
+    Approval demo. The heavier full conformance suite (`local-ci.sh`) deliberately stays on the
+    local pre-push hook, not moved to Actions — no case forces that move, and the local gate
+    already works; this is additive, not a reversal of item 12's mechanism, only its stated reason
+    for avoiding Actions entirely. `prototype/go/DEVELOPMENT.md` step 9 carries its own dated
+    correction note pointing back here.
 
 ---
 

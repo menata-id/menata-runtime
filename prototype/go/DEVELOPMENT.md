@@ -109,6 +109,17 @@ actually touches `prototype/go/`; a docs-only push skips it. Bypass with `git pu
 (standard git) or `SKIP_LOCAL_CI=1 git push` when you deliberately need to. Full rationale:
 `../../benchmarks/025-architecture-worldclass-audit.md`.
 
+**Correction (2026-09-05):** "no GitHub Actions here" above was written under a private-repo
+billing assumption that doesn't hold for this repo specifically — `menata-runtime` is **public**,
+and GitHub's own billing docs state standard GitHub-hosted runner minutes are free and unbounded
+for public repositories regardless of account plan (the 2,000 min/month Free-plan quota only
+applies to private repos). One GitHub Actions workflow now exists on that basis:
+`.github/workflows/css-gate.yml` (`make check-css` — rebuilds Tailwind CSS and fails if any color
+utility class referenced in `.templ`/`.go` source didn't make it into the compiled output, the
+class of bug conformance's own HTTP-black-box scope can never catch), triggered on push/PR to
+`prototype/go/`. The heavier full conformance suite stays on the local pre-push hook above, not
+moved to Actions — nothing forces that move, and the local gate already works.
+
 ---
 
 ## Running the Prototype
@@ -245,6 +256,7 @@ implementing capabilities against this structure — read it before adding a new
 | `make conformance` | Run the real test suite against a running server |
 | `make generate` | Run templ generate |
 | `make build-css` | Build Tailwind CSS |
+| `make check-css` | Build Tailwind CSS, then fail if any color utility class referenced in `.templ`/`.go` source didn't make it into the compiled output (also runs as a GitHub Actions check, `.github/workflows/css-gate.yml`, on every push/PR touching `prototype/go/`) |
 | `make test` | `go test ./...` — reports "no test files" today; use `make conformance` |
 
 ---

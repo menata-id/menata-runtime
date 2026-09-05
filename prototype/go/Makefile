@@ -2,7 +2,7 @@ BINARY     = bin/server
 TEMPL      = $(shell go env GOPATH)/bin/templ
 DB_URL    ?= $(shell grep DATABASE_URL .env 2>/dev/null | cut -d= -f2-)
 
-.PHONY: build run dev generate build-css migrate-up migrate-rls-cutover seed conformance test local-ci
+.PHONY: build run dev generate build-css check-css migrate-up migrate-rls-cutover seed conformance test local-ci
 
 build:
 	go build -o $(BINARY) ./cmd/server
@@ -18,6 +18,13 @@ generate:
 
 build-css:
 	npm run build:css
+
+# Verifies every color utility class referenced in internal/**/*.templ,
+# internal/**/*.go, cmd/**/*.go actually exists in the just-built
+# output.css -- run build-css first, this only checks (see
+# scripts/check-css-classes.sh's own header for why).
+check-css: build-css
+	./scripts/check-css-classes.sh
 
 # Every migrations/NNN_*.sql file, in order. Add new ones here as they're
 # created -- there is no auto-discovery.

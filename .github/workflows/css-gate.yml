@@ -1,0 +1,48 @@
+name: CSS gate
+
+# Verifies every color utility class referenced by prototype/go's .templ/.go
+# source (the same content Tailwind itself scans, tailwind.config.js's own
+# `content` globs) actually exists in the freshly-compiled
+# web/static/css/output.css -- a gitignored build artifact nobody's local
+# `make build-css` run is guaranteed to have kept current. Conformance
+# (prototype/go/scripts/local-ci.sh, run as a local pre-push git hook, not
+# here) is HTTP black-box and never checks compiled CSS at all -- this is
+# what actually would have caught bg-emerald-500/text-emerald-600 missing
+# from output.css (found live 2026-09-05, CAP-V20's Decision Stepper).
+#
+# Deliberately GitHub-hosted, not a local hook: menata-runtime is a PUBLIC
+# repository, so standard GitHub-hosted runner minutes are free and
+# unbounded here regardless of account plan (GitHub's own billing docs:
+# "GitHub Actions usage is free for public repositories that use standard
+# GitHub-hosted runners") -- the earlier "no GitHub Actions, minutes
+# exhausted" decision (roadmap.md Study 33, 2026-08-29) was made under a
+# private-repo assumption that doesn't apply to this repo's own visibility.
+# No Go/Postgres needed for this one check, so it also stays fast even on
+# a shared runner: Node + Tailwind CLI only.
+on:
+  push:
+    paths:
+      - "prototype/go/**"
+      - ".github/workflows/css-gate.yml"
+  pull_request:
+    paths:
+      - "prototype/go/**"
+      - ".github/workflows/css-gate.yml"
+
+jobs:
+  css-gate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prototype/go
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: prototype/go/package-lock.json
+
+      - run: npm ci
+      - run: make check-css
