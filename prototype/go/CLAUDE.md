@@ -352,6 +352,29 @@ resolves "Step `<sequence>` — `<assignee name>`" via the step Machine's first 
 (a new, explicitly-named heuristic, same posture as CAP-A07's Sequence/Decision/Approver
 name-matching) before ever falling back to the bare id.
 
+**The conformance suite is HTTP black-box (`conformance/README.md`'s own documented scope) --
+it has never once verified that a Tailwind class a `.templ` file references actually exists in
+the compiled `web/static/css/output.css`, and neither has any session's own manual testing so
+far (this codebase has no browser tool available in this environment).** Caught live 2026-09-05,
+asked directly by the owner "does the CSS used already exist in the component's CSS" after
+CAP-V20's Decision Stepper had been demoed purely via `curl` (HTML only, no rendering): `bg-
+emerald-500`/`text-emerald-600` (the "Done" state's checkmark circle and label,
+`decisionstepper.templ`'s `stepperDotClass`/`stepperStateTextClass`) were completely absent from
+`output.css` -- present correctly in the HTML `class` attribute, but with no matching CSS rule
+generated at all, so the "Done" badge would render with no color in a real browser. Root cause:
+`output.css` is a gitignored build artifact (`make build-css` / `npm run build:css`, Tailwind
+content-scanning `internal/**/*.templ`+`*.go`), regenerated only when someone runs that command
+by hand -- nobody had re-run it since `decisionstepper.templ` (or several other recent `.templ`
+additions) introduced classes not used anywhere else in the codebase before. Fixed by running
+`make build-css` (16044 -> 20581 bytes); confirmed comprehensively, not just for this one class,
+by extracting every `bg|text|border|ring|from|to|via|fill|stroke-<color>-<shade>` token across
+`internal/ui/*.templ`+`*_templ.go` and checking each is a literal substring of the rebuilt
+`output.css` (all 43 distinct tokens present, zero missing). **If a future session adds or edits
+a `.templ` file that introduces a color/utility class not already used elsewhere, run `make
+build-css` before considering that UI work done** -- `go build`/`templ generate` passing proves
+nothing about whether the CSS for it was ever compiled, and no other check in this project's
+existing test/review loop catches this class of gap.
+
 ## Local dev loop that actually works here
 
 Postgres runs locally in this environment already (`pg_isready`). `.env.example`'s
