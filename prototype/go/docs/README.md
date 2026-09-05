@@ -10,6 +10,8 @@ Dokumentasi di folder ini khusus untuk prototype Go. Panduan bahasa dan Runtime 
 |---------|-------------|-----|
 | [`guides/writing-menata.md`](../../../../guides/writing-menata.md) | Domain expert | Cara menulis `.menata` dari nol |
 | [`runtime/guides/writing-runtime-metadata.md`](../../guides/writing-runtime-metadata.md) | Developer | Cara menerjemahkan `.menata` ke YAML → SQL |
+| [`runtime/guides/runtime-metadata-gotchas.md`](../../guides/runtime-metadata-gotchas.md) | Developer | Gotcha loader + checklist sebelum seed |
+| [`runtime/guides/writing-process-overlays.md`](../../guides/writing-process-overlays.md) | Developer | Jalan pintas `process` block |
 
 ---
 

@@ -305,6 +305,53 @@ any idempotency guard added to a migration going forward needs this same schema-
 not just the `IF NOT EXISTS`/`ADD COLUMN IF NOT EXISTS` forms Postgres already makes safe by
 default.
 
+**Two more real instances of the shared dev database drifting behind the repo, caught live
+2026-09-05 setting up a manual Group/Approval demo -- the same class of problem CAP-F23's own
+"the live dev database can silently drift" note above already named, but this batch surfaced two
+sharper variants worth their own record.** (1) **Seed drift, not just migration drift**: seeds
+035/036/037/038 (Study 32's entire PDF-signature/coord-placement/decision-stepper/group-picker
+push, all four already ✅ in `capability-registry.md` with passing conformance) had never actually
+been run against `menata_runtime`'s persistent `public` schema -- `GET /apps/app_approval/export`
+showed only the pre-Study-32 Views and empty Field `options`, and `/mch_approval_document/{id}
+/progress` 404'd, even though every one of those capabilities had long been proven ✅ on isolated
+schemas. Conformance passing is proof the CODE is correct, never proof the SHARED database has
+been brought current -- the two are independent facts, and only checking the registry's ✅ status
+(not the live export) would have missed this entirely. (2) **`event_actions` really did get
+re-run against the shared database, exactly the failure mode this file's own "Seed files are
+append-only in a specific way" note above warns has no `ON CONFLICT` guard against**: every
+Case-3 event (`evt_ad_submit/approve/reject/withdraw`, `evt_as_approve/reject`) had its own
+`event_actions` rows duplicated **8×** -- meaning every real Approve/Reject/Submit in this app's
+history has been firing its `notify` action 8 times (real duplicate-notification spam) and its
+`aggregate_status` cascade 8 times per decision. Found by `GROUP BY event_id, type, position,
+params HAVING count(*) > 1` against the live table -- worth running that exact check before
+trusting any Case-3 conformance-passing capability's live behavior on this database again. Fixed
+by a `ROW_NUMBER() OVER (PARTITION BY event_id, type, position, params ORDER BY ctid) WHERE rn > 1`
+delete (112 rows), safe because every duplicate group's `params` was byte-identical (a real
+re-run of the same file, not divergent hand-edits). **Neither gotcha's own checklist previously
+named this risk explicitly** -- `guides/runtime-metadata-gotchas.md`'s "Checklist Sebelum
+Menjalankan Seed" gained a new bullet the same day for exactly this (that file was split out of
+`guides/writing-runtime-metadata.md` later the same session, once the growing gotcha/checklist
+content and the stable core grammar became clearly separable concerns worth their own files). If a
+capability's registry row says ✅ but its behavior on `menata.app` doesn't match, check the live
+export/DB before assuming the code regressed -- the seed may simply never have been applied here.
+
+**`displayLabel`'s (`internal/handler/format.go`) documented "falls back to the record's own id"
+behavior was dead code from the day it was written -- it read `data["id"]`, but `store.Record`
+carries `ID` as a separate top-level struct field, never copied into `Data`.** Caught live
+2026-09-05 rendering CAP-V20's Decision Stepper against Approval Step (a Machine with no `text`
+Field at all -- Document/Approver/Sequence/Decision/Notes/Decided At are reference/user/number/
+value_list/rich_text/date_time, nothing the Name-or-first-text-field rule can match), which
+silently rendered every step's label as an empty string instead of ever reaching the documented
+fallback. Fixed by changing `displayLabel`'s signature to take the id explicitly
+(`displayLabel(machine, id string, data)`), threaded through from `rec.ID`/`c.ID` at all 6 call
+sites (`decisionstepper.go`, `views.go`, `formfields.go` ×3, `search.go`) -- the same class of bug
+CAP-F22 already caught once for `actorIdentity`/`actorIdentityID` (a value assumed present in a
+`map[string]any` that actually lives on the surrounding struct instead). A raw UUID is still a
+poor label for a business-facing screen, so `decisionstepper.go`'s own `stepLabel` additionally
+resolves "Step `<sequence>` — `<assignee name>`" via the step Machine's first `user`-typed Field
+(a new, explicitly-named heuristic, same posture as CAP-A07's Sequence/Decision/Approver
+name-matching) before ever falling back to the bare id.
+
 ## Local dev loop that actually works here
 
 Postgres runs locally in this environment already (`pg_isready`). `.env.example`'s

@@ -399,6 +399,8 @@ Not part of the numbered reading sequence — each elaborates or grounds one Tie
 |----------|----------|
 | [menata-id/menata](https://github.com/menata-id/menata/tree/main/guides) — separate repo (business process language layer, no machine/application concerns) | Domain expert — how to write `.menata` |
 | [guides/writing-runtime-metadata.md](guides/writing-runtime-metadata.md) | Developer — how to translate `.menata` into Runtime Metadata |
+| [guides/runtime-metadata-gotchas.md](guides/runtime-metadata-gotchas.md) | Developer — loader gotchas + pre-seed checklist (split from the guide above 2026-09-05, grows as new gotchas are caught) |
+| [guides/writing-process-overlays.md](guides/writing-process-overlays.md) | Developer — the `process` block shortcut (CAP-W01/W03/W04/W05), split from the guide above 2026-09-05 |
 
 ## Tier 3 — Capability Discovery & Governance (evolving)
 
