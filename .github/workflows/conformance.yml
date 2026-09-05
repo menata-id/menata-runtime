@@ -54,6 +54,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: prototype/go/go.mod
+          cache-dependency-path: prototype/go/go.sum
 
       # libwebp-dev: CAP-F06's image-compression pipeline links against the
       # host's libwebp via cgo (github.com/chai2010/webp) -- not guaranteed
