@@ -70,7 +70,7 @@ func Report(workspaceName, identity, csrfToken string, isAdmin bool, machine *mo
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " <div class=\"overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm\"><table class=\"w-full text-sm\"><thead class=\"border-b border-slate-200 bg-slate-50\"><tr><th class=\"px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500\">Group</th>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " <div class=\"overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm\"><table class=\"w-full text-sm\"><thead class=\"border-b border-slate-200 bg-slate-50\"><tr><th class=\"px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500\">Group</th>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

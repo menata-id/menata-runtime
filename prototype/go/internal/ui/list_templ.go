@@ -192,7 +192,7 @@ func List(workspaceName, identity, csrfToken string, isAdmin bool, machine *mode
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div><div class=\"overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm\"><table class=\"w-full text-sm\"><thead class=\"border-b border-slate-200 bg-slate-50\"><tr>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div><div class=\"overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm\"><table class=\"w-full text-sm\"><thead class=\"border-b border-slate-200 bg-slate-50\"><tr>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

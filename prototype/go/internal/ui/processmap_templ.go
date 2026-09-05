@@ -115,7 +115,7 @@ func ProcessMap(workspaceName, identity, csrfToken string, isAdmin bool, viewNam
 						}
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div></div><div class=\"overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm\"><table class=\"w-full text-sm\"><thead class=\"border-b border-slate-200 bg-slate-50\"><tr><th class=\"px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500\">Transition</th><th class=\"px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500\">From</th><th class=\"px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500\">To</th><th class=\"px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500\">Actor</th></tr></thead> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div></div><div class=\"overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm\"><table class=\"w-full text-sm\"><thead class=\"border-b border-slate-200 bg-slate-50\"><tr><th class=\"px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500\">Transition</th><th class=\"px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500\">From</th><th class=\"px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500\">To</th><th class=\"px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500\">Actor</th></tr></thead> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

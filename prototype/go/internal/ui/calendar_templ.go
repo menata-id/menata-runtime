@@ -106,7 +106,7 @@ func CalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, m
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</h2><div class=\"overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm\"><table class=\"w-full text-sm\"><tbody class=\"divide-y divide-slate-100\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</h2><div class=\"overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm\"><table class=\"w-full text-sm\"><tbody class=\"divide-y divide-slate-100\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -307,7 +307,7 @@ func ResourceCalendarTimeline(workspaceName, identity, csrfToken string, isAdmin
 									return templ_7745c5c3_Err
 								}
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</h3><div class=\"overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm\"><table class=\"w-full text-sm\"><tbody class=\"divide-y divide-slate-100\">")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</h3><div class=\"overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm\"><table class=\"w-full text-sm\"><tbody class=\"divide-y divide-slate-100\">")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
