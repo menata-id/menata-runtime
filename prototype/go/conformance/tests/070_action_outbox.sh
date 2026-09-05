@@ -27,7 +27,7 @@ if [ -n "$DATABASE_URL" ]; then
     # immediately, with the dispatcher's own 2s tick as headroom, is what
     # actually proves "atomic with the business write," not just
     # "eventually true."
-    W06_URL=$(post_redirect "$BASE_URL/mch_leave_request" "fld_lr_leave_type=Annual&fld_lr_start_date=2026-09-01&fld_lr_end_date=2026-09-03&fld_lr_reason=CAP-W06+probe" "$DAVE")
+    W06_URL=$(post_redirect "$BASE_URL/mch_leave_request" "fld_lr_leave_type=Annual&fld_lr_start_date=2030-01-01&fld_lr_end_date=2030-01-03&fld_lr_reason=CAP-W06+probe" "$DAVE")
     W06_ID="${W06_URL##*/}"
     post_status "$W06_URL/events/evt_lr_submit" "" "$DAVE" >/dev/null
     post_status "$W06_URL/events/evt_lr_approve" "" "$EVE" >/dev/null
@@ -57,7 +57,7 @@ if [ -n "$DATABASE_URL" ]; then
     W06_BAD_ID=$(psql "$DATABASE_URL" -q -tAc \
         "DO \$\$ BEGIN PERFORM set_config('app.workspace_id', 'ws_default', true); END \$\$;
          INSERT INTO action_outbox (workspace_id, action_type, params) VALUES ('ws_default', 'subscription', '{}') RETURNING id")
-    W06_GOOD_URL=$(post_redirect "$BASE_URL/mch_leave_request" "fld_lr_leave_type=Annual&fld_lr_start_date=2026-09-05&fld_lr_end_date=2026-09-06&fld_lr_reason=CAP-W06+isolation+probe" "$DAVE")
+    W06_GOOD_URL=$(post_redirect "$BASE_URL/mch_leave_request" "fld_lr_leave_type=Annual&fld_lr_start_date=2030-01-05&fld_lr_end_date=2030-01-06&fld_lr_reason=CAP-W06+isolation+probe" "$DAVE")
     W06_GOOD_ID="${W06_GOOD_URL##*/}"
     post_status "$W06_GOOD_URL/events/evt_lr_submit" "" "$DAVE" >/dev/null
     post_status "$W06_GOOD_URL/events/evt_lr_approve" "" "$EVE" >/dev/null
