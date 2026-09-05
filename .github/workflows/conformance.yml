@@ -1,0 +1,68 @@
+name: Conformance
+
+# Runs prototype/go's real conformance suite (scripts/local-ci.sh: migrate-up
+# + seed + build + boot the server + the full ./conformance/run.sh HTTP
+# black-box suite) against a real, fresh Postgres -- the same script that
+# already runs as a local pre-push git hook (scripts/pre-push, Study 33,
+# 2026-08-29), now mirrored here so a green/red check is actually visible on
+# GitHub (commit status, PR check, browsable run history), not only on
+# whichever machine happens to run the local hook.
+#
+# GitHub-hosted, not a private-repo concern: menata-runtime is public, and
+# GitHub Actions on standard hosted runners is free and unbounded for public
+# repos on any account plan (see roadmap.md item 18 / DEVELOPMENT.md step 9's
+# own dated correction note for the full story on why this wasn't set up
+# sooner). The local pre-push hook stays installed too -- this is additive,
+# giving fast local feedback AND a visible remote record, not a replacement.
+on:
+  push:
+    paths:
+      - "prototype/go/**"
+      - ".github/workflows/conformance.yml"
+  pull_request:
+    paths:
+      - "prototype/go/**"
+      - ".github/workflows/conformance.yml"
+
+concurrency:
+  group: conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: menata_runtime
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    defaults:
+      run:
+        working-directory: prototype/go
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: prototype/go/go.mod
+
+      # libwebp-dev: CAP-F06's image-compression pipeline links against the
+      # host's libwebp via cgo (github.com/chai2010/webp) -- not guaranteed
+      # present on a stock runner image. postgresql-client: local-ci.sh and
+      # the Makefile's migrate-up/seed targets shell out to `psql` directly.
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libwebp-dev postgresql-client
+
+      - name: Run full conformance suite (isolated schema, throwaway port)
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/menata_runtime?sslmode=disable
+        run: make local-ci
