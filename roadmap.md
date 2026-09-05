@@ -2185,6 +2185,20 @@ isolated schema. Track G's own implementation step is done — no longer just un
     for avoiding Actions entirely. `prototype/go/DEVELOPMENT.md` step 9 carries its own dated
     correction note pointing back here.
 
+    **Follow-up, same day:** the paragraph above's own "deliberately stays on the local pre-push
+    hook, not moved to Actions" turned out not to be the final call — with Actions confirmed free
+    here, mirroring the full suite onto GitHub too closes Study 33's original F1 finding ("no
+    CI/CD pipeline exists anywhere in the repo") in the strongest sense: a real, visible
+    commit-status/PR-check/run-history, not only a local git hook nobody outside this machine can
+    see. `.github/workflows/conformance.yml` reuses `local-ci.sh` unchanged (a Postgres service
+    container standing in for the throwaway isolated schema local-ci.sh already creates —
+    harmless overhead, not a second script to maintain), with `libwebp-dev`/`postgresql-client`
+    installed explicitly since a stock runner image doesn't guarantee either. Verified live twice:
+    219/219 passed each run, ~4 minutes. The local pre-push hook stays installed unchanged — this
+    is additive (fast local feedback AND a visible remote record), the local gate isn't being
+    retired. `benchmarks/025-architecture-worldclass-audit.md`'s own F1/remediation-item-1 and
+    `nfr-standards.md`'s §2.8 Architecture row each carry their own matching correction note.
+
 ---
 
 ## Study 32 — Document Approval: PDF Signature Placement (2026-08-23)

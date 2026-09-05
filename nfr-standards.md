@@ -7,13 +7,23 @@
 > as Definition-of-Done gates when each capability is implemented
 > (`capability-lifecycle.md` §3b).
 >
-> Status: v0.6 — §2.1–2.6/§2.8 Architecture rows corrected 2026-08-29 (Study 33,
-> `benchmarks/025-architecture-worldclass-audit.md`): they describe a field/action/view-type
-> registry seam as already built; it is not — see the correction notes inline below and
-> `prototype/go/docs/decisions/004-internal-package-architecture.md`'s own 2026-08-22 status
-> update, which this study confirms and quantifies rather than contradicts. Same study also names
-> §2.8's CI/fitness-function line as asserted but unevidenced (no CI pipeline exists in this repo
-> today). Previously v0.5 — partially implemented, real deployment | Created: 2026-07-04 | §2.1
+> Status: v0.7 — §2.8's CI/fitness-function line, itself corrected 2026-08-29 below as
+> "unevidenced, closed via a local pre-push hook, no GitHub Actions," gains a further correction
+> 2026-09-05: `menata-runtime` is a **public** repository, and GitHub Actions on standard hosted
+> runners is free and unbounded for public repos on any account plan — the "Actions minutes
+> exhausted" framing assumed a private-repo billing model that doesn't apply here. Two workflows
+> now exist (`.github/workflows/css-gate.yml`, `.github/workflows/conformance.yml`) mirroring the
+> local pre-push gate's own conformance run onto a real, visible GitHub check (commit status, PR
+> check, browsable history) — verified live, 219/219 passed on GitHub-hosted Postgres. The local
+> hook stays installed too; this is additive. See `roadmap.md` item 18 and `prototype/go/
+> DEVELOPMENT.md` step 9 for the full story. Previously v0.6 — §2.1–2.6/§2.8 Architecture rows
+> corrected 2026-08-29 (Study 33, `benchmarks/025-architecture-worldclass-audit.md`): they
+> describe a field/action/view-type registry seam as already built; it is not — see the
+> correction notes inline below and `prototype/go/docs/decisions/004-internal-package-
+> architecture.md`'s own 2026-08-22 status update, which this study confirms and quantifies
+> rather than contradicts. Same study also names §2.8's CI/fitness-function line as asserted but
+> unevidenced (no CI pipeline exists in this repo today). Previously v0.5 — partially
+> implemented, real deployment | Created: 2026-07-04 | §2.1
 > refined 2026-07-05 (Study 15 sixth-pass: image/compression dual-path enforcement) | §2.5 refined
 > 2026-07-10 (CAP-P07 public access breaks the identity-scoping premise — Case 13) | §0
 > Spoofing/Repudiation/Tampering/Information-Disclosure rows partly closed 2026-07-12 (CAP-P05,
@@ -136,7 +146,7 @@ Rule: a synchronous request path may not contain a P4 operation — slow work is
 
 - **Security** — authn (X02): ASVS V2/V3 (session fixation, rotation, expiry, CSRF tokens on all state-changing requests). Metadata validation (X05) is the **injection firewall**: schema-validate + sanity-check all metadata at load; reject dangling refs, oversized configs, cross-workspace references. API (X07): same guard chokepoint as HTML, token auth, rate limits. Package import (X08): signed/checksummed packages, dry-run diff before apply — a metadata package is executable content (§0).
 - **Performance** — X11 cache: stampede-safe (singleflight), stale-while-revalidate acceptable, P5 budgets; X10 index reconciliation uses `CREATE INDEX CONCURRENTLY` only.
-- **Architecture** — versioned schema; RLS as isolation floor (ADR-003); fitness functions run in CI (Portal GA model). **Correction (2026-08-29, Study 33):** no CI pipeline existed in this repo when this study ran (no `.github/workflows/`) — this line stated a standard with no evidence, measurement, or waiver behind it, the exact situation `capability-lifecycle.md` §3b says should block Supported status. **Closed same day**: not via GitHub Actions (this repo runs on a free GitHub plan with Actions minutes exhausted, owner instruction) but via a local pre-push git hook (`scripts/pre-push` + `prototype/go/scripts/local-ci.sh`) that runs the full conformance suite against a throwaway isolated schema before any push touching `prototype/go/` reaches `main` — same practical guarantee ("nothing broken reaches main"), no GitHub infrastructure required. See `prototype/go/DEVELOPMENT.md` step 9 for install and `benchmarks/025-architecture-worldclass-audit.md` for the full rationale.
+- **Architecture** — versioned schema; RLS as isolation floor (ADR-003); fitness functions run in CI (Portal GA model). **Correction (2026-08-29, Study 33):** no CI pipeline existed in this repo when this study ran (no `.github/workflows/`) — this line stated a standard with no evidence, measurement, or waiver behind it, the exact situation `capability-lifecycle.md` §3b says should block Supported status. **Closed same day**: not via GitHub Actions (this repo runs on a free GitHub plan with Actions minutes exhausted, owner instruction) but via a local pre-push git hook (`scripts/pre-push` + `prototype/go/scripts/local-ci.sh`) that runs the full conformance suite against a throwaway isolated schema before any push touching `prototype/go/` reaches `main` — same practical guarantee ("nothing broken reaches main"), no GitHub infrastructure required. See `prototype/go/DEVELOPMENT.md` step 9 for install and `benchmarks/025-architecture-worldclass-audit.md` for the full rationale. **Correction (2026-09-05):** the "not via GitHub Actions... minutes exhausted" half of this is stale — `menata-runtime` is public, and GitHub Actions is free/unbounded there on any plan. `.github/workflows/conformance.yml` now also runs this exact suite on GitHub (verified 219/219 passed), giving the visible commit-status/PR-check/run-history a purely-local hook never could; the local hook itself is unchanged and still installed.
 
 ### 2.9 Cross-Machine Integration (CAP-I*)
 

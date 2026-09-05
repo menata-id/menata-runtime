@@ -56,6 +56,16 @@ to a vendored `node_modules` dependency, unrelated). All 205 conformance tests
 be running." A repo-wide search of every `.md` file for "CI", "GitHub Actions", "continuous
 integration" returns zero hits.
 
+**Correction (2026-09-05):** closed further than §5's own remediation item 1 originally reported.
+`menata-runtime` is a public repository, and GitHub Actions on standard hosted runners is free
+and unbounded there on any account plan — the "Actions minutes exhausted" premise the local-hook
+remediation was built under (see item 1 below) turned out to be a private-repo assumption that
+doesn't hold for this repo's own visibility. Two workflows now exist on GitHub itself
+(`.github/workflows/css-gate.yml`, `.github/workflows/conformance.yml`), the latter mirroring
+this exact "run the full suite" remediation onto a real, visible commit-status/PR-check/run-
+history — verified live, 219/219 passed against a GitHub-hosted Postgres service container. The
+local pre-push hook is unchanged and still installed; this is additive, not a reversal.
+
 This differs from nearly every other gap in this repo, which by convention gets a dated
 acknowledgment note the moment it's found (`⚠️`/`❌` rows, "deferred, reason: ..."). This one has
 never been named. Per `capability-lifecycle.md` §3b, an NFR gate with no evidence, measurement, or
@@ -159,6 +169,17 @@ Ordered by cost-to-close vs risk-left-open, not by finding number:
    `migrations/023_groups.sql` (CAP-O07's own migration) — a truly fresh `make migrate-up` would
    have failed before conformance ever ran. Caught only because this gate actually exercises a
    from-scratch schema, which nothing before it did. Fixed in the same pass.
+
+   **Correction (2026-09-05):** the "not viable... Actions minutes already exhausted" framing
+   above was checked directly and doesn't hold — `menata-runtime` is public, and GitHub's own
+   billing docs state Actions on standard hosted runners is free and unbounded for public repos
+   on any plan (the Free-plan 2,000 min/month quota is private-repo-only). `.github/workflows/
+   conformance.yml` now runs this exact suite on GitHub too (Postgres via a service container,
+   `libwebp-dev`/`postgresql-client` installed explicitly, reusing `local-ci.sh` unchanged rather
+   than a second script) — verified live twice, 219/219 passed each run, ~4 minutes. The local
+   hook stays installed for fast pre-push feedback; the GitHub workflow adds the visible
+   commit-status/PR-check/run-history F1 originally asked for and the local hook alone can't
+   give. See `roadmap.md` item 18 and `prototype/go/DEVELOPMENT.md` step 9's own correction notes.
 2. **Correct `nfr-standards.md` §2.1–2.6/§2.8's Architecture rows** to state the seam as a target,
    not a built gate, pointing at ADR-004's own status update instead of contradicting it — done as
    part of this study, see the dated note added to that document directly.

@@ -120,6 +120,14 @@ class of bug conformance's own HTTP-black-box scope can never catch), triggered 
 `prototype/go/`. The heavier full conformance suite stays on the local pre-push hook above, not
 moved to Actions — nothing forces that move, and the local gate already works.
 
+**Follow-up (2026-09-05, same day):** it moved anyway, additively — `.github/workflows/
+conformance.yml` now runs the exact same `local-ci.sh` this section describes, against a real
+Postgres service container instead of this machine's own local one. Gives a visible commit-
+status/PR-check/run-history on GitHub, which a purely local hook never could; the hook itself is
+unchanged and still installed for fast pre-push feedback before a push even leaves the machine.
+Verified live twice: 219/219 passed each run, ~4 minutes. `roadmap.md` item 18's own follow-up
+note and `benchmarks/025-architecture-worldclass-audit.md`'s F1 correction carry the full story.
+
 ---
 
 ## Running the Prototype

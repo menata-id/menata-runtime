@@ -1,5 +1,8 @@
 # Menata Runtime
 
+[![Conformance](https://github.com/menata-id/menata-runtime/actions/workflows/conformance.yml/badge.svg)](https://github.com/menata-id/menata-runtime/actions/workflows/conformance.yml)
+[![CSS gate](https://github.com/menata-id/menata-runtime/actions/workflows/css-gate.yml/badge.svg)](https://github.com/menata-id/menata-runtime/actions/workflows/css-gate.yml)
+
 > **Applications should evolve at the pace of Business Knowledge.**
 >
 > **A runtime that realizes Business Knowledge as living applications.**
