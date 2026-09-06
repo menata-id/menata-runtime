@@ -86,18 +86,19 @@ func (l *ipRateLimiter) sweepLoop() {
 }
 
 // rateLimit rejects a request over its client IP's own budget with 429 --
-// keyed on r.RemoteAddr, which by this point in the middleware chain has
-// already been corrected by chi's middleware.RealIP (must run before this
-// one, see main()) from Caddy's own X-Real-IP header; without that, every
-// request would appear to come from Caddy's loopback address, and this
-// would rate-limit all traffic together instead of per real client.
+// keyed on clientIP(r) (main.go), which by this point in the middleware
+// chain has already been resolved by chi's middleware.ClientIPFromHeader
+// (must run before this one, see main()) from Caddy's own X-Real-IP
+// header; without that, every request would appear to come from Caddy's
+// loopback address, and this would rate-limit all traffic together instead
+// of per real client.
 func (l *ipRateLimiter) rateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		host, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			host = r.RemoteAddr // no port present -- use as-is rather than reject
+		ip := clientIP(r)
+		if host, _, err := net.SplitHostPort(ip); err == nil {
+			ip = host // clientIP fell back to r.RemoteAddr (host:port); strip the port
 		}
-		if !l.allow(host) {
+		if !l.allow(ip) {
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
 		}

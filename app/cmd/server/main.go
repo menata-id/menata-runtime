@@ -90,12 +90,19 @@ func main() {
 	h := handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, groups, cfg.SecureCookies, fileStorage)
 
 	r := chi.NewRouter()
-	// RealIP first of all: corrects r.RemoteAddr from Caddy's own X-Real-IP
-	// header (see menata.app's Caddyfile) before anything downstream reads
-	// it -- every request would otherwise appear to come from Caddy's own
-	// loopback address, breaking both access-log attribution and the
-	// per-IP rate limiter below.
-	r.Use(middleware.RealIP)
+	// app/ROADMAP.md Phase 5 fix (govulncheck flagged GO-2026-5777/5775):
+	// middleware.RealIP is deprecated and was already vulnerable to IP
+	// spoofing the moment a request skipped Caddy (it walks
+	// True-Client-IP/X-Real-IP/X-Forwarded-For unconditionally and mutates
+	// r.RemoteAddr in place). ClientIPFromHeader is chi's own replacement,
+	// explicit about which single header it trusts -- X-Real-IP, since
+	// that's the one header menata.app's own Caddyfile unconditionally
+	// OVERWRITES on every request (header_up X-Real-IP {remote_host}), the
+	// exact safety precondition ClientIPFromHeader's own doc comment
+	// states. Stores the parsed IP in ctx (read via middleware.GetClientIP)
+	// rather than mutating r.RemoteAddr -- slogAccessLog and the rate
+	// limiter below both read it that way now.
+	r.Use(middleware.ClientIPFromHeader("X-Real-IP"))
 	// RequestID before the access logger: gives every access log line a
 	// request id, and makes it readable via middleware.GetReqID(ctx)
 	// anywhere downstream — CAP-I04's correlation_id for record_events
@@ -370,6 +377,20 @@ func dispatchOutboxItem(ctx context.Context, item *store.OutboxItem, notificatio
 	}
 }
 
+// clientIP returns the request's client IP as resolved by
+// middleware.ClientIPFromHeader (see main()'s own registration), falling
+// back to the raw TCP peer (r.RemoteAddr) when that middleware found no
+// valid X-Real-IP -- e.g. a direct local request with no Caddy in front,
+// which every dev/test invocation in this repo is. Shared by slogAccessLog
+// (below) and the rate limiter (ratelimit.go) so both attribute a request
+// to the same IP.
+func clientIP(r *http.Request) string {
+	if ip := middleware.GetClientIP(r.Context()); ip != "" {
+		return ip
+	}
+	return r.RemoteAddr
+}
+
 // slogAccessLog replaces chi's middleware.Logger (stdlib `log`, plain text)
 // with one that writes through the same slog JSON handler as every other log
 // line in this process, using the same "correlation_id" key
@@ -388,7 +409,7 @@ func slogAccessLog(next http.Handler) http.Handler {
 			"status", ww.Status(),
 			"bytes", ww.BytesWritten(),
 			"duration_ms", time.Since(start).Milliseconds(),
-			"remote_addr", r.RemoteAddr,
+			"remote_addr", clientIP(r),
 		)
 	})
 }
