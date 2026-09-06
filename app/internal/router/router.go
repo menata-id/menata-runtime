@@ -50,6 +50,9 @@ func Mount(r chi.Router, h *handler.Handler) {
 	r.Get("/signup", h.SignupForm) // CAP-O09
 	r.Post("/signup", h.Signup)    // CAP-O09
 
+	r.Get("/choose-workspace", h.ChooseWorkspaceForm) // CAP-O11
+	r.Post("/choose-workspace", h.ChooseWorkspace)    // CAP-O11
+
 	r.Get("/login", h.LoginForm)
 	r.Post("/login", h.Login)
 	r.Post("/logout", h.Logout)

@@ -4,9 +4,10 @@ executor (*Executor).doCompositeSignature 28
 executor resolveDateArithmetic 12
 handler (*Handler).APICreate 16
 handler (*Handler).AdminSetGroupRoles 12
-handler (*Handler).AdminUpdateUser 15
+handler (*Handler).AdminUpdateUser 16
 handler (*Handler).Board 17
 handler (*Handler).BoardMove 11
+handler (*Handler).ChooseWorkspace 12
 handler (*Handler).CoordPlace 17
 handler (*Handler).Create 59
 handler (*Handler).Dashboard 12
@@ -15,11 +16,12 @@ handler (*Handler).Detail 30
 handler (*Handler).FieldOptions 11
 handler (*Handler).ImportCSV 26
 handler (*Handler).List 55
+handler (*Handler).Login 13
 handler (*Handler).Notifications 12
 handler (*Handler).Report 13
 handler (*Handler).Search 14
 handler (*Handler).SetCoordPlace 14
-handler (*Handler).Signup 17
+handler (*Handler).Signup 19
 handler (*Handler).TriggerEvent 11
 handler (*Handler).Update 26
 handler (*Handler).Webhook 19

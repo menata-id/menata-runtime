@@ -59,10 +59,14 @@ func (h *Handler) AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 	a := h.auth(r)
 	targetID := chi.URLParam(r, "userID")
 	target, err := h.users.GetByID(r.Context(), targetID)
-	if err != nil || target.WorkspaceID != a.User.WorkspaceID {
-		// CAP-X06: a user from another Workspace 404s exactly like one that
-		// doesn't exist at all -- same convention as every other
-		// cross-workspace lookup in this handler.
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, ok, err := h.memberships.RoleFor(r.Context(), target.ID, a.User.WorkspaceID); err != nil || !ok {
+		// CAP-X06/CAP-O11: a user with no real membership in this Workspace
+		// 404s exactly like one that doesn't exist at all -- same convention
+		// as every other cross-workspace lookup in this handler.
 		http.NotFound(w, r)
 		return
 	}
@@ -75,7 +79,7 @@ func (h *Handler) AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 	if workspaceRole != "Admin" && workspaceRole != "Member" {
 		workspaceRole = "Member"
 	}
-	if err := h.users.SetWorkspaceRole(r.Context(), target.ID, workspaceRole); err != nil {
+	if err := h.memberships.SetRole(r.Context(), target.ID, a.User.WorkspaceID, workspaceRole); err != nil {
 		slog.Error("set workspace role", "error", err)
 		http.Error(w, "failed to save", http.StatusInternalServerError)
 		return

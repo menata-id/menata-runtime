@@ -34,7 +34,7 @@ INSERT INTO users (workspace_id, name, email, password_hash, workspace_role) VAL
      '$2a$10$moxxOcZzSu3ILTzJlLF2Q.9vxiGNnSXPl7kY1pT3t5o1FoDjqC8aK', 'Admin'),
     ('ws_default', 'Wendy', 'submitter2@example.com',
      '$2a$10$moxxOcZzSu3ILTzJlLF2Q.9vxiGNnSXPl7kY1pT3t5o1FoDjqC8aK', 'Member')
-ON CONFLICT (workspace_id, email) DO NOTHING;
+ON CONFLICT (email) DO NOTHING;
 
 -- Per-Application role assignments (CAP-O01) for every account across every
 -- Case, including Case 1's Alice/Bob -- looked up by email rather than a

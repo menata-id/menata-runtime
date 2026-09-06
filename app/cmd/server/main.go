@@ -86,9 +86,10 @@ func main() {
 	sessions := store.NewSessionStore(pool)
 	users := store.NewUserStore(pool)
 	workspaceStore := store.NewWorkspaceStore(pool) // CAP-O09
+	memberships := store.NewMembershipStore(pool)   // CAP-O11
 	groups := store.NewGroupStore(pool)             // CAP-O07
 	fileStorage := storage.NewLocalDisk("uploads")
-	h := handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, workspaceStore, groups, cfg.SecureCookies, fileStorage)
+	h := handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, workspaceStore, memberships, groups, cfg.SecureCookies, fileStorage)
 
 	r := chi.NewRouter()
 	// app/ROADMAP.md Phase 5 fix (govulncheck flagged GO-2026-5777/5775):
@@ -122,7 +123,7 @@ func main() {
 	// anything else runs -- workspaceTx's own workspace_id now comes from
 	// the authenticated User (store.AuthFromContext), not a client-suppliable
 	// cookie, so this must run first.
-	r.Use(sessionAuth(sessions, users, groups, interpStore, &permission.Guard{}))
+	r.Use(sessionAuth(sessions, users, memberships, groups, interpStore, &permission.Guard{}))
 	// CAP-X02: CSRF check, after sessionAuth (needs the session's stored
 	// token from ctx) and before workspaceTx (a rejected request shouldn't
 	// pay for opening a transaction).
@@ -526,7 +527,7 @@ func visitorAuth(r *http.Request, interp *interpreter.Interpreter, guard *permis
 // as before -- there's no useful page to redirect a form submission to,
 // and CAP-P07 is deliberately read-only: no anonymous Create/Update/
 // TriggerEvent, only GET.
-func sessionAuth(sessions *store.SessionStore, users *store.UserStore, groups *store.GroupStore, interpStore *interpreter.Store, guard *permission.Guard) func(http.Handler) http.Handler {
+func sessionAuth(sessions *store.SessionStore, users *store.UserStore, memberships *store.MembershipStore, groups *store.GroupStore, interpStore *interpreter.Store, guard *permission.Guard) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if isPublicPath(r.URL.Path) {
@@ -565,6 +566,38 @@ func sessionAuth(sessions *store.SessionStore, users *store.UserStore, groups *s
 				deny()
 				return
 			}
+
+			// CAP-O11: sess.WorkspaceID == "" means this identity is
+			// authenticated but hasn't picked a Workspace yet (2+
+			// memberships, Login sent them to /choose-workspace instead of
+			// pre-selecting one). Only that page itself may proceed in this
+			// state -- everything else denies, same as an expired session,
+			// since there is no single Workspace yet to scope a real page to.
+			if sess.WorkspaceID == "" {
+				if r.URL.Path == "/choose-workspace" {
+					ctx := store.WithAuth(r.Context(), &store.Auth{User: user, CSRFToken: sess.CSRFToken})
+					next.ServeHTTP(w, r.WithContext(ctx))
+					return
+				}
+				deny()
+				return
+			}
+			role, ok, err := memberships.RoleFor(r.Context(), user.ID, sess.WorkspaceID)
+			if err != nil {
+				slog.Error("resolve membership role", "correlation_id", middleware.GetReqID(r.Context()), "error", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			if !ok {
+				// A session naming a Workspace this identity no longer has a
+				// real membership in (e.g. revoked since login) -- treated as
+				// an invalid session, not a 500.
+				deny()
+				return
+			}
+			user.WorkspaceID = sess.WorkspaceID
+			user.WorkspaceRole = role
+
 			// CAP-O07: a session's effective ApplicationRoles is the UNION of
 			// this person's own direct user_application_roles assignment and
 			// every role any Group they belong to holds -- resolved fresh

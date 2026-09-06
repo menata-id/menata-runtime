@@ -89,7 +89,7 @@ INSERT INTO users (workspace_id, name, email, password_hash, workspace_role) VAL
      '$2a$10$moxxOcZzSu3ILTzJlLF2Q.9vxiGNnSXPl7kY1pT3t5o1FoDjqC8aK', 'Member'),
     ('ws_default', 'Voter Three', 'quorum.voter3@example.com',
      '$2a$10$moxxOcZzSu3ILTzJlLF2Q.9vxiGNnSXPl7kY1pT3t5o1FoDjqC8aK', 'Member')
-ON CONFLICT (workspace_id, email) DO NOTHING;
+ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO user_application_roles (user_id, application_id, role)
 SELECT u.id, 'app_quorum_lab',

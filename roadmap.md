@@ -2543,6 +2543,16 @@ workspaces, so the proposed migration (new `workspace_memberships` table, same s
 implementation time, not trusted to still hold later. No code changed this pass — registration +
 benchmark only.
 
+**Status update (2026-09-06, same day): CAP-O11 implemented, ❌→✅.** Full build summary in
+`capability-registry.md`'s own row, not repeated here. Headline: `users.email` is now globally
+unique, a new `workspace_memberships` table is the real fix, `/choose-workspace` is the picker on
+top, login auto-enters unchanged for every single-membership account (zero added friction).
+Deliberate scope cut, named: the 24 existing seed files' own `INSERT INTO users` statements
+stayed untouched — a new last-run seed backfills memberships from their still-populated but now
+vestigial `workspace_id`/`workspace_role` columns instead, rather than risky per-file surgery.
+`./scripts/local-ci.sh`: 225/225 (219 pre-existing + 6 new CAP-O11 tests), zero regressions.
+Manually verified live against the real dev database (migration applied there too).
+
 ---
 
 # Principles

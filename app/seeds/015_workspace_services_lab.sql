@@ -74,7 +74,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Account (self-contained, same reasoning as prior lab seed files).
 INSERT INTO users (workspace_id, name, email, password_hash, workspace_role) VALUES
     ('ws_default', 'Yara', 'yara@example.com', '$2a$10$moxxOcZzSu3ILTzJlLF2Q.9vxiGNnSXPl7kY1pT3t5o1FoDjqC8aK', 'Member')
-ON CONFLICT (workspace_id, email) DO NOTHING;
+ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO user_application_roles (user_id, application_id, role)
 SELECT u.id, app.id, 'Member' FROM users u, (VALUES ('app_workspace_lab_hr'), ('app_workspace_lab_ops')) AS app(id)

@@ -59,7 +59,7 @@ INSERT INTO users (workspace_id, name, email, password_hash, workspace_role) VAL
      '$2a$10$moxxOcZzSu3ILTzJlLF2Q.9vxiGNnSXPl7kY1pT3t5o1FoDjqC8aK', 'Member'),
     ('ws_default', 'Groups Lab Yuda', 'yuda.gl@example.com',
      '$2a$10$moxxOcZzSu3ILTzJlLF2Q.9vxiGNnSXPl7kY1pT3t5o1FoDjqC8aK', 'Member')
-ON CONFLICT (workspace_id, email) DO NOTHING;
+ON CONFLICT (email) DO NOTHING;
 
 -- Wati's DIRECT assignment -- "Editor" only. "Approver" is deliberately
 -- absent here; the test grants it exclusively via Group membership.

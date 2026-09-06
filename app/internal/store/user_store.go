@@ -9,12 +9,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// User is one account row (CAP-X02/CAP-O01). WorkspaceRole is the
-// workspace-wide tier (Admin/Member) — the separate, per-Application tier
-// lives in user_application_roles, loaded via ApplicationRoles, not on this
-// struct: a user has exactly one WorkspaceRole but zero-or-more Application
-// role assignments, and callers that only need identity/workspace shouldn't
-// pay for the join.
+// User is one real identity (CAP-X02), globally unique by email (CAP-O11 --
+// `users` used to be a (workspace_id, email) pair, not a person; see
+// migrations/026's own header). WorkspaceID/WorkspaceRole are NOT columns on
+// this row anymore -- they're populated per-request by sessionAuth
+// (cmd/server/main.go) from the session's own chosen workspace joined
+// against workspace_memberships (MembershipStore), reflecting which one
+// Workspace THIS session is currently in, not a fixed property of the
+// identity. Every store method below that returns a *User leaves these two
+// fields zero-valued; only sessionAuth fills them in.
 type User struct {
 	ID                     string
 	WorkspaceID            string
@@ -44,37 +47,37 @@ func (s *UserStore) db(ctx context.Context) querier {
 	return dbFromContext(ctx, s.pool)
 }
 
-// GetByEmail looks up a user by email alone, not scoped to a workspace --
-// login itself is how a session's workspace gets resolved (the returned
-// row's own WorkspaceID), not a separate cookie/form field. Schema still
-// permits the same email in two workspaces (UNIQUE(workspace_id, email)) for
-// a person who legitimately has an account in each; this prototype takes
-// the first match by email alone, an accepted simplification, not enforced
-// against here.
+// GetByEmail looks up an identity by email -- CAP-O11: email is globally
+// unique (migrations/026), so this now resolves exactly one real person,
+// never an arbitrary pick among several disconnected rows sharing an email.
+// Login itself only verifies the password here; which Workspace(s) this
+// identity belongs to is resolved separately (MembershipStore.ForUser),
+// after the password check succeeds.
 func (s *UserStore) GetByEmail(ctx context.Context, email string) (*User, error) {
 	u := &User{}
 	err := s.db(ctx).QueryRow(ctx,
-		`SELECT id, workspace_id, name, email, password_hash, workspace_role, created_at, notification_preference
-		 FROM users WHERE email = $1 LIMIT 1`, email).
-		Scan(&u.ID, &u.WorkspaceID, &u.Name, &u.Email, &u.PasswordHash, &u.WorkspaceRole, &u.CreatedAt, &u.NotificationPreference)
+		`SELECT id, name, email, password_hash, created_at, notification_preference
+		 FROM users WHERE email = $1`, email).
+		Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.NotificationPreference)
 	if err != nil {
 		return nil, err
 	}
 	return u, nil
 }
 
-// Create inserts a brand-new user -- CAP-O09's self-service founding flow,
-// the first Go-side user INSERT in this codebase (every prior row comes
-// from seed SQL). id is Postgres-generated (users.id DEFAULT
-// gen_random_uuid(), migrations/002), unlike Workspace.Create's own id.
-func (s *UserStore) Create(ctx context.Context, workspaceID, name, email, passwordHash, workspaceRole string) (*User, error) {
+// Create inserts a brand-new identity -- CAP-O09's self-service founding
+// flow, the first Go-side user INSERT in this codebase (every prior row
+// comes from seed SQL). Pure identity only (CAP-O11) -- no workspace
+// membership here; the caller creates one separately
+// (MembershipStore.Create) once it has a real workspace_id to attach.
+func (s *UserStore) Create(ctx context.Context, name, email, passwordHash string) (*User, error) {
 	u := &User{}
 	err := s.db(ctx).QueryRow(ctx,
-		`INSERT INTO users (workspace_id, name, email, password_hash, workspace_role)
-		 VALUES ($1, $2, $3, $4, $5)
-		 RETURNING id, workspace_id, name, email, password_hash, workspace_role, created_at, notification_preference`,
-		workspaceID, name, email, passwordHash, workspaceRole).
-		Scan(&u.ID, &u.WorkspaceID, &u.Name, &u.Email, &u.PasswordHash, &u.WorkspaceRole, &u.CreatedAt, &u.NotificationPreference)
+		`INSERT INTO users (name, email, password_hash)
+		 VALUES ($1, $2, $3)
+		 RETURNING id, name, email, password_hash, created_at, notification_preference`,
+		name, email, passwordHash).
+		Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.NotificationPreference)
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
@@ -104,9 +107,9 @@ func (s *UserStore) Exists(ctx context.Context, id string) (bool, error) {
 func (s *UserStore) GetByID(ctx context.Context, id string) (*User, error) {
 	u := &User{}
 	err := s.db(ctx).QueryRow(ctx,
-		`SELECT id, workspace_id, name, email, password_hash, workspace_role, created_at, notification_preference
+		`SELECT id, name, email, password_hash, created_at, notification_preference
 		 FROM users WHERE id = $1`, id).
-		Scan(&u.ID, &u.WorkspaceID, &u.Name, &u.Email, &u.PasswordHash, &u.WorkspaceRole, &u.CreatedAt, &u.NotificationPreference)
+		Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.NotificationPreference)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +156,7 @@ func (s *UserStore) ApplicationRoles(ctx context.Context, userID string) (map[st
 // discipline CAP-O01's picker/admin page already established.
 func (s *UserStore) ListForApplicationRole(ctx context.Context, applicationID string) ([]*User, error) {
 	rows, err := s.db(ctx).Query(ctx,
-		`SELECT u.id, u.workspace_id, u.name, u.email, u.password_hash, u.workspace_role, u.created_at
+		`SELECT u.id, u.name, u.email, u.password_hash, u.created_at
 		 FROM users u
 		 WHERE EXISTS (
 		     SELECT 1 FROM user_application_roles uar
@@ -168,7 +171,7 @@ func (s *UserStore) ListForApplicationRole(ctx context.Context, applicationID st
 	var out []*User
 	for rows.Next() {
 		u := &User{}
-		if err := rows.Scan(&u.ID, &u.WorkspaceID, &u.Name, &u.Email, &u.PasswordHash, &u.WorkspaceRole, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, u)
@@ -176,12 +179,18 @@ func (s *UserStore) ListForApplicationRole(ctx context.Context, applicationID st
 	return out, rows.Err()
 }
 
-// ListByWorkspace lists every user in a workspace, for the admin
-// (/admin/users) page -- ordered by name so the page reads deterministically.
+// ListByWorkspace lists every user who is a MEMBER of a workspace, for the
+// admin (/admin/users) page -- CAP-O11: a join against workspace_memberships
+// now, not a direct users.workspace_id filter (that column is no longer the
+// source of truth for membership). WorkspaceRole comes from the membership
+// row, not the identity.
 func (s *UserStore) ListByWorkspace(ctx context.Context, workspaceID string) ([]*User, error) {
 	rows, err := s.db(ctx).Query(ctx,
-		`SELECT id, workspace_id, name, email, password_hash, workspace_role, created_at
-		 FROM users WHERE workspace_id = $1 ORDER BY name`, workspaceID)
+		`SELECT u.id, u.name, u.email, u.password_hash, u.created_at, wm.workspace_role
+		 FROM users u
+		 JOIN workspace_memberships wm ON wm.user_id = u.id
+		 WHERE wm.workspace_id = $1
+		 ORDER BY u.name`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list workspace users: %w", err)
 	}
@@ -189,24 +198,13 @@ func (s *UserStore) ListByWorkspace(ctx context.Context, workspaceID string) ([]
 
 	var out []*User
 	for rows.Next() {
-		u := &User{}
-		if err := rows.Scan(&u.ID, &u.WorkspaceID, &u.Name, &u.Email, &u.PasswordHash, &u.WorkspaceRole, &u.CreatedAt); err != nil {
+		u := &User{WorkspaceID: workspaceID}
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.WorkspaceRole); err != nil {
 			return nil, err
 		}
 		out = append(out, u)
 	}
 	return out, rows.Err()
-}
-
-// SetWorkspaceRole changes a user's workspace-wide tier (Admin/Member) --
-// the admin page's "workspace role" control.
-func (s *UserStore) SetWorkspaceRole(ctx context.Context, userID, role string) error {
-	_, err := s.db(ctx).Exec(ctx,
-		`UPDATE users SET workspace_role = $2 WHERE id = $1`, userID, role)
-	if err != nil {
-		return fmt.Errorf("set workspace role: %w", err)
-	}
-	return nil
 }
 
 // SetApplicationRole assigns (or reassigns) userID's role for one

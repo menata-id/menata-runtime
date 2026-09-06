@@ -98,6 +98,8 @@ seed:
 	psql "$(DB_URL)" -f seeds/036_coord_placement_lab.sql
 	psql "$(DB_URL)" -f seeds/037_decision_stepper_lab.sql
 	psql "$(DB_URL)" -f seeds/038_group_approver_lab.sql
+	psql "$(DB_URL)" -f seeds/039_multi_workspace_identity_lab.sql
+	psql "$(DB_URL)" -f seeds/040_membership_backfill.sql
 
 # The real test suite for HTTP/behavioral correctness -- requires migrate-up
 # + seed already applied and the server running (`make dev` in another
