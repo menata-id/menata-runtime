@@ -1,0 +1,56 @@
+name: app/ Vet, Test & Vulnerability Scan
+
+# Ported from vet-test.yml for app/'s own path (app/ROADMAP.md Phase 5).
+# Fast static checks: `go vet`, `go test ./...` (internal/model,
+# internal/executor's pure-function tests plus internal/metadata's
+# TestLoadAllAgainstApprovalCase, which skips itself with no DATABASE_URL --
+# no Postgres service here, matching prototype/go's own vet-test.yml
+# reasoning: this stays fast even on a shared runner).
+#
+# govulncheck (new, not a port): app/ROADMAP.md Phase 5's own named gap --
+# Study 34 §5 found no dependency-vulnerability scanning anywhere, and
+# prototype/go itself never closed it either. Added here as app/'s own new
+# CI step, not backported to prototype/go (frozen historical record, see
+# root CLAUDE.md).
+on:
+  push:
+    paths:
+      - "app/**"
+      - ".github/workflows/app-vet-test.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/app-vet-test.yml"
+
+concurrency:
+  group: app-vet-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vet-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: app/go.mod
+          cache-dependency-path: app/go.sum
+
+      # go build/vet/test all compile the whole module graph, including
+      # upload.go's real cgo dependency on the host's libwebp (CAP-F06) --
+      # not guaranteed present on a stock runner image.
+      - name: Install libwebp
+        run: sudo apt-get update && sudo apt-get install -y libwebp-dev
+
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./... -v
+
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          govulncheck ./...

@@ -1,0 +1,67 @@
+name: app/ Conformance
+
+# Ported from conformance.yml for app/'s own path (app/ROADMAP.md Phase 5).
+# Runs app/'s real conformance suite (scripts/local-ci.sh: migrate-up + seed
+# + build + boot the server + the full ./conformance/run.sh HTTP black-box
+# suite, 219 tests as of Phase 4) against a real, fresh Postgres -- the same
+# script also runnable locally. See prototype/go's original conformance.yml
+# for the "why GitHub-hosted" reasoning (public repo, free/unbounded
+# standard-runner minutes).
+#
+# The ephemeral `postgres`/`password` service account below is scoped to
+# this one throwaway CI container, destroyed at job end -- not the shared,
+# persistent host DEVELOPMENT.md's own "Database role" section warns about
+# (that's about a real dev/prod box running other apps' data long-term).
+on:
+  push:
+    paths:
+      - "app/**"
+      - ".github/workflows/app-conformance.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/app-conformance.yml"
+
+concurrency:
+  group: app-conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: menata_app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: app/go.mod
+          cache-dependency-path: app/go.sum
+
+      # libwebp-dev: CAP-F06's image-compression pipeline links against the
+      # host's libwebp via cgo (github.com/chai2010/webp) -- not guaranteed
+      # present on a stock runner image. postgresql-client: local-ci.sh and
+      # the Makefile's migrate-up/seed targets shell out to `psql` directly.
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libwebp-dev postgresql-client
+
+      - name: Run full conformance suite (isolated schema, throwaway port)
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/menata_app?sslmode=disable
+        run: make local-ci
