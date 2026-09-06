@@ -22,6 +22,8 @@
       <a href="/ui-sample/sla-badge.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">SLA</a>
       <a href="/ui-sample/worklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Worklist</a>
       <a href="/ui-sample/groups.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Groups</a>
+      <a href="/ui-sample/document-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Doc Approval</a>
+      <a href="/ui-sample/group-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Groups (Approval)</a>
     </nav>
   </div>
 </header>
@@ -81,6 +83,48 @@
       <div class="text-xs font-semibold uppercase tracking-wide text-emerald-600">/admin/groups/{id}</div>
       <div class="mt-1 text-base font-semibold text-slate-900">Group Detail</div>
       <p class="mt-1 text-sm text-slate-500">Members as removable chips instead of a checkbox grid, application roles as labeled cards.</p>
+    </a>
+  </div>
+
+  <h2 class="mt-12 text-lg font-semibold text-slate-900">Document Approval flow</h2>
+  <p class="mt-1 max-w-3xl text-sm text-slate-600">
+    A submitter's end-to-end path through a document approval process: submit → place signature
+    markers per step → land in the approver's inbox. Click through in order, or jump to any step
+    from the nav above.
+  </p>
+  <div class="mt-4 grid gap-4 sm:grid-cols-3">
+    <a href="/ui-sample/document-submit.html" class="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div class="text-xs font-semibold uppercase tracking-wide text-purple-600">Step 1 of 3</div>
+      <div class="mt-1 text-base font-semibold text-slate-900">New Approval</div>
+      <p class="mt-1 text-sm text-slate-500">Submit a document, choose Sequential vs. Parallel approval mode.</p>
+    </a>
+    <a href="/ui-sample/document-signature-placement.html" class="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div class="text-xs font-semibold uppercase tracking-wide text-purple-600">Step 2 of 3</div>
+      <div class="mt-1 text-base font-semibold text-slate-900">Signature Placement</div>
+      <p class="mt-1 text-sm text-slate-500">Drag one signature marker per approval step onto the document preview.</p>
+    </a>
+    <a href="/ui-sample/document-approval.html" class="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div class="text-xs font-semibold uppercase tracking-wide text-purple-600">Approver view</div>
+      <div class="mt-1 text-base font-semibold text-slate-900">Pending My Approval</div>
+      <p class="mt-1 text-sm text-slate-500">Inbox of documents currently awaiting your decision.</p>
+    </a>
+  </div>
+
+  <h2 class="mt-12 text-lg font-semibold text-slate-900">Groups — approval-oriented variant</h2>
+  <p class="mt-1 max-w-3xl text-sm text-slate-600">
+    A second design pass over the same Groups/Group-Detail pages above, reworked for the
+    Document Approval flow's context — role chips read as approval permissions, not just app roles.
+  </p>
+  <div class="mt-4 grid gap-4 sm:grid-cols-2">
+    <a href="/ui-sample/group-approval.html" class="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div class="text-xs font-semibold uppercase tracking-wide text-purple-600">Groups (approval variant)</div>
+      <div class="mt-1 text-base font-semibold text-slate-900">Groups</div>
+      <p class="mt-1 text-sm text-slate-500">Group list with per-application approval-role chips (Approver, Reviewer, Supervisor…).</p>
+    </a>
+    <a href="/ui-sample/group-approval-detail.html" class="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div class="text-xs font-semibold uppercase tracking-wide text-purple-600">Group detail (approval variant)</div>
+      <div class="mt-1 text-base font-semibold text-slate-900">Group Detail</div>
+      <p class="mt-1 text-sm text-slate-500">Members tab plus an Application Roles tab for assigning approval roles per app.</p>
     </a>
   </div>
 </main>
