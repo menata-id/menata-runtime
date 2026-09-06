@@ -163,6 +163,16 @@ The application will be available at `http://localhost:3100`.
 
 ## Dev Deployment (`menata.app`)
 
+**Correction (2026-09-06):** `menata.app` no longer runs this prototype — `app/ROADMAP.md`'s
+Phase 6 (Cutover) is done, and `server-manager.sh`'s `start_menata_runtime` now `cd`s into
+`app/` instead of here. This prototype's own `bin/server`/`uploads/` are left in place
+deliberately (the cutover's own rollback path), but this section's own "This prototype is live
+at `https://menata.app`" claim below is historical, describing this repo's state before that
+phase ran, not the current deployment. See `app/ROADMAP.md`'s own Phase 6 status update and
+`app/DEVELOPMENT.md`'s equivalent section for the current deployment's own how-to. Left
+otherwise unrestructured per root `CLAUDE.md`'s own "append, don't rewrite" convention and
+`prototype/`'s frozen-historical-record status.
+
 **Correction (2026-08-22):** earlier revisions of this section called this a "Production
 Deployment." It is not — `menata.app` is a **development** deployment; there is no production
 instance of this runtime yet. The operational cautions below (restart discipline, port

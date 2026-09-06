@@ -107,3 +107,15 @@ against a decision this document didn't know about yet" note for how the new `in
 scaffolding relates to this same status block's test-coverage target above — it doesn't change
 that target. Full 219/219 conformance and `go build/vet/test ./...` re-verified. `menata.app`
 still serves `prototype/go` — Phase 6 (Cutover) unchanged, still next whenever the owner decides.
+
+**Status update (2026-09-06, Phase 6): cutover done — `menata.app` now serves `app/`.** Owner
+decision: direct full replacement (not a parallel transition window). Pre-cutover investigation
+found RLS was already live on `menata_runtime` from `prototype/go`'s own earlier history, and a
+full schema diff against `app/`'s own database found zero differences — the cutover reduced to
+swapping which binary serves the existing data, backed by a `pg_dump` taken first. `server-
+manager.sh` (not in this repo) now starts `app/`'s binary on the same port or database; `prototype/
+go`'s own binary/uploads stay untouched for rollback. Verified live: real login, a real write
+persisted and validated correctly, zero error-level logs, and the access log confirming real
+client IPs resolve correctly through Caddy (the Phase 5 `ClientIPFromHeader` fix, proven in actual
+production traffic). Full detail in `ROADMAP.md`'s own Phase 6 status update. This is the last
+phase in the original graduation plan — `app/` is now the live Menata Runtime application.

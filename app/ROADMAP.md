@@ -307,6 +307,49 @@ window? Whoever reaches this phase decides against the real state of things at t
 
 Once confident: `server-manager.sh` points at `app/`'s own binary instead of `prototype/go`'s.
 
+**Status update (2026-09-06): Done — direct full replacement, `menata.app` now serves `app/`.**
+Owner decision: direct replacement, not a parallel transition window; RLS handled "at the real
+cutover moment."
+
+Pre-cutover investigation (read-only) found the decision was simpler than the roadmap's own
+framing assumed: **RLS was already live on `menata_runtime`** (`prototype/go`'s own deployment
+must have applied 009 at some earlier, untracked point in its history) — `records`/
+`record_events`/`notifications`/`action_outbox` all already showed `relrowsecurity=t,
+relforcerowsecurity=t` with the exact `ws_isolation` policy 009 declares, before this phase
+touched anything. A full `information_schema.columns` diff between `menata_runtime` and `app/`'s
+own `menata_app` found zero differences in application tables. So the cutover reduced to *which
+binary serves the existing data*, not a data migration — `app/`'s `workspaceTx` middleware
+(ported verbatim, Phase 3) already sets `app.workspace_id` per request exactly the way RLS
+requires, independent of when 009 was actually applied.
+
+**Sequence executed, each step verified before the next:**
+1. `pg_dump menata_runtime` to `/root/backups/` before touching anything.
+2. Copied `prototype/go/uploads/`'s 12 real files into `app/uploads/` (additive — `prototype/go`'s
+   own copy untouched) — file-typed field values in existing records reference these by key.
+3. Brought `menata_runtime` under goose tracking: `make migrate-up` (all 24, idempotent, zero
+   errors) + `make migrate-rls-cutover` (009, confirmed still a no-op against the already-RLS'd
+   tables) — `menata_runtime` now has both `goose_db_version` and `goose_manual_db_version`.
+4. Built `app/`'s production binary (`make build`).
+5. Pre-swap smoke test on a scratch port (4002) against the live `menata_runtime` database, while
+   `prototype/go` was still the one actually serving traffic: `/health`, a real login (Alice), and
+   `/files/{key}` serving a real uploaded PDF byte-identical to `prototype/go`'s own copy.
+6. `server-manager.sh`'s `start_menata_runtime` (`/root/scripts/server-manager.sh`, not in this
+   repo) now `cd`s into `app/` instead of `prototype/go/` — `stop_menata_runtime` needed no change
+   (port-based). `app/.env` created with production values (`menata_runtime_app` role — reused
+   as-is, already owns the right grants on this database — `menata_runtime` db, `PORT=4000`,
+   `SECURE_COOKIES=true`).
+7. Cutover: `server-manager.sh stop menata-runtime` then `start menata-runtime` — a few seconds of
+   downtime for the swap itself, matching the direct-replacement decision.
+8. Post-cutover verification against the real domain: `/health` → 200, a real login, a real write
+   (a Design Request record, validated correctly by CAP-C09 constraints, persisted with a real
+   `303` redirect), zero `ERROR`-level log lines, and confirmation the access log now attributes
+   requests to the real external client IP (not Caddy's loopback address) — the Phase 5
+   `ClientIPFromHeader` fix working correctly in actual production traffic, not just synthetic
+   `curl -H` tests.
+
+`prototype/go`'s own `bin/server` and `uploads/` are untouched — rollback is
+`server-manager.sh`'s `start_menata_runtime` `cd` reverted to `prototype/go`, stop/start again.
+
 ---
 
 ## Explicitly out of scope for this roadmap
