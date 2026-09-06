@@ -411,7 +411,7 @@ The runtime's capability is being built and verified through a deliberate discov
 
 | Document | Role |
 |----------|------|
-| [roadmap.md](roadmap.md) | The method + phased work plan (start here) |
+| [roadmap.md](roadmap.md) | The capability-discovery method + phased work plan (start here) — **not** [`app/ROADMAP.md`](app/ROADMAP.md), the separate phased plan for porting code into `app/`; filenames differ only by case |
 | [capability-registry.md](capability-registry.md) | Single source of record — every known capability, its status, and priority |
 | [case-portfolio.md](case-portfolio.md) | Deliberately chosen test cases and their declared targets |
 | [capability-lifecycle.md](capability-lifecycle.md) | How a new capability is proposed, admitted, and completed |

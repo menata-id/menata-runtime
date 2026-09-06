@@ -29,6 +29,19 @@ at blueprint stage (package skeleton + architecture docs, no ported business log
 `app/README.md`). Do not add new capability work to `prototype/go/` under the assumption it's
 still the active development target; check `app/ROADMAP.md` first.
 
+## Two files named "roadmap" — do not confuse them
+
+`roadmap.md` (root, lowercase) and `app/ROADMAP.md` (uppercase) are different documents with
+different jobs — the filenames differ only by case, which is easy to misread on a quick grep or
+listing:
+
+- **`roadmap.md`** — the capability-*discovery* method and evidence log: why a capability exists,
+  what benchmark/case proved it (Studies 1–34). Read this for "what should the runtime support."
+- **`app/ROADMAP.md`** — the phased plan for porting real code into `app/` (Phase 0 leaf packages
+  → … → Phase 6 cutover). Read this for "what should I build in `app/` right now, in what order."
+
+Always resolve which one a task needs by full path, never by basename alone.
+
 ## Where a new document goes
 
 `README.md`'s own "# Documentation" section is the maintained map of everything at root (Tier

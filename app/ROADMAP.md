@@ -8,6 +8,11 @@ giant test at the end.
 Full decision record behind all of this: `../benchmarks/026-runtime-graduation-decision.md`
 (Study 34).
 
+**Not the same document as root [`roadmap.md`](../roadmap.md).** That file is the
+capability-*discovery* method and evidence log (why a capability exists, Studies 1–34); this file
+is the actual build sequence for `app/`'s own code. The filenames differ only by case
+(`roadmap.md` vs `ROADMAP.md`) — match by full path, not basename.
+
 ---
 
 ## Principles carried forward from `prototype/go`'s own discipline

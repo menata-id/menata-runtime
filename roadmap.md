@@ -6,6 +6,12 @@
 >
 > Status: Active | Created: 2026-07-04 | Renamed from `capability-roadmap.md` 2026-07-05 (scope grew beyond capability discovery) | Phase 6 (case portfolio field-level design, Cases 5–21) added 2026-07-10
 
+> **Not the same document as [`app/ROADMAP.md`](app/ROADMAP.md)** (added 2026-09-06). This file is
+> the capability-*discovery* method and its evidence log — why a capability exists, what proved it
+> — not a build sequence. `app/ROADMAP.md` is the phased plan for porting real code into `app/`.
+> The filenames differ only by case (`roadmap.md` vs `ROADMAP.md`) — match by full path, not
+> basename, when deciding which one a task actually needs.
+
 ---
 
 # Problem
@@ -2288,6 +2294,17 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
 
     Not urgent — none of these are wrong today, only scheduled to become so at a named future
     point. Flagged so the update happens deliberately at that point, not by accident.
+
+    **Status update (2026-09-06, same day): `app/ROADMAP.md` Phase 0 is done** (`feat(app): port
+    Phase 0 leaf packages` — `model`/`auth`/`db`/`config`/`store` ported verbatim, `internal/
+    storage` added, `go build`/`go vet` clean, `model_test.go` passing). This item's own table
+    above said "Phase 0 not started" when written a few commits earlier — already stale within the
+    same session, not a later drift. None of the four table rows' triggers have fired yet: Phase 0
+    was leaf-package relocation only (no capability-implementation code, no metadata/interpreter/
+    handler layer), so `capability-lifecycle.md`'s trigger ("new capability code lands in `app/`")
+    still points to Phase 1–3, not Phase 0. Recorded to show how fast this table can go stale once
+    the port is actually moving — re-check it every time a new `app/ROADMAP.md` phase lands, not
+    only at the milestones the table names.
 
 ---
 
