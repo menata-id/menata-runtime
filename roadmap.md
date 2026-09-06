@@ -2350,6 +2350,14 @@ on. New backlog item:
     reasonable to fold into whichever session first touches `loader.go` again, or into `app/`'s
     own graduation pass if item 19's "graduate" recommendation is confirmed first.
 
+21. **New (2026-09-06): `app/` blueprint created** — package skeleton (14 `internal/*/doc.go`
+    files, `go build`/`go vet` clean), `go.mod` (`menata.id/app`), onboarding docs, and
+    `docs/decisions/001-graduation-from-prototype.md`. Item 20's `loader.go` split is folded into
+    this blueprint as the plan for `internal/metadata` (not yet executed — no business logic
+    ported yet). Full detail: `benchmarks/026-runtime-graduation-decision.md` §8,
+    `app/ARCHITECTURE.md`. Next, separate step per the owner's own request: a development plan and
+    roadmap for actually porting `prototype/go`'s code into this skeleton.
+
 ---
 
 # Principles

@@ -251,4 +251,20 @@ matching entry for the split itself, not yet done.
 | What hardens after graduation, and in what order? | **Open, but scoped** — §5's gap list (migrations tooling, storage abstraction, API versioning, secrets, dependency scanning, rate limiting, test depth), sequenced by whoever picks up `app/`'s first real milestone |
 | Is the "thin architecture" claim itself verified, not just cited? | **Yes** — §7, three independent measurements (file-size/concern-count, import graph, empirical capability-cost), 2026-09-06 |
 | Does `internal/metadata/loader.go` need splitting? | **Not yet done — tracked as a backlog item** (roadmap.md), same ADR-006 pattern as `handler.go`'s own split. Found via §7 Method 1, not acted on this session |
-| When does `app/` get created, and by whom (this session or a dedicated future one)? | **Open** — not raised yet, follows from the rows above |
+| When does `app/` get created, and by whom (this session or a dedicated future one)? | **Done, this session (2026-09-06)** — blueprint stage: package skeleton (`internal/*/doc.go`, 14 packages, `go build`/`go vet` clean), `go.mod`, onboarding docs, and `docs/decisions/001-graduation-from-prototype.md`. See `app/ARCHITECTURE.md` for the full blueprint. No business logic ported yet — that's the next, separate development-plan phase |
+
+---
+
+## 8. Blueprint created (2026-09-06)
+
+`app/` now exists, built under §6's recommendation (graduate) since that's the strongest-evidenced
+direction so far — but this does NOT itself close the "recommended, not yet settled" status on
+that recommendation; the owner's explicit final confirmation still does. What exists: a real,
+`go build`-clean package skeleton matching this document's own §7 measurements (leaf/mid/
+orchestration layers), one new package (`internal/storage`, addressing §5's file-storage gap),
+`internal/metadata` already planned as split (§7's own `loader.go` finding, roadmap.md item 20)
+rather than carried over unsplit, and every other §5 gap named explicitly in `app/ARCHITECTURE.md`
+as deferred to a development plan, not silently dropped. Full detail: `app/ARCHITECTURE.md` and
+`app/docs/decisions/001-graduation-from-prototype.md`. Next step, explicitly separate from this
+blueprint per the owner's own request: a development plan and roadmap for actually porting code
+into this skeleton.
