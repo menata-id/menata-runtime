@@ -86,6 +86,32 @@ close by itself. Recorded here so the development plan inherits a scoped list, n
 | Test coverage near-zero outside 3 pure-function files added 2026-09-05 | A coverage target set when the development plan sequences the port |
 | Single-process in-memory metadata cache (CAP-X11/LISTEN-NOTIFY unbuilt) | Not a gap against the actual deployment target — see below |
 
+## Client-side JavaScript policy
+
+Core project principle, stated plainly in `prototype/go/docs/decisions/001-techstack.md`: **the
+runtime owns application behavior, not the client.** For `app/`:
+
+- **Default: no client-side JavaScript at all.** HTMX handles partial page updates server-side —
+  most pages need nothing else, and HTMX itself is listed as a core tech-stack item above
+  precisely because it's what makes the rest of this section short.
+- **Sanctioned exception: Hyperscript**, for genuinely client-only UI concerns HTMX alone can't
+  cover (modals, toggles, inline feedback) — deliberately constrained by design, so it discourages
+  moving business logic to the client rather than merely relying on convention to prevent it.
+- **Never: Alpine.js, or any reactive client-state framework.** `prototype/go`'s own ADR-001
+  considered and explicitly rejected Alpine.js: "encourages reactive state management and
+  client-side logic... conflicts with the principle that the runtime owns application behavior."
+  That reasoning applies unchanged to `app/`.
+- **Correction, not carried forward: plain vanilla `<script>` blocks.** `prototype/go` drifted
+  into hand-written vanilla JS instead of its own ADR-001-chosen Hyperscript for every real
+  client-behavior case it ended up needing (CAP-V16 typeahead, CAP-V15 live-sum preview, CAP-V14
+  kanban drag-drop, CAP-V21 coordinate-placement) — undocumented anywhere until found live
+  2026-09-06 while designing this policy (`prototype/go/ARCHITECTURE.md` still describes
+  Hyperscript as if it were in use; it never was). Vanilla `<script>` has no structural guardrail
+  against the exact complexity creep Hyperscript exists to prevent — the same risk profile as
+  Alpine, just not yet exercised. `app/` reinstates the original ADR-001 decision: these cases
+  port to real Hyperscript (`_="..."` attributes) when their code is ported, not vanilla
+  `<script>` blocks carried over as-is.
+
 ## Deployment target: no containers, by constraint
 
 This host runs no Docker/Kubernetes — a real RAM/CPU constraint from sharing a VPS with other

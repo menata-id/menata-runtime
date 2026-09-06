@@ -8,14 +8,22 @@
 
 ## Prerequisites (target, once code is ported)
 
-Same as `prototype/go`'s own proven stack — nothing here changes as part of graduating:
+**Core tech stack** — the actual architecture-defining choices, unchanged from `prototype/go`'s
+own proven stack (`prototype/go/docs/decisions/001-techstack.md`). See `ARCHITECTURE.md`'s
+"Client-side JavaScript policy" for why HTMX's presence here is what keeps this list this short:
 
 | Tool | Version | Purpose |
 |------|---------|---------|
 | Go | 1.25.0 | Runtime engine |
 | PostgreSQL | 14+ | Runtime Metadata + Business Data storage |
-| Node.js | 20+ | Tailwind CSS build |
-| templ | v0.3.1020 | Type-safe HTML templates |
+| templ | v0.3.1020 | Type-safe HTML templates, compiled |
+| HTMX | 2.0.4 | Server-driven partial page updates — the reason this stack needs almost no client-side JavaScript at all |
+
+**Build-time tooling only — not part of the running application, never shipped to the browser:**
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Node.js | 20+ | Runs the Tailwind CSS CLI at build time (`make build-css`) only |
 
 `go.mod` declares no dependencies yet — `prototype/go/go.mod`'s own 8 direct dependencies
 (`github.com/a-h/templ`, `github.com/chai2010/webp`, `github.com/go-chi/chi/v5`,

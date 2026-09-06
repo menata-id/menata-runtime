@@ -105,6 +105,20 @@ HTMX handles partial page updates without full page reloads.
 
 Hyperscript handles simple client-side behavior (modals, toggles, inline feedback).
 
+**Correction (2026-09-06):** this line has never actually been true. Found live designing
+`app/`'s own client-JS policy — `internal/ui/layout.templ` loads only HTMX
+(`<script src="https://unpkg.com/htmx.org@2.0.4">`); Hyperscript's own script tag has never been
+added, and there is not one `_="..."` Hyperscript attribute anywhere in `internal/ui/*.templ`.
+Every real client-behavior need this codebase has hit so far (CAP-V16 typeahead, CAP-V15 live-sum
+preview, CAP-V14 kanban drag-drop, CAP-V21 coordinate-placement) shipped as a plain vanilla
+`<script>` block (`layout.templ`'s own shared delegated-listener script) instead — undocumented
+anywhere, no ADR status update, no `CLAUDE.md` note explaining the switch. `docs/decisions/
+001-techstack.md`'s own "Accepted" Hyperscript decision was simply never implemented; this file
+kept describing it as if it had been. `app/ARCHITECTURE.md`'s "Client-side JavaScript policy"
+reinstates the original decision going forward — this file is left as-is otherwise (append, don't
+rewrite) since `prototype/go` itself is frozen per Study 34's own graduation decision, not being
+further developed.
+
 The Renderer is independent from the Interpreter.
 
 Multiple renderers may be added in the future (e.g., JSON API renderer).

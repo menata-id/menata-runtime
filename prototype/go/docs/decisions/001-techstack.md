@@ -4,6 +4,15 @@ Date: 2026-07-04
 
 Status: Accepted
 
+**Status update (2026-09-06):** the "Client Behavior: Hyperscript" row below was never actually
+implemented — found live designing `app/`'s own client-JS policy (see
+`benchmarks/026-runtime-graduation-decision.md`, Study 34). `internal/ui/layout.templ` loads only
+HTMX; every real client-behavior need this codebase hit (CAP-V16/V15/V14/V21) shipped as plain
+vanilla `<script>` instead, undocumented. `ARCHITECTURE.md` carries its own matching correction.
+This ADR's own decision (Hyperscript, not vanilla JS, not Alpine.js) stands as originally written
+and is reinstated for `app/` going forward (`app/ARCHITECTURE.md`'s "Client-side JavaScript
+policy") — `prototype/go` itself is left as-is, frozen per Study 34's graduation decision.
+
 ---
 
 ## Context
