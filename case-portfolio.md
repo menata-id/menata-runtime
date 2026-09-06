@@ -7,11 +7,16 @@
 > is a designed experiment — and surprises (patterns the case reveals that
 > were not targeted) are themselves findings.
 >
-> Status: v0.31 — Case 3 gains a 2026-08-23 extension note (PDF signature placement, Study 32,
-> `benchmarks/024-pdf-signature-approval-study.md`), new CAP-F22 registered. Previously v0.3 — full
-> 21-case portfolio documented (Cases 1–10 original + Cases 11–21 Extended Portfolio); Cases 1–2 ✅
-> done, the remaining 19 ⚠️ documented with targets/gaps registered against `capability-
-> registry.md` | Created: 2026-07-04 | Updated: 2026-08-23
+> Status: v0.32 — Case 3 gains a 2026-09-06 note: a new owner request (per-Step user-or-group
+> approver choice, submission-time step reordering, and a saved default flow per Document Type),
+> prototyped only as a static UI-sample mockup (`app/web/static/ui-sample/document-submit.html`),
+> not yet run through `capability-registry.md`'s admission test — three candidate gaps named,
+> none registered as a CAP row yet. Previously v0.31 — Case 3 gains a 2026-08-23 extension note
+> (PDF signature placement, Study 32, `benchmarks/024-pdf-signature-approval-study.md`), new
+> CAP-F22 registered. Previously v0.3 — full 21-case portfolio documented (Cases 1–10 original +
+> Cases 11–21 Extended Portfolio); Cases 1–2 ✅ done, the remaining 19 ⚠️ documented with
+> targets/gaps registered against `capability-registry.md` | Created: 2026-07-04 |
+> Updated: 2026-09-06
 
 ---
 
@@ -112,6 +117,42 @@ correction above, this same file). Approval Step's `fld_as_approver` field now d
 by intersection with the Approver role it already required — not a new authorization mechanism,
 the existing role/ownership check at Approve time is completely unchanged. Full build notes and
 admission reasoning: `capability-registry.md`'s CAP-F23 row.
+
+**New request (2026-09-06), UI-sample exploration only, not built:** restated close to source
+(Bahasa Indonesia, kept close to the original so nothing is lost in translation) — "approval bisa
+dipilih, oleh user yang ditunjuk atau grup yang ditunjuk, dan bisa diatur urutannya, yang akan
+dipakai jika sequential. Per dokumen, harus ada pengaturan ini, bisa juga flow approval tersebut
+disimpan, menurut kategori dokumen." In English: for each Approval Step, the submitter must be
+able to choose an approver that is *either* a specific user *or* a specific Group (not one fixed
+at Machine-design time), reorder the steps at submission time (the order is what Sequential mode
+actually follows), have this configurable **per document being submitted** rather than fixed once
+for the whole Approval Document Machine, and optionally **save the whole step chain as a reusable
+default keyed by Document Type/category**, pre-filling future submissions of that category while
+staying editable per document.
+
+Prototyped as a static mockup only — `app/web/static/ui-sample/document-submit.html`'s "Approval
+steps" section (per-step User/Group toggle, approver picker, ▲▼ reorder, add/remove) and its
+"Save this as the default approval flow for `<Document Type>` documents" checkbox; index card at
+`app/web/static/ui-sample/index.html`. No backend, storage, or metadata schema behind it — this is
+a design exploration surfacing a gap, the same role Study 32's own mockups played before CAP-F22/
+CAP-F23 existed.
+
+**Why this is not already covered by CAP-A07/CAP-A08/CAP-F23:** CAP-A07/CAP-A08 give the
+Approval Document → Approval Step Sequential/Parallel machinery its per-mode gating, but say
+nothing about *who* creates the Step records or *in what order* — today that is whatever the
+Machine's own metadata/records already declare, decided once at design time. CAP-F23 lets a
+Step's `user` Field narrow its candidate picker to one *statically declared* Group
+(`{"restrict_to_group":"Document Approvers"}`) — it does not let the picker toggle between a
+specific user and a specific group per submission, nor let the submitter choose or reorder Steps
+at all. Saving a chosen step chain as a reusable default keyed by Document Type is a distinct
+concern again — closest existing precedent in this registry is none; it is not template/default-
+value machinery that exists anywhere today. Three candidate gaps, not yet run through the
+admission test in `capability-registry.md`: (1) a per-record, submission-time approver-type
+toggle (user vs. group) rather than a design-time-fixed restriction: (2) submission-time
+Step ordering/authoring, rather than Steps being pre-existing records; (3) a saved-template
+mechanism scoped by Document Type. Left as documented, undecided gaps here — no CAP row opened
+yet, consistent with this file's own role (name the business requirement and check it against
+what's ✅) versus `capability-registry.md`'s (run the actual admission test and register a row).
 
 ---
 
