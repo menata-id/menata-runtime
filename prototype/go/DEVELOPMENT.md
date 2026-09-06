@@ -191,6 +191,14 @@ picture on that host). On that host specifically:
   `/root/projects/MULTI-APP-GUIDE.md`'s port allocation map first — this host runs several
   unrelated apps, and a plain `kill`/`pkill` without checking what's actually listening has
   taken down another app's production instance before.
+
+**No Docker/containers anywhere in this deployment, deliberately.** The host is a single shared
+VPS with several other apps' own production instances already running on it (server-manager.sh
+status lists them) — resources (RAM/CPU) are a real, named constraint, not a preference; a
+container runtime's own overhead on top of that is not free on a host this size. Deployment stays
+a plain compiled binary (`go build` + `nohup`/`server-manager.sh`), same as every other app
+sharing this host. See `benchmarks/026-runtime-graduation-decision.md`'s 2026-09-06 addendum for
+how this constraint feeds directly into the prototype-vs-fresh-start decision for `app/`.
 - No auto-restart of any kind (systemd `Restart=`, cron, watchdog) — see
   `/root/docs/server-policies/NO-AUTO-RESTART-POLICY.md`. Manual restart only.
 - **RLS is live on this database** (CAP-X06, `migrations/009_workspace_isolation_rls.sql`) —

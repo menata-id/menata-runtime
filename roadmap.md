@@ -2319,6 +2319,18 @@ owner wants further discussion before deciding, so this is named as gathered evi
 verdict. A future session picking this up should start from `benchmarks/026-runtime-graduation-
 decision.md`'s own §3/§4, not re-litigate the settled parts.
 
+**Addendum (2026-09-06):** a concrete production-readiness gap inventory (§5 of that same
+document — testing depth, migrations tooling, multi-instance readiness, file storage, secrets,
+dependency scanning, rate limiting, API versioning, team-scale coupling) plus two owner-supplied
+corrections (§6) sharpened this into a stronger recommendation: this host runs no containers by a
+real resource constraint, not preference, so containerization/multi-instance-first design — the
+two biggest generic "start fresh" appeals — don't apply to either path here; and because the
+architecture is already lean (not tangled, vetted twice), every surviving gap is an incremental
+addition to the existing codebase rather than a rewrite, costing the same whether `app/` is
+graduated or brand new. Recommendation: **graduate**, treating the gap list as a post-graduation
+hardening backlog. Still awaiting the owner's explicit final confirmation before this row is
+marked settled.
+
 ---
 
 # Principles

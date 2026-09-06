@@ -113,6 +113,83 @@ or `app/` starts from zero.
 
 ---
 
+## 5. Concrete production-readiness gap inventory (2026-09-05)
+
+Requested directly: not "is the architecture sound" again (§3 already answered that — yes, twice
+independently) but "what is *concretely missing* if `prototype/go` became the real application,"
+so the graduate-vs-fresh-start question could be weighed against real evidence instead of the
+generic shape of the argument alone. Gathered by direct repo investigation, organized by area:
+
+| Area | Actual state | Evidence |
+|---|---|---|
+| **Testing** | 3 test files total, all added 2026-09-05 (`internal/model`, `internal/handler`, `internal/executor`). Coverage: `model` 88.9%, `executor` 15.3%, `handler` 0.6%. **Zero** test files in `store`, `router`, `interpreter`, `metadata`, `permission`, `auth`, `config`, `db`, `ui`, `cmd/server`. No mocked-DB pattern anywhere — everything else leans entirely on the 219-test conformance suite (real Postgres + real HTTP). No coverage gate in CI. | Direct `go test -cover ./...` run + file listing |
+| **Migrations** | Plain numbered `.sql` files applied via a hardcoded ordered `psql -f` list in the Makefile. No version-tracking table, no DOWN/rollback scripts, no tool (golang-migrate/goose/Atlas). A partially-applied migration has no automated recovery path. | `Makefile`'s `migrate-up` target |
+| **Multi-instance** | `Interpreter` is a single-process in-memory cache (`atomic.Pointer[Interpreter]`), swapped via `POST /admin/reload`. Running 2+ replicas would NOT propagate a reload to every instance — each process's cache goes stale independently. Named, understood, unbuilt (CAP-X11, LISTEN/NOTIFY). | `docs/decisions/002-metadata-loading.md` |
+| **File storage** | Uploads on local disk (`uploads/`), not object storage. A multi-instance/multi-host deployment would need shared disk or a real storage migration. | CAP-F06 registry row |
+| **Secrets** | `.env` plaintext (`DATABASE_URL=postgres://...:CHANGE_ME@...`), no vault/secrets-manager integration. | `.env.example` |
+| **Dependency scanning** | No `govulncheck`/Dependabot anywhere, including the three CI workflows added this same session. | repo-wide grep |
+| **Rate limiting / DoS** | No rate-limiter/WAF-class protection in the handler/middleware stack — `nfr-standards.md`'s own STRIDE "Denial of service" row lists only pagination/action-budgets/pool-separation. | `nfr-standards.md` |
+| **Encryption at rest** | None for any field — zero `pgcrypto`/field-level-encryption mentions anywhere. | repo-wide grep |
+| **API versioning** | `GET/POST /api/{machine}` has no version prefix, no generated OpenAPI/Swagger spec. | `router.go` |
+| **Deployment** | No Dockerfile/compose/K8s/Terraform/Ansible anywhere. `nohup ./bin/server` managed by a hand-rolled bash script (`server-manager.sh`) — no process supervisor, no crash-triggered restart, no rolling/blue-green deploy. | repo-wide search, `server-manager.sh` |
+| **Team-scale coupling** | `internal/handler` is the fan-in hub (imports 10 other `internal/*` packages), no stated public-API boundary between "core runtime" and "web layer." Evaluated only at solo-developer scale so far — the multi-engineer case is untested, not confirmed broken. | ADR-006/007 |
+
+None of this contradicts §3's own finding (the *architecture* — package layout, dispatch
+mechanism — has been vetted twice and holds up). This is a different axis: operational/production
+maturity, which nothing has audited before because nothing has needed it to be audited before.
+
+---
+
+## 6. Addendum (2026-09-06): two corrections that change the calculus
+
+The owner supplied two facts §5 was gathered without, and both cut the same direction — toward
+graduating, more strongly than §3 alone argued.
+
+**Correction 1 — this host runs no containers, by resource constraint, not preference.** The VPS
+`menata.app` (and every future `app/` deployment, presumably the same host) already runs several
+other apps' own production instances; RAM/CPU headroom is real and named, not a stylistic choice
+(see `prototype/go/DEVELOPMENT.md`'s own "No Docker/containers" note, added the same day as this
+addendum). This directly voids two of §5's implicit "fresh start" appeals that a generic
+world-class checklist would otherwise list: **container-native deployment (Docker/Kubernetes
+health probes, rolling/blue-green deploys)** and **multi-instance-first design (horizontal
+scaling behind a load balancer)** are not just "not built yet" — they are **not going to be
+built either way**, on this host, regardless of which codebase `app/` starts from. Weighing
+"start fresh so you can design for containers/multi-instance from day one" makes no sense against
+a deployment target that was never going to have either.
+
+**Correction 2 — the architecture is already thin, which changes what "inheriting prototype/go"
+actually costs.** §3 already established this (ADR-004/Study 33, twice), but the direct
+implication for §5's remaining gap list wasn't drawn out explicitly until asked: **every gap in
+§5 that survives Correction 1 — migration tooling with rollback, an object-storage abstraction
+behind the upload interface, API versioning, a secrets-manager integration, dependency-
+vulnerability scanning, rate limiting, deeper test coverage — is an INCREMENTAL ADDITION to the
+existing codebase, not a REWRITE.** None of them require touching the parts of the architecture
+already vetted as sound (the flat package layout, the switch-based dispatch); each is a new
+library call, a new CI step, or a new middleware layered onto code that already works. A
+from-scratch build gains no head start on any of them — adding `golang-migrate` to `app/` costs
+the same whether `app/`'s Go code is graduated or brand new; the *codebase being lean already*
+(not tangled, not over-coupled beyond what two audits already cleared) is precisely what makes
+retrofitting these additions cheap rather than the usual "legacy system" story where hardening is
+expensive because the code fights back.
+
+**What's left as a genuine (not merely generic) argument for starting fresh, after both
+corrections**: only the team-scale coupling question in §5's last row — `internal/handler` as an
+unbounded fan-in hub with no stated core/web API boundary, evaluated so far only at solo-developer
+scale. This remains real but entirely speculative: no second engineer exists yet, no case has
+shown the current shape actually causing friction. It is not evidence on the same footing as
+§3/§5's own findings, which are all things directly observed in this repo — it is a prediction
+about a team that doesn't exist yet.
+
+**Recommendation, updated:** graduate `prototype/go`'s codebase as `app/`'s starting point,
+treating §5's surviving gap list (migrations tooling, storage abstraction, API versioning,
+secrets, dependency scanning, rate limiting, test depth) as a **post-graduation hardening
+backlog** — real work, sequenced deliberately, not a reason to defer starting `app/` until it's
+all done, and not a reason to discard 90 proven capabilities and 219 tests to get a codebase that
+would need the identical hardening backlog anyway. This is a strengthened recommendation, not yet
+a final decision — the owner's own confirmation is still the thing that closes §3/§4's "open" row.
+
+---
+
 ## 4. What's settled vs. still open (summary)
 
 | Question | Status |
@@ -120,5 +197,6 @@ or `app/` starts from zero.
 | Do `prototype/`/`benchmarks/` need renaming or restructuring now? | **No** — settled, they're done, left as-is |
 | Does `guides/writing-runtime-metadata.md` (+ siblings) need to move? | **No** — settled, correctly placed under the corrected frame |
 | Is a new top-level folder being created for the real application? | **Yes** — settled, named `app/` |
-| Does `app/` graduate `prototype/go`'s code, or start from zero? | **Open** — owner wants further discussion before deciding |
-| When does `app/` get created, and by whom (this session or a dedicated future one)? | **Open** — not raised yet, follows from the row above |
+| Does `app/` graduate `prototype/go`'s code, or start from zero? | **Recommended: graduate** (§6, 2026-09-06) — stronger than §3's own case alone, after the no-containers/thin-architecture corrections; still awaiting the owner's explicit final confirmation before treated as settled |
+| What hardens after graduation, and in what order? | **Open, but scoped** — §5's gap list (migrations tooling, storage abstraction, API versioning, secrets, dependency scanning, rate limiting, test depth), sequenced by whoever picks up `app/`'s first real milestone |
+| When does `app/` get created, and by whom (this session or a dedicated future one)? | **Open** — not raised yet, follows from the rows above |
