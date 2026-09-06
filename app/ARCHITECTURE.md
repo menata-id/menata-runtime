@@ -112,6 +112,13 @@ runtime owns application behavior, not the client.** For `app/`:
   port to real Hyperscript (`_="..."` attributes) when their code is ported, not vanilla
   `<script>` blocks carried over as-is.
 
+  **Status update (2026-09-06):** a fifth case in the identical situation, CAP-V19
+  (reference-field live preview), was found live while porting the four named above but left
+  unconverted at the time (out of that pass's own scope, per `ROADMAP.md`'s Phase 4 status
+  update). Now converted too, in a later pass (`ROADMAP.md`'s post-Phase-4 status update) —
+  `layout.templ` carries no vanilla `<script>` block at all any more; all five cases are
+  Hyperscript `_="..."` attributes.
+
 ## Deployment target: no containers, by constraint
 
 This host runs no Docker/Kubernetes — a real RAM/CPU constraint from sharing a VPS with other

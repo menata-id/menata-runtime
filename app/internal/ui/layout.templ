@@ -44,46 +44,15 @@ templ Page(title, workspaceName, identity, csrfToken string, isAdmin bool, unrea
 			@shellBottomBar(unreadCount)
 			// app/ROADMAP.md Phase 4 client-side JavaScript policy correction
 			// (ARCHITECTURE.md): CAP-V16 (typeahead click), CAP-V15 (live-sum
-			// input), CAP-V14 (kanban drag-drop), and CAP-V21 (coordinate-
-			// placement drag-drop) all moved off this page-global delegated
+			// input), CAP-V14 (kanban drag-drop), CAP-V21 (coordinate-
+			// placement drag-drop), and CAP-V19 (reference-field live preview,
+			// picked up in a later pass -- flagged, not fixed, when the first
+			// four were converted) all moved off this page-global delegated
 			// script, onto Hyperscript `_="..."` attributes colocated on
-			// their own elements -- see components.templ's FieldOptionsFragment
-			// and ChildLinesSection, board.templ's Board, and coordplace.templ's
-			// CoordPlace for each one's own new attribute.
-			//
-			// CAP-V19 (below) is NOT one of the four this phase's audit named
-			// (ARCHITECTURE.md's own "Correction, not carried forward" list) --
-			// found live in the identical situation while doing this port, but
-			// left as vanilla JS here, unconverted, since converting it wasn't
-			// what this phase's plan actually scoped. Flagged, not silently
-			// fixed beyond scope: a future pass should extend the same
-			// Hyperscript treatment to this one too.
-			<script>
-				// CAP-V19: a live preview of a referenced record's own
-				// field, fetched from CAP-X07's existing GET
-				// /api/{machine}/{record} (no new route) as soon as a
-				// reference picker's selection changes -- purely
-				// presentational; the real gate is the server-side CAP-C11
-				// check, unchanged. Config (which API to call, which field
-				// to read) comes from the select's own data-preview-url/
-				// data-preview-field attributes, never interpolated into
-				// this script.
-				document.addEventListener('change', function(e) {
-					var el = e.target;
-					var url = el.dataset.previewUrl, field = el.dataset.previewField;
-					if (!url || !field) return;
-					var preview = el.parentElement.querySelector('.js-live-preview');
-					if (!preview) return;
-					if (!el.value) { preview.textContent = '—'; return; }
-					fetch(url + el.value)
-						.then(function(r) { return r.json(); })
-						.then(function(data) {
-							var v = data && data.data ? data.data[field] : null;
-							preview.textContent = (v === null || v === undefined || v === '') ? '—' : v;
-						})
-						.catch(function() { preview.textContent = '—'; });
-				});
-			</script>
+			// their own elements -- see components.templ's FieldOptionsFragment,
+			// FieldInput's reference <select> (CAP-V19), and ChildLinesSection,
+			// board.templ's Board, and coordplace.templ's CoordPlace for each
+			// one's own new attribute. No page-global script remains here.
 		</body>
 	</html>
 }

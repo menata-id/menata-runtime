@@ -119,3 +119,11 @@ persisted and validated correctly, zero error-level logs, and the access log con
 client IPs resolve correctly through Caddy (the Phase 5 `ClientIPFromHeader` fix, proven in actual
 production traffic). Full detail in `ROADMAP.md`'s own Phase 6 status update. This is the last
 phase in the original graduation plan — `app/` is now the live Menata Runtime application.
+
+**Status update (2026-09-06, post-cutover, not a new phase):** CAP-V19 (reference-field live
+preview), flagged but left as vanilla JS in the Phase 4 client-side JavaScript policy correction
+above, is now converted to Hyperscript — the last of the five capabilities that policy named.
+`internal/ui/components.templ`'s `FieldInput` reference `<select>` carries an `on change`
+Hyperscript handler in place of `layout.templ`'s old page-global delegated listener, which is now
+removed entirely (no vanilla `<script>` remains on the page). Full detail in `ROADMAP.md`'s own
+Phase 4 section. `go build/vet/test ./...` clean, full conformance re-verified 219/219.

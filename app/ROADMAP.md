@@ -217,6 +217,18 @@ never regress" and this phase's own verify step exist to catch):
    occurrences testing CAP-X07 directly (`conformance/tests/040_batches10_11_subnav.sh`, T118–T120)
    updated to match. Third run: 219/219.
 
+**Status update (2026-09-06, taking up the flagged CAP-V19 gap above, not a new phase):**
+CAP-V19's reference-field live preview converted to Hyperscript. `components.templ`'s `FieldInput`
+reference `<select>` now carries an `on change` Hyperscript handler (same `js(...)` escape pattern
+as `FieldOptionsFragment`/`ChildLinesSection`) reading its own `data-preview-url`/
+`data-preview-field` attributes, fetching, and writing the sibling `.js-live-preview` span —
+identical behavior to the vanilla-JS version it replaces, just colocated on the element instead of
+a page-global delegated listener. `layout.templ`'s now-empty `<script>` block and its CAP-V19
+carve-out comment removed; the Phase 4 client-side JavaScript policy correction is complete for
+all five capabilities named across CAP-V16/V15/V14/V21/V19, not four. `templ generate` regenerated,
+`go build/vet/test ./...` clean, full conformance re-verified 219/219 via `./scripts/
+local-ci.sh` (T175/CAP-V19 passing, asserts the same `data-preview-url` attribute unchanged).
+
 **Also found and corrected, unrelated to this phase's own changes:** Phase 0–3's own verification
 had been using the shared `postgres` superuser directly against an ad hoc `menata_app` database —
 exactly the practice `prototype/go/DEVELOPMENT.md`'s "Database role" section warns against (a real

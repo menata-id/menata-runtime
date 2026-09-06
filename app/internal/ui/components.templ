@@ -158,6 +158,21 @@ templ FieldInput(f *model.Field, name, value string, refOptions []ReferenceOptio
 					if livePreviewURL != "" {
 						data-preview-url={ livePreviewURL }
 						data-preview-field={ livePreviewField }
+						_="on change
+							js(me)
+								var url = me.dataset.previewUrl, field = me.dataset.previewField;
+								var preview = me.parentElement.querySelector('.js-live-preview');
+								if (!preview) return;
+								if (!me.value) { preview.textContent = '—'; return; }
+								fetch(url + me.value)
+									.then(function(r) { return r.json(); })
+									.then(function(data) {
+										var v = data && data.data ? data.data[field] : null;
+										preview.textContent = (v === null || v === undefined || v === '') ? '—' : v;
+									})
+									.catch(function() { preview.textContent = '—'; });
+							end
+						end"
 					}
 				>
 					<option value="">— select —</option>
