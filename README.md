@@ -490,6 +490,41 @@ see `prototype/go/ARCHITECTURE.md`'s "Corrected 2026-08-22" blocks or `prototype
 decisions/`'s ADR-002/ADR-004 "Status update" sections for the pattern to copy. This keeps the *why* of a past decision visible even after it's
 superseded.
 
+## How should a document be written?
+
+Patterns already followed consistently across every document in this repo, made explicit here —
+found missing (2026-09-06) the same way the filename-case convention above was: consistent in
+practice, never written down, which is exactly what makes it easy for a new document (or a new AI
+agent session) to drift from it by accident.
+
+- **Decide placement and filename case first.** "Where does a new document go?" above, and the
+  filename-case paragraph in this section's own intro — settle both before writing a word.
+- **A status header, for anything that changes over time.** Every Tier 3/4 document (this repo's
+  own governance/evidence artifacts — not Tier 1's stable spec) opens with a blockquote status
+  line: `> Status: vX.Y — <one-line summary of the latest change> | Created: YYYY-MM-DD |
+  Updated: YYYY-MM-DD` (see `roadmap.md`, `capability-registry.md`, `nfr-standards.md`'s own
+  opening blockquotes for the exact shape). Tier 1/2 documents don't carry one — they're stable by
+  design, and a version-status header would misrepresent that.
+- **Append, don't rewrite, when something goes stale.** The full rule and its rationale already
+  live one section up and in `CLAUDE.md`'s own "Established convention" section — follow it, don't
+  restate it in a new document.
+- **Cite the concrete evidence behind every claim in a governance/evidence document.** A Case
+  number (`case-portfolio.md`), a Study/benchmark number (`benchmarks/NNN-*.md`), a conformance
+  test ID (`T###`), a commit, or a specific file/line — never an unsourced assertion. This is what
+  makes `capability-registry.md` / `case-portfolio.md` / `nfr-standards.md` audits rather than
+  opinion; an unsourced row in any of them is itself a defect worth flagging.
+- **Prefer a table over prose for anything status- or comparison-shaped** — one row per
+  capability/case/threat/platform, one column per dimension. This is the dominant shape of every
+  Tier 3/4 document and every Tier 1 comparison table already in this repo; don't re-narrate the
+  same information as prose when the established convention for it is a table.
+- **Default language is English.** Bahasa Indonesia is used only with an explicit, stated reason —
+  `brd-menata-runtime-v2.md`'s own header states why (matching a comparator BRD's genre so the two
+  are easy to place side by side) — never as a default choice, and never for Tier 1: `001`–`006`
+  stays normatively English regardless of what elaborates it.
+- **Reference other documents by their real path; don't re-explain their content.** The
+  `Reference over Duplication` architecture principle (`001-design-principles.md`) applies to this
+  repo's own documentation about itself, not only to Runtime Metadata.
+
 ## Reference Implementation
 
 **Added 2026-09-06** (Study 34, `benchmarks/026-runtime-graduation-decision.md`): [`app/`](app/)

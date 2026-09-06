@@ -71,6 +71,15 @@ this repo. Two points worth stating here directly since they're easy to get back
   never its descendants, so nesting it under `docs/` silently breaks auto-loading for anyone
   working from that prototype's root.
 
+## How a document should be written
+
+`README.md`'s own "## How should a document be written?" (right after "Where does a new document
+go?") has the full list: status-header format for Tier 3/4 docs, append-don't-rewrite, evidence
+citation, table-over-prose, English-by-default. Read it before writing a new document; the one
+rule worth restating here because it's the easiest to skip under time pressure: **never add an
+unsourced claim to a governance/evidence document** — every row needs a Case #, Study/benchmark #,
+conformance test ID, or a specific commit/file/line behind it.
+
 ## Established convention: append, don't rewrite
 
 When something documented here goes stale (a capability ships, a decision gets revisited), the
