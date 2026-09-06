@@ -1,0 +1,89 @@
+package ui
+
+// Notifications renders the current session's in-app notification inbox
+// (CAP-A10) -- every `notify` action (CAP-A03/A04) whose resolved recipient
+// matches this session's identity or one of its per-Application roles
+// (CAP-O01, see store.NotificationStore.ListForRecipient).
+//
+// CAP-O05: preference is "immediate" (the original flat list, items) or
+// "digest" (the SAME items, grouped by day, groups) -- one inbox, one
+// delivery channel (no email infrastructure exists in this prototype),
+// just two ways of reading it. The toggle form posts to
+// /notifications/preference and redirects back here.
+templ Notifications(workspaceName, identity, csrfToken string, isAdmin bool, items []NotificationItem, groups []NotificationGroup, preference string, unreadCount int) {
+	@Page("Notifications", workspaceName, identity, csrfToken, isAdmin, unreadCount, nil) {
+		<div class="mx-auto max-w-xl">
+			<div class="mb-5 flex items-center gap-3">
+				<h1 class="flex-1 text-xl font-semibold text-slate-900">Notifications</h1>
+				<form method="POST" action="/notifications/preference">
+					@CSRFField(csrfToken)
+					<input type="hidden" name="preference" value={ nextPreference(preference) }/>
+					<button type="submit" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
+						if preference == "digest" {
+							Switch to immediate
+						} else {
+							Switch to digest
+						}
+					</button>
+				</form>
+			</div>
+			if len(items) == 0 {
+				<div class="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400 shadow-sm">
+					No notifications yet.
+				</div>
+			} else if preference == "digest" {
+				<div class="space-y-5">
+					for _, group := range groups {
+						<div>
+							<h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{ group.Date }</h2>
+							<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+								<ul class="divide-y divide-slate-100">
+									for _, item := range group.Items {
+										@notificationRow(item, csrfToken)
+									}
+								</ul>
+							</div>
+						</div>
+					}
+				</div>
+			} else {
+				<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+					<ul class="divide-y divide-slate-100">
+						for _, item := range items {
+							@notificationRow(item, csrfToken)
+						}
+					</ul>
+				</div>
+			}
+		</div>
+	}
+}
+
+templ notificationRow(item NotificationItem, csrfToken string) {
+	<li class={ "flex items-center gap-3 px-5 py-3.5", templ.KV("bg-blue-50/50", item.Unread) }>
+		<div class="flex-1">
+			if item.Link != "" {
+				<a href={ templ.SafeURL(item.Link) } class="text-sm text-slate-900 hover:text-blue-600 hover:underline">{ item.Message }</a>
+			} else {
+				<span class="text-sm text-slate-900">{ item.Message }</span>
+			}
+			<div class="mt-0.5 text-xs text-slate-400">{ item.When }</div>
+		</div>
+		if item.Unread {
+			<form method="POST" action={ templ.SafeURL("/notifications/" + item.ID + "/read") }>
+				@CSRFField(csrfToken)
+				<button
+					type="submit"
+					class="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+				>Mark read</button>
+			</form>
+		}
+	</li>
+}
+
+func nextPreference(current string) string {
+	if current == "digest" {
+		return "immediate"
+	}
+	return "digest"
+}

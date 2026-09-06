@@ -127,6 +127,39 @@ Phase 3.
 
 **Milestone:** a real, bootable `app/` server exists.
 
+**Status update (2026-09-06):** Done. `internal/ui` (.templ sources ported, regenerated via `templ
+generate` rather than porting stale codegen), `internal/router`, `internal/handler` (14 files +
+format_test.go), and `cmd/server/main.go` all ported. All three named gaps closed:
+- **API versioning**: `/api/{machineID}` moved under `r.Route("/api/v1", ...)` in router.go.
+  Verified: the old bare path no longer matches the API route family (falls through to the
+  generic `/{machineID}` HTML route instead, confirmed by curl against a live instance).
+- **Rate limiting**: new `cmd/server/ratelimit.go`, a hand-rolled per-IP token bucket
+  (`golang.org/x/time/rate`, 10 req/s, burst 30, idle-eviction sweep) — matches this codebase's
+  own house style of hand-writing every middleware rather than importing a framework. Wired after
+  `middleware.RealIP` (new — corrects `r.RemoteAddr` from Caddy's own `X-Real-IP` header, without
+  it every request would appear to come from Caddy's loopback address) and before
+  `sessionAuth`/`workspaceTx`, so an over-budget IP is rejected before DB work runs for it.
+  Verified: 40 rapid requests from one IP produced exactly 30×200 then 10×429.
+- **Secrets**: decided, not deferred silently — plain env vars via `.env` stay the mechanism
+  (`internal/config`, unchanged). Single VPS, single process, no multi-host secret-distribution
+  need and no case forcing a vault integration yet, per "Infer Before Configure." Documented
+  in `cmd/server/main.go` at `config.Load()`'s own call site.
+
+One additional restructuring beyond upload.go's storage split (Phase 0's own scope): `internal/
+handler/coordplace.go`'s PDF page-count preview read `uploadsDir` directly
+(`pdfapi.PageCountFile`) — moved to `h.storage.Get` + `pdfapi.PageCount` (a byte-reader form of
+the same pdfcpu call), keeping the whole `handler` package storage-abstracted. `internal/
+executor/executor.go`'s own CAP-F22 composite-signature action (ported unchanged in Phase 2) still
+reads/writes local disk directly via its own `uploadsDir` constant — out of Phase 3's port list
+and not touched; both `handler`'s `storage.LocalDisk` and executor's hardcoded path point at the
+same `uploads/` directory, so this is a known, harmless inconsistency (the abstraction isn't used
+everywhere yet), not a regression.
+
+Verified live: `go build -o bin/server ./cmd/server`, booted against `menata_app`
+(migrated + seeded), `/health` → 200, `/` → 303 to `/login`, `/login` renders full HTML (templ
+pipeline confirmed working end to end). `go build ./... && go vet ./... && go test ./...` clean.
+Proceeding to Phase 4.
+
 ## Phase 4 — Conformance parity
 
 **Port:** all 38 `seeds/*.sql` files, the full `conformance/` suite (15 test files + `run.sh`/

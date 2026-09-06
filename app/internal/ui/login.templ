@@ -1,0 +1,59 @@
+package ui
+
+// LoginPage (CAP-X02) is deliberately its own standalone shell, not built on
+// Page/navBar -- there's no identity, CSRF token, or unread count to show
+// before a session exists. errorMsg is shown when a prior attempt failed
+// (wrong email/password); never distinguishes which one was wrong.
+templ LoginPage(errorMsg string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Log in — Menata Runtime</title>
+			<link rel="stylesheet" href="/static/css/output.css"/>
+		</head>
+		<body class="flex min-h-screen items-center justify-center bg-slate-50 text-slate-900 antialiased">
+			<div class="mx-auto w-full max-w-sm px-4">
+				<div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+					<h1 class="text-lg font-semibold text-slate-900">Menata Runtime</h1>
+					<p class="mt-1 text-sm text-slate-500">Sign in to continue.</p>
+					if errorMsg != "" {
+						<div class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+							{ errorMsg }
+						</div>
+					}
+					<form method="POST" action="/login" class="mt-5 space-y-4">
+						<div class="space-y-1.5">
+							<label for="email" class="block text-sm font-medium text-slate-700">Email</label>
+							<input
+								type="email"
+								id="email"
+								name="email"
+								required?={ true }
+								autofocus?={ true }
+								class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+							/>
+						</div>
+						<div class="space-y-1.5">
+							<label for="password" class="block text-sm font-medium text-slate-700">Password</label>
+							<input
+								type="password"
+								id="password"
+								name="password"
+								required?={ true }
+								class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+							/>
+						</div>
+						<button
+							type="submit"
+							class="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+						>
+							Log in
+						</button>
+					</form>
+				</div>
+			</div>
+		</body>
+	</html>
+}

@@ -1,0 +1,295 @@
+package ui
+
+import "menata.id/app/internal/model"
+
+// CSRFField (CAP-X02) is the hidden synchronizer-token field every
+// state-changing form must include -- cmd/server/main.go's csrfProtect
+// middleware rejects any non-GET request whose csrf_token doesn't match the
+// session's own stored token.
+templ CSRFField(token string) {
+	<input type="hidden" name="csrf_token" value={ token }/>
+}
+
+// StatusBadge renders a coloured pill for status values.
+templ StatusBadge(status string) {
+	switch status {
+	case "Draft":
+		<span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{ status }</span>
+	case "Submitted":
+		<span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">{ status }</span>
+	case "Accepted":
+		<span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">{ status }</span>
+	case "Rejected":
+		<span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">{ status }</span>
+	case "In Progress":
+		<span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{ status }</span>
+	case "Completed":
+		<span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">{ status }</span>
+	default:
+		<span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{ status }</span>
+	}
+}
+
+// SlaBadge (CAP-V17) renders a countdown-badge pill, keyed on urgency
+// ("overdue"/"warning"/"ok" -- handler.slaUrgency) rather than a hardcoded
+// status string, same pill convention as StatusBadge above.
+templ SlaBadge(label, urgency string) {
+	switch urgency {
+	case "overdue":
+		<span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">{ label }</span>
+	case "warning":
+		<span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{ label }</span>
+	default:
+		<span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">{ label }</span>
+	}
+}
+
+// viewNavPill (CAP-O03 Tier 3) renders a segmented pill switching between a
+// Machine's own collection-level View types (List/Report/Board/Calendar/
+// Timeline) -- the within-Machine nav axis, distinct from subNavBar's
+// cross-Machine strip (layout.templ). Only List/Report/Board/
+// CalendarTimeline's own templ callers ever pass a non-empty slice --
+// Detail/Form/WizardForm pass nothing, per ADR-008 (a single record isn't a
+// "view" to switch between, and a Form is a focused task).
+templ viewNavPill(links []ViewNavLink) {
+	<div class="mb-4 flex w-fit gap-1 rounded-md bg-slate-100 p-1">
+		for _, l := range links {
+			<a
+				href={ templ.SafeURL(l.Path) }
+				class={ "rounded px-3 py-1 text-xs font-medium transition-colors",
+					templ.KV("bg-white text-slate-900 shadow-sm", l.Active),
+					templ.KV("text-slate-500 hover:text-slate-800", !l.Active) }
+			>
+				{ l.Name }
+			</a>
+		}
+	</div>
+}
+
+// TypeaheadPicker (CAP-V16) replaces the eager <select> for a reference/user
+// field once its candidate pool exceeds handler.typeaheadThreshold -- an
+// HTMX search-as-you-type fragment swap (url returns FieldOptionField
+// fragments), not a hand-written fetch/JS widget. The one piece of static,
+// non-interpolated JS this needs (setting the hidden field + closing the
+// dropdown on click) lives once in layout.templ as a page-level delegated
+// listener -- never per-field/per-option script, so there's no
+// string-into-JS interpolation of a Label that might contain a quote.
+templ TypeaheadPicker(name, value, label, url string) {
+	<div class="relative">
+		<input
+			type="text"
+			id={ name + "_search" }
+			name="q"
+			value={ label }
+			placeholder="Type to search…"
+			autocomplete="off"
+			class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			hx-get={ url }
+			hx-trigger="keyup changed delay:300ms, focus"
+			hx-target={ "#" + name + "_opts" }
+		/>
+		<input type="hidden" id={ name } name={ name } value={ value }/>
+		<div id={ name + "_opts" } class="absolute z-10 mt-1 w-full divide-y divide-slate-100 rounded-md border border-slate-200 bg-white shadow-lg empty:hidden"></div>
+	</div>
+}
+
+// FieldOptionsFragment (CAP-V16) is the HTMX-swapped response
+// TypeaheadPicker's search input targets -- handler.FieldOptions renders
+// this directly (not a full page). data-* attributes carry the option's id/
+// label for the page-level delegated click listener (layout.templ) to read
+// -- never interpolated into an inline event-handler attribute, which would
+// need escaping a Label as JS source, not just as an HTML attribute value.
+templ FieldOptionsFragment(target string, opts []ReferenceOption) {
+	if len(opts) == 0 {
+		<div class="px-3 py-2 text-sm text-slate-400">No matches</div>
+	} else {
+		for _, opt := range opts {
+			<div
+				class="field-option cursor-pointer px-3 py-2 text-sm hover:bg-slate-50"
+				data-target={ target }
+				data-id={ opt.ID }
+				data-label={ opt.Label }
+			>{ opt.Label }</div>
+		}
+	}
+}
+
+// FieldInput renders the correct input element for a field type.
+// refOptions is used for FieldTypeReference's and FieldTypeUser's picker
+// choices (CAP-F05 — a `user` field is reference-sugar over the workspace's
+// own users, same picker shape, options sourced from UserStore instead of
+// RecordStore by the caller).
+// name is the HTML input's id/name -- normally f.ID, but CAP-F16's embedded
+// child-line rows pass an indexed name (e.g. "child_0_fld_x") instead, so
+// the same rendering logic serves both a Machine's own form fields and a
+// repeated child row's fields.
+templ FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption, typeahead bool, typeaheadURL, typeaheadLabel string, livePreviewURL, livePreviewField, livePreviewLabel string) {
+	<div class="space-y-1.5">
+		<label for={ name } class="block text-sm font-medium text-slate-700">
+			{ f.Name }
+			if f.Required {
+				<span class="text-red-500 ml-0.5">*</span>
+			}
+		</label>
+		switch f.Type {
+		case model.FieldTypeReference, model.FieldTypeUser:
+			if typeahead {
+				@TypeaheadPicker(name, value, typeaheadLabel, typeaheadURL)
+			} else {
+				<select
+					id={ name }
+					name={ name }
+					class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+					if livePreviewURL != "" {
+						data-preview-url={ livePreviewURL }
+						data-preview-field={ livePreviewField }
+					}
+				>
+					<option value="">— select —</option>
+					for _, opt := range refOptions {
+						<option value={ opt.ID } selected?={ opt.ID == value }>{ opt.Label }</option>
+					}
+				</select>
+				if livePreviewURL != "" {
+					<p class="text-xs text-slate-500">{ livePreviewLabel }: <span class="js-live-preview font-medium text-slate-700">—</span></p>
+				}
+			}
+		case model.FieldTypeRichText:
+			<textarea
+				id={ name }
+				name={ name }
+				rows="3"
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			>{ value }</textarea>
+		case model.FieldTypeValueList:
+			<select
+				id={ name }
+				name={ name }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			>
+				<option value="">— select —</option>
+				for _, opt := range f.Options.Values {
+					<option value={ opt } selected?={ opt == value }>{ opt }</option>
+				}
+			</select>
+		case model.FieldTypeDate:
+			<input
+				type="date"
+				id={ name }
+				name={ name }
+				value={ value }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			/>
+		case model.FieldTypeDateTime:
+			<input
+				type="datetime-local"
+				id={ name }
+				name={ name }
+				value={ value }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			/>
+		case model.FieldTypeTime:
+			<input
+				type="time"
+				id={ name }
+				name={ name }
+				value={ value }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			/>
+		case model.FieldTypeDuration:
+			<div class="flex items-center gap-2">
+				<input
+					type="number"
+					min="0"
+					id={ name }
+					name={ name }
+					value={ value }
+					class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+				/>
+				<span class="text-xs text-slate-400 whitespace-nowrap">minutes</span>
+			</div>
+		case model.FieldTypeNumber:
+			<input
+				type="number"
+				step="any"
+				id={ name }
+				name={ name }
+				value={ value }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			/>
+		case model.FieldTypeMoney:
+			<input
+				type="number"
+				step="0.01"
+				id={ name }
+				name={ name }
+				value={ value }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			/>
+		case model.FieldTypeBoolean:
+			<input
+				type="checkbox"
+				id={ name }
+				name={ name }
+				value="true"
+				checked?={ value == "true" }
+				class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-1 focus:ring-blue-500"
+			/>
+		case model.FieldTypeFile:
+			<input
+				type="file"
+				id={ name }
+				name={ name }
+				class="block w-full text-sm text-slate-600 file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
+			/>
+		default:
+			<input
+				type="text"
+				id={ name }
+				name={ name }
+				value={ value }
+				class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			/>
+		}
+	</div>
+}
+
+// ChildLinesSection (CAP-F16) renders a fixed set of repeatable row blocks
+// for a form's embedded child Machine -- Journal Entry Lines inside the
+// Journal Entry form, submitted and validated atomically with the parent.
+// Empty rows are simply ignored by the handler on submit, not rejected.
+//
+// CAP-V15: sumFieldA/B (empty = no live total shown) name the two Fields a
+// live, client-side running total is kept for -- purely presentational,
+// read by layout.templ's one static, page-level, non-interpolated 'input'
+// listener via this element's own data-sum-a-field/data-sum-b-field
+// attributes, not by any per-render script (same discipline CAP-V16's own
+// TypeaheadPicker already established: config flows through data-*
+// attributes, never string-concatenated into JS source).
+templ ChildLinesSection(title string, rows [][]FormField, sumFieldA, sumFieldALabel, sumFieldB, sumFieldBLabel string) {
+	<div
+		class="mt-2 space-y-3 border-t border-slate-100 pt-5"
+		if sumFieldA != "" {
+			data-sum-a-field={ sumFieldA }
+			data-sum-b-field={ sumFieldB }
+		}
+	>
+		<h2 class="text-sm font-semibold text-slate-700">{ title }</h2>
+		for _, row := range rows {
+			<div class="grid grid-cols-1 gap-3 rounded-md border border-slate-200 p-3 sm:grid-cols-2">
+				for _, ff := range row {
+					@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel, ff.LivePreviewURL, ff.LivePreviewField, ff.LivePreviewLabel)
+				}
+			</div>
+		}
+		<p class="text-xs text-slate-400">Leave a row blank to skip it.</p>
+		if sumFieldA != "" {
+			<div class="flex flex-wrap justify-end gap-6 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">
+				<span>Total { sumFieldALabel }: <span class="js-sum-a font-semibold">0</span></span>
+				if sumFieldB != "" {
+					<span>Total { sumFieldBLabel }: <span class="js-sum-b font-semibold">0</span></span>
+				}
+			</div>
+		}
+	</div>
+}

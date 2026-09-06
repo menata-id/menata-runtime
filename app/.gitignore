@@ -1,0 +1,7 @@
+.env
+bin/
+*.out
+*.log
+web/static/css/output.css
+node_modules/
+uploads/

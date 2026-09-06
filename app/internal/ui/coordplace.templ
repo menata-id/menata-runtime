@@ -1,0 +1,81 @@
+package ui
+
+import "strconv"
+import "menata.id/app/internal/model"
+import "menata.id/app/internal/store"
+
+// formatPct renders a coordinate as a CSS percentage with 2 decimal places
+// -- plain strconv, no fmt.Sprintf needed for a single float.
+func formatPct(v float64) string {
+	return strconv.FormatFloat(v, 'f', 2, 64)
+}
+
+// CoordPlace (CAP-V21) renders a preview (PDF or plain image -- not
+// signature-specific, see model.CoordPlacementConfig's own doc comment)
+// with one pin at (x%, y%) of the currently-selected page. editable=false
+// renders the identical layout with no draggable pin and no
+// data-coordplace-* attributes at all -- layout.templ's shared drop
+// listener only ever fires on an element that carries them, so omitting
+// them is the read-only mode, not a second code path to keep in sync.
+// The preview element itself gets `pointer-events:none` only in editable
+// mode, so a click/drag anywhere over it (including where the embedded
+// PDF viewer would otherwise own the pixels) reaches the wrapping
+// .coordplace-preview div instead -- read-only mode leaves it interactive
+// (a viewer might reasonably want to scroll a multi-page-looking PDF
+// object), since nothing there needs to catch drag events anyway.
+templ CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, viewName, previewKey string, isPDF bool, page, pageCount int, x, y float64, editable bool, unreadCount int, subNav []SubNavLink) {
+	@Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+		<div class="mb-4 flex items-center justify-between">
+			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
+			<a href={ templ.SafeURL("/" + machine.ID + "/" + record.ID) } class="text-sm text-slate-400 hover:text-slate-600 transition-colors">← Back</a>
+		</div>
+		if pageCount > 1 {
+			<form method="get" class="mb-3 flex items-center gap-2 text-sm">
+				<label for="coordplace-page" class="text-slate-500">Page</label>
+				<select id="coordplace-page" name="page" class="rounded border border-slate-300 px-2 py-1" onchange="this.form.submit()">
+					for p := 1; p <= pageCount; p++ {
+						<option value={ strconv.Itoa(p) } selected?={ p == page }>{ strconv.Itoa(p) }</option>
+					}
+				</select>
+			</form>
+		}
+		if previewKey == "" {
+			<div class="rounded-md border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">
+				No file to preview yet.
+			</div>
+		} else if editable {
+			<div
+				class="coordplace-preview relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
+				style="height: 70vh;"
+				data-coordplace-machine={ machine.ID }
+				data-coordplace-record={ record.ID }
+				data-coordplace-csrf={ csrfToken }
+				data-coordplace-page={ strconv.Itoa(page) }
+			>
+				if isPDF {
+					<object type="application/pdf" data={ templ.SafeURL("/files/" + previewKey + "#page=" + strconv.Itoa(page)) } class="absolute inset-0 h-full w-full" style="pointer-events:none;"></object>
+				} else {
+					<img src={ "/files/" + previewKey } class="absolute inset-0 h-full w-full object-contain" style="pointer-events:none;"/>
+				}
+				<div
+					class="coordplace-pin absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full border-2 border-white bg-red-500 shadow"
+					style={ "left:" + formatPct(x) + "%; top:" + formatPct(y) + "%;" }
+					draggable="true"
+				></div>
+			</div>
+			<p class="mt-2 text-xs text-slate-400">Drag the pin to reposition — saved automatically on drop.</p>
+		} else {
+			<div class="coordplace-preview relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100" style="height: 70vh;">
+				if isPDF {
+					<object type="application/pdf" data={ templ.SafeURL("/files/" + previewKey + "#page=" + strconv.Itoa(page)) } class="absolute inset-0 h-full w-full"></object>
+				} else {
+					<img src={ "/files/" + previewKey } class="absolute inset-0 h-full w-full object-contain"/>
+				}
+				<div
+					class="coordplace-pin absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow"
+					style={ "left:" + formatPct(x) + "%; top:" + formatPct(y) + "%;" }
+				></div>
+			</div>
+		}
+	}
+}

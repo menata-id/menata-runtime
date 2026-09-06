@@ -44,8 +44,11 @@ runtime's overhead isn't free on a host this size. Deployment stays a plain comp
 
 ## Installation
 
-Not yet meaningful — no `cmd/server/main.go` exists yet. This section fills in as the development
-plan ports `prototype/go/cmd/server/main.go`.
+**Status update (2026-09-06, Phase 3): a real server exists.** `cmd/server/main.go` is ported —
+`make dev` (or `make build && make run`) boots it, same `.env` shape as `prototype/go`
+(`DATABASE_URL`, `PORT`, `SECURE_COOKIES`; see below for `app/`'s own database). Uses a different
+`PORT` than `prototype/go`'s own dev deployment (4000) to run both side by side during the port —
+4001 is a reasonable default until Phase 6's cutover decision.
 
 **Status update (2026-09-06): database setup (Phase 1).** `app/` uses its own database, separate
 from `prototype/go`'s `menata_runtime` (never point `app/`'s tooling at that database — it's the

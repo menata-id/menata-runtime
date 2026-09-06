@@ -1,0 +1,271 @@
+package ui
+
+import "strconv"
+
+// unreadCount is CAP-A10's in-app badge -- how many of the current session's
+// notifications are still unread. identity is the authenticated person's
+// name (CAP-X02 -- there's no single "role" to show anymore, role is
+// per-Application, see internal/handler's roleForApp). csrfToken is the
+// current session's synchronizer token, needed here for the logout form.
+// isAdmin shows the "Manage users" link only for a workspace Admin. Every
+// page passes all five through so the nav bar renders without a separate
+// request. subNav (CAP-O03 Tier 2) is the current Machine's own sibling
+// Machines in the same Application -- nil/empty for a page that doesn't
+// belong to any one Machine, which renders no strip at all.
+//
+// Mobile bottom bar (`shellBottomBar`, ADR-008 corrected by
+// benchmarks/022-bottom-nav-consistency-benchmark.md, Study 30) is a fixed,
+// GLOBAL 3-item set -- Home/Search/Notifications, identical on every page --
+// not subNav's per-Application data. World-class bottom tab bars (Material
+// Design, Apple HIG, Slack) hold their identity fixed; content that
+// legitimately varies by Application belongs in the existing top subNavBar
+// strip instead, same as it already did before this bar existed. Rendered
+// unconditionally at phone width, on every page -- unlike subNav, this
+// bar has nothing to be empty about.
+templ Page(title, workspaceName, identity, csrfToken string, isAdmin bool, unreadCount int, subNav []SubNavLink) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title } — { workspaceName }</title>
+			<link rel="stylesheet" href="/static/css/output.css"/>
+			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+		</head>
+		<body class="bg-slate-50 min-h-screen text-slate-900 antialiased">
+			@navBar(workspaceName, identity, csrfToken, isAdmin, unreadCount)
+			if len(subNav) > 0 {
+				@subNavBar(subNav)
+			}
+			<div class="mx-auto max-w-5xl px-4 py-6 pb-20 sm:pb-6">
+				{ children... }
+			</div>
+			@shellBottomBar(unreadCount)
+			// CAP-V16: the one static, page-level script this project needs --
+			// a delegated click listener filling a TypeaheadPicker's hidden
+			// field from whichever .field-option the user clicked. Reads
+			// data-* attributes (safely HTML-escaped by templ wherever
+			// they're set, components.templ's FieldOptionsFragment)
+			// rather than interpolating a Label into an inline JS
+			// attribute, which would need escaping it as JS source, not
+			// just as an HTML attribute value.
+			<script>
+				document.addEventListener('click', function(e) {
+					var opt = e.target.closest('.field-option');
+					if (!opt) return;
+					var target = opt.dataset.target;
+					var hidden = document.getElementById(target);
+					var search = document.getElementById(target + '_search');
+					var list = document.getElementById(target + '_opts');
+					if (hidden) hidden.value = opt.dataset.id;
+					if (search) search.value = opt.dataset.label;
+					if (list) list.innerHTML = '';
+				});
+				// CAP-V15: a live, client-side running total over a
+				// ChildLinesSection's own repeated row inputs -- purely
+				// presentational (the real gate is the server-side CAP-C10
+				// check, unchanged); config (which two fields to sum) comes
+				// from the section's own data-sum-a-field/data-sum-b-field
+				// attributes, never interpolated into this script.
+				document.addEventListener('input', function(e) {
+					var section = e.target.closest('[data-sum-a-field]');
+					if (!section) return;
+					var fa = section.dataset.sumAField, fb = section.dataset.sumBField;
+					var sumA = 0, sumB = 0;
+					section.querySelectorAll('input[name$="_' + fa + '"]').forEach(function(i) {
+						sumA += parseFloat(i.value) || 0;
+					});
+					if (fb) {
+						section.querySelectorAll('input[name$="_' + fb + '"]').forEach(function(i) {
+							sumB += parseFloat(i.value) || 0;
+						});
+					}
+					var elA = section.querySelector('.js-sum-a'), elB = section.querySelector('.js-sum-b');
+					if (elA) elA.textContent = sumA.toFixed(2);
+					if (elB) elB.textContent = sumB.toFixed(2);
+				});
+				// CAP-V19: a live preview of a referenced record's own
+				// field, fetched from CAP-X07's existing GET
+				// /api/{machine}/{record} (no new route) as soon as a
+				// reference picker's selection changes -- purely
+				// presentational; the real gate is the server-side CAP-C11
+				// check, unchanged. Config (which API to call, which field
+				// to read) comes from the select's own data-preview-url/
+				// data-preview-field attributes, never interpolated into
+				// this script.
+				document.addEventListener('change', function(e) {
+					var el = e.target;
+					var url = el.dataset.previewUrl, field = el.dataset.previewField;
+					if (!url || !field) return;
+					var preview = el.parentElement.querySelector('.js-live-preview');
+					if (!preview) return;
+					if (!el.value) { preview.textContent = '—'; return; }
+					fetch(url + el.value)
+						.then(function(r) { return r.json(); })
+						.then(function(data) {
+							var v = data && data.data ? data.data[field] : null;
+							preview.textContent = (v === null || v === undefined || v === '') ? '—' : v;
+						})
+						.catch(function() { preview.textContent = '—'; });
+				});
+				// CAP-V14 Tier 2: native HTML5 drag-and-drop for the
+				// kanban board -- the drag gesture itself is unavoidably
+				// client-side, but the write it triggers is an ordinary
+				// POST (BoardMove), fully provable without executing this
+				// script (conformance T177). Config (machine id, CSRF
+				// token) comes from the board wrapper's own
+				// data-board-machine/data-board-csrf attributes, the
+				// target lane from the drop zone's own data-lane -- never
+				// interpolated into this script.
+				document.addEventListener('dragstart', function(e) {
+					var card = e.target.closest('.board-card');
+					if (!card) return;
+					e.dataTransfer.setData('text/plain', card.dataset.recordId);
+				});
+				document.addEventListener('dragover', function(e) {
+					if (e.target.closest('.board-lane-body')) e.preventDefault();
+				});
+				document.addEventListener('drop', function(e) {
+					var body = e.target.closest('.board-lane-body');
+					if (!body) return;
+					e.preventDefault();
+					var recordId = e.dataTransfer.getData('text/plain');
+					var lane = body.closest('.board-lane').dataset.lane;
+					var board = body.closest('[data-board-machine]');
+					if (!recordId || !lane || !board) return;
+					fetch('/' + board.dataset.boardMachine + '/' + recordId + '/board-move', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+						body: 'lane=' + encodeURIComponent(lane) + '&csrf_token=' + encodeURIComponent(board.dataset.boardCsrf)
+					}).then(function() { location.reload(); });
+				});
+				// CAP-V21: native HTML5 drag-and-drop for the
+				// coordinate-placement pin, same gesture/POST-then-reload
+				// shape as the board's own drag/drop above. Read-only mode
+				// renders the identical markup with no data-coordplace-*
+				// attributes at all, so these listeners naturally find
+				// nothing to act on -- not a second code path. The preview
+				// element itself carries pointer-events:none in editable
+				// mode (coordplace.templ) specifically so a drop anywhere
+				// over it still reaches .coordplace-preview here, not an
+				// embedded PDF viewer's own internal event handling.
+				document.addEventListener('dragstart', function(e) {
+					var pin = e.target.closest('.coordplace-pin');
+					if (!pin) return;
+					e.dataTransfer.setData('text/plain', 'pin');
+				});
+				document.addEventListener('dragover', function(e) {
+					if (e.target.closest('.coordplace-preview')) e.preventDefault();
+				});
+				document.addEventListener('drop', function(e) {
+					var wrap = e.target.closest('.coordplace-preview');
+					if (!wrap || !wrap.dataset.coordplaceMachine) return;
+					e.preventDefault();
+					var rect = wrap.getBoundingClientRect();
+					var x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+					var y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+					fetch('/' + wrap.dataset.coordplaceMachine + '/' + wrap.dataset.coordplaceRecord + '/place', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+						body: 'page=' + encodeURIComponent(wrap.dataset.coordplacePage) +
+							'&x=' + x.toFixed(2) + '&y=' + y.toFixed(2) +
+							'&csrf_token=' + encodeURIComponent(wrap.dataset.coordplaceCsrf)
+					}).then(function() { location.reload(); });
+				});
+			</script>
+		</body>
+	</html>
+}
+
+// subNavBar (CAP-O03 Tier 2) renders every page belonging to a Machine
+// with a persistent, Application-scoped sub-nav strip -- so a user can
+// move sideways to a sibling Machine in the same Application without
+// returning to the workspace home first. Server-rendered links only, no
+// JS, no new route -- reuses the exact data link CAP-O03's own AppMachines
+// page already resolves (Interpreter.ScopeFor/MachinesForApplication),
+// just rendered persistently instead of as a one-time landing page.
+templ subNavBar(links []SubNavLink) {
+	<nav class="bg-slate-100 border-b border-slate-200">
+		<div class="mx-auto max-w-5xl px-4 flex items-center gap-1 h-9 overflow-x-auto">
+			for _, l := range links {
+				<a
+					href={ templ.SafeURL("/" + l.ID) }
+					class={ "shrink-0 rounded px-2.5 py-1 text-xs font-medium transition-colors",
+						templ.KV("bg-white text-blue-700 shadow-sm", l.Active),
+						templ.KV("text-slate-500 hover:text-slate-800 hover:bg-slate-200", !l.Active) }
+				>
+					{ l.Name }
+				</a>
+			}
+		</div>
+	</nav>
+}
+
+// shellBottomBar is a fixed, GLOBAL bottom tab bar at phone width -- Home /
+// Search / Notifications, identical on every page regardless of which
+// Application or Machine is open. Corrects ADR-008's original decision to
+// put subNavFor's per-Application data here instead
+// (benchmarks/022-bottom-nav-consistency-benchmark.md, Study 30): Material
+// Design, Apple HIG, and Slack all hold a bottom bar's own identity fixed --
+// content that legitimately varies by Application belongs in subNavBar's
+// existing top strip, not here. Mirrors navBar's own existing global links
+// (Home is the "/" workspace-home App Launcher, already CAP-O03's own
+// mechanism) -- no new route. Deliberately no active-tab highlighting yet
+// (Page doesn't carry the current request path) -- a known simplification
+// for this first cut, not an oversight.
+templ shellBottomBar(unreadCount int) {
+	<nav class="sm:hidden fixed inset-x-0 bottom-0 z-10 flex bg-white border-t border-slate-200">
+		<a href="/" class="flex-1 py-3 text-center text-xs font-medium text-slate-600">
+			Home
+		</a>
+		<a href="/search" class="flex-1 py-3 text-center text-xs font-medium text-slate-600">
+			Search
+		</a>
+		<a href="/notifications" class="flex-1 py-3 text-center text-xs font-medium text-slate-600">
+			Notifications
+			if unreadCount > 0 {
+				<span class="ml-1 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
+					{ strconv.Itoa(unreadCount) }
+				</span>
+			}
+		</a>
+	</nav>
+}
+
+templ navBar(workspaceName, identity, csrfToken string, isAdmin bool, unreadCount int) {
+	<header class="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
+		<div class="mx-auto max-w-5xl px-4 flex items-center gap-4 h-12">
+			<a href="/" class="font-semibold text-sm text-slate-900 hover:text-blue-600 transition-colors">
+				{ workspaceName }
+			</a>
+			<div class="flex-1"></div>
+			<a href="/search" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
+				Search
+			</a>
+			if isAdmin {
+				<a href="/admin/users" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
+					Manage users
+				</a>
+			}
+			<a href="/notifications" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
+				if unreadCount > 0 {
+					Notifications
+					<span class="ml-1 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
+						{ strconv.Itoa(unreadCount) }
+					</span>
+				} else {
+					Notifications
+				}
+			</a>
+			<span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+				{ identity }
+			</span>
+			<form method="POST" action="/logout" class="inline">
+				@CSRFField(csrfToken)
+				<button type="submit" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
+					Logout
+				</button>
+			</form>
+		</div>
+	</header>
+}

@@ -56,3 +56,13 @@ ported unchanged, all 14 cases pass. Two new pinned dependencies: `github.com/go
 `github.com/pdfcpu/pdfcpu`, matching `prototype/go/go.mod`'s own versions. `go build ./... && go
 vet ./... && go test ./...` clean. `menata.app` still serves `prototype/go`. Next: Phase 3 (HTTP
 layer).
+
+**Status update (2026-09-06, Phase 3):** `internal/ui`, `internal/router`, `internal/handler`, and
+`cmd/server/main.go` all ported — a real, bootable server exists. All three named gaps closed:
+`/api/` routes versioned under `/api/v1/`, a new hand-rolled per-IP rate limiter
+(`cmd/server/ratelimit.go`), and a deliberate (not silently deferred) secrets decision — plain env
+vars stay, no vault introduced yet. Verified live against `menata_app`: server boots, `/health`
+responds, `/login` renders. See `ROADMAP.md`'s own Phase 3 status update for the full detail,
+including the one extra storage-abstraction fix (`handler/coordplace.go`'s PDF preview) beyond
+Phase 0's original scope. `menata.app` still serves `prototype/go` — still Phase 6's decision.
+Next: Phase 4 (conformance parity).

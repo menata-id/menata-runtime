@@ -1,0 +1,94 @@
+package ui
+
+import "strconv"
+import "menata.id/app/internal/model"
+import "menata.id/app/internal/store"
+
+func stepperDotClass(state string) string {
+	base := "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold "
+	switch state {
+	case "done":
+		return base + "bg-emerald-500 text-white"
+	case "current":
+		return base + "bg-blue-600 text-white"
+	default:
+		return base + "bg-slate-200 text-slate-500"
+	}
+}
+
+func stepperStateLabel(state string) string {
+	switch state {
+	case "done":
+		return "Done"
+	case "current":
+		return "Current"
+	default:
+		return "Pending"
+	}
+}
+
+func stepperStateTextClass(state string) string {
+	switch state {
+	case "done":
+		return "text-emerald-600"
+	case "current":
+		return "text-blue-600"
+	default:
+		return "text-slate-400"
+	}
+}
+
+// DecisionStepper (CAP-V20) renders an ordered done/current/pending
+// progress indicator over this record's own child Steps. Triggers are
+// only ever non-empty on a "current" step the acting identity can decide
+// (StepperStep's own doc comment) -- the form/button markup here is
+// deliberately the same shape Detail's own event-trigger block already
+// uses (detail.templ), pointed at the CHILD Step's own machine/record
+// instead of the page's own.
+templ DecisionStepper(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, viewName string, steps []StepperStep, unreadCount int, subNav []SubNavLink) {
+	@Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+		<div class="mb-4 flex items-center justify-between">
+			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
+			<a href={ templ.SafeURL("/" + machine.ID + "/" + record.ID) } class="text-sm text-slate-400 hover:text-slate-600 transition-colors">← Back</a>
+		</div>
+		<ol class="space-y-3">
+			for i, step := range steps {
+				<li class="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+					<div class={ stepperDotClass(step.State) }>
+						if step.State == "done" {
+							✓
+						} else {
+							{ strconv.Itoa(i + 1) }
+						}
+					</div>
+					<div class="flex-1">
+						<div class="text-sm font-medium text-slate-900">{ step.Label }</div>
+						<div class={ "text-xs font-medium " + stepperStateTextClass(step.State) }>{ stepperStateLabel(step.State) }</div>
+						if len(step.Triggers) > 0 {
+							<div class="mt-2 flex flex-wrap gap-2">
+								for _, trig := range step.Triggers {
+									<form
+										method="POST"
+										action={ templ.SafeURL("/" + step.StepMachineID + "/" + step.RecordID + "/events/" + trig.Event.ID) }
+										class="flex items-end gap-2"
+									>
+										@CSRFField(csrfToken)
+										for _, inp := range trig.Inputs {
+											@FieldInput(inp.Field, inp.Name, inp.Value, inp.Options, inp.Typeahead, inp.TypeaheadURL, inp.TypeaheadLabel, inp.LivePreviewURL, inp.LivePreviewField, inp.LivePreviewLabel)
+										}
+										<button
+											type="submit"
+											class="inline-flex items-center rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white shadow-sm hover:bg-slate-700 transition-colors"
+										>
+											{ trig.Event.Name }
+										</button>
+									</form>
+								}
+							</div>
+						}
+					</div>
+				</li>
+			}
+		</ol>
+	}
+}
