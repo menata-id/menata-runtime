@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 Repo-wide orientation for Claude Code (or any AI agent) working in `menata-runtime`. If you're
+about to touch code or docs specifically inside `app/`, also read `app/CLAUDE.md`. If you're
 about to touch code or docs specifically inside `prototype/go/`, also read
 `prototype/go/CLAUDE.md` — that file covers Go-implementation patterns and gotchas this one
 doesn't duplicate.
@@ -9,13 +10,24 @@ doesn't duplicate.
 
 `menata-runtime` is one layer downstream of `menata-id/menata` (the Business Knowledge language,
 a separate repo with no machine/application concerns). This repo defines the Runtime Metadata
-format and the runtime that interprets it into a living application, and validates that design
-through 7 parallel prototypes on different tech stacks — `prototype/go` and
-`prototype/{drupal,frappe,directus,budibase,salesforce,camunda}` (`prototype/README.md`). Only
-`prototype/go` is a deep, full custom runtime under active capability-by-capability
-implementation, proven by a real conformance suite; the other six are shallow "metadata-only
+format and the runtime that interprets it into a living application.
+
+That design was validated through 7 parallel prototypes on different tech stacks — `prototype/go`
+and `prototype/{drupal,frappe,directus,budibase,salesforce,camunda}` (`prototype/README.md`). Only
+`prototype/go` was a deep, full custom runtime under active capability-by-capability
+implementation, proven by a real conformance suite; the other six were shallow "metadata-only
 proof" scorecards (16 fixed features, no capability-registry tracking) — don't assume something
 true of one applies to the other six.
+
+**That discovery phase is done** (owner decision, 2026-09-06,
+`benchmarks/026-runtime-graduation-decision.md`, Study 34). `prototype/` and `benchmarks/` stay
+exactly as they are — unrenamed, unrestructured — as the historical record of *how* the runtime's
+required capabilities were discovered and proven. **Real development now happens in
+[`app/`](app/)**, a new top-level folder graduating `prototype/go`'s own proven codebase
+(~90 capabilities, 219-test conformance suite) rather than starting from zero. `app/` is currently
+at blueprint stage (package skeleton + architecture docs, no ported business logic yet — see
+`app/README.md`). Do not add new capability work to `prototype/go/` under the assumption it's
+still the active development target; check `app/ROADMAP.md` first.
 
 ## Where a new document goes
 
