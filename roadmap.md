@@ -2198,6 +2198,50 @@ isolated schema. Track G's own implementation step is done — no longer just un
     already works; this is additive, not a reversal of item 12's mechanism, only its stated reason
     for avoiding Actions entirely. `prototype/go/DEVELOPMENT.md` step 9 carries its own dated
     correction note pointing back here.
+19. **Study 34 (2026-09-05/06) — from prototype/benchmark process to a main application**:
+    `prototype/`/`benchmarks/` have done their job (proving which capabilities a runtime needs)
+    and stay as-is, unrenamed; the real Menata Runtime application is built going forward in a new
+    top-level folder, `app/`, sibling to `prototype/`, not nested inside it. Recommendation
+    (evidence-backed — Study 34 §7's own measurements, not just ADR-004/Study 33 re-cited — but
+    still awaiting the owner's explicit final confirmation, not yet marked settled): **graduate**
+    `prototype/go`'s own codebase into `app/` rather than start from zero. This host runs no
+    containers (a real resource constraint), removing the two biggest generic "start fresh"
+    appeals (container-native deploy, multi-instance-first design); the architecture is already
+    lean, so every remaining gap is an incremental addition either way. Full record, evidence, and
+    the owner's own words: `benchmarks/026-runtime-graduation-decision.md`.
+20. **New (2026-09-06): split `internal/metadata/loader.go`** — found via Study 34 §7's own
+    file-size/concern-count measurement: `loader.go` is now 1,098 lines bundling three separable
+    concerns (per-table DB loading, validation, process-overlay/quorum compilation), a real split
+    candidate by the exact same test that justified `handler.go`'s own ADR-006 split. Same pattern
+    as that split (pure move, verified by function-inventory equality, no logic change): separate
+    the ~12 `load*` functions (the bulk) from `validateOperators`/`validateReferences`
+    (`validate.go`) and `compileApprovalRequirements`/`injectApprovalQuorum` (`compile.go`,
+    already its own file, unaffected). Not urgent (no correctness issue, just a size/concern-count
+    trigger) — reasonable to fold into whichever session first touches `loader.go` again, or into
+    `app/`'s own graduation pass per item 19's recommendation. Already planned as done-during-the-
+    port in `app/ARCHITECTURE.md` (item 21).
+21. **New (2026-09-06): `app/` blueprint created** — package skeleton (14 `internal/*/doc.go`
+    files, `go build`/`go vet` clean), `go.mod` (`menata.id/app`), onboarding docs, and
+    `docs/decisions/001-graduation-from-prototype.md`. Item 20's `loader.go` split is folded into
+    this blueprint as the plan for `internal/metadata` (not yet executed — no business logic
+    ported yet). Full detail: `benchmarks/026-runtime-graduation-decision.md` §8,
+    `app/ARCHITECTURE.md`. Next, separate step per the owner's own request: a development plan and
+    roadmap for actually porting `prototype/go`'s code into this skeleton.
+22. **New (2026-09-06): reinstated Hyperscript over vanilla JS/Alpine.js as `app/`'s client-JS
+    policy.** Real drift found live while designing this policy, previously undocumented anywhere:
+    `prototype/go`'s own ADR-001 (2026-07-04, "Accepted") chose Hyperscript for client-side
+    behavior, and `ARCHITECTURE.md` still describes it as in use — but `internal/ui/layout.templ`
+    never actually loaded it. Every real client-behavior case this codebase hit (CAP-V16 typeahead,
+    CAP-V15 live-sum preview, CAP-V14 kanban drag-drop, CAP-V21 coordinate-placement) shipped as
+    plain vanilla `<script>` instead, with no ADR status update or `CLAUDE.md` note explaining the
+    switch. `prototype/go/ARCHITECTURE.md` and `docs/decisions/001-techstack.md` each carry a dated
+    correction note (append, don't rewrite — `prototype/go` itself stays frozen per Study 34, not
+    fixed in place). `app/ARCHITECTURE.md`'s new "Client-side JavaScript policy" section reinstates
+    the original ADR-001 decision going forward: no client-side JS by default (HTMX handles partial
+    updates), Hyperscript for genuinely client-only concerns HTMX can't cover, Alpine.js/any
+    reactive client-state framework never (ADR-001's own rejection reasoning — "the runtime owns
+    application behavior, not the client," traced back to `001-design-principles.md` §2 "Runtime
+    First" — applies unchanged).
 
     **Follow-up, same day:** the paragraph above's own "deliberately stays on the local pre-push
     hook, not moved to Actions" turned out not to be the final call — with Actions confirmed free
@@ -2339,24 +2383,13 @@ decision.md` §7. Mostly confirms the claim, with one honest exception surfaced,
 **`internal/metadata/loader.go` is now 1,098 lines bundling three separable concerns (per-table DB
 loading, validation, process-overlay/quorum compilation)** — a real split candidate by the exact
 same test that justified `handler.go`'s own ADR-006 split, found live this session, not yet acted
-on. New backlog item:
+on. Tracked as item 20 in "Recommended order for upcoming sessions" above, not repeated here.
 
-20. **New (2026-09-06): split `internal/metadata/loader.go`** — same pattern as ADR-006's
-    `handler.go` split (pure move, verified by function-inventory equality, no logic change):
-    separate the ~12 `load*` functions (per-table DB loading, the bulk of the file) from
-    `validateOperators`/`validateReferences` (validation) and `compileApprovalRequirements`/
-    `injectApprovalQuorum` (process-overlay/quorum compilation) into their own files within
-    `internal/metadata`. Not urgent (no correctness issue, just a size/concern-count trigger) —
-    reasonable to fold into whichever session first touches `loader.go` again, or into `app/`'s
-    own graduation pass if item 19's "graduate" recommendation is confirmed first.
-
-21. **New (2026-09-06): `app/` blueprint created** — package skeleton (14 `internal/*/doc.go`
-    files, `go build`/`go vet` clean), `go.mod` (`menata.id/app`), onboarding docs, and
-    `docs/decisions/001-graduation-from-prototype.md`. Item 20's `loader.go` split is folded into
-    this blueprint as the plan for `internal/metadata` (not yet executed — no business logic
-    ported yet). Full detail: `benchmarks/026-runtime-graduation-decision.md` §8,
-    `app/ARCHITECTURE.md`. Next, separate step per the owner's own request: a development plan and
-    roadmap for actually porting `prototype/go`'s code into this skeleton.
+**Addendum (2026-09-06), blueprint + client-JS policy**: `app/` now exists (blueprint stage) and
+its client-side JavaScript policy was corrected along the way (a real, previously-undocumented
+drift found in `prototype/go`'s own ADR-001/`ARCHITECTURE.md`). Tracked as items 21 and 22 in
+"Recommended order for upcoming sessions" above — moved there from an earlier draft of this
+addendum that stranded them here instead, where the numbered checklist wouldn't surface them.
 
 ---
 
