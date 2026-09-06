@@ -30,3 +30,13 @@ Blueprint stage: real package skeleton (`internal/*/doc.go`, one per package, ea
 graduated source and any architectural change), `go.mod`, and this documentation set exist.
 No business logic has been ported yet — that starts at `ROADMAP.md`'s own Phase 0. `go build ./...`
 and `go vet ./...` both pass clean against the current doc.go-only skeleton.
+
+**Status update (2026-09-06):** `ROADMAP.md`'s Phase 0 is done. `model`, `auth`, `db`, `config`,
+`store` ported verbatim (pure move, diffed byte-identical against `prototype/go` apart from
+stripping two now-redundant package-doc comments already carried by `doc.go`) under
+`menata.id/app`'s own import path; `internal/storage` (new) implements the `Store` interface with
+a `LocalDisk` backend, extracted from `prototype/go/internal/handler/upload.go`'s
+`storeFile`/`ServeFile` logic. `go build ./... && go vet ./...` clean, `internal/model/
+model_test.go` ported unchanged and passing. `menata.app` still serves `prototype/go` — no Caddy
+change yet, that's `ROADMAP.md`'s own Phase 6 (Cutover) decision point, not before. Next: Phase 1
+(metadata pipeline).

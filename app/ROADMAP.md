@@ -42,6 +42,12 @@ and confirm it still passes — the first ported test, and the cheapest possible
 **Milestone:** `app/` compiles as a real module with 5 working leaf-layer packages and a working
 storage abstraction. No server yet.
 
+**Status update (2026-09-06):** Done. `model`/`auth`/`db`/`config`/`store` ported verbatim
+(byte-identical diff against `prototype/go` apart from two redundant package-doc comments already
+covered by `doc.go`), `internal/storage`'s `Store` interface + `LocalDisk` backend written new.
+`go build ./... && go vet ./...` clean; `internal/model/model_test.go` passes. Caddy/`menata.app`
+untouched, per this roadmap's own Phase 6. Proceeding to Phase 1.
+
 ## Phase 1 — Metadata pipeline
 
 **Port:** `internal/metadata`, already split into `loader.go` (per-table `Load*`), `validate.go`
