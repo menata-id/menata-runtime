@@ -2265,6 +2265,29 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     is additive (fast local feedback AND a visible remote record), the local gate isn't being
     retired. `benchmarks/025-architecture-worldclass-audit.md`'s own F1/remediation-item-1 and
     `nfr-standards.md`'s §2.8 Architecture row each carry their own matching correction note.
+23. **New (2026-09-06): documentation follow-ups deferred until `app/`'s port actually
+    progresses.** Found while auditing whether root docs needed updating for `app/`'s existence.
+    Most didn't — Tier 3/4 governance machinery (`capability-registry.md`, `case-portfolio.md`,
+    `nfr-standards.md`) is evidence-of-history and Study 34 already decided it stays as-is.
+    `runtime-metadata-schema.md`'s self-description ("used by *this prototype*" / "during *the
+    prototype phase*") was genuinely stale and corrected same day — it's the schema `app/`
+    graduates verbatim (`ARCHITECTURE.md`'s "What's graduated as-is"), not an artifact scoped to
+    the discovery phase; `README.md`'s matching Tier 2 table row corrected too. The items below
+    are **not stale yet** — they describe `prototype/go` because `prototype/go` is still the only
+    place with real running code (`app/` is blueprint-only, `app/ROADMAP.md` Phase 0 not started)
+    — but each has a concrete future trigger, named here so a later session doesn't have to
+    re-derive this list from scratch:
+
+    | Doc / location | What's tied to `prototype/go` today | Update trigger | What changes |
+    |---|---|---|---|
+    | `capability-lifecycle.md`'s own "Reading this against `prototype/go` today" note | Points to `prototype/go/CLAUDE.md` for "how a new capability's code is actually structured today" | First real capability code lands in `app/` (`app/ROADMAP.md` Phase 0–3) | Repoint to `app/CLAUDE.md`, or cite both (historical vs. current) if capability work still happens in `prototype/go` mid-port |
+    | `capability-registry.md`'s own "Status reflects the Go prototype runtime" line | Every ✅/⚠️/❌ and every Proof-column test ID is scoped to `prototype/go`'s own conformance suite | `app/ROADMAP.md` Phase 4 milestone (`app/`'s own conformance suite reaches parity with `prototype/go`'s count) | Line updates to name `app/` as the status subject; decide then whether Proof-column test IDs get relabeled to `app/`'s own numbering or kept as historical first-proof references |
+    | Root `README.md`'s "Reference Implementation" table + root `CLAUDE.md`'s "blueprint stage" line | Describe `app/` as blueprint-only and `prototype/go` as where `menata.app` actually runs | `app/ROADMAP.md` Phase 6 (cutover) | Both update once `server-manager.sh` points at `app/`'s own binary instead of `prototype/go`'s |
+    | `case-portfolio.md`'s pointers to `prototype/go/docs/examples/` for worked examples | New case write-ups go into `prototype/go`'s own `docs/examples/`, per `README.md`'s own placement rule | Whenever a new case write-up is needed after `prototype/go` is superseded | Decide then whether new worked examples go to `app/docs/examples/` instead — not yet decided, no case has forced the question |
+    | **Open, no fixed trigger** — where does genuinely *new* capability work happen while `app/` is mid-port (Phases 0–5)? | — | Owner decision, not yet asked | Not a doc-wording fix — a process decision `capability-lifecycle.md` should record once made |
+
+    Not urgent — none of these are wrong today, only scheduled to become so at a named future
+    point. Flagged so the update happens deliberately at that point, not by accident.
 
 ---
 

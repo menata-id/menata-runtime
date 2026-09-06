@@ -4,7 +4,9 @@
 >
 > It is designed for deterministic machine interpretation.
 >
-> This document defines the Runtime Metadata format used by this prototype.
+> This document defines the concrete Runtime Metadata format implemented by `prototype/go` and,
+> unchanged, by `app/` — the real Menata Runtime application, which graduates this schema
+> verbatim rather than redesigning it (`benchmarks/026-runtime-graduation-decision.md`, Study 34).
 
 ---
 
@@ -12,7 +14,7 @@
 
 Runtime Metadata is expressed in YAML.
 
-YAML is used for human readability during the prototype phase.
+YAML is used for human readability.
 
 The format may evolve in future versions.
 

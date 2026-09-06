@@ -393,7 +393,7 @@ Not part of the numbered reading sequence — each elaborates or grounds one Tie
 
 | Document | Elaborates | Role |
 |----------|-----------|------|
-| [runtime-metadata-schema.md](runtime-metadata-schema.md) | §004 | Concrete YAML/DB schema for Runtime Metadata (shared by all prototypes) |
+| [runtime-metadata-schema.md](runtime-metadata-schema.md) | §004 | Concrete YAML/DB schema for Runtime Metadata (shared by all prototypes, and by `app/`, which graduates it verbatim) |
 | [architecture-benchmark.md](architecture-benchmark.md) | §002 | Architecture references from other world-class systems (Chromium, Kubernetes, VS Code, …) — one-time research that informed the architecture, not part of the growing `benchmarks/` evidence series below |
 
 ## Practical Guides
