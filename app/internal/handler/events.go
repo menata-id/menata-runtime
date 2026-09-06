@@ -79,7 +79,7 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 		var rv *ruleViolation
 		if errors.As(err, &rv) {
 			h.logRuleViolation(r.Context(), "trigger", machineID, eventID, role, identity, rv.Error())
-			http.Error(w, rv.Error(), http.StatusBadRequest)
+			http.Error(w, rv.Error(), http.StatusBadRequest) // errleak:allow: ruleViolation is a controlled, user-safe validation message (see this file's own ruleViolation type)
 		} else {
 			http.Error(w, "event failed", http.StatusInternalServerError)
 		}
@@ -176,7 +176,7 @@ func (h *Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 		var rv *ruleViolation
 		if errors.As(err, &rv) {
 			h.logRuleViolation(r.Context(), "webhook", machineID, eventID, []string{"System"}, "Webhook", rv.Error())
-			http.Error(w, rv.Error(), http.StatusBadRequest)
+			http.Error(w, rv.Error(), http.StatusBadRequest) // errleak:allow: ruleViolation is a controlled, user-safe validation message (see this file's own ruleViolation type)
 		} else {
 			http.Error(w, "event failed", http.StatusInternalServerError)
 		}

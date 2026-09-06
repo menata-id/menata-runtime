@@ -143,7 +143,10 @@ func (h *Handler) Reload(w http.ResponseWriter, r *http.Request) {
 	workspaces, err := h.loader.LoadAll(r.Context())
 	if err != nil {
 		slog.Error("metadata reload failed", "correlation_id", middleware.GetReqID(r.Context()), "actor", a.User.Name, "error", err)
-		http.Error(w, "reload failed: "+err.Error(), http.StatusInternalServerError)
+		// Full error (could be a DB/loader internal detail) already
+		// captured above with a correlation_id -- an admin who needs it
+		// greps the log, the HTTP response doesn't need to repeat it.
+		http.Error(w, "reload failed", http.StatusInternalServerError)
 		return
 	}
 	newInterp := interpreter.New(workspaces)
@@ -230,7 +233,7 @@ func (h *Handler) AdminCreateGroup(w http.ResponseWriter, r *http.Request) {
 			// a reliable name-based lookup) can now reject a name that
 			// used to always succeed -- a real, user-actionable 400, not
 			// an unexplained 500.
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, store.ErrDuplicateName.Error(), http.StatusBadRequest) // errleak:allow: known sentinel just matched via errors.Is, not a raw internal error
 			return
 		}
 		slog.Error("create group", "error", err)

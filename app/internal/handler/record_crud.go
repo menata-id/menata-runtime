@@ -589,7 +589,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	// is already populated here.
 	uploaded, err := h.processFileUploads(r, machine)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest) // errleak:allow: processFileUploads returns user-facing validation messages (file type/size), not internal errors
 		return
 	}
 	for fieldID, key := range uploaded {
@@ -844,7 +844,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	uploaded, err := h.processFileUploads(r, machine)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest) // errleak:allow: processFileUploads returns user-facing validation messages (file type/size), not internal errors
 		return
 	}
 	for fieldID, key := range uploaded {

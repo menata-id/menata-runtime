@@ -210,7 +210,7 @@ func (h *Handler) LiftProcess(w http.ResponseWriter, r *http.Request) {
 	}
 	process, err := liftProcess(machine)
 	if err != nil {
-		apiJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+		apiJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()}) // errleak:allow: liftProcess returns a structural validation message about the Process definition, not an internal error
 		return
 	}
 	apiJSON(w, http.StatusOK, map[string]any{

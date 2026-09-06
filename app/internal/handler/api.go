@@ -289,7 +289,7 @@ func (h *Handler) APIImportApplication(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := rejectCompiledContent(&app); err != nil {
-		apiJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		apiJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()}) // errleak:allow: rejectCompiledContent returns a human-authored import-feedback message, not an internal error
 		return
 	}
 
@@ -309,13 +309,13 @@ func (h *Handler) APIImportApplication(w http.ResponseWriter, r *http.Request) {
 
 	workspaceID := h.workspace(r)
 	if err := metadata.MaterializeApplication(ctx, tx, workspaceID, &app); err != nil {
-		apiJSON(w, http.StatusBadRequest, map[string]string{"error": "import failed: " + err.Error()})
+		apiJSON(w, http.StatusBadRequest, map[string]string{"error": "import failed: " + err.Error()}) // errleak:allow: MaterializeApplication returns descriptive import-validation feedback by design, not an internal error
 		return
 	}
 
 	workspaces, err := metadata.NewLoader(tx).LoadAll(ctx)
 	if err != nil {
-		apiJSON(w, http.StatusBadRequest, map[string]string{"error": "import failed validation: " + err.Error()})
+		apiJSON(w, http.StatusBadRequest, map[string]string{"error": "import failed validation: " + err.Error()}) // errleak:allow: LoadAll returns descriptive import-validation feedback by design, not an internal error
 		return
 	}
 
