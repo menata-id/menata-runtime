@@ -6,6 +6,7 @@ import "strings"
 type Workspace struct {
 	ID           string
 	Name         string
+	Slug         string // CAP-X14: URL-facing identifier, `/{slug}/...` -- deliberately separate from ID so a future rename never touches the workspace_id FK every other table already has
 	Applications []*Application
 	Holidays     []string // CAP-O06: "YYYY-MM-DD" dates this Workspace declares as non-working, consumed by CAP-A11's "N Business Days" date arithmetic
 }

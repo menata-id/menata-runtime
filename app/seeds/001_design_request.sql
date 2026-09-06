@@ -3,8 +3,8 @@
 -- Safe to run multiple times (ON CONFLICT DO NOTHING).
 
 -- Workspace
-INSERT INTO workspaces (id, name) VALUES
-    ('ws_default', 'Default Workspace')
+INSERT INTO workspaces (id, name, slug) VALUES
+    ('ws_default', 'Default Workspace', 'ws_default')
 ON CONFLICT (id) DO NOTHING;
 
 -- Application

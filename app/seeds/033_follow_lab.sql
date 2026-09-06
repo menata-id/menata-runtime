@@ -15,7 +15,7 @@
 -- field's declared Type) + two CAP-V05/V09 `$current_user`-filtered Views
 -- (one per direction) are already sufficient, proven end-to-end here.
 
-INSERT INTO workspaces (id, name) VALUES ('ws_default', 'Default Workspace')
+INSERT INTO workspaces (id, name, slug) VALUES ('ws_default', 'Default Workspace', 'ws_default')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO applications (id, workspace_id, name) VALUES

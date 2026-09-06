@@ -14,7 +14,7 @@
 -- T99/T100's own real-scheduler wait already relies on, no multi-day wait
 -- needed.
 
-INSERT INTO workspaces (id, name) VALUES ('ws_default', 'Default Workspace')
+INSERT INTO workspaces (id, name, slug) VALUES ('ws_default', 'Default Workspace', 'ws_default')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO applications (id, workspace_id, name) VALUES

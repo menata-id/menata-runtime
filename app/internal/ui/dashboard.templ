@@ -7,14 +7,14 @@ import "strconv"
 // Deliberately count-based, not charts -- a real, useful "at a glance"
 // summary without a charting dependency, matching this prototype's
 // no-heavy-frontend-framework posture.
-templ Dashboard(workspaceName, identity, csrfToken string, isAdmin bool, viewName string, tiles []DashboardTile, unreadCount int, subNav []SubNavLink) {
-	@Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+templ Dashboard(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, viewName string, tiles []DashboardTile, unreadCount int, subNav []SubNavLink) {
+	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
 		</div>
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			for _, tile := range tiles {
-				<a href={ templ.SafeURL("/" + tile.MachineID) } class="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:bg-slate-50">
+				<a href={ templ.SafeURL("/" + wsSlug + "/" + tile.MachineID) } class="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:bg-slate-50">
 					<div class="text-xs font-semibold uppercase tracking-wide text-slate-500">{ tile.Title }</div>
 					<div class="mt-1 text-2xl font-semibold text-slate-900">{ strconv.Itoa(tile.Total) }</div>
 					if len(tile.Breakdown) > 0 {

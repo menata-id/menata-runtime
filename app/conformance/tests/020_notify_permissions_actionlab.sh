@@ -135,7 +135,7 @@ check T46 "CAP-O03" "drilling into an Application lists its own Machines" $?
 # T47 -- role-aware: someone with zero readable machines in an Application
 # never sees that Application's card on the workspace home at all. Alice has
 # no user_application_roles row in app_hr at all.
-! body_contains "$BASE_URL/" 'href="/apps/app_hr"' "$ALICE"
+! body_contains "$BASE_URL/" 'href="/ws_default/apps/app_hr"' "$ALICE"
 check T47 "CAP-O03" "Alice (no access anywhere in HR) never sees the HR application card" $?
 
 # T48 -- negative: drilling into an Application whose Machines the role
@@ -144,31 +144,38 @@ check T47 "CAP-O03" "Alice (no access anywhere in HR) never sees the HR applicat
 # mch_leave_request (HR) but not mch_employee (also HR); the HR app page
 # must show Leave Request without Employee.
 body_contains "$BASE_URL/apps/app_hr" "Leave Request" "$EVE" \
-  && ! body_contains "$BASE_URL/apps/app_hr" 'href="/mch_employee"' "$EVE"
+  && ! body_contains "$BASE_URL/apps/app_hr" 'href="/ws_default/mch_employee"' "$EVE"
 check T48 "CAP-O03" "within an Application, only individually-readable Machines are listed" $?
 
 # --- CAP-X06 (workspace isolation) -- requires seeds/006_second_workspace.sql ---
 # ws_acme (Operations/Task) is a deliberately separate Workspace from every
 # other case's ws_default, existing purely to prove isolation.
 
-# T49 -- negative: a ws_default account (Alice) given a direct URL to
-# ws_acme's Machine is denied -- app-layer guard (Interpreter.ScopeFor),
-# independent of RLS at the DB layer.
-CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$ALICE" "$BASE_URL/mch_task")
+# T49 -- negative: a ws_default account (Alice) given a direct URL NAMING
+# ws_acme (CAP-X14's own /{slug}/ segment) is denied by
+# handler.RequireWorkspaceSlug before the request ever reaches a Machine
+# lookup at all -- Alice's own session doesn't match the URL's workspace.
+# CAP-X06's original app-layer guard (Interpreter.ScopeFor, independent of
+# RLS at the DB layer) still exists underneath and would catch this too if
+# a Machine ID ever collided across workspaces, but this URL shape now
+# trips the earlier, CAP-X14 guard first.
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$ALICE" "$BASE_URL_ACME/mch_task")
 [ "$CODE" = "404" ]
-check T49 "CAP-X06" "ws_default account denied direct access to another workspace's Machine (got $CODE)" $?
+check T49 "CAP-X06,CAP-X14" "ws_default account denied a URL naming another workspace's Machine (got $CODE)" $?
 
 # T50 -- same, for the Application route
-CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$ALICE" "$BASE_URL/apps/app_ops")
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$ALICE" "$BASE_URL_ACME/apps/app_ops")
 [ "$CODE" = "404" ]
-check T50 "CAP-X06" "ws_default account denied direct access to another workspace's Application (got $CODE)" $?
+check T50 "CAP-X06,CAP-X14" "ws_default account denied a URL naming another workspace's Application (got $CODE)" $?
 
 # T51 -- positive: Ivan's own account (ws_acme, Staff in app_ops) can use its
-# own Machine end to end (create + trigger event) -- workspace now comes from
-# the authenticated account (CAP-X02), not a client-suppliable cookie.
-TASK_URL=$(post_redirect "$BASE_URL/mch_task" "fld_task_title=Conformance+Task" "$IVAN")
+# own Machine end to end (create + trigger event) via its OWN workspace's URL
+# (CAP-X14) -- workspace still ultimately comes from the authenticated
+# account (CAP-X02), not a client-suppliable cookie; the URL's slug must
+# additionally agree with it (RequireWorkspaceSlug), which it does here.
+TASK_URL=$(post_redirect "$BASE_URL_ACME/mch_task" "fld_task_title=Conformance+Task" "$IVAN")
 TASK_ID="${TASK_URL##*/}"
-CODE=$(post_status "$BASE_URL/mch_task/$TASK_ID/events/evt_task_complete" "" "$IVAN")
+CODE=$(post_status "$BASE_URL_ACME/mch_task/$TASK_ID/events/evt_task_complete" "" "$IVAN")
 [ "$CODE" = "303" ] && body_contains "$TASK_URL" "Done" "$IVAN"
 check T51 "CAP-X06" "a workspace account's own session grants access to its own Machine end to end (got $CODE)" $?
 
@@ -198,7 +205,7 @@ fi
 # password, no session, no CSRF. T53-T59 prove the replacement directly.
 
 # T53 -- wrong password rejected, not silently treated as any other role
-CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE_URL/login" \
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$ORIGIN/login" \
     --data-urlencode "email=alice@example.com" --data-urlencode "password=wrong")
 [ "$CODE" = "401" ]
 check T53 "CAP-X02" "login with wrong password rejected (got $CODE)" $?

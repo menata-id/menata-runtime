@@ -98,6 +98,6 @@ if [ "$healthy" != true ]; then
 fi
 
 echo "==> conformance"
-BASE_URL="http://localhost:$PORT" DATABASE_URL="$TEST_DB_URL" ./conformance/run.sh
+ORIGIN="http://localhost:$PORT" DATABASE_URL="$TEST_DB_URL" ./conformance/run.sh
 
 echo "==> local-ci PASSED"

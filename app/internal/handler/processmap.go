@@ -250,7 +250,7 @@ func (h *Handler) ProcessMap(w http.ResponseWriter, r *http.Request) {
 	states, initial, edges, hasShape := extractProcessMap(machine)
 
 	a := h.auth(r)
-	page := ui.ProcessMap(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), view.Name, states, initial, edges, hasShape, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	page := ui.ProcessMap(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), view.Name, states, initial, edges, hasShape, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render process map", "error", err)
 	}

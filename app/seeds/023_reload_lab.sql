@@ -10,7 +10,7 @@
 -- than a new account -- this file only needs one more role grant for an
 -- account the suite already has a session for.
 
-INSERT INTO workspaces (id, name) VALUES ('ws_default', 'Default Workspace')
+INSERT INTO workspaces (id, name, slug) VALUES ('ws_default', 'Default Workspace', 'ws_default')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO applications (id, workspace_id, name) VALUES

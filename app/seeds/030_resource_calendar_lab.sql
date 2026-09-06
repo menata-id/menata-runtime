@@ -4,7 +4,7 @@
 -- extends the same "sort then linear-scan flush on change" algorithm with
 -- one more key, no new View type.
 
-INSERT INTO workspaces (id, name) VALUES ('ws_default', 'Default Workspace')
+INSERT INTO workspaces (id, name, slug) VALUES ('ws_default', 'Default Workspace', 'ws_default')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO applications (id, workspace_id, name) VALUES

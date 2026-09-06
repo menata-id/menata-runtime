@@ -16,7 +16,7 @@
 -- ends up able to both edit (direct) and approve (Group) at once, neither
 -- role alone would be enough.
 
-INSERT INTO workspaces (id, name) VALUES ('ws_default', 'Default Workspace')
+INSERT INTO workspaces (id, name, slug) VALUES ('ws_default', 'Default Workspace', 'ws_default')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO applications (id, workspace_id, name) VALUES

@@ -54,12 +54,12 @@ func (h *Handler) hiddenFields(machine *model.Machine, roles []string) map[strin
 	return out
 }
 
-func (h *Handler) buildFormFields(ctx context.Context, machine *model.Machine, vals map[string]any) []ui.FormField {
+func (h *Handler) buildFormFields(ctx context.Context, wsSlug string, machine *model.Machine, vals map[string]any) []ui.FormField {
 	var fieldIDs []string
 	if view := h.interp.Get().FormView(machine.ID); view != nil {
 		fieldIDs = view.Config.Fields
 	}
-	return h.buildFormFieldsFor(ctx, machine, fieldIDs, vals)
+	return h.buildFormFieldsFor(ctx, wsSlug, machine, fieldIDs, vals)
 }
 
 // buildFormFieldsFor is buildFormFields narrowed to an explicit fieldIDs
@@ -72,7 +72,7 @@ func (h *Handler) buildFormFields(ctx context.Context, machine *model.Machine, v
 // rather than inventing a second number.
 const typeaheadThreshold = 25
 
-func (h *Handler) buildFormFieldsFor(ctx context.Context, machine *model.Machine, fieldIDs []string, vals map[string]any) []ui.FormField {
+func (h *Handler) buildFormFieldsFor(ctx context.Context, wsSlug string, machine *model.Machine, fieldIDs []string, vals map[string]any) []ui.FormField {
 	fieldByID := fieldIndex(machine)
 
 	fields := make([]ui.FormField, 0, len(fieldIDs))
@@ -98,7 +98,7 @@ func (h *Handler) buildFormFieldsFor(ctx context.Context, machine *model.Machine
 		if (f.Type == model.FieldTypeReference || f.Type == model.FieldTypeUser) && len(opts) > typeaheadThreshold {
 			ff.Typeahead = true
 			ff.Options = nil // nothing to render into a <select> with -- TypeaheadPicker queries TypeaheadURL instead
-			ff.TypeaheadURL = "/" + machine.ID + "/field-options?field=" + f.ID
+			ff.TypeaheadURL = "/" + wsSlug + "/" + machine.ID + "/field-options?field=" + f.ID
 			if val != "" {
 				if f.Type == model.FieldTypeReference {
 					ff.TypeaheadLabel, _ = h.referenceLabel(ctx, f.Options.TargetMachine, val)
@@ -117,7 +117,7 @@ func (h *Handler) buildFormFieldsFor(ctx context.Context, machine *model.Machine
 				if c.CrossRecord == nil || c.CrossRecord.Kind != "reference_field" || c.CrossRecord.ReferenceField != f.ID {
 					continue
 				}
-				ff.LivePreviewURL = "/api/v1/" + f.Options.TargetMachine + "/"
+				ff.LivePreviewURL = "/" + wsSlug + "/api/v1/" + f.Options.TargetMachine + "/"
 				ff.LivePreviewField = c.CrossRecord.TargetField
 				if targetMachine, ok := h.interp.Get().GetMachine(f.Options.TargetMachine); ok {
 					if tf, ok := fieldIndex(targetMachine)[c.CrossRecord.TargetField]; ok {
@@ -303,7 +303,7 @@ func (h *Handler) insertChildRows(ctx context.Context, cl *model.ChildLinesConfi
 // machine, and lists the records where that field equals recordID (CAP-V06).
 // Generic by construction — it doesn't special-case Employee/Manager, so any
 // future reference relationship gets a sub-list automatically.
-func (h *Handler) childLists(ctx context.Context, machine *model.Machine, recordID string) []ui.ChildList {
+func (h *Handler) childLists(ctx context.Context, wsSlug string, machine *model.Machine, recordID string) []ui.ChildList {
 	var out []ui.ChildList
 	for _, m := range h.interp.Get().AllMachines() {
 		for _, f := range m.Fields {
@@ -324,7 +324,7 @@ func (h *Handler) childLists(ctx context.Context, machine *model.Machine, record
 				if refID, _ := v.(string); refID == recordID {
 					items = append(items, ui.ChildListItem{
 						Label: displayLabel(m, rec.ID, rec.Data),
-						Link:  "/" + m.ID + "/" + rec.ID,
+						Link:  "/" + wsSlug + "/" + m.ID + "/" + rec.ID,
 					})
 				}
 			}

@@ -16,7 +16,7 @@ import templruntime "github.com/a-h/templ/runtime"
 // the Machine has no Status value_list Field at all -- nothing to derive
 // a map from (handler.ProcessMap 404s before this ever renders, but the
 // flag stays here too as a defensive, honest empty state).
-func ProcessMap(workspaceName, identity, csrfToken string, isAdmin bool, viewName string, states []string, initial string, edges []ProcessEdge, hasShape bool, unreadCount int, subNav []SubNavLink) templ.Component {
+func ProcessMap(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, viewName string, states []string, initial string, edges []ProcessEdge, hasShape bool, unreadCount int, subNav []SubNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -56,7 +56,7 @@ func ProcessMap(workspaceName, identity, csrfToken string, isAdmin bool, viewNam
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(viewName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `processmap.templ`, Line: 14, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/processmap.templ`, Line: 14, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -85,7 +85,7 @@ func ProcessMap(workspaceName, identity, csrfToken string, isAdmin bool, viewNam
 						var templ_7745c5c3_Var4 string
 						templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(s)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `processmap.templ`, Line: 26, Col: 115}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/processmap.templ`, Line: 26, Col: 115}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 						if templ_7745c5c3_Err != nil {
@@ -103,7 +103,7 @@ func ProcessMap(workspaceName, identity, csrfToken string, isAdmin bool, viewNam
 						var templ_7745c5c3_Var5 string
 						templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(s)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `processmap.templ`, Line: 28, Col: 118}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/processmap.templ`, Line: 28, Col: 118}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 						if templ_7745c5c3_Err != nil {
@@ -137,7 +137,7 @@ func ProcessMap(workspaceName, identity, csrfToken string, isAdmin bool, viewNam
 						var templ_7745c5c3_Var6 string
 						templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(e.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `processmap.templ`, Line: 53, Col: 66}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/processmap.templ`, Line: 53, Col: 66}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 						if templ_7745c5c3_Err != nil {
@@ -150,7 +150,7 @@ func ProcessMap(workspaceName, identity, csrfToken string, isAdmin bool, viewNam
 						var templ_7745c5c3_Var7 string
 						templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(e.From)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `processmap.templ`, Line: 54, Col: 54}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/processmap.templ`, Line: 54, Col: 54}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 						if templ_7745c5c3_Err != nil {
@@ -163,7 +163,7 @@ func ProcessMap(workspaceName, identity, csrfToken string, isAdmin bool, viewNam
 						var templ_7745c5c3_Var8 string
 						templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(e.To)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `processmap.templ`, Line: 55, Col: 52}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/processmap.templ`, Line: 55, Col: 52}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 						if templ_7745c5c3_Err != nil {
@@ -176,7 +176,7 @@ func ProcessMap(workspaceName, identity, csrfToken string, isAdmin bool, viewNam
 						var templ_7745c5c3_Var9 string
 						templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(e.Actor)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `processmap.templ`, Line: 56, Col: 55}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/processmap.templ`, Line: 56, Col: 55}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 						if templ_7745c5c3_Err != nil {
@@ -199,7 +199,7 @@ func ProcessMap(workspaceName, identity, csrfToken string, isAdmin bool, viewNam
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

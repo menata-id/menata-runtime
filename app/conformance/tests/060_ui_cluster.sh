@@ -275,7 +275,7 @@ check T174 "CAP-V15" "the Journal Entry form's child_lines section is wired for 
 # T175 -- the Journal Entry form's Fiscal Period picker is wired for a live
 # preview of that period's own Status, fetched from the existing JSON API.
 NEW_JE_BODY2=$(get_body "$BASE_URL/mch_c9_journal_entry/new" "$C9ACCT")
-echo "$NEW_JE_BODY2" | grep -q 'data-preview-url="/api/v1/mch_c9_fiscal_period/"'
+echo "$NEW_JE_BODY2" | grep -q 'data-preview-url="/ws_default/api/v1/mch_c9_fiscal_period/"'
 HAS_PREVIEW_URL=$?
 echo "$NEW_JE_BODY2" | grep -q 'data-preview-field="fld_c9fp_status"'
 HAS_PREVIEW_FIELD=$?

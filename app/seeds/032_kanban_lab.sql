@@ -6,7 +6,7 @@
 -- start with records, "Done" starts empty -- proving every declared option
 -- gets a lane even with nothing in it (BoardLane's own doc comment).
 
-INSERT INTO workspaces (id, name) VALUES ('ws_default', 'Default Workspace')
+INSERT INTO workspaces (id, name, slug) VALUES ('ws_default', 'Default Workspace', 'ws_default')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO applications (id, workspace_id, name) VALUES

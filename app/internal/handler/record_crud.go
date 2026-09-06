@@ -184,7 +184,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 				target := fieldByID[id].Options.TargetMachine
 				if label, err := h.referenceLabel(r.Context(), target, refID); err == nil && label != "" {
 					val = label
-					link = "/" + target + "/" + refID
+					link = "/" + h.workspaceSlug(r) + "/" + target + "/" + refID
 				}
 			case cols[j].Type == model.FieldTypeUser && val != "":
 				if label, err := h.userLabel(r.Context(), val); err == nil && label != "" {
@@ -224,7 +224,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		TotalPages:  totalPages,
 	}
 	a := h.auth(r)
-	page := ui.List(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(machineID, model.ViewTypeList))
+	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, model.ViewTypeList))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render list", "error", err)
 	}
@@ -278,7 +278,7 @@ func (h *Handler) setDeleted(w http.ResponseWriter, r *http.Request, deleted boo
 			// fields targeting this one) rather than a second
 			// implementation of "who points at me."
 			if machine.Config["master_data"] == "true" {
-				if refs := h.childLists(r.Context(), machine, recordID); len(refs) > 0 {
+				if refs := h.childLists(r.Context(), h.workspaceSlug(r), machine, recordID); len(refs) > 0 {
 					http.Error(w, fmt.Sprintf("cannot archive: still referenced by %s", refs[0].Title), http.StatusConflict)
 					return
 				}
@@ -296,9 +296,9 @@ func (h *Handler) setDeleted(w http.ResponseWriter, r *http.Request, deleted boo
 		return
 	}
 	if deleted {
-		http.Redirect(w, r, "/"+machineID, http.StatusSeeOther)
+		http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/"+machineID, http.StatusSeeOther)
 	} else {
-		http.Redirect(w, r, "/"+machineID+"/"+recordID, http.StatusSeeOther)
+		http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/"+machineID+"/"+recordID, http.StatusSeeOther)
 	}
 }
 
@@ -330,7 +330,7 @@ func (h *Handler) MoveRecord(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to move record", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/"+machineID, http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/"+machineID, http.StatusSeeOther)
 }
 
 // BoardMove (CAP-V14 Tier 2) handles a kanban card drop -- CanEdit-gated
@@ -385,7 +385,7 @@ func (h *Handler) BoardMove(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to move record", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/"+machineID+"/board", http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/"+machineID+"/board", http.StatusSeeOther)
 }
 
 // Report renders a CAP-V13 aggregate report View -- grouped SUMs computed
@@ -469,14 +469,14 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 	// CAP-V12: a FormView declaring Steps renders as a multi-step wizard
 	// instead of the single Form -- step 0, no carried-forward values yet.
 	if fv := h.interp.Get().FormView(machine.ID); fv != nil && len(fv.Config.Steps) > 0 {
-		page := ui.WizardForm(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, 0, len(fv.Config.Steps), h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[0], nil), nil, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+		page := ui.WizardForm(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, 0, len(fv.Config.Steps), h.buildFormFieldsFor(r.Context(), h.workspaceSlug(r), machine, fv.Config.Steps[0], nil), nil, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render wizard form", "error", err)
 		}
 		return
 	}
 
-	page := ui.Form(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, nil), nil, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine), h.subNavFor(r, machine))
+	page := ui.Form(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), h.workspaceSlug(r), machine, nil), nil, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render form", "error", err)
 	}
@@ -531,8 +531,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			a := h.auth(r)
-			page := ui.WizardForm(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, step+1, len(fv.Config.Steps),
-				h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[step+1], nil), carried, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+			page := ui.WizardForm(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, step+1, len(fv.Config.Steps),
+				h.buildFormFieldsFor(r.Context(), h.workspaceSlug(r), machine, fv.Config.Steps[step+1], nil), carried, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 			if err := page.Render(r.Context(), w); err != nil {
 				slog.Error("render wizard form", "error", err)
 			}
@@ -682,14 +682,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
-			page := ui.WizardForm(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, last, len(fv.Config.Steps),
-				h.buildFormFieldsFor(r.Context(), machine, fv.Config.Steps[last], data), carried, violations, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+			page := ui.WizardForm(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, last, len(fv.Config.Steps),
+				h.buildFormFieldsFor(r.Context(), h.workspaceSlug(r), machine, fv.Config.Steps[last], data), carried, violations, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 			if err := page.Render(r.Context(), w); err != nil {
 				slog.Error("render wizard form (violations)", "error", err)
 			}
 			return
 		}
-		page := ui.Form(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine), h.subNavFor(r, machine))
+		page := ui.Form(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, "", h.buildFormFields(r.Context(), h.workspaceSlug(r), machine, data), violations, h.unreadCount(r.Context(), a), h.buildChildLinesData(r.Context(), machine), h.subNavFor(r, machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
@@ -717,7 +717,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to update requirement counter", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/"+machineID+"/"+rec.ID, http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/"+machineID+"/"+rec.ID, http.StatusSeeOther)
 }
 
 // EditForm — form for editing an existing record (CAP-R02). Reuses the same
@@ -759,7 +759,7 @@ func (h *Handler) EditForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a := h.auth(r)
-	page := ui.Form(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, rec.Data), nil, h.unreadCount(r.Context(), a), nil, h.subNavFor(r, machine))
+	page := ui.Form(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), h.workspaceSlug(r), machine, rec.Data), nil, h.unreadCount(r.Context(), a), nil, h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render edit form", "error", err)
 	}
@@ -890,7 +890,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		role := h.roleForApp(r, applicationID)
 		h.logRuleViolation(r.Context(), "update", machineID, "", role, h.identity(r), strings.Join(violations, "; "))
 		a := h.auth(r)
-		page := ui.Form(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), machine, data), violations, h.unreadCount(r.Context(), a), nil, h.subNavFor(r, machine))
+		page := ui.Form(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, recordID, h.buildFormFields(r.Context(), h.workspaceSlug(r), machine, data), violations, h.unreadCount(r.Context(), a), nil, h.subNavFor(r, machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render form (violations)", "error", err)
 		}
@@ -901,7 +901,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to update record", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/"+machineID+"/"+recordID, http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/"+machineID+"/"+recordID, http.StatusSeeOther)
 }
 
 // Detail — detail view of a single record.
@@ -954,7 +954,7 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 			target := f.Options.TargetMachine
 			if label, err := h.referenceLabel(r.Context(), target, refID); err == nil && label != "" {
 				val = label
-				link = "/" + target + "/" + refID
+				link = "/" + h.workspaceSlug(r) + "/" + target + "/" + refID
 			}
 		case f.Type == model.FieldTypeUser && val != "":
 			if label, err := h.userLabel(r.Context(), val); err == nil && label != "" {
@@ -978,7 +978,7 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		fields = append(fields, ui.DetailField{Name: f.Name, Value: val, Link: link, SlaUrgency: urgency})
 	}
 
-	childLists := h.childLists(r.Context(), machine, recordID)
+	childLists := h.childLists(r.Context(), h.workspaceSlug(r), machine, recordID)
 	events := h.interp.Get().PermittedEventsForRecord(machineID, role, h.identityID(r), rec.Data)
 	// CAP-P04: an event declaring InputFields (e.g. "delegate to") renders
 	// an inline picker alongside its trigger button, same field/options
@@ -988,7 +988,7 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	for i, evt := range events {
 		permittedEvents[i] = ui.EventTrigger{Event: evt}
 		if len(evt.InputFields) > 0 {
-			permittedEvents[i].Inputs = h.buildFormFieldsFor(r.Context(), machine, evt.InputFields, nil)
+			permittedEvents[i].Inputs = h.buildFormFieldsFor(r.Context(), h.workspaceSlug(r), machine, evt.InputFields, nil)
 		}
 	}
 	// Extra action links, each gated on this Machine declaring the
@@ -996,13 +996,13 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	// than a new single-purpose parameter per capability.
 	var extraLinks []ui.DetailLink
 	if h.interp.Get().CoordPlacementView(machineID) != nil { // CAP-V21
-		extraLinks = append(extraLinks, ui.DetailLink{Label: "Set Position", URL: "/" + machineID + "/" + recordID + "/place"})
+		extraLinks = append(extraLinks, ui.DetailLink{Label: "Set Position", URL: "/" + h.workspaceSlug(r) + "/" + machineID + "/" + recordID + "/place"})
 	}
 	if h.interp.Get().DecisionStepperView(machineID) != nil { // CAP-V20
-		extraLinks = append(extraLinks, ui.DetailLink{Label: "View Progress", URL: "/" + machineID + "/" + recordID + "/progress"})
+		extraLinks = append(extraLinks, ui.DetailLink{Label: "View Progress", URL: "/" + h.workspaceSlug(r) + "/" + machineID + "/" + recordID + "/progress"})
 	}
 	a := h.auth(r)
-	page := ui.Detail(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), extraLinks)
+	page := ui.Detail(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), extraLinks)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render detail", "error", err)
 	}

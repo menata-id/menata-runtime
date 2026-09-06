@@ -16,7 +16,7 @@
 -- own existing ALL-required tests (T22-T26) stay untouched -- min_approvals
 -- omitted/zero falls through to that exact unchanged behavior.
 
-INSERT INTO workspaces (id, name) VALUES ('ws_default', 'Default Workspace')
+INSERT INTO workspaces (id, name, slug) VALUES ('ws_default', 'Default Workspace', 'ws_default')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO applications (id, workspace_id, name) VALUES

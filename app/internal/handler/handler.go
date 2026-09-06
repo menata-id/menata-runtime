@@ -29,7 +29,8 @@ type Handler struct {
 	outbox        *store.OutboxStore // CAP-W06: notify/subscription fan-out enqueue here, runOutboxDispatcher performs the write
 	sessions      *store.SessionStore
 	users         *store.UserStore
-	groups        *store.GroupStore // CAP-O07
+	workspaces    *store.WorkspaceStore // CAP-O09
+	groups        *store.GroupStore     // CAP-O07
 	secureCookies bool
 	engine        *constraint.Engine
 	guard         *permission.Guard
@@ -37,7 +38,7 @@ type Handler struct {
 	storage       storage.Store // CAP-F06: uploaded-file bytes, see upload.go
 }
 
-func New(interp *interpreter.Store, loader *metadata.Loader, pool *pgxpool.Pool, records *store.RecordStore, notifications *store.NotificationStore, outbox *store.OutboxStore, sessions *store.SessionStore, users *store.UserStore, groups *store.GroupStore, secureCookies bool, fileStorage storage.Store) *Handler {
+func New(interp *interpreter.Store, loader *metadata.Loader, pool *pgxpool.Pool, records *store.RecordStore, notifications *store.NotificationStore, outbox *store.OutboxStore, sessions *store.SessionStore, users *store.UserStore, workspaces *store.WorkspaceStore, groups *store.GroupStore, secureCookies bool, fileStorage storage.Store) *Handler {
 	return &Handler{
 		interp:        interp,
 		loader:        loader,
@@ -47,6 +48,7 @@ func New(interp *interpreter.Store, loader *metadata.Loader, pool *pgxpool.Pool,
 		outbox:        outbox,
 		sessions:      sessions,
 		users:         users,
+		workspaces:    workspaces,
 		groups:        groups,
 		secureCookies: secureCookies,
 		engine:        &constraint.Engine{},
@@ -106,6 +108,26 @@ func (h *Handler) workspaceName(r *http.Request) string {
 		return ws.Name
 	}
 	return "Menata Runtime"
+}
+
+// workspaceSlug (CAP-X14) is the `/{slug}/` segment of the CURRENT request's
+// own URL -- every workspace-scoped route already runs under router.Mount's
+// `/{wsSlug}` subrouter, so this is a direct chi.URLParam read, not an
+// interpreter lookup: the slug building every same-workspace link on this
+// page should point back to is exactly the one already in the address bar.
+func (h *Handler) workspaceSlug(r *http.Request) string {
+	return chi.URLParam(r, "wsSlug")
+}
+
+// workspaceSlugForID resolves an arbitrary workspace_id to its own slug --
+// unlike workspaceSlug above, used only where there is no incoming `/{slug}`
+// URL param to read yet (Login/Signup's own post-success redirect target,
+// resolved from the just-authenticated user's WorkspaceID instead).
+func (h *Handler) workspaceSlugForID(workspaceID string) string {
+	if ws, ok := h.interp.Get().GetWorkspace(workspaceID); ok {
+		return ws.Slug
+	}
+	return workspaceID
 }
 
 // roleForApp (CAP-O01/CAP-O07): the acting person's full held-role SET for
@@ -168,7 +190,8 @@ func (h *Handler) Apps(w http.ResponseWriter, r *http.Request) {
 			Description: fmt.Sprintf("%d machine(s)", readable),
 		})
 	}
-	page := ui.CardGrid("Home", h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), "Applications", "Select an application to view its machines.", "/apps/", "", cards, h.unreadCount(r.Context(), a))
+	wsSlug := h.workspaceSlug(r)
+	page := ui.CardGrid("Home", h.workspaceName(r), wsSlug, a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), "Applications", "Select an application to view its machines.", "/"+wsSlug+"/apps/", "", cards, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render apps", "error", err)
 	}
@@ -202,7 +225,8 @@ func (h *Handler) AppMachines(w http.ResponseWriter, r *http.Request) {
 			Description: fmt.Sprintf("%d fields · %d events", len(m.Fields), len(m.Events)),
 		})
 	}
-	page := ui.CardGrid(app.Name, h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), app.Name, "Select a machine to view its records.", "/", "/", cards, h.unreadCount(r.Context(), a))
+	wsSlug := h.workspaceSlug(r)
+	page := ui.CardGrid(app.Name, h.workspaceName(r), wsSlug, a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), app.Name, "Select a machine to view its records.", "/"+wsSlug+"/", "/"+wsSlug+"/", cards, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render app machines", "error", err)
 	}

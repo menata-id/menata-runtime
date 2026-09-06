@@ -14,8 +14,9 @@
 # against local dev server
 ./conformance/run.sh
 
-# against any deployment
-BASE_URL=https://menata.app ./conformance/run.sh
+# against any deployment (CAP-X14: ORIGIN is the bare server root; lib.sh
+# derives BASE_URL=$ORIGIN/ws_default and BASE_URL_ACME=$ORIGIN/ws_acme)
+ORIGIN=https://menata.app ./conformance/run.sh
 ```
 
 Exit code 0 = all pass. Non-zero = at least one capability regressed.

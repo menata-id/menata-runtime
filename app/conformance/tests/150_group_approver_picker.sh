@@ -27,7 +27,7 @@ post_status "$BASE_URL/admin/groups" "name=Document+Approvers" "$FRANK" >/dev/nu
 # own "Groups Lab Approvers") already exists, so match the href immediately
 # followed by our own group's name, not position.
 GROUP_ID=$(curl -s -b "$FRANK" "$BASE_URL/admin/users" \
-    | grep -oE 'href="/admin/groups/[a-f0-9-]+"[^>]*>[^<]*<div[^>]*>[^<]*</div>' \
+    | grep -oE 'href="/[a-z0-9_-]+/admin/groups/[a-f0-9-]+"[^>]*>[^<]*<div[^>]*>[^<]*</div>' \
     | grep "Document Approvers" \
     | grep -oE '/admin/groups/[a-f0-9-]+' | head -1 | sed 's#/admin/groups/##')
 post_status "$BASE_URL/admin/groups/$GROUP_ID/members" "member_id=$BOB_ID" "$FRANK" >/dev/null

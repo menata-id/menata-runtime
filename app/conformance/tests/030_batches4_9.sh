@@ -286,7 +286,7 @@ PAY_ID="${PAY_URL##*/}"
 WEBHOOK_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
     -H "X-Webhook-Secret: demo-webhook-secret-2026" \
     -d "fld_esp_reference=txn_$$" \
-    "$BASE_URL/webhooks/mch_es_payment/$PAY_ID/evt_esp_confirm")
+    "$ORIGIN/webhooks/mch_es_payment/$PAY_ID/evt_esp_confirm")
 [ "$WEBHOOK_CODE" = "200" ] && body_contains "$PAY_URL" "Paid" "$SAM" && body_contains "$PAY_URL" "txn_$$" "$SAM"
 check T102 "CAP-E04" "a webhook with the correct secret triggers an event with no session, stamping its own payload field (got $WEBHOOK_CODE)" $?
 
@@ -297,7 +297,7 @@ PAY2_ID="${PAY2_URL##*/}"
 WRONG_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
     -H "X-Webhook-Secret: wrong-secret" \
     -d "fld_esp_reference=txn_bad_$$" \
-    "$BASE_URL/webhooks/mch_es_payment/$PAY2_ID/evt_esp_confirm")
+    "$ORIGIN/webhooks/mch_es_payment/$PAY2_ID/evt_esp_confirm")
 [ "$WRONG_CODE" = "401" ] && ! body_contains "$PAY2_URL" "Paid" "$SAM"
 check T103 "CAP-E04" "a webhook with the wrong secret is rejected, record left untouched (got $WRONG_CODE)" $?
 

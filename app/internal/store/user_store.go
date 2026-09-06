@@ -63,6 +63,24 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*User, error)
 	return u, nil
 }
 
+// Create inserts a brand-new user -- CAP-O09's self-service founding flow,
+// the first Go-side user INSERT in this codebase (every prior row comes
+// from seed SQL). id is Postgres-generated (users.id DEFAULT
+// gen_random_uuid(), migrations/002), unlike Workspace.Create's own id.
+func (s *UserStore) Create(ctx context.Context, workspaceID, name, email, passwordHash, workspaceRole string) (*User, error) {
+	u := &User{}
+	err := s.db(ctx).QueryRow(ctx,
+		`INSERT INTO users (workspace_id, name, email, password_hash, workspace_role)
+		 VALUES ($1, $2, $3, $4, $5)
+		 RETURNING id, workspace_id, name, email, password_hash, workspace_role, created_at, notification_preference`,
+		workspaceID, name, email, passwordHash, workspaceRole).
+		Scan(&u.ID, &u.WorkspaceID, &u.Name, &u.Email, &u.PasswordHash, &u.WorkspaceRole, &u.CreatedAt, &u.NotificationPreference)
+	if err != nil {
+		return nil, fmt.Errorf("create user: %w", err)
+	}
+	return u, nil
+}
+
 // Exists reports whether id names a real user -- CAP-F05's referential
 // integrity check for `user`-typed fields, the same tier as CAP-F13's
 // RecordStore.Exists (a required-field violation, not a 500). Pre-validates

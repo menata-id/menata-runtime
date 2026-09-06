@@ -25,11 +25,11 @@ func formatPct(v float64) string {
 // .coordplace-preview div instead -- read-only mode leaves it interactive
 // (a viewer might reasonably want to scroll a multi-page-looking PDF
 // object), since nothing there needs to catch drag events anyway.
-templ CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, viewName, previewKey string, isPDF bool, page, pageCount int, x, y float64, editable bool, unreadCount int, subNav []SubNavLink) {
-	@Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+templ CoordPlace(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, viewName, previewKey string, isPDF bool, page, pageCount int, x, y float64, editable bool, unreadCount int, subNav []SubNavLink) {
+	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4 flex items-center justify-between">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
-			<a href={ templ.SafeURL("/" + machine.ID + "/" + record.ID) } class="text-sm text-slate-400 hover:text-slate-600 transition-colors">← Back</a>
+			<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + record.ID) } class="text-sm text-slate-400 hover:text-slate-600 transition-colors">← Back</a>
 		</div>
 		if pageCount > 1 {
 			<form method="get" class="mb-3 flex items-center gap-2 text-sm">
@@ -49,6 +49,7 @@ templ CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machin
 			<div
 				class="coordplace-preview relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
 				style="height: 70vh;"
+				data-coordplace-ws={ wsSlug }
 				data-coordplace-machine={ machine.ID }
 				data-coordplace-record={ record.ID }
 				data-coordplace-csrf={ csrfToken }
@@ -63,7 +64,7 @@ templ CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machin
 						var rect = me.getBoundingClientRect();
 						var x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
 						var y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
-						fetch('/' + me.dataset.coordplaceMachine + '/' + me.dataset.coordplaceRecord + '/place', {
+						fetch('/' + me.dataset.coordplaceWs + '/' + me.dataset.coordplaceMachine + '/' + me.dataset.coordplaceRecord + '/place', {
 							method: 'POST',
 							headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 							body: 'page=' + encodeURIComponent(me.dataset.coordplacePage) +

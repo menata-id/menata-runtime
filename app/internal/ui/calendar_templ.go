@@ -15,7 +15,7 @@ import "menata.id/app/internal/model"
 // same grouped-list shape read chronologically top to bottom; both are the
 // same rendering, only the heading and empty-state copy differ, so one
 // templ backs both rather than duplicating the table markup.
-func CalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, groups []CalendarGroup, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) templ.Component {
+func CalendarTimeline(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, groups []CalendarGroup, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -55,7 +55,7 @@ func CalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, m
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(viewName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `calendar.templ`, Line: 13, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/calendar.templ`, Line: 13, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -99,7 +99,7 @@ func CalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, m
 						var templ_7745c5c3_Var4 string
 						templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(group.Date)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `calendar.templ`, Line: 30, Col: 20}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/calendar.templ`, Line: 30, Col: 20}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 						if templ_7745c5c3_Err != nil {
@@ -129,7 +129,7 @@ func CalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, m
 								var templ_7745c5c3_Var5 string
 								templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(cell.Value)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `calendar.templ`, Line: 43, Col: 26}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/calendar.templ`, Line: 43, Col: 26}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 								if templ_7745c5c3_Err != nil {
@@ -151,9 +151,9 @@ func CalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, m
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var6 templ.SafeURL
-						templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + machine.ID + "/" + row.ID))
+						templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + row.ID))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `calendar.templ`, Line: 50, Col: 68}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/calendar.templ`, Line: 50, Col: 83}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 						if templ_7745c5c3_Err != nil {
@@ -176,7 +176,7 @@ func CalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, m
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -188,7 +188,7 @@ func CalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, m
 // sibling -- one section per resource (even an idle one with zero dated
 // records), each containing its own date-grouped table, reusing the exact
 // same per-date table markup CalendarTimeline renders inline above.
-func ResourceCalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, resGroups []ResourceCalendarGroup, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) templ.Component {
+func ResourceCalendarTimeline(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, resGroups []ResourceCalendarGroup, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -228,7 +228,7 @@ func ResourceCalendarTimeline(workspaceName, identity, csrfToken string, isAdmin
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(viewName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `calendar.templ`, Line: 71, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/calendar.templ`, Line: 71, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -266,7 +266,7 @@ func ResourceCalendarTimeline(workspaceName, identity, csrfToken string, isAdmin
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(res.Resource)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `calendar.templ`, Line: 84, Col: 74}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/calendar.templ`, Line: 84, Col: 74}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 					if templ_7745c5c3_Err != nil {
@@ -300,7 +300,7 @@ func ResourceCalendarTimeline(workspaceName, identity, csrfToken string, isAdmin
 								var templ_7745c5c3_Var11 string
 								templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(group.Date)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `calendar.templ`, Line: 97, Col: 24}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/calendar.templ`, Line: 97, Col: 24}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 								if templ_7745c5c3_Err != nil {
@@ -330,7 +330,7 @@ func ResourceCalendarTimeline(workspaceName, identity, csrfToken string, isAdmin
 										var templ_7745c5c3_Var12 string
 										templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(cell.Value)
 										if templ_7745c5c3_Err != nil {
-											return templ.Error{Err: templ_7745c5c3_Err, FileName: `calendar.templ`, Line: 110, Col: 30}
+											return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/calendar.templ`, Line: 110, Col: 30}
 										}
 										_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 										if templ_7745c5c3_Err != nil {
@@ -352,9 +352,9 @@ func ResourceCalendarTimeline(workspaceName, identity, csrfToken string, isAdmin
 									return templ_7745c5c3_Err
 								}
 								var templ_7745c5c3_Var13 templ.SafeURL
-								templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + machine.ID + "/" + row.ID))
+								templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + row.ID))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `calendar.templ`, Line: 117, Col: 72}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/calendar.templ`, Line: 117, Col: 87}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 								if templ_7745c5c3_Err != nil {
@@ -387,7 +387,7 @@ func ResourceCalendarTimeline(workspaceName, identity, csrfToken string, isAdmin
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var8), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var8), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

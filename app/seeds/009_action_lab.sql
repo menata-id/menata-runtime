@@ -11,8 +11,8 @@
 -- below via Point Entry/Badge, mirroring the community-points.yaml case
 -- this capability was originally discovered from.
 
-INSERT INTO workspaces (id, name) VALUES
-    ('ws_default', 'Default Workspace')
+INSERT INTO workspaces (id, name, slug) VALUES
+    ('ws_default', 'Default Workspace', 'ws_default')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO applications (id, workspace_id, name) VALUES

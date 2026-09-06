@@ -15,7 +15,7 @@ import "menata.id/app/internal/model"
 // separate "edit form" view declared in metadata. recordID == "" selects
 // Create mode (POST /{machine}); a non-empty recordID selects Edit mode
 // (POST /{machine}/{recordID}), matching the router's two POST routes.
-func Form(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, recordID string, fields []FormField, errors []string, unreadCount int, childLines *ChildLinesData, subNav []SubNavLink) templ.Component {
+func Form(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, recordID string, fields []FormField, errors []string, unreadCount int, childLines *ChildLinesData, subNav []SubNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -53,9 +53,9 @@ func Form(workspaceName, identity, csrfToken string, isAdmin bool, machine *mode
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 templ.SafeURL
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(formBackHref(machine, recordID)))
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(formBackHref(wsSlug, machine, recordID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `form.templ`, Line: 15, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/form.templ`, Line: 15, Col: 66}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -68,7 +68,7 @@ func Form(workspaceName, identity, csrfToken string, isAdmin bool, machine *mode
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(formTitle(machine, recordID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `form.templ`, Line: 18, Col: 83}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/form.templ`, Line: 18, Col: 83}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -91,7 +91,7 @@ func Form(workspaceName, identity, csrfToken string, isAdmin bool, machine *mode
 					var templ_7745c5c3_Var5 string
 					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(e)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `form.templ`, Line: 25, Col: 14}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/form.templ`, Line: 25, Col: 14}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 					if templ_7745c5c3_Err != nil {
@@ -112,9 +112,9 @@ func Form(workspaceName, identity, csrfToken string, isAdmin bool, machine *mode
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 templ.SafeURL
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(formAction(machine, recordID)))
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(formAction(wsSlug, machine, recordID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `form.templ`, Line: 31, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/form.templ`, Line: 31, Col: 85}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -147,7 +147,7 @@ func Form(workspaceName, identity, csrfToken string, isAdmin bool, machine *mode
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(formSubmitLabel(recordID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `form.templ`, Line: 44, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/form.templ`, Line: 44, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -158,9 +158,9 @@ func Form(workspaceName, identity, csrfToken string, isAdmin bool, machine *mode
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var8 templ.SafeURL
-			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(formBackHref(machine, recordID)))
+			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(formBackHref(wsSlug, machine, recordID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `form.templ`, Line: 47, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/form.templ`, Line: 47, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -172,7 +172,7 @@ func Form(workspaceName, identity, csrfToken string, isAdmin bool, machine *mode
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Page(formTitle(machine, recordID), workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Page(formTitle(machine, recordID), workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -187,18 +187,18 @@ func formTitle(machine *model.Machine, recordID string) string {
 	return "Edit " + machine.Name
 }
 
-func formAction(machine *model.Machine, recordID string) string {
+func formAction(wsSlug string, machine *model.Machine, recordID string) string {
 	if recordID == "" {
-		return "/" + machine.ID
+		return "/" + wsSlug + "/" + machine.ID
 	}
-	return "/" + machine.ID + "/" + recordID
+	return "/" + wsSlug + "/" + machine.ID + "/" + recordID
 }
 
-func formBackHref(machine *model.Machine, recordID string) string {
+func formBackHref(wsSlug string, machine *model.Machine, recordID string) string {
 	if recordID == "" {
-		return "/" + machine.ID
+		return "/" + wsSlug + "/" + machine.ID
 	}
-	return "/" + machine.ID + "/" + recordID
+	return "/" + wsSlug + "/" + machine.ID + "/" + recordID
 }
 
 func formSubmitLabel(recordID string) string {

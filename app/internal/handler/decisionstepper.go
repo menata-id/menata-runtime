@@ -112,7 +112,7 @@ func (h *Handler) DecisionStepper(w http.ResponseWriter, r *http.Request) {
 			for _, evt := range h.interp.Get().PermittedEventsForRecord(stepsMachineID, role, identityID, c.Data) {
 				trig := ui.EventTrigger{Event: evt}
 				if len(evt.InputFields) > 0 {
-					trig.Inputs = h.buildFormFieldsFor(r.Context(), stepsMachine, evt.InputFields, nil)
+					trig.Inputs = h.buildFormFieldsFor(r.Context(), h.workspaceSlug(r), stepsMachine, evt.InputFields, nil)
 				}
 				triggers = append(triggers, trig)
 			}
@@ -128,7 +128,7 @@ func (h *Handler) DecisionStepper(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.DecisionStepper(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, view.Name, steps, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	page := ui.DecisionStepper(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, view.Name, steps, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render decision stepper", "error", err)
 	}

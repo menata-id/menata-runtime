@@ -85,7 +85,7 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	http.Redirect(w, r, "/"+machineID+"/"+recordID, http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/"+machineID+"/"+recordID, http.StatusSeeOther)
 }
 
 // Webhook (CAP-E04) lets an external system trigger an event directly --

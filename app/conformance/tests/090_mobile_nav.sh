@@ -15,9 +15,9 @@ KB_LEAD=$(session_for kanban.lead@example.com password)
 # (List + Report here) renders a segmented pill linking between them, the
 # current one marked active -- CAP-O03 Tier 3's own within-Machine axis,
 # distinct from T135's cross-Machine subNavBar strip above.
-body_contains "$BASE_URL/mch_journal_entry_line" 'href="/mch_journal_entry_line/report"' "$IVY" && \
+body_contains "$BASE_URL/mch_journal_entry_line" 'href="/ws_default/mch_journal_entry_line/report"' "$IVY" && \
     body_contains "$BASE_URL/mch_journal_entry_line" 'bg-white text-slate-900 shadow-sm">List<' "$IVY" && \
-    body_contains "$BASE_URL/mch_journal_entry_line/report" 'href="/mch_journal_entry_line"' "$IVY" && \
+    body_contains "$BASE_URL/mch_journal_entry_line/report" 'href="/ws_default/mch_journal_entry_line"' "$IVY" && \
     body_contains "$BASE_URL/mch_journal_entry_line/report" 'bg-white text-slate-900 shadow-sm">Report<' "$IVY"
 check T186 "CAP-O03" "a Machine with both List and Report renders a within-Machine view-type pill on each, active-highlighting whichever is being viewed" $?
 

@@ -39,10 +39,11 @@ func NewHandler(t *testing.T, pool *pgxpool.Pool) *handler.Handler {
 	outbox := store.NewOutboxStore(pool)
 	sessions := store.NewSessionStore(pool)
 	users := store.NewUserStore(pool)
+	workspaceStore := store.NewWorkspaceStore(pool)
 	groups := store.NewGroupStore(pool)
 	fileStorage := storage.NewLocalDisk(t.TempDir())
 
-	return handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, groups, false, fileStorage)
+	return handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, workspaceStore, groups, false, fileStorage)
 }
 
 // Actor returns a minimal *store.Auth for role in workspaceID -- enough to

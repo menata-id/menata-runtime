@@ -4,8 +4,8 @@ import "fmt"
 import "net/url"
 import "menata.id/app/internal/model"
 
-templ List(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink, viewNav []ViewNavLink) {
-	@Page(machine.Name, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+templ List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink, viewNav []ViewNavLink) {
+	@Page(machine.Name, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		if len(viewNav) > 0 {
 			@viewNavPill(viewNav)
 		}
@@ -18,12 +18,12 @@ templ List(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 			</h1>
 			if opts.CanDelete {
 				if opts.Archived {
-					<a href={ templ.SafeURL("/" + machine.ID) } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">← Back to list</a>
+					<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID) } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">← Back to list</a>
 				} else {
-					<a href={ templ.SafeURL("/" + machine.ID + "?archived=1") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">View Archive</a>
+					<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "?archived=1") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">View Archive</a>
 				}
 			}
-			<form method="get" action={ templ.SafeURL("/" + machine.ID) } class="flex items-center">
+			<form method="get" action={ templ.SafeURL("/" + wsSlug + "/" + machine.ID) } class="flex items-center">
 				<input
 					type="search"
 					name="q"
@@ -33,10 +33,10 @@ templ List(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 				/>
 			</form>
 			if !opts.Archived {
-				<a href={ templ.SafeURL("/" + machine.ID + "/export.csv") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">Export</a>
-				<a href={ templ.SafeURL("/" + machine.ID + "/import") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">Import</a>
+				<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/export.csv") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">Export</a>
+				<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/import") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">Import</a>
 				<a
-					href={ templ.SafeURL("/" + machine.ID + "/new") }
+					href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/new") }
 					class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
 				>
 					<span>+</span>
@@ -95,11 +95,11 @@ templ List(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 								}
 								if opts.ManualOrder {
 									<td class="whitespace-nowrap px-4 py-3">
-										<form method="post" action={ templ.SafeURL("/" + machine.ID + "/" + row.ID + "/move/up") } class="inline">
+										<form method="post" action={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + row.ID + "/move/up") } class="inline">
 											@CSRFField(csrfToken)
 											<button type="submit" class="text-xs text-slate-500 hover:text-slate-800" aria-label="Move up">↑</button>
 										</form>
-										<form method="post" action={ templ.SafeURL("/" + machine.ID + "/" + row.ID + "/move/down") } class="inline">
+										<form method="post" action={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + row.ID + "/move/down") } class="inline">
 											@CSRFField(csrfToken)
 											<button type="submit" class="text-xs text-slate-500 hover:text-slate-800" aria-label="Move down">↓</button>
 										</form>
@@ -108,12 +108,12 @@ templ List(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 								if opts.CanDelete {
 									<td class="whitespace-nowrap px-4 py-3">
 										if opts.Archived {
-											<form method="post" action={ templ.SafeURL("/" + machine.ID + "/" + row.ID + "/restore") } class="inline">
+											<form method="post" action={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + row.ID + "/restore") } class="inline">
 												@CSRFField(csrfToken)
 												<button type="submit" class="text-xs text-slate-500 hover:text-slate-800">Restore</button>
 											</form>
 										} else {
-											<form method="post" action={ templ.SafeURL("/" + machine.ID + "/" + row.ID + "/archive") } class="inline">
+											<form method="post" action={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + row.ID + "/archive") } class="inline">
 												@CSRFField(csrfToken)
 												<button type="submit" class="text-xs text-slate-500 hover:text-red-600">Archive</button>
 											</form>
@@ -122,7 +122,7 @@ templ List(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 								}
 								<td class="px-4 py-3">
 									<a
-										href={ templ.SafeURL("/" + machine.ID + "/" + row.ID) }
+										href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + row.ID) }
 										class="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
 									>View →</a>
 								</td>
@@ -135,13 +135,13 @@ templ List(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 		if opts.TotalPages > 1 {
 			<div class="mt-4 flex items-center justify-center gap-4 text-sm text-slate-500">
 				if opts.Page > 1 {
-					<a href={ templ.SafeURL(pageLink(machine.ID, opts, opts.Page-1)) } class="hover:text-slate-800">← Prev</a>
+					<a href={ templ.SafeURL(pageLink(wsSlug, machine.ID, opts, opts.Page-1)) } class="hover:text-slate-800">← Prev</a>
 				} else {
 					<span class="text-slate-300">← Prev</span>
 				}
 				<span>Page { fmt.Sprintf("%d", opts.Page) } of { fmt.Sprintf("%d", opts.TotalPages) }</span>
 				if opts.Page < opts.TotalPages {
-					<a href={ templ.SafeURL(pageLink(machine.ID, opts, opts.Page+1)) } class="hover:text-slate-800">Next →</a>
+					<a href={ templ.SafeURL(pageLink(wsSlug, machine.ID, opts, opts.Page+1)) } class="hover:text-slate-800">Next →</a>
 				} else {
 					<span class="text-slate-300">Next →</span>
 				}
@@ -150,8 +150,8 @@ templ List(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 	}
 }
 
-func pageLink(machineID string, opts ListViewOptions, page int) string {
-	link := "/" + machineID + "?page=" + fmt.Sprintf("%d", page)
+func pageLink(wsSlug, machineID string, opts ListViewOptions, page int) string {
+	link := "/" + wsSlug + "/" + machineID + "?page=" + fmt.Sprintf("%d", page)
 	if opts.SearchQuery != "" {
 		link += "&q=" + url.QueryEscape(opts.SearchQuery)
 	}

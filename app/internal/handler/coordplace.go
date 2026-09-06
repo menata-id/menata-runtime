@@ -79,7 +79,7 @@ func (h *Handler) CoordPlace(w http.ResponseWriter, r *http.Request) {
 
 	editable := h.guard.CanEdit(machine, role) && coordPlaceOwnerOK(machine, role, h.identityID(r), rec.Data)
 	a := h.auth(r)
-	pageComp := ui.CoordPlace(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, view.Name, previewKey, isPDF, page, pageCount, x, y, editable, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	pageComp := ui.CoordPlace(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, view.Name, previewKey, isPDF, page, pageCount, x, y, editable, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := pageComp.Render(r.Context(), w); err != nil {
 		slog.Error("render coord place", "error", err)
 	}
@@ -150,7 +150,7 @@ func (h *Handler) SetCoordPlace(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to save position", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/"+machineID+"/"+recordID+"/place", http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/"+machineID+"/"+recordID+"/place", http.StatusSeeOther)
 }
 
 // coordPlacePreview resolves the referenced record's own preview file,

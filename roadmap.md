@@ -2513,6 +2513,15 @@ same ambiguity `UserStore.GetByEmail`'s own doc comment already flags (login res
 alone, not per-workspace) — study §5.3 states the two honest options without picking one. No code
 changed this pass — registration + BRD only.
 
+**Status update (2026-09-06, same day): CAP-X14 and CAP-O09 implemented, ❌→✅, per direct owner
+request to build the Prio-15 pair.** Full build summary in `capability-registry.md`'s own two
+rows, not repeated here. Headline: every workspace-scoped route now lives under `/{wsSlug}`,
+gated by a new `RequireWorkspaceSlug` guard that composes with (does not reopen) CAP-X06/CAP-X02's
+existing session-derived trust boundary; self-service founding (`/signup`) creates a Workspace +
+its first Admin account together and signs them in immediately, reusing CAP-X04's own reload
+mechanism to make the new workspace servable with no restart. `./scripts/local-ci.sh`: 219/219,
+zero regressions. CAP-O10 (email invitation) and CAP-X15 (custom domain) remain ❌, unchanged.
+
 ---
 
 # Principles

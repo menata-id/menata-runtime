@@ -28,7 +28,7 @@ PROG_BODY=$(get_body "$BASE_URL/mch_approval_document/$AD_ID/progress" "$BOB")
 HAS_CURRENT=$(echo "$PROG_BODY" | grep -o '>Current<' | wc -l | tr -d ' ')
 HAS_PENDING=$(echo "$PROG_BODY" | grep -o '>Pending<' | wc -l | tr -d ' ')
 HAS_APPROVE_BTN=$(echo "$PROG_BODY" | grep -o 'Approve<' | wc -l | tr -d ' ')
-APPROVE_ACTION=$(echo "$PROG_BODY" | grep -oE 'action="/mch_approval_step/[a-f0-9-]+/events/evt_as_approve"' | head -1 | sed -E 's/action="(.*)"/\1/')
+APPROVE_ACTION=$(echo "$PROG_BODY" | grep -oE 'action="/[a-z0-9_-]+/mch_approval_step/[a-f0-9-]+/events/evt_as_approve"' | head -1 | sed -E 's/action="(.*)"/\1/')
 CAROL_INITIAL_BTNS=$(get_body "$BASE_URL/mch_approval_document/$AD_ID/progress" "$CAROL" | grep -o 'Approve<' | wc -l | tr -d ' ')
 [ "$HAS_CURRENT" = "1" ] && [ "$HAS_PENDING" = "1" ] && [ "$HAS_APPROVE_BTN" -ge 1 ] && [ -n "$APPROVE_ACTION" ] && [ "$CAROL_INITIAL_BTNS" = "0" ]
 check T212 "CAP-V20" "Sequential initial state: Bob's own Current step has a real Approve button, Carol's still-Pending step has none (from her own view of the same page)" $?
@@ -36,7 +36,7 @@ check T212 "CAP-V20" "Sequential initial state: Bob's own Current step has a rea
 # T213 -- approving through the stepper's own rendered button advances the
 # state -- recomputed fresh from nothing but the children's own fields, no
 # separate stepper state to keep in sync.
-APPROVE_CODE=$(post_status "$BASE_URL$APPROVE_ACTION" "" "$BOB")
+APPROVE_CODE=$(post_status "$ORIGIN$APPROVE_ACTION" "" "$BOB")
 AFTER_BODY=$(get_body "$BASE_URL/mch_approval_document/$AD_ID/progress" "$BOB")
 HAS_DONE=$(echo "$AFTER_BODY" | grep -o '>Done<' | wc -l | tr -d ' ')
 NOW_CURRENT=$(echo "$AFTER_BODY" | grep -o '>Current<' | wc -l | tr -d ' ')

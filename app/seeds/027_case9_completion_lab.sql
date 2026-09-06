@@ -12,7 +12,7 @@
 -- comment already disclaimed CAP-C10 for exactly this reason ("depends on
 -- this seed existing first... not bundled in").
 
-INSERT INTO workspaces (id, name) VALUES ('ws_default', 'Default Workspace')
+INSERT INTO workspaces (id, name, slug) VALUES ('ws_default', 'Default Workspace', 'ws_default')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO applications (id, workspace_id, name) VALUES

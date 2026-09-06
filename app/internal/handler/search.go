@@ -76,14 +76,14 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 					results = append(results, ui.SearchResult{
 						MachineName: m.Name,
 						Label:       displayLabel(m, rec.ID, rec.Data),
-						Link:        "/" + m.ID + "/" + rec.ID,
+						Link:        "/" + h.workspaceSlug(r) + "/" + m.ID + "/" + rec.ID,
 					})
 				}
 			}
 		}
 	}
 
-	page := ui.Search(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), query, results, h.unreadCount(r.Context(), a))
+	page := ui.Search(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), query, results, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render search", "error", err)
 	}
@@ -100,7 +100,7 @@ func (h *Handler) Notifications(w http.ResponseWriter, r *http.Request) {
 	for i, n := range notifs {
 		link := ""
 		if n.MachineID != "" && n.RecordID != "" {
-			link = "/" + n.MachineID + "/" + n.RecordID
+			link = "/" + h.workspaceSlug(r) + "/" + n.MachineID + "/" + n.RecordID
 		}
 		items[i] = ui.NotificationItem{
 			ID:      n.ID,
@@ -134,7 +134,7 @@ func (h *Handler) Notifications(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	page := ui.Notifications(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), items, groups, a.User.NotificationPreference, h.unreadCount(r.Context(), a))
+	page := ui.Notifications(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), items, groups, a.User.NotificationPreference, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render notifications", "error", err)
 	}
@@ -157,7 +157,7 @@ func (h *Handler) SetNotificationPreference(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "failed to update preference", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/notifications", http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/notifications", http.StatusSeeOther)
 }
 
 // MarkNotificationRead — POST target for a single notification's "Mark read"
@@ -170,5 +170,5 @@ func (h *Handler) MarkNotificationRead(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to mark notification read", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/notifications", http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/notifications", http.StatusSeeOther)
 }

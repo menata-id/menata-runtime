@@ -7,11 +7,15 @@ import "strconv"
 // name (CAP-X02 -- there's no single "role" to show anymore, role is
 // per-Application, see internal/handler's roleForApp). csrfToken is the
 // current session's synchronizer token, needed here for the logout form.
-// isAdmin shows the "Manage users" link only for a workspace Admin. Every
-// page passes all five through so the nav bar renders without a separate
-// request. subNav (CAP-O03 Tier 2) is the current Machine's own sibling
-// Machines in the same Application -- nil/empty for a page that doesn't
-// belong to any one Machine, which renders no strip at all.
+// isAdmin shows the "Manage users" link only for a workspace Admin. wsSlug
+// (CAP-X14) is the current request's own `/{wsSlug}` URL segment -- every
+// workspace-scoped link this shell renders is prefixed with it, so the nav
+// bar always points back into the SAME workspace the page itself is
+// already scoped to. Every page passes all six through so the nav bar
+// renders without a separate request. subNav (CAP-O03 Tier 2) is the
+// current Machine's own sibling Machines in the same Application --
+// nil/empty for a page that doesn't belong to any one Machine, which
+// renders no strip at all.
 //
 // Mobile bottom bar (`shellBottomBar`, ADR-008 corrected by
 // benchmarks/022-bottom-nav-consistency-benchmark.md, Study 30) is a fixed,
@@ -22,7 +26,7 @@ import "strconv"
 // strip instead, same as it already did before this bar existed. Rendered
 // unconditionally at phone width, on every page -- unlike subNav, this
 // bar has nothing to be empty about.
-templ Page(title, workspaceName, identity, csrfToken string, isAdmin bool, unreadCount int, subNav []SubNavLink) {
+templ Page(title, workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, unreadCount int, subNav []SubNavLink) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -34,14 +38,14 @@ templ Page(title, workspaceName, identity, csrfToken string, isAdmin bool, unrea
 			<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
 		</head>
 		<body class="bg-slate-50 min-h-screen text-slate-900 antialiased">
-			@navBar(workspaceName, identity, csrfToken, isAdmin, unreadCount)
+			@navBar(workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount)
 			if len(subNav) > 0 {
-				@subNavBar(subNav)
+				@subNavBar(wsSlug, subNav)
 			}
 			<div class="mx-auto max-w-5xl px-4 py-6 pb-20 sm:pb-6">
 				{ children... }
 			</div>
-			@shellBottomBar(unreadCount)
+			@shellBottomBar(wsSlug, unreadCount)
 			// app/ROADMAP.md Phase 4 client-side JavaScript policy correction
 			// (ARCHITECTURE.md): CAP-V16 (typeahead click), CAP-V15 (live-sum
 			// input), CAP-V14 (kanban drag-drop), CAP-V21 (coordinate-
@@ -64,12 +68,12 @@ templ Page(title, workspaceName, identity, csrfToken string, isAdmin bool, unrea
 // JS, no new route -- reuses the exact data link CAP-O03's own AppMachines
 // page already resolves (Interpreter.ScopeFor/MachinesForApplication),
 // just rendered persistently instead of as a one-time landing page.
-templ subNavBar(links []SubNavLink) {
+templ subNavBar(wsSlug string, links []SubNavLink) {
 	<nav class="bg-slate-100 border-b border-slate-200">
 		<div class="mx-auto max-w-5xl px-4 flex items-center gap-1 h-9 overflow-x-auto">
 			for _, l := range links {
 				<a
-					href={ templ.SafeURL("/" + l.ID) }
+					href={ templ.SafeURL("/" + wsSlug + "/" + l.ID) }
 					class={ "shrink-0 rounded px-2.5 py-1 text-xs font-medium transition-colors",
 						templ.KV("bg-white text-blue-700 shadow-sm", l.Active),
 						templ.KV("text-slate-500 hover:text-slate-800 hover:bg-slate-200", !l.Active) }
@@ -93,15 +97,15 @@ templ subNavBar(links []SubNavLink) {
 // mechanism) -- no new route. Deliberately no active-tab highlighting yet
 // (Page doesn't carry the current request path) -- a known simplification
 // for this first cut, not an oversight.
-templ shellBottomBar(unreadCount int) {
+templ shellBottomBar(wsSlug string, unreadCount int) {
 	<nav class="sm:hidden fixed inset-x-0 bottom-0 z-10 flex bg-white border-t border-slate-200">
-		<a href="/" class="flex-1 py-3 text-center text-xs font-medium text-slate-600">
+		<a href={ templ.SafeURL("/" + wsSlug + "/") } class="flex-1 py-3 text-center text-xs font-medium text-slate-600">
 			Home
 		</a>
-		<a href="/search" class="flex-1 py-3 text-center text-xs font-medium text-slate-600">
+		<a href={ templ.SafeURL("/" + wsSlug + "/search") } class="flex-1 py-3 text-center text-xs font-medium text-slate-600">
 			Search
 		</a>
-		<a href="/notifications" class="flex-1 py-3 text-center text-xs font-medium text-slate-600">
+		<a href={ templ.SafeURL("/" + wsSlug + "/notifications") } class="flex-1 py-3 text-center text-xs font-medium text-slate-600">
 			Notifications
 			if unreadCount > 0 {
 				<span class="ml-1 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
@@ -112,22 +116,22 @@ templ shellBottomBar(unreadCount int) {
 	</nav>
 }
 
-templ navBar(workspaceName, identity, csrfToken string, isAdmin bool, unreadCount int) {
+templ navBar(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, unreadCount int) {
 	<header class="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
 		<div class="mx-auto max-w-5xl px-4 flex items-center gap-4 h-12">
-			<a href="/" class="font-semibold text-sm text-slate-900 hover:text-blue-600 transition-colors">
+			<a href={ templ.SafeURL("/" + wsSlug + "/") } class="font-semibold text-sm text-slate-900 hover:text-blue-600 transition-colors">
 				{ workspaceName }
 			</a>
 			<div class="flex-1"></div>
-			<a href="/search" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
+			<a href={ templ.SafeURL("/" + wsSlug + "/search") } class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
 				Search
 			</a>
 			if isAdmin {
-				<a href="/admin/users" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
+				<a href={ templ.SafeURL("/" + wsSlug + "/admin/users") } class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
 					Manage users
 				</a>
 			}
-			<a href="/notifications" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
+			<a href={ templ.SafeURL("/" + wsSlug + "/notifications") } class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
 				if unreadCount > 0 {
 					Notifications
 					<span class="ml-1 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">

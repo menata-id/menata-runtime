@@ -10,12 +10,12 @@ package ui
 // delivery channel (no email infrastructure exists in this prototype),
 // just two ways of reading it. The toggle form posts to
 // /notifications/preference and redirects back here.
-templ Notifications(workspaceName, identity, csrfToken string, isAdmin bool, items []NotificationItem, groups []NotificationGroup, preference string, unreadCount int) {
-	@Page("Notifications", workspaceName, identity, csrfToken, isAdmin, unreadCount, nil) {
+templ Notifications(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, items []NotificationItem, groups []NotificationGroup, preference string, unreadCount int) {
+	@Page("Notifications", workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, nil) {
 		<div class="mx-auto max-w-xl">
 			<div class="mb-5 flex items-center gap-3">
 				<h1 class="flex-1 text-xl font-semibold text-slate-900">Notifications</h1>
-				<form method="POST" action="/notifications/preference">
+				<form method="POST" action={ templ.SafeURL("/" + wsSlug + "/notifications/preference") }>
 					@CSRFField(csrfToken)
 					<input type="hidden" name="preference" value={ nextPreference(preference) }/>
 					<button type="submit" class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
@@ -39,7 +39,7 @@ templ Notifications(workspaceName, identity, csrfToken string, isAdmin bool, ite
 							<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
 								<ul class="divide-y divide-slate-100">
 									for _, item := range group.Items {
-										@notificationRow(item, csrfToken)
+										@notificationRow(wsSlug, item, csrfToken)
 									}
 								</ul>
 							</div>
@@ -50,7 +50,7 @@ templ Notifications(workspaceName, identity, csrfToken string, isAdmin bool, ite
 				<div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
 					<ul class="divide-y divide-slate-100">
 						for _, item := range items {
-							@notificationRow(item, csrfToken)
+							@notificationRow(wsSlug, item, csrfToken)
 						}
 					</ul>
 				</div>
@@ -59,7 +59,7 @@ templ Notifications(workspaceName, identity, csrfToken string, isAdmin bool, ite
 	}
 }
 
-templ notificationRow(item NotificationItem, csrfToken string) {
+templ notificationRow(wsSlug string, item NotificationItem, csrfToken string) {
 	<li class={ "flex items-center gap-3 px-5 py-3.5", templ.KV("bg-blue-50/50", item.Unread) }>
 		<div class="flex-1">
 			if item.Link != "" {
@@ -70,7 +70,7 @@ templ notificationRow(item NotificationItem, csrfToken string) {
 			<div class="mt-0.5 text-xs text-slate-400">{ item.When }</div>
 		</div>
 		if item.Unread {
-			<form method="POST" action={ templ.SafeURL("/notifications/" + item.ID + "/read") }>
+			<form method="POST" action={ templ.SafeURL("/" + wsSlug + "/notifications/" + item.ID + "/read") }>
 				@CSRFField(csrfToken)
 				<button
 					type="submit"

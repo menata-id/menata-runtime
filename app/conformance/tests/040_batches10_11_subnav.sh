@@ -27,8 +27,8 @@ check T116 "CAP-X12" "a cross-machine action chain rolls back as a whole on a do
 # second Log record.
 X13S1_URL=$(post_redirect "$BASE_URL/mch_x13_source" "fld_x13s_amount=10" "$ZARA")
 X13S1_ID="${X13S1_URL##*/}"
-DUP1_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "X-Webhook-Secret: infra-lab-secret-2026" -H "X-Idempotency-Key: conf-dup-$$" "$BASE_URL/webhooks/mch_x13_source/$X13S1_ID/evt_x13_log")
-DUP2_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "X-Webhook-Secret: infra-lab-secret-2026" -H "X-Idempotency-Key: conf-dup-$$" "$BASE_URL/webhooks/mch_x13_source/$X13S1_ID/evt_x13_log")
+DUP1_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "X-Webhook-Secret: infra-lab-secret-2026" -H "X-Idempotency-Key: conf-dup-$$" "$ORIGIN/webhooks/mch_x13_source/$X13S1_ID/evt_x13_log")
+DUP2_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "X-Webhook-Secret: infra-lab-secret-2026" -H "X-Idempotency-Key: conf-dup-$$" "$ORIGIN/webhooks/mch_x13_source/$X13S1_ID/evt_x13_log")
 LOG_COUNT_1=$(get_body "$BASE_URL/api/v1/mch_x13_log" "$ZARA" | grep -o "\"id\"" | wc -l)
 [ "$DUP1_CODE" = "200" ] && [ "$DUP2_CODE" = "200" ]
 check T117 "CAP-X13" "a repeated webhook delivery with the same idempotency key returns success both times but only runs the event once (got $DUP1_CODE/$DUP2_CODE)" $?
@@ -38,7 +38,7 @@ check T117 "CAP-X13" "a repeated webhook delivery with the same idempotency key 
 # not a blanket "this event already ran once ever" block.
 X13S2_URL=$(post_redirect "$BASE_URL/mch_x13_source" "fld_x13s_amount=20" "$ZARA")
 X13S2_ID="${X13S2_URL##*/}"
-curl -s -o /dev/null -X POST -H "X-Webhook-Secret: infra-lab-secret-2026" -H "X-Idempotency-Key: conf-other-$$" "$BASE_URL/webhooks/mch_x13_source/$X13S2_ID/evt_x13_log"
+curl -s -o /dev/null -X POST -H "X-Webhook-Secret: infra-lab-secret-2026" -H "X-Idempotency-Key: conf-other-$$" "$ORIGIN/webhooks/mch_x13_source/$X13S2_ID/evt_x13_log"
 LOG_COUNT_2=$(get_body "$BASE_URL/api/v1/mch_x13_log" "$ZARA" | grep -o "\"id\"" | wc -l)
 [ "$LOG_COUNT_2" -eq $((LOG_COUNT_1 + 1)) ]
 check T118 "CAP-X13" "a different idempotency key is a genuinely new delivery, not suppressed (count $LOG_COUNT_1 -> $LOG_COUNT_2)" $?
@@ -147,9 +147,9 @@ UPLOAD_HEADERS=$(mktemp)
 UPLOAD_CODE=$(curl -s -b "$WIRA" -D "$UPLOAD_HEADERS" -o /dev/null -w '%{http_code}' -X POST "$BASE_URL/mch_ft_product" \
     -F "csrf_token=$FT_CSRF" -F "fld_ftp_title=PhotoProbe$$" -F "fld_ftp_photo=@$PNG_FILE;type=image/png")
 UPLOAD_REDIRECT=$(grep -i '^location' "$UPLOAD_HEADERS" | tr -d '\r' | sed -E 's/^[Ll]ocation: //')
-FILE_HREF=$(get_body "$BASE_URL$UPLOAD_REDIRECT" "$WIRA" | grep -oE 'href="/files/[^"]*"' | sed -E 's/href="(.*)"/\1/')
+FILE_HREF=$(get_body "$ORIGIN$UPLOAD_REDIRECT" "$WIRA" | grep -oE 'href="/files/[^"]*"' | sed -E 's/href="(.*)"/\1/')
 STORED_FILE=$(mktemp)
-curl -s -D "$UPLOAD_HEADERS" -o "$STORED_FILE" "$BASE_URL$FILE_HREF"
+curl -s -D "$UPLOAD_HEADERS" -o "$STORED_FILE" "$ORIGIN$FILE_HREF"
 SERVED_CONTENT_TYPE=$(grep -i '^content-type' "$UPLOAD_HEADERS" | tr -d '\r')
 ORIG_SIZE=$(wc -c < "$PNG_FILE" | tr -d ' ')
 STORED_SIZE=$(wc -c < "$STORED_FILE" | tr -d ' ')
@@ -198,8 +198,8 @@ check T134 "CAP-F21" "a document View renders its template with real merge field
 # the current one marked active -- so a user can move sideways without
 # returning to the workspace home. A Machine that's the ONLY one in its
 # Application renders no strip at all (nothing to move sideways to).
-body_contains "$BASE_URL/mch_ft_product" 'href="/mch_ft_invoice"' "$WIRA" && \
-    body_contains "$BASE_URL/mch_ft_product" 'href="/mch_ft_shipment"' "$WIRA" && \
+body_contains "$BASE_URL/mch_ft_product" 'href="/ws_default/mch_ft_invoice"' "$WIRA" && \
+    body_contains "$BASE_URL/mch_ft_product" 'href="/ws_default/mch_ft_shipment"' "$WIRA" && \
     body_contains "$BASE_URL/mch_ft_product" 'bg-white text-blue-700' "$WIRA" && \
     ! body_contains "$BASE_URL/mch_wsx_project" "bg-slate-100 border-b border-slate-200" "$YARA"
 check T135 "CAP-O03" "a multi-machine Application renders a persistent sub-nav to sibling Machines; a single-machine Application renders none" $?

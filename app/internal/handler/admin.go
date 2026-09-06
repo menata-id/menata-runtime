@@ -9,7 +9,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"menata.id/app/internal/interpreter"
 	"menata.id/app/internal/store"
 	"menata.id/app/internal/ui"
 )
@@ -37,7 +36,7 @@ func (h *Handler) AdminUsers(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to load groups", http.StatusInternalServerError)
 		return
 	}
-	page := ui.AdminUsers(h.workspaceName(r), a.User.Name, a.CSRFToken, h.unreadCount(r.Context(), a), rows, appGroups, groupRows)
+	page := ui.AdminUsers(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.unreadCount(r.Context(), a), rows, appGroups, groupRows)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render admin users", "error", err)
 	}
@@ -115,7 +114,7 @@ func (h *Handler) AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 		"target_user", target.Name,
 		"workspace_role", workspaceRole,
 	)
-	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/admin/users", http.StatusSeeOther)
 }
 
 // Reload (CAP-X04, Option A of docs/decisions/002-metadata-loading.md) is
@@ -140,7 +139,7 @@ func (h *Handler) Reload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a := h.auth(r)
-	workspaces, err := h.loader.LoadAll(r.Context())
+	newInterp, err := h.reloadInterpreter(r.Context())
 	if err != nil {
 		slog.Error("metadata reload failed", "correlation_id", middleware.GetReqID(r.Context()), "actor", a.User.Name, "error", err)
 		// Full error (could be a DB/loader internal detail) already
@@ -149,14 +148,12 @@ func (h *Handler) Reload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "reload failed", http.StatusInternalServerError)
 		return
 	}
-	newInterp := interpreter.New(workspaces)
-	h.interp.Swap(newInterp)
 	slog.Info("metadata reloaded",
 		"correlation_id", middleware.GetReqID(r.Context()),
 		"actor", a.User.Name,
 		"machines", len(newInterp.AllMachines()),
 	)
-	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/admin/users", http.StatusSeeOther)
 }
 
 func (h *Handler) adminUserRows(ctx context.Context, workspaceID string) ([]ui.AdminUserRow, error) {
@@ -240,7 +237,7 @@ func (h *Handler) AdminCreateGroup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to save", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/admin/users", http.StatusSeeOther)
 }
 
 // AdminGroupDetail (CAP-O07) — GET /admin/groups/{groupID}: one Group's own
@@ -283,7 +280,7 @@ func (h *Handler) AdminGroupDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	data := ui.GroupDetailData{ID: group.ID, Name: group.Name, Members: members, AppRoles: appRoles}
 	appGroups := h.uiRoleGroups(a.User.WorkspaceID)
-	page := ui.GroupDetail(h.workspaceName(r), a.User.Name, a.CSRFToken, h.unreadCount(r.Context(), a), data, appGroups)
+	page := ui.GroupDetail(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.unreadCount(r.Context(), a), data, appGroups)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render group detail", "error", err)
 	}
@@ -321,7 +318,7 @@ func (h *Handler) AdminSetGroupMembers(w http.ResponseWriter, r *http.Request) {
 		"actor", a.User.Name,
 		"group", group.Name,
 	)
-	http.Redirect(w, r, "/admin/groups/"+groupID, http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/admin/groups/"+groupID, http.StatusSeeOther)
 }
 
 // AdminSetGroupRoles (CAP-O07) — POST /admin/groups/{groupID}/roles: saves
@@ -377,5 +374,5 @@ func (h *Handler) AdminSetGroupRoles(w http.ResponseWriter, r *http.Request) {
 		"actor", a.User.Name,
 		"group", group.Name,
 	)
-	http.Redirect(w, r, "/admin/groups/"+groupID, http.StatusSeeOther)
+	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/admin/groups/"+groupID, http.StatusSeeOther)
 }

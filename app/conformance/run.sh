@@ -6,8 +6,12 @@
 # A capability marked ✅ in the registry must keep its test passing (ratchet rule).
 #
 # Usage:
-#   ./conformance/run.sh                     # against http://localhost:4000
-#   BASE_URL=https://menata.app ./conformance/run.sh
+#   ./conformance/run.sh                     # against http://localhost:4001
+#   ORIGIN=https://menata.app ./conformance/run.sh
+#
+# CAP-X14: ORIGIN is the bare server root; lib.sh derives BASE_URL
+# ($ORIGIN/ws_default) and BASE_URL_ACME ($ORIGIN/ws_acme) from it -- see
+# lib.sh's own header.
 #
 # Requires: seeds 001-007 applied, server running.
 # Note: creates test records in the target database (prototype-acceptable).

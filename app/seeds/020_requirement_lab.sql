@@ -17,7 +17,7 @@
 -- generated counter field (fld_mch_req_case_mch_req_photo_count) via
 -- handler.stampRequirementCounters.
 
-INSERT INTO workspaces (id, name) VALUES ('ws_default', 'Default Workspace')
+INSERT INTO workspaces (id, name, slug) VALUES ('ws_default', 'Default Workspace', 'ws_default')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO applications (id, workspace_id, name) VALUES

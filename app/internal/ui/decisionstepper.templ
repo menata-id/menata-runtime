@@ -45,11 +45,11 @@ func stepperStateTextClass(state string) string {
 // deliberately the same shape Detail's own event-trigger block already
 // uses (detail.templ), pointed at the CHILD Step's own machine/record
 // instead of the page's own.
-templ DecisionStepper(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, viewName string, steps []StepperStep, unreadCount int, subNav []SubNavLink) {
-	@Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+templ DecisionStepper(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, viewName string, steps []StepperStep, unreadCount int, subNav []SubNavLink) {
+	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4 flex items-center justify-between">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
-			<a href={ templ.SafeURL("/" + machine.ID + "/" + record.ID) } class="text-sm text-slate-400 hover:text-slate-600 transition-colors">← Back</a>
+			<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + record.ID) } class="text-sm text-slate-400 hover:text-slate-600 transition-colors">← Back</a>
 		</div>
 		<ol class="space-y-3">
 			for i, step := range steps {
@@ -69,7 +69,7 @@ templ DecisionStepper(workspaceName, identity, csrfToken string, isAdmin bool, m
 								for _, trig := range step.Triggers {
 									<form
 										method="POST"
-										action={ templ.SafeURL("/" + step.StepMachineID + "/" + step.RecordID + "/events/" + trig.Event.ID) }
+										action={ templ.SafeURL("/" + wsSlug + "/" + step.StepMachineID + "/" + step.RecordID + "/events/" + trig.Event.ID) }
 										class="flex items-end gap-2"
 									>
 										@CSRFField(csrfToken)

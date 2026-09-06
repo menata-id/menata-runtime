@@ -6,8 +6,8 @@
 -- a real business case like Cases 1-21. Same shape as seeds/001's Design
 -- Request, smaller.
 
-INSERT INTO workspaces (id, name) VALUES
-    ('ws_acme', 'Acme Corp')
+INSERT INTO workspaces (id, name, slug) VALUES
+    ('ws_acme', 'Acme Corp', 'ws_acme')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO applications (id, workspace_id, name) VALUES

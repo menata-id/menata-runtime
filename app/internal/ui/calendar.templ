@@ -7,8 +7,8 @@ import "menata.id/app/internal/model"
 // same grouped-list shape read chronologically top to bottom; both are the
 // same rendering, only the heading and empty-state copy differ, so one
 // templ backs both rather than duplicating the table markup.
-templ CalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, groups []CalendarGroup, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) {
-	@Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+templ CalendarTimeline(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, groups []CalendarGroup, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) {
+	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
 		</div>
@@ -47,7 +47,7 @@ templ CalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, 
 												</td>
 											}
 											<td class="px-4 py-3 text-right">
-												<a href={ templ.SafeURL("/" + machine.ID + "/" + row.ID) } class="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline">View →</a>
+												<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + row.ID) } class="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline">View →</a>
 											</td>
 										</tr>
 									}
@@ -65,8 +65,8 @@ templ CalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, 
 // sibling -- one section per resource (even an idle one with zero dated
 // records), each containing its own date-grouped table, reusing the exact
 // same per-date table markup CalendarTimeline renders inline above.
-templ ResourceCalendarTimeline(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, resGroups []ResourceCalendarGroup, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) {
-	@Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+templ ResourceCalendarTimeline(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, columns []ColumnDef, resGroups []ResourceCalendarGroup, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) {
+	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
 		</div>
@@ -114,7 +114,7 @@ templ ResourceCalendarTimeline(workspaceName, identity, csrfToken string, isAdmi
 																</td>
 															}
 															<td class="px-4 py-3 text-right">
-																<a href={ templ.SafeURL("/" + machine.ID + "/" + row.ID) } class="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline">View →</a>
+																<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + row.ID) } class="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline">View →</a>
 															</td>
 														</tr>
 													}

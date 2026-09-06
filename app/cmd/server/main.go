@@ -85,9 +85,10 @@ func main() {
 	outbox := store.NewOutboxStore(pool)
 	sessions := store.NewSessionStore(pool)
 	users := store.NewUserStore(pool)
-	groups := store.NewGroupStore(pool) // CAP-O07
+	workspaceStore := store.NewWorkspaceStore(pool) // CAP-O09
+	groups := store.NewGroupStore(pool)             // CAP-O07
 	fileStorage := storage.NewLocalDisk("uploads")
-	h := handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, groups, cfg.SecureCookies, fileStorage)
+	h := handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, workspaceStore, groups, cfg.SecureCookies, fileStorage)
 
 	r := chi.NewRouter()
 	// app/ROADMAP.md Phase 5 fix (govulncheck flagged GO-2026-5777/5775):
@@ -438,7 +439,7 @@ func slogAccessLog(next http.Handler) http.Handler {
 // design-exploration sandbox -- static files, no data, same trust class as
 // /static/*).
 func isPublicPath(path string) bool {
-	if path == "/login" || path == "/health" {
+	if path == "/login" || path == "/health" || path == "/signup" {
 		return true
 	}
 	if strings.HasPrefix(path, "/webhooks/") || strings.HasPrefix(path, "/files/") {
@@ -453,26 +454,39 @@ func isPublicPath(path string) bool {
 // visitorAuth (CAP-P07) grants a synthetic, unauthenticated Auth for a GET
 // straight to a Machine whose own Permissions declare role "Visitor" with
 // can_read -- "a Blog's Visitor reading Published Posts," a role that is
-// the ABSENCE of a session, not a restricted one. Every route here is
-// `/{machineID}[/...]`, so the URL's first path segment is always the
-// Machine id regardless of which sub-route (list/detail/report/...) is
-// being requested; a segment that isn't a real Machine id (`/`, `/apps/...`,
-// `/admin/users`, `/notifications`) simply fails GetMachine and falls
-// through to the caller's normal deny — CAP-P07 is per-Machine, not
-// general anonymous navigation.
+// the ABSENCE of a session, not a restricted one. Every workspace-scoped
+// route lives under `/{wsSlug}/{machineID}[/...]` (CAP-X14), so the URL's
+// first path segment is the Workspace slug and its second is the Machine id
+// regardless of which sub-route (list/detail/report/...) is being
+// requested; parsed manually here (not via chi.URLParam) because this runs
+// inside sessionAuth, a global middleware -- chi hasn't descended into the
+// `/{wsSlug}` subrouter and populated that param yet at this point in the
+// chain. A path that doesn't resolve to a real slug then a real Machine id
+// (`/`, `/login`, `/{wsSlug}/apps/...`, `/{wsSlug}/admin/users`,
+// `/{wsSlug}/notifications`) simply fails to match and falls through to the
+// caller's normal deny — CAP-P07 is per-Machine, not general anonymous
+// navigation.
 //
-// Deliberately GET-only (read-only) and scoped to ws_default: this
-// prototype has no per-request tenant resolution (which workspace an
-// anonymous visitor belongs to isn't derivable from a hostname or anything
-// else here), so an anonymous visitor is always ws_default's own — a named
-// scope boundary, not a silently assumed one. "submitting Comments"
-// (Case 13's own other half) would need a real anonymous-write design,
-// deliberately deferred.
+// Deliberately GET-only (read-only): a visitor's Workspace is whichever one
+// the URL's own slug names (CAP-X14) -- resolved the same way
+// RequireWorkspaceSlug resolves it for an authenticated request, just
+// inline here since that middleware itself hasn't run yet. "submitting
+// Comments" (Case 13's own other half) would need a real anonymous-write
+// design, deliberately deferred.
 func visitorAuth(r *http.Request, interp *interpreter.Interpreter, guard *permission.Guard) (*store.Auth, bool) {
 	if r.Method != http.MethodGet {
 		return nil, false
 	}
-	segment := strings.TrimPrefix(r.URL.Path, "/")
+	rest := strings.TrimPrefix(r.URL.Path, "/")
+	slug, rest, ok := strings.Cut(rest, "/")
+	if !ok {
+		return nil, false
+	}
+	ws, ok := interp.WorkspaceBySlug(slug)
+	if !ok {
+		return nil, false
+	}
+	segment := rest
 	if i := strings.IndexByte(segment, '/'); i >= 0 {
 		segment = segment[:i]
 	}
@@ -483,12 +497,15 @@ func visitorAuth(r *http.Request, interp *interpreter.Interpreter, guard *permis
 	if !ok {
 		return nil, false
 	}
+	machineWorkspaceID, applicationID := interp.ScopeFor(segment)
+	if machineWorkspaceID != ws.ID {
+		return nil, false
+	}
 	if !guard.CanRead(machine, []string{"Visitor"}) {
 		return nil, false
 	}
-	_, applicationID := interp.ScopeFor(segment)
 	return &store.Auth{
-		User:             &store.User{Name: "Visitor", WorkspaceID: "ws_default"},
+		User:             &store.User{Name: "Visitor", WorkspaceID: ws.ID},
 		ApplicationRoles: map[string][]string{applicationID: {"Visitor"}},
 	}, true
 }
@@ -611,7 +628,7 @@ func csrfProtect(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if r.URL.Path == "/login" || strings.HasPrefix(r.URL.Path, "/webhooks/") {
+		if r.URL.Path == "/login" || r.URL.Path == "/signup" || strings.HasPrefix(r.URL.Path, "/webhooks/") {
 			next.ServeHTTP(w, r)
 			return
 		}

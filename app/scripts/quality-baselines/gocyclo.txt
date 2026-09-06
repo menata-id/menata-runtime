@@ -19,6 +19,7 @@ handler (*Handler).Notifications 12
 handler (*Handler).Report 13
 handler (*Handler).Search 14
 handler (*Handler).SetCoordPlace 14
+handler (*Handler).Signup 17
 handler (*Handler).TriggerEvent 11
 handler (*Handler).Update 26
 handler (*Handler).Webhook 19

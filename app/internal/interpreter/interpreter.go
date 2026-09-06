@@ -111,6 +111,21 @@ func (i *Interpreter) GetWorkspace(id string) (*model.Workspace, bool) {
 	return ws, ok
 }
 
+// WorkspaceBySlug (CAP-X14) resolves the URL-facing `/{slug}/` segment to a
+// Workspace -- a linear scan over the same in-memory map GetWorkspace
+// already indexes by ID, not a second index: workspace counts are small
+// enough (a handful today) that a per-request scan costs nothing measurable,
+// and building a reverse-lookup map for this would be premature ahead of
+// any evidence it's needed.
+func (i *Interpreter) WorkspaceBySlug(slug string) (*model.Workspace, bool) {
+	for _, ws := range i.workspacesByID {
+		if ws.Slug == slug {
+			return ws, true
+		}
+	}
+	return nil, false
+}
+
 // ApplicationsForWorkspace returns one Workspace's own Applications, sorted
 // by name (CAP-O03 — Application, not Machine, is this prototype's actual
 // top-level display unit; see the workspace home it backs in handler.Apps).

@@ -87,7 +87,7 @@ MGR_ID="${MGR_URL##*/}"
 # T15 — CAP-F13 create with a valid reference succeeds; detail links to the target
 REPORT_DATA="fld_emp_id=CB-EMP&fld_emp_name=ConformanceBot+Report&fld_emp_hire_date=2024-01-01&fld_emp_manager=$MGR_ID"
 REPORT_URL=$(post_redirect "$BASE_URL/mch_employee" "$REPORT_DATA" "$FRANK")
-[ -n "$REPORT_URL" ] && body_contains "$REPORT_URL" "href=\"/mch_employee/$MGR_ID\"" "$FRANK"
+[ -n "$REPORT_URL" ] && body_contains "$REPORT_URL" "href=\"/ws_default/mch_employee/$MGR_ID\"" "$FRANK"
 check T15 "CAP-F13" "create with valid reference succeeds; detail links to target record" $?
 
 # T16 — CAP-F13 dangling reference rejected (security NFR gate: negative case)

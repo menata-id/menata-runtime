@@ -73,7 +73,7 @@ APPROVE_CODE=$(post_status "$BASE_URL/mch_approval_step/$AS_ID/events/evt_as_app
 SIGNED_HREF=$(get_body "$BASE_URL/mch_approval_document/$AD_ID" "$ALICE" \
     | grep -oE 'href="/files/[^"]*"' | tail -1 | sed -E 's/href="(.*)"/\1/')
 SIGNED_FILE=$(mktemp)
-[ -n "$SIGNED_HREF" ] && curl -s -o "$SIGNED_FILE" "$BASE_URL$SIGNED_HREF"
+[ -n "$SIGNED_HREF" ] && curl -s -o "$SIGNED_FILE" "$ORIGIN$SIGNED_HREF"
 SIGNED_SIZE=$(wc -c < "$SIGNED_FILE" 2>/dev/null | tr -d ' ')
 
 [ "$APPROVE_CODE" = "303" ] && [ -n "$SIGNED_HREF" ] && \

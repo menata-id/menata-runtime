@@ -3,12 +3,12 @@ package ui
 import "menata.id/app/internal/model"
 import "menata.id/app/internal/store"
 
-templ Detail(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, fields []DetailField, permittedEvents []EventTrigger, childLists []ChildList, unreadCount int, subNav []SubNavLink, extraLinks []DetailLink) {
-	@Page(machine.Name + " — Detail", workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
+templ Detail(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, fields []DetailField, permittedEvents []EventTrigger, childLists []ChildList, unreadCount int, subNav []SubNavLink, extraLinks []DetailLink) {
+	@Page(machine.Name + " — Detail", workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mx-auto max-w-2xl">
 			<div class="mb-5 flex items-center gap-3">
 				<a
-					href={ templ.SafeURL("/" + machine.ID) }
+					href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID) }
 					class="text-sm text-slate-400 hover:text-slate-600 transition-colors"
 				>← Back</a>
 				<h1 class="flex-1 text-xl font-semibold text-slate-900">{ machine.Name }</h1>
@@ -19,7 +19,7 @@ templ Detail(workspaceName, identity, csrfToken string, isAdmin bool, machine *m
 					>{ link.Label }</a>
 				}
 				<a
-					href={ templ.SafeURL("/" + machine.ID + "/" + record.ID + "/edit") }
+					href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + record.ID + "/edit") }
 					class="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
 				>Edit</a>
 			</div>
@@ -47,7 +47,7 @@ templ Detail(workspaceName, identity, csrfToken string, isAdmin bool, machine *m
 						for _, trig := range permittedEvents {
 							<form
 								method="POST"
-								action={ templ.SafeURL("/" + machine.ID + "/" + record.ID + "/events/" + trig.Event.ID) }
+								action={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + record.ID + "/events/" + trig.Event.ID) }
 								class="flex items-end gap-2"
 							>
 								@CSRFField(csrfToken)

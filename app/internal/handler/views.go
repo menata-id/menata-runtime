@@ -23,23 +23,23 @@ import (
 // never call this -- ADR-008 (docs/decisions/008-mobile-ui-navigation-
 // standard.md): a single record isn't a "view" to switch between, and a
 // Form is a focused task.
-func (h *Handler) viewNavFor(machineID string, active model.ViewType) []ui.ViewNavLink {
+func (h *Handler) viewNavFor(wsSlug, machineID string, active model.ViewType) []ui.ViewNavLink {
 	interp := h.interp.Get()
 	var links []ui.ViewNavLink
 	if interp.DefaultListView(machineID) != nil {
-		links = append(links, ui.ViewNavLink{ID: "list", Name: "List", Path: "/" + machineID, Active: active == model.ViewTypeList})
+		links = append(links, ui.ViewNavLink{ID: "list", Name: "List", Path: "/" + wsSlug + "/" + machineID, Active: active == model.ViewTypeList})
 	}
 	if interp.ReportView(machineID) != nil {
-		links = append(links, ui.ViewNavLink{ID: "report", Name: "Report", Path: "/" + machineID + "/report", Active: active == model.ViewTypeReport})
+		links = append(links, ui.ViewNavLink{ID: "report", Name: "Report", Path: "/" + wsSlug + "/" + machineID + "/report", Active: active == model.ViewTypeReport})
 	}
 	if interp.BoardView(machineID) != nil {
-		links = append(links, ui.ViewNavLink{ID: "board", Name: "Board", Path: "/" + machineID + "/board", Active: active == model.ViewTypeBoard})
+		links = append(links, ui.ViewNavLink{ID: "board", Name: "Board", Path: "/" + wsSlug + "/" + machineID + "/board", Active: active == model.ViewTypeBoard})
 	}
 	if interp.CalendarView(machineID) != nil {
-		links = append(links, ui.ViewNavLink{ID: "calendar", Name: "Calendar", Path: "/" + machineID + "/calendar", Active: active == model.ViewTypeCalendar})
+		links = append(links, ui.ViewNavLink{ID: "calendar", Name: "Calendar", Path: "/" + wsSlug + "/" + machineID + "/calendar", Active: active == model.ViewTypeCalendar})
 	}
 	if interp.TimelineView(machineID) != nil {
-		links = append(links, ui.ViewNavLink{ID: "timeline", Name: "Timeline", Path: "/" + machineID + "/timeline", Active: active == model.ViewTypeTimeline})
+		links = append(links, ui.ViewNavLink{ID: "timeline", Name: "Timeline", Path: "/" + wsSlug + "/" + machineID + "/timeline", Active: active == model.ViewTypeTimeline})
 	}
 	if len(links) < 2 {
 		return nil // nothing to switch to
@@ -99,7 +99,7 @@ func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.Report(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, sumLabels, rows, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, model.ViewTypeReport))
+	page := ui.Report(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, sumLabels, rows, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, model.ViewTypeReport))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render report", "error", err)
 	}
@@ -150,7 +150,7 @@ func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view 
 	a := h.auth(r)
 	if view.Config.ResourceField == "" {
 		groups := groupByDate(records, view.Config.DateField, colIDs, cols)
-		page := ui.CalendarTimeline(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, groups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, view.Type))
+		page := ui.CalendarTimeline(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, groups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, view.Type))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render calendar/timeline", "error", err)
 		}
@@ -200,7 +200,7 @@ func (h *Handler) calendarTimeline(w http.ResponseWriter, r *http.Request, view 
 		})
 	}
 
-	page := ui.ResourceCalendarTimeline(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, resGroups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, view.Type))
+	page := ui.ResourceCalendarTimeline(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, cols, resGroups, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, view.Type))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render resource calendar/timeline", "error", err)
 	}
@@ -312,7 +312,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.Dashboard(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), view.Name, tiles, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	page := ui.Dashboard(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), view.Name, tiles, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render dashboard", "error", err)
 	}
@@ -398,7 +398,7 @@ func (h *Handler) Board(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a := h.auth(r)
-	page := ui.Board(h.workspaceName(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, view.Config.GroupField, cols, lanes, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(machineID, model.ViewTypeBoard))
+	page := ui.Board(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, view.Config.GroupField, cols, lanes, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, model.ViewTypeBoard))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render board", "error", err)
 	}

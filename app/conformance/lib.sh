@@ -23,8 +23,18 @@
 # A capability marked ✅ in the registry must keep its test passing (ratchet rule).
 #
 # Usage:
-#   ./conformance/run.sh                     # against http://localhost:4000
-#   BASE_URL=https://menata.app ./conformance/run.sh
+#   ./conformance/run.sh                     # against http://localhost:4001
+#   ORIGIN=https://menata.app ./conformance/run.sh
+#
+# CAP-X14 (2026-09-06): every workspace-scoped route now lives under
+# `/{slug}/...` -- ORIGIN is the bare server root (no slug), BASE_URL is
+# `$ORIGIN/ws_default` (this suite's own default workspace, ~410 of ~442
+# call sites across every tests/*.sh file already write "$BASE_URL/...",
+# unchanged, no per-test-file edits needed). The handful of truly-global
+# routes (/login, /health, /webhooks/*) use $ORIGIN directly, never
+# $BASE_URL. BASE_URL_ACME (`$ORIGIN/ws_acme`) exists only for the one
+# cross-workspace-isolation proof (T49/T50/T52, CAP-X06) that deliberately
+# needs a second, different workspace.
 #
 # Requires: seeds 001-007 applied, server running.
 # Note: creates test records in the target database (prototype-acceptable).
@@ -44,7 +54,9 @@
 # assigned that role to, in that Application; see the ACCOUNTS map below.
 
 set -u
-BASE_URL="${BASE_URL:-http://localhost:4001}"
+ORIGIN="${ORIGIN:-http://localhost:4001}"
+BASE_URL="$ORIGIN/ws_default"
+BASE_URL_ACME="$ORIGIN/ws_acme" # CAP-X06 cross-workspace proof only (T49/T50/T52) -- see this file's own header
 DATABASE_URL="${DATABASE_URL:-}"
 PASS=0
 FAIL=0
@@ -70,19 +82,26 @@ session_for() {
     local email="$1" password="$2"
     local jar="$SESSION_DIR/$(printf '%s' "$email" | tr -c 'a-zA-Z0-9' '_').jar"
     if [ ! -s "$jar" ]; then
-        curl -s -c "$jar" -o /dev/null -X POST "$BASE_URL/login" \
+        curl -s -c "$jar" -o /dev/null -X POST "$ORIGIN/login" \
             --data-urlencode "email=$email" --data-urlencode "password=$password"
     fi
     printf '%s' "$jar"
 }
 
-# csrf_for <jar> -> echoes that session's CSRF token, scraped once from any
-# authenticated page (the logout form in the nav bar carries it on every
-# page) and cached alongside the jar.
+# csrf_for <jar> <sample_url> -> echoes that session's CSRF token. sample_url
+# is used only to derive WHICH workspace's own home page to scrape it from
+# (scheme://host/{slug}/) -- the logout form in the nav bar carries the same
+# token on every page under that workspace, so any page works, but a session
+# must scrape its OWN workspace's page, not a hardcoded one (CAP-X14: IVAN's
+# ws_acme session can't load ws_default's home at all). Cached per (jar,
+# workspace) pair since a single suite run's jars each only ever post to one
+# workspace in practice, but nothing here assumes that won't change.
 csrf_for() {
-    local jar="$1" cache="$1.csrf"
+    local jar="$1" sample_url="${2:-$BASE_URL}" home cache
+    home=$(printf '%s' "$sample_url" | sed -E 's#^(https?://[^/]+/[^/]+/).*#\1#')
+    cache="$jar.csrf.$(printf '%s' "$home" | tr -c 'a-zA-Z0-9' '_')"
     if [ ! -s "$cache" ]; then
-        curl -s -b "$jar" "$BASE_URL/" \
+        curl -s -b "$jar" "$home" \
             | grep -oE 'name="csrf_token" value="[^"]*"' | head -1 \
             | sed -E 's/.*value="([^"]*)"/\1/' > "$cache"
     fi
@@ -95,13 +114,13 @@ body_contains() { # <url> <needle> <jar>
 
 post_body_contains() { # <url> <data> <needle> <jar>
     local url="$1" data="$2" needle="$3" jar="$4" csrf
-    csrf=$(csrf_for "$jar")
+    csrf=$(csrf_for "$jar" "$url")
     curl -s -X POST -b "$jar" "$url" -d "$data&csrf_token=$csrf" | grep -q "$needle"
 }
 
 post_status() { # <url> <data> <jar> -> echoes http code
     local url="$1" data="$2" jar="$3" csrf
-    csrf=$(csrf_for "$jar")
+    csrf=$(csrf_for "$jar" "$url")
     curl -s -o /dev/null -w '%{http_code}' -X POST -b "$jar" "$url" -d "$data&csrf_token=$csrf"
 }
 
@@ -111,7 +130,7 @@ post_status_no_csrf() { # <url> <data> <jar> -> echoes http code, csrf_token del
 
 post_redirect() { # <url> <data> <jar> -> echoes redirect url
     local url="$1" data="$2" jar="$3" csrf
-    csrf=$(csrf_for "$jar")
+    csrf=$(csrf_for "$jar" "$url")
     curl -s -o /dev/null -w '%{redirect_url}' -X POST -b "$jar" "$url" -d "$data&csrf_token=$csrf"
 }
 
@@ -240,7 +259,7 @@ echo "Target: $BASE_URL"
 echo "--------------------------------------------------------------------"
 
 # T00 — server reachable
-curl -s -o /dev/null --max-time 5 "$BASE_URL/health"
+curl -s -o /dev/null --max-time 5 "$ORIGIN/health"
 check T00 "—" "server /health reachable" $?
 [ "$FAIL" -gt 0 ] && { echo "Server unreachable — aborting."; exit 1; }
 

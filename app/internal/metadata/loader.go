@@ -74,7 +74,7 @@ func (l *Loader) LoadAll(ctx context.Context) ([]*model.Workspace, error) {
 }
 
 func (l *Loader) loadWorkspaces(ctx context.Context) ([]*model.Workspace, error) {
-	rows, err := l.db.Query(ctx, `SELECT id, name FROM workspaces ORDER BY name`)
+	rows, err := l.db.Query(ctx, `SELECT id, name, slug FROM workspaces ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (l *Loader) loadWorkspaces(ctx context.Context) ([]*model.Workspace, error)
 	var out []*model.Workspace
 	for rows.Next() {
 		ws := &model.Workspace{}
-		if err := rows.Scan(&ws.ID, &ws.Name); err != nil {
+		if err := rows.Scan(&ws.ID, &ws.Name, &ws.Slug); err != nil {
 			return nil, err
 		}
 		out = append(out, ws)
