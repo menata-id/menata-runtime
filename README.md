@@ -535,10 +535,15 @@ current phase, read [`app/README.md`](app/README.md)'s own "Current status" sect
 place kept current every time a phase lands; don't trust a phase number stated anywhere else,
 including this file, to still be accurate.
 
+**Status update (2026-09-06): the port is done, `app/` is live.** `app/ROADMAP.md`'s Phase 6
+(Cutover) executed — `menata.app` now serves `app/`'s own binary, not `prototype/go`'s. See that
+file's own Phase 6 status update for the full detail (database/uploads carried over, RLS already
+in place, zero-downtime-minus-the-swap-itself verification against real traffic).
+
 | Location | What it is |
 |----------|-----------|
-| [app/](app/) | The real Menata Runtime application, port in progress — graduating `prototype/go`'s own codebase, see `app/README.md`'s "Current status" for the current phase |
-| [prototype/go/](prototype/go/) | The working Go + PostgreSQL + Templ + HTMX prototype |
+| [app/](app/) | The real Menata Runtime application — **live at `menata.app`** since Phase 6's cutover. Graduated from `prototype/go`'s own codebase; see `app/README.md`'s "Current status" for the full phase-by-phase history |
+| [prototype/go/](prototype/go/) | The Go + PostgreSQL + Templ + HTMX prototype that proved this design — no longer the live deployment (`app/` is, as of the Phase 6 cutover above), kept as-is as the proven historical reference and rollback safety net |
 | [prototype/{salesforce,frappe,drupal,directus,budibase,camunda}/](prototype/) | Metadata-only proofs on other platforms — see [prototype/README.md](prototype/README.md) for the comparison scorecard |
 
 ---
