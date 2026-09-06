@@ -42,6 +42,17 @@ listing:
 
 Always resolve which one a task needs by full path, never by basename alone.
 
+## Filename case is a real convention, not noise
+
+`README.md`'s own "# Documentation" intro is the full explanation — read that for the reasoning
+and the numbering-family breakdown. The rule in short: **ALL-CAPS `.md`**
+(`README.md`/`ARCHITECTURE.md`/`DEVELOPMENT.md`/`ROADMAP.md`/`CLAUDE.md`) is reserved for the
+fixed onboarding-doc set every codebase repeats at its own top level (this repo's root, `app/`,
+each `prototype/*`); **every other `.md` is lowercase-kebab-case**, including all of root's own
+governance/reference docs and every numbered doc (specs, `benchmarks/`, ADRs). No directory in
+this repo is ever uppercase. This is what produces the `roadmap.md`/`app/ROADMAP.md` collision
+above — case is meaningful, never assume two same-named files (by basename) are the same document.
+
 ## Where a new document goes
 
 `README.md`'s own "# Documentation" section is the maintained map of everything at root (Tier

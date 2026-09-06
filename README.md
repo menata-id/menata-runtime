@@ -372,9 +372,27 @@ This directory mixes documents that change on different rhythms. To read the num
 
 - **Numbered `001`–`006`** — the core specification. Stable, read in sequence, changes rarely (mirrors `specification/000`–`006` at the repo root — same convention, one level down).
 - **Unnumbered, at this level** — supporting reference or governance documents. Two different kinds, distinguished below.
-- **`benchmarks/` — numbered `000`–`020`** — evidence studies, numbered by production order (Study 1 → `000`, Study 2 → `001`, …), not a required reading sequence.
+- **`benchmarks/` — numbered `000`–`026`** — evidence studies, numbered by production order (Study 1 → `000`, Study 2 → `001`, …), not a required reading sequence. Grows as new studies land; check `ls benchmarks/` for the current top of the range rather than trusting this exact number to stay current.
 
 This stable/evolving split mirrors the pattern Portal GA v3 uses for its own domain-integration framework (`01-CONSTITUTIONAL-BRD.md` + `02-IMPLEMENTATION-GUIDE.md` as STABLE, `appendices/` as EVOLVING) — see `benchmarks/002-portal-ga-cross-domain-survey.md`.
+
+**Filename case is also a signal, not an accident.** `README.md`/`ARCHITECTURE.md`/`DEVELOPMENT.md`/
+`ROADMAP.md`/`CLAUDE.md` — ALL CAPS — are the fixed onboarding-doc set every codebase in this repo
+repeats at its own top level: this repo's own root, `app/`, and each `prototype/{go,drupal,frappe,
+directus,budibase,salesforce,camunda}/`. Not every one carries all five (`prototype/frappe/` has
+only `README.md`), but none renames one or adds a sixth — this mirrors the standard OSS convention
+of capitalizing repo "community health" files (README/LICENSE/CONTRIBUTING/CHANGELOG) so they sort
+together and stand out in a directory listing. Every other `.md` in this repo — root's own
+governance/reference docs, `guides/*.md`, and every numbered doc — is lowercase-kebab-case. This
+produces one real trap worth naming explicitly: **root `roadmap.md` and `app/ROADMAP.md` are
+different documents that differ only by case** (discovery method/evidence log vs. the actual
+`app/` code-port sequence — see root `CLAUDE.md`'s dedicated section). Always resolve a reference
+by full path, never by basename alone. Numbered docs additionally follow a shared
+three-digit-prefix + kebab-slug shape across three unrelated families — Tier 1 specs (reading
+order), `benchmarks/` (production order, not reading order), and every `*/docs/decisions/NNN-*.md`
+(ADRs, the standard Nygard/MADR format, decision order, independently numbered per codebase — e.g.
+`app/docs/decisions/001-...` restarts at 001, it is not a continuation of `prototype/go/docs/
+decisions/`'s own `001`–`008`). No directory anywhere in this repo is uppercase.
 
 ## Tier 1 — Core Specification (stable, numbered)
 
