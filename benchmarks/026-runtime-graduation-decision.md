@@ -265,6 +265,18 @@ orchestration layers), one new package (`internal/storage`, addressing §5's fil
 `internal/metadata` already planned as split (§7's own `loader.go` finding, roadmap.md item 20)
 rather than carried over unsplit, and every other §5 gap named explicitly in `app/ARCHITECTURE.md`
 as deferred to a development plan, not silently dropped. Full detail: `app/ARCHITECTURE.md` and
-`app/docs/decisions/001-graduation-from-prototype.md`. Next step, explicitly separate from this
-blueprint per the owner's own request: a development plan and roadmap for actually porting code
-into this skeleton.
+`app/docs/decisions/001-graduation-from-prototype.md`.
+
+## 9. Development plan and roadmap created (2026-09-06)
+
+`app/ROADMAP.md`: a 7-phase port sequence (Phase 0 foundation/leaf packages → Phase 1 metadata →
+Phase 2 business logic → Phase 3 HTTP layer → Phase 4 conformance parity → Phase 5 CI/hardening →
+Phase 6 cutover), each phase ending in something real and verifiable rather than one big-bang
+port. Every §5 gap this document named gets addressed at the specific phase where doing so is
+cheapest, not front-loaded or ignored: migrations tooling (Phase 1, before real data exists),
+API versioning + rate limiting (Phase 3, before real API consumers exist), the client-side
+Hyperscript-vs-vanilla-JS correction (Phase 4, ported alongside the rest of the UI layer),
+dependency-vulnerability scanning as a genuinely new CI step (Phase 5). Object storage,
+multi-instance cache invalidation, and `handler`'s team-scale coupling stay explicitly out of
+scope — no real need has forced any of them yet, per this project's own "Infer Before Configure"
+principle. `roadmap.md`'s item 21 addendum carries the matching pointer.

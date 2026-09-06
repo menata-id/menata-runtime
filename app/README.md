@@ -16,6 +16,8 @@ as the historical record of that process. This folder is what that process was b
 
 - **[`ARCHITECTURE.md`](ARCHITECTURE.md)** — the blueprint: package layout, what's graduated as-is,
   what's new, what's deferred and why.
+- **[`ROADMAP.md`](ROADMAP.md)** — the development plan: what order the port happens in, and what
+  "done" means at each phase.
 - **[`docs/decisions/001-graduation-from-prototype.md`](docs/decisions/001-graduation-from-prototype.md)**
   — the ADR formalizing this move.
 - **[`DEVELOPMENT.md`](DEVELOPMENT.md)** — setup, once real code lands here.
@@ -26,6 +28,5 @@ as the historical record of that process. This folder is what that process was b
 
 Blueprint stage: real package skeleton (`internal/*/doc.go`, one per package, each stating its
 graduated source and any architectural change), `go.mod`, and this documentation set exist.
-No business logic has been ported yet — that is the next, separate phase (a development plan and
-roadmap, built on top of this blueprint, not part of it). `go build ./...` and `go vet ./...`
-both pass clean against the current doc.go-only skeleton.
+No business logic has been ported yet — that starts at `ROADMAP.md`'s own Phase 0. `go build ./...`
+and `go vet ./...` both pass clean against the current doc.go-only skeleton.

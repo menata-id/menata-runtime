@@ -2225,8 +2225,17 @@ isolated schema. Track G's own implementation step is done — no longer just un
     `docs/decisions/001-graduation-from-prototype.md`. Item 20's `loader.go` split is folded into
     this blueprint as the plan for `internal/metadata` (not yet executed — no business logic
     ported yet). Full detail: `benchmarks/026-runtime-graduation-decision.md` §8,
-    `app/ARCHITECTURE.md`. Next, separate step per the owner's own request: a development plan and
-    roadmap for actually porting `prototype/go`'s code into this skeleton.
+    `app/ARCHITECTURE.md`.
+
+**Addendum (2026-09-06): development plan created — `app/ROADMAP.md`.** A 7-phase port sequence
+(Phase 0 foundation/leaf packages through Phase 6 cutover), each phase ending in something real to
+verify (`go build`, a loaded metadata model, a booted server, full conformance parity, CI parity)
+rather than one big-bang port. Each Study 34 §5 gap lands in the specific phase where addressing
+it is cheapest: migrations tooling in Phase 1 (before real data exists to convert), API
+versioning + rate limiting in Phase 3 (before real API consumers exist), dependency-vulnerability
+scanning as a new CI step in Phase 5. Object storage, multi-instance cache invalidation, and
+`handler`'s team-scale API boundary stay explicitly out of scope (`ARCHITECTURE.md`'s own
+"Infer Before Configure" reasoning — no real need has forced any of the three yet).
 22. **New (2026-09-06): reinstated Hyperscript over vanilla JS/Alpine.js as `app/`'s client-JS
     policy.** Real drift found live while designing this policy, previously undocumented anywhere:
     `prototype/go`'s own ADR-001 (2026-07-04, "Accepted") chose Hyperscript for client-side
