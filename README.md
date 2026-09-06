@@ -1,7 +1,14 @@
 # Menata Runtime
 
+**`app/` (live at `menata.app`):**
+[![App conformance](https://github.com/menata-id/menata-runtime/actions/workflows/app-conformance.yml/badge.svg)](https://github.com/menata-id/menata-runtime/actions/workflows/app-conformance.yml)
+[![App CSS gate](https://github.com/menata-id/menata-runtime/actions/workflows/app-css-gate.yml/badge.svg)](https://github.com/menata-id/menata-runtime/actions/workflows/app-css-gate.yml)
+[![App vet/test](https://github.com/menata-id/menata-runtime/actions/workflows/app-vet-test.yml/badge.svg)](https://github.com/menata-id/menata-runtime/actions/workflows/app-vet-test.yml)
+
+**`prototype/go` (historical reference):**
 [![Conformance](https://github.com/menata-id/menata-runtime/actions/workflows/conformance.yml/badge.svg)](https://github.com/menata-id/menata-runtime/actions/workflows/conformance.yml)
 [![CSS gate](https://github.com/menata-id/menata-runtime/actions/workflows/css-gate.yml/badge.svg)](https://github.com/menata-id/menata-runtime/actions/workflows/css-gate.yml)
+[![Vet/test](https://github.com/menata-id/menata-runtime/actions/workflows/vet-test.yml/badge.svg)](https://github.com/menata-id/menata-runtime/actions/workflows/vet-test.yml)
 
 > **Applications should evolve at the pace of Business Knowledge.**
 >
@@ -322,7 +329,7 @@ Applications evolve at the pace of Business Knowledge.
 
 The complete rationale is available in:
 
-`design-principles.md`
+[`001-design-principles.md`](001-design-principles.md)
 
 ---
 

@@ -2120,6 +2120,15 @@ isolated schema. Track G's own implementation step is done — no longer just un
     — `Makefile`'s `migrate-up` target was missing `migrations/023_groups.sql` (CAP-O07's own
     migration), so a truly fresh `make migrate-up && make seed` would have failed before ever
     reaching conformance. Fixed in the same commit as this gate.
+
+    **Correction (2026-09-06):** the "Actions minutes already exhausted" constraint this item
+    recorded on 2026-08-29 no longer held six days later — item 15 below (2026-09-05) added
+    `.github/workflows/vet-test.yml`, a real GitHub-hosted check, and `app/`'s own three workflows
+    (`app-conformance.yml`, `app-css-gate.yml`, `app-vet-test.yml`, `app/README.md`'s Phase 5
+    status update) followed the same day. The local pre-push hook (`scripts/pre-push`) is still in
+    place and still useful as a pre-push gate, but it is no longer this repo's only CI — six
+    GitHub Actions workflows exist today (three per codebase, `prototype/go/` and `app/`), all
+    linked from root `README.md`'s badges.
 13. ~~New (Study 33): confirm whether `internal/handler/record_crud.go` is still single-concern~~
     — ✅ **checked 2026-08-29, no split needed.** All 12 functions in the file (`List`, `Archive`,
     `Restore`, `setDeleted`, `MoveRecord`, `BoardMove`, `Document`, `NewForm`, `Create`,
@@ -2462,6 +2471,17 @@ its client-side JavaScript policy was corrected along the way (a real, previousl
 drift found in `prototype/go`'s own ADR-001/`ARCHITECTURE.md`). Tracked as items 21 and 22 in
 "Recommended order for upcoming sessions" above — moved there from an earlier draft of this
 addendum that stranded them here instead, where the numbered checklist wouldn't surface them.
+
+**Addendum (2026-09-06), graduation complete — this document's own scope stops here:** the
+"blueprint stage" line directly above is now several status updates behind reality. `app/`'s own
+port ran through all six of `app/ROADMAP.md`'s phases the same day (metadata pipeline → business
+logic → HTTP layer → conformance parity, 219/219 → CI → Phase 6 cutover), and `menata.app` now
+serves `app/`'s binary, not `prototype/go`'s — full detail in `app/README.md`'s own "Current
+status" section and `app/ROADMAP.md`'s per-phase status updates, not repeated here per this
+file's own "Reference over Duplication" convention. This document's job was discovering and
+proving the capability set graduation needed — that job is done as of this addendum. Ongoing
+`app/` development is no longer tracked here; see `capability-lifecycle.md` and `app/CLAUDE.md`
+for how new capability work in `app/` is now governed.
 
 ---
 
