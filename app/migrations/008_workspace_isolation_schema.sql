@@ -30,15 +30,19 @@ UPDATE records r SET workspace_id = a.workspace_id
     WHERE m.id = r.machine_id AND r.workspace_id IS NULL;
 
 -- record_events is append-only by design (migrations/007 REVOKEs UPDATE
--- from menata_runtime_app) -- this one-time backfill of a genuinely new
--- column on pre-existing rows needs it back, then re-revokes immediately.
--- The table owner can GRANT/REVOKE its own privileges (ownership includes
+-- from CURRENT_USER) -- this one-time backfill of a genuinely new column
+-- on pre-existing rows needs it back, then re-revokes immediately. The
+-- table owner can GRANT/REVOKE its own privileges (ownership includes
 -- managing grants), so this doesn't need a separate migration role.
-GRANT UPDATE ON record_events TO menata_runtime_app;
+-- CURRENT_USER, not a hardcoded role name -- see migrations/007's own
+-- note on why (this dev host's shared Postgres cluster happens to already
+-- have prototype/go's own menata_runtime_app role; a fresh database
+-- anywhere else does not).
+GRANT UPDATE ON record_events TO CURRENT_USER;
 UPDATE record_events e SET workspace_id = r.workspace_id
     FROM records r
     WHERE r.id = e.record_id AND e.workspace_id IS NULL;
-REVOKE UPDATE ON record_events FROM menata_runtime_app;
+REVOKE UPDATE ON record_events FROM CURRENT_USER;
 
 UPDATE notifications n SET workspace_id = a.workspace_id
     FROM machines m JOIN applications a ON a.id = m.application_id

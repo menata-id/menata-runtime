@@ -29,10 +29,22 @@ ALTER TABLE record_events ADD COLUMN IF NOT EXISTS correlation_id TEXT;
 -- (record_events_record_id_fkey ON DELETE CASCADE), which Postgres performs
 -- under the constraint's own privileges, not the calling role's DML grants,
 -- so this REVOKE doesn't block that cascade.
-REVOKE UPDATE, DELETE, TRUNCATE ON record_events FROM menata_runtime_app;
+--
+-- CURRENT_USER (whichever role actually runs this migration), not a
+-- hardcoded role name: prototype/go's own migration named its own
+-- menata_runtime_app role literally, which only ever worked here by
+-- accident (this dev host's shared Postgres cluster happens to already
+-- have that role from prototype/go's own setup) -- a fresh database
+-- anywhere else (this app's own CI, a real deployment under
+-- menata_app_owner, DEVELOPMENT.md's own "Database role" section) has no
+-- such role, and REVOKE/GRANT against a role that doesn't exist is a hard
+-- error, not a silent no-op. REVOKE against a superuser (e.g. CI's plain
+-- `postgres`) is itself a harmless no-op -- superusers bypass grants
+-- entirely -- so this degrades safely there too.
+REVOKE UPDATE, DELETE, TRUNCATE ON record_events FROM CURRENT_USER;
 
 -- +goose Down
-GRANT UPDATE, DELETE, TRUNCATE ON record_events TO menata_runtime_app;
+GRANT UPDATE, DELETE, TRUNCATE ON record_events TO CURRENT_USER;
 ALTER TABLE record_events DROP COLUMN IF EXISTS correlation_id;
 -- Best-effort only: the up migration deliberately widened performed_by from
 -- UUID to TEXT so it could hold non-UUID identity/role strings (this

@@ -16,7 +16,7 @@
 -- run any time; this one is not.
 
 -- FORCE is required in addition to ENABLE, or the owning role
--- (menata_runtime_app -- see DEVELOPMENT.md's "Database role" section)
+-- (menata_app_owner -- see DEVELOPMENT.md's "Database role" section)
 -- bypasses RLS by default, since table owners are exempt unless forced.
 ALTER TABLE records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE records FORCE ROW LEVEL SECURITY;
