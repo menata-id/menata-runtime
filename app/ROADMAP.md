@@ -243,6 +243,56 @@ coverage numbers, not guessed in advance here.
 **Milestone:** `app/` has the same CI maturity `prototype/go` reached this session, plus the
 dependency-scanning gap `prototype/go` itself never closed.
 
+**Status update (2026-09-06):** Done. Three new GitHub Actions workflows at the repo root
+(`.github/workflows/app-vet-test.yml`, `app-css-gate.yml`, `app-conformance.yml`), mirroring
+`prototype/go`'s own three exactly (same `working-directory`/path-filter/service-container shape),
+`app/**`-path-scoped so they don't fire on unrelated changes and don't collide with
+`prototype/go`'s own identically-purposed workflows living in the same directory.
+
+**govulncheck (new, not a port) found 37 real reachable vulnerabilities on its first run** —
+exactly the kind of gap this step exists to close, not a clean pass to rubber-stamp. Triaged and
+fixed:
+- **`github.com/go-chi/chi/v5` v5.0.12 → v5.3.2**: two of the 37 (GO-2026-5777/5775) were
+  `middleware.RealIP` itself — deprecated in v5.3.0 for being fundamentally spoofable (walks
+  True-Client-IP/X-Real-IP/X-Forwarded-For unconditionally, mutates `r.RemoteAddr` in place).
+  Migrated `cmd/server/main.go` to chi's own replacement, `middleware.ClientIPFromHeader("X-Real-IP")`
+  — explicit about trusting exactly the one header `menata.app`'s Caddyfile unconditionally
+  overwrites, read via `middleware.GetClientIP(ctx)` (new `clientIP()` helper, shared by
+  `slogAccessLog` and `ratelimit.go`) instead of a mutated `r.RemoteAddr`. Verified live: a request
+  carrying `X-Real-IP` resolves to that address in the access log; one without falls back to the
+  raw TCP peer, same as before.
+- **`golang.org/x/image` v0.44.0 → v0.45.0**: GO-2026-6222, excessive memory allocation decoding
+  VP8L, reachable from `handler.compressImage`'s own image pipeline (CAP-F06).
+- **`github.com/jackc/pgx/v5` v5.6.0 → v5.10.0**: GO-2026-5004, a SQL-injection-class bug (dollar-
+  quoted string literal / placeholder confusion), reachable from `store.RecordStore.CountGroupedBy`.
+  Fixed upstream at v5.9.2; took latest.
+- **Go toolchain 1.25.0 → 1.25.14** (`go.mod`'s own `go` directive; same 1.25 line as `prototype/
+  go`, no language-version jump): closed the remaining ~30, all Go standard-library CVEs
+  (`crypto/tls`, `net/http`, `net/url`, `html/template`, `encoding/xml`, `encoding/asn1`,
+  `crypto/x509`, `encoding/pem`) fixed across the 1.25.2–1.25.13 patch releases.
+- Re-ran `govulncheck ./...` after each fix: 37 → 1 (pgx) → 0. Full 219/219 conformance + `go
+  test ./...` re-verified after all four changes, including the ClientIPFromHeader migration.
+
+**Test-coverage target, set against `app/`'s own real numbers** (`go test ./... -cover`, gathered
+this phase): `internal/model` 88.9%, `internal/executor` 15.3%, `internal/handler` 0.6%,
+`internal/metadata` 0.0% (its own test, `TestLoadAllAgainstApprovalCase`, is a DB-backed
+integration check, not a pure-function unit test), every other package 0% (no test files). Given
+`prototype/go/CLAUDE.md`'s own stated, deliberate testing philosophy — "there are no Go unit tests
+in this codebase, the conformance suite IS the test suite" — a blanket module-wide percentage
+target would fight that design, not extend it. **Target actually set:** pure-function/deterministic
+logic (the shape `internal/model` and `internal/executor`'s own existing tests already cover —
+`FindFieldByName`/`FindReferenceFieldTo`, `resolveDateArithmetic`/`addBusinessDays`) should reach
+and hold 80%+ coverage over its own surface as new such functions are added; the HTTP/store/handler
+orchestration layers are NOT targeted for unit-test growth — the 219-test conformance suite remains
+their real proof, per `app-vet-test.yml`'s own "fast feedback loop the conformance suite alone
+doesn't give" framing (`roadmap.md` item 14). `internal/metadata`'s `validateOperators`/
+`validateReferences` (currently 0%, genuinely pure functions over `[]*model.Workspace`) are the
+one concrete opportunity this baseline surfaces for a future session, not required by this phase.
+
+`go build ./... && go vet ./... && go test ./...`, `make check-css`, and the full conformance
+suite (219/219, via `local-ci.sh`) all clean after every change in this phase. Proceeding to
+Phase 6 (Cutover) whenever the owner decides to run it.
+
 ## Phase 6 — Cutover
 
 **Decision point, not pre-decided here:** does `app/`'s server replace `prototype/go`'s own

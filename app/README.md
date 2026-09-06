@@ -83,3 +83,15 @@ corrected from the shared `postgres` superuser to a dedicated `menata_app_owner`
 own Phase 4 status update and `DEVELOPMENT.md`'s database sections for full detail. `go build/vet/
 test` and `make check-css` all clean. `menata.app` still serves `prototype/go`. Next: Phase 5
 (CI + operational hardening).
+
+**Status update (2026-09-06, Phase 5): CI live on GitHub, 0 reachable vulnerabilities.** Three new
+workflows (`.github/workflows/app-{vet-test,css-gate,conformance}.yml`) mirror `prototype/go`'s
+own three, scoped to `app/**`. `govulncheck` (new, not a port — the one gap `prototype/go` itself
+never closed) found 37 real reachable vulnerabilities on its first run: chi's `middleware.RealIP`
+(deprecated, spoofable — migrated to `middleware.ClientIPFromHeader("X-Real-IP")`), an `x/image`
+VP8L-decode issue, a pgx SQL-injection-class bug, and ~30 Go-stdlib CVEs closed by bumping the
+toolchain to the latest 1.25.x patch. All four fixed; 37 → 0. A real, evidence-based test-coverage
+target is set (see `ROADMAP.md`'s own Phase 5 status update) rather than a guessed blanket
+percentage, consistent with this project's own "conformance suite IS the test suite" philosophy.
+Full 219/219 conformance and `go test ./...` re-verified after every fix. `menata.app` still
+serves `prototype/go` — Phase 6 (Cutover) is next, whenever the owner decides to run it.
