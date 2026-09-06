@@ -190,6 +190,56 @@ a final decision — the owner's own confirmation is still the thing that closes
 
 ---
 
+## 7. Empirical verification (2026-09-06): confirming "thin architecture" with measurements, not citations
+
+Asked directly: not "does the ADR say it's fine" again, but *how do you actually confirm* it —
+so three independent, reproducible checks were run against the real code, not just §3/§6's own
+prose re-cited. Method, so a future session can re-run the same checks rather than trust this
+one's numbers forever:
+
+**Method 1 — file-size + concern-count, the exact ADR-006/007 admission test** (`find internal
+cmd -name "*.go" ! -name "*_templ.go" | xargs wc -l | sort -rn`): 12,753 non-generated Go lines
+total. Two files at/past the ~1,000-line trigger: `internal/handler/record_crud.go` (1,009 —
+already checked once, roadmap item 13, "999 lines, still one concern," now nominally over by 10)
+and **`internal/metadata/loader.go` (1,098 — new finding, never checked before)**. `loader.go`
+genuinely bundles three separable concerns by inspection (`grep -n "^func "`): ~12 `load*`
+functions (one per DB table, the bulk of the file), 2 validation functions
+(`validateOperators`/`validateReferences`), and 2 process-overlay/quorum-compile functions
+(`compileApprovalRequirements`/`injectApprovalQuorum`) — a real split candidate by the same test
+that justified `handler.go`'s own ADR-006 split, not yet acted on. This is the one place the
+"thin" claim needs a caveat, not a place it fails outright.
+
+**Method 2 — import fan-in/fan-out** (`go list -f '{{join .Imports "\n"}}' ./internal/X | grep
+menata.id/runtime/internal | wc -l` per package, plus `go build ./...` as proof of zero cycles —
+Go's compiler refuses to build with an import cycle, so "no cycles" here is a compiler guarantee,
+not a claim): `model`/`store`/`auth`/`db`/`config` are true leaves (0 internal imports — pure
+data/infra layer); `interpreter`/`metadata`/`permission`/`constraint`/`router` each depend on
+exactly 1 other internal package; `ui` depends on 2; `executor` on 4; `handler` (the legitimate
+top orchestration layer, wiring HTTP to everything below it) on 9. A clean layered shape, not a
+tangle — the red flag this check would have caught is every package importing every other one,
+which isn't what's here.
+
+**Method 3 — empirical cost of a real past capability, in files touched** (`git show --stat
+<commit>` on three recent capability commits, filtered to non-generated `.go` files):
+
+| Capability | Files touched | Shape of the diff |
+|---|---|---|
+| CAP-V20 (new View type) | 6 | One new 133-line file (`decisionstepper.go`) + five small edits (1–26 lines each) |
+| CAP-F23 (new `FieldOptions` key) | 3 | Small edits only, 16–35 lines each |
+| CAP-V21 (new View type) | 6 | One new 226-line file (`coordplace.go`) + five small edits (2–30 lines each) |
+
+Confirms Study 33's own "a new FieldType touches 3+ files" claim with real numbers, and shows the
+shape isn't shotgun surgery: most of each diff concentrates in one new file, with small, mechanical
+registration edits (router, model, interpreter) elsewhere — the signature of a codebase that's
+cheap to extend, not one fighting back.
+
+**Conclusion**: the "architecture is thin" claim underlying §6's recommendation is now
+measurement-backed, not just ADR-cited — with one honest, actionable exception (`loader.go`)
+recorded as a real backlog item, not swept under the "everything's fine" rug. See roadmap.md's
+matching entry for the split itself, not yet done.
+
+---
+
 ## 4. What's settled vs. still open (summary)
 
 | Question | Status |
@@ -199,4 +249,6 @@ a final decision — the owner's own confirmation is still the thing that closes
 | Is a new top-level folder being created for the real application? | **Yes** — settled, named `app/` |
 | Does `app/` graduate `prototype/go`'s code, or start from zero? | **Recommended: graduate** (§6, 2026-09-06) — stronger than §3's own case alone, after the no-containers/thin-architecture corrections; still awaiting the owner's explicit final confirmation before treated as settled |
 | What hardens after graduation, and in what order? | **Open, but scoped** — §5's gap list (migrations tooling, storage abstraction, API versioning, secrets, dependency scanning, rate limiting, test depth), sequenced by whoever picks up `app/`'s first real milestone |
+| Is the "thin architecture" claim itself verified, not just cited? | **Yes** — §7, three independent measurements (file-size/concern-count, import graph, empirical capability-cost), 2026-09-06 |
+| Does `internal/metadata/loader.go` need splitting? | **Not yet done — tracked as a backlog item** (roadmap.md), same ADR-006 pattern as `handler.go`'s own split. Found via §7 Method 1, not acted on this session |
 | When does `app/` get created, and by whom (this session or a dedicated future one)? | **Open** — not raised yet, follows from the rows above |

@@ -2331,6 +2331,25 @@ graduated or brand new. Recommendation: **graduate**, treating the gap list as a
 hardening backlog. Still awaiting the owner's explicit final confirmation before this row is
 marked settled.
 
+**Addendum (2026-09-06), empirical verification**: asked directly to *confirm* the "thin
+architecture" claim with measurements rather than re-cite ADR-004/Study 33's own prose — three
+checks run against the real code (file-size + concern-count, import fan-in/fan-out, empirical
+files-touched-per-past-capability), full method and results in `benchmarks/026-runtime-graduation-
+decision.md` §7. Mostly confirms the claim, with one honest exception surfaced, not hidden:
+**`internal/metadata/loader.go` is now 1,098 lines bundling three separable concerns (per-table DB
+loading, validation, process-overlay/quorum compilation)** — a real split candidate by the exact
+same test that justified `handler.go`'s own ADR-006 split, found live this session, not yet acted
+on. New backlog item:
+
+20. **New (2026-09-06): split `internal/metadata/loader.go`** — same pattern as ADR-006's
+    `handler.go` split (pure move, verified by function-inventory equality, no logic change):
+    separate the ~12 `load*` functions (per-table DB loading, the bulk of the file) from
+    `validateOperators`/`validateReferences` (validation) and `compileApprovalRequirements`/
+    `injectApprovalQuorum` (process-overlay/quorum compilation) into their own files within
+    `internal/metadata`. Not urgent (no correctness issue, just a size/concern-count trigger) —
+    reasonable to fold into whichever session first touches `loader.go` again, or into `app/`'s
+    own graduation pass if item 19's "graduate" recommendation is confirmed first.
+
 ---
 
 # Principles
