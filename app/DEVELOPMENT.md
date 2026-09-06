@@ -74,7 +74,11 @@ CREATE ROLE menata_app_owner WITH LOGIN PASSWORD '<strong-random-password>' NOSU
 CREATE DATABASE menata_app OWNER menata_app_owner;
 ```
 
-`.env`'s `DATABASE_URL` uses this role, never `postgres`:
+Copy `.env.example` to `.env` (gitignored — never committed) and fill in the password:
+
+```bash
+cp .env.example .env
+```
 
 ```env
 DATABASE_URL=postgres://menata_app_owner:<password>@localhost:5432/menata_app?sslmode=disable
