@@ -12,6 +12,10 @@ name: app/ Vet, Test & Vulnerability Scan
 # prototype/go itself never closed it either. Added here as app/'s own new
 # CI step, not backported to prototype/go (frozen historical record, see
 # root CLAUDE.md).
+#
+# check-quality-gates.sh (new, not a port): error-leak scan + handler LOC /
+# gocyclo baseline ratchets, benchmarked against portal-ga3's own fitness
+# functions -- see app/docs/portal-ga3-code-quality-benchmark.md.
 on:
   push:
     paths:
@@ -49,6 +53,9 @@ jobs:
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./... -v
+
+      - name: quality gates (error-leak scan, handler LOC + complexity ratchets)
+        run: ./scripts/check-quality-gates.sh
 
       - name: govulncheck
         run: |
