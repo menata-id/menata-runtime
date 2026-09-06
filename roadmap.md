@@ -2485,6 +2485,36 @@ for how new capability work in `app/` is now governed.
 
 ---
 
+## Study 35 — Workspace Self-Service Provisioning, Invitation, Custom Domains (2026-09-06)
+
+Owner-requested, raised directly in conversation (Claude Code), not a portfolio case: today every
+Workspace and every `users` row is created by hand (seed SQL) or by an existing Admin via
+`/admin/users` — no self-service path exists for a new person to found their own Workspace, name
+it, invite others by email, or reach it by a chosen URL. Full BRD + capability gap analysis:
+`benchmarks/027-workspace-self-service-provisioning-study.md`. Checked first against the owner's
+own suspicion that a URL-routing capability might already be registered: it was not (that study's
+own §2). Four new capabilities registered ❌ Proposed in `capability-registry.md` (Workspace
+Services / Cross-Cutting sections), dual-evidenced by a 5-comparator survey each (Slack/Notion/
+Linear/Basecamp/GitHub Organizations for the first three; Shopify/Webflow/Squarespace/Notion/
+Vercel-Netlify for the fourth, added same session as an owner follow-up): **CAP-O09**
+(self-service workspace provisioning — founding a workspace creates the founder's own account and
+makes them its first Admin), **CAP-O10** (email invitation into an existing workspace — a
+distinct mechanism from CAP-O09 per admission A3, since no comparator platform collapses founding
+and inviting into one), **CAP-X14** (workspace-scoped URL routing, `/{slug}/...`, designed to
+compose with rather than reopen CAP-X06/CAP-X02's own existing anti-spoofing check that
+workspace_id must come from the authenticated account), and **CAP-X15** (custom domain mapping,
+e.g. a workspace's own `bumikita.com`, additive to `/{slug}/` never a replacement for it, same
+"never orphan the default URL" convention every comparator platform holds to). Two real
+infrastructure dependencies named, not solved: this runtime has never sent outbound email
+(CAP-O10, study §5.6) and the live `/etc/caddy/Caddyfile` has never used `on_demand_tls`
+(CAP-X15, study §5.7, checked directly against the real file). One open design question named,
+not resolved: an invited email that already holds an account in a *different* workspace hits the
+same ambiguity `UserStore.GetByEmail`'s own doc comment already flags (login resolves by email
+alone, not per-workspace) — study §5.3 states the two honest options without picking one. No code
+changed this pass — registration + BRD only.
+
+---
+
 # Principles
 
 - **The map before the territory** — benchmark catalogs predict gaps before cases find them.
