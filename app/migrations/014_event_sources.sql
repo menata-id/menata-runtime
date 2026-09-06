@@ -1,0 +1,26 @@
+-- +goose Up
+-- 014_event_sources.sql
+-- Batch 7 (Event sources): CAP-E02 (time-driven, "Every Day 08:00") and
+-- CAP-E03 (date-driven, "When Due Date - 1 Day") share one column, two
+-- JSONB shapes -- both are "fire this event on matching records when a
+-- point in time is reached," differing only in whether that point is a
+-- fixed wall-clock time or relative to a record's own date Field:
+--
+--   {"time": "08:00"}                                   CAP-E02
+--   {"date_field": "fld_due_date", "offset_days": -1}    CAP-E03
+--
+-- Both processed by the same background scheduler tick (internal/handler's
+-- RunScheduledEvents) and de-duplicated per record via the EXISTING
+-- record_events audit table (CAP-R04) -- "has this event already fired on
+-- this record today" -- no new table needed for either.
+ALTER TABLE events ADD COLUMN IF NOT EXISTS schedule JSONB;
+
+-- CAP-E04 (external event / webhook): a per-Machine shared secret an
+-- inbound POST must present. Reuses machines.config (CAP-X03's existing
+-- generic settings, migrations/004) -- no new column: config key
+-- "webhook_secret". Documented here since this is the migration that
+-- gives it a real consumer, not because it needs a schema change of its
+-- own.
+
+-- +goose Down
+ALTER TABLE events DROP COLUMN IF EXISTS schedule;

@@ -40,3 +40,12 @@ a `LocalDisk` backend, extracted from `prototype/go/internal/handler/upload.go`'
 model_test.go` ported unchanged and passing. `menata.app` still serves `prototype/go` — no Caddy
 change yet, that's `ROADMAP.md`'s own Phase 6 (Cutover) decision point, not before. Next: Phase 1
 (metadata pipeline).
+
+**Status update (2026-09-06, Phase 1):** `internal/metadata` (split loader.go/validate.go/
+compile.go + materialize.go) and `internal/interpreter` ported. Migration tool chosen: goose — all
+24 `prototype/go/migrations/*.sql` converted to Up/Down pairs, every one verified to apply and roll
+back cleanly against a real Postgres database. `internal/metadata`'s new
+`TestLoadAllAgainstApprovalCase` confirms `Loader.LoadAll` builds a correct Application Model from
+a freshly migrated + seeded database. See `ROADMAP.md`'s own Phase 1 status update and
+`DEVELOPMENT.md`'s new "database setup" section for the how-to. `menata.app` still serves
+`prototype/go` — still Phase 6's decision, not before. Next: Phase 2 (business logic layer).

@@ -31,6 +31,10 @@ own proven stack (`prototype/go/docs/decisions/001-techstack.md`). See `ARCHITEC
 `golang.org/x/crypto`, `golang.org/x/image`) get added via `go get` as each is actually needed
 during the port, not declared speculatively ahead of it.
 
+**Status update (2026-09-06):** Phase 0/1 landed `github.com/jackc/pgx/v5` and
+`golang.org/x/crypto`, pinned to the same versions `prototype/go/go.mod` uses. The remaining six
+land as Phase 2/3 need them.
+
 ## No Docker/containers here either
 
 Same real resource constraint as `prototype/go`'s own deployment (`prototype/go/DEVELOPMENT.md`'s
@@ -43,7 +47,30 @@ runtime's overhead isn't free on a host this size. Deployment stays a plain comp
 Not yet meaningful — no `cmd/server/main.go` exists yet. This section fills in as the development
 plan ports `prototype/go/cmd/server/main.go`.
 
+**Status update (2026-09-06): database setup (Phase 1).** `app/` uses its own database, separate
+from `prototype/go`'s `menata_runtime` (never point `app/`'s tooling at that database — it's the
+live `menata.app` dev deployment's own data). Local dev:
+
+```bash
+createdb menata_app   # once
+cd app
+export DATABASE_URL="postgres://postgres:password@localhost:5432/menata_app?sslmode=disable"
+make migrate-up       # goose (see Makefile) -- applies migrations/*.sql, tracked in goose_db_version
+make seed             # currently seeds/001_design_request.sql + 004_approval.sql (Case 3) only,
+                       # per ROADMAP.md Phase 1's scope -- grows to all 38 at Phase 4
+```
+
+`make migrate-down` reverses every migration (verified round-trip clean during Phase 1).
+`migrations/manual/009_workspace_isolation_rls.sql` is deliberately excluded from `migrate-up`
+(own version table, `goose_manual_db_version`) — apply only via `make migrate-rls-cutover`, and
+only at `ROADMAP.md`'s own Phase 6 cutover, same restriction `prototype/go`'s own
+`migrate-rls-cutover` Makefile target already documents for its identical migration.
+
 ## Verification
 
-`cd app && go build ./... && go vet ./...` — the only thing there is to verify right now, and it
-passes clean against the current doc.go-only package skeleton.
+`cd app && go build ./... && go vet ./...` — passes clean.
+
+**Status update (2026-09-06):** `go test ./...` now also runs real tests: `internal/model`'s
+ported `model_test.go` (Phase 0), and `internal/metadata`'s `TestLoadAllAgainstApprovalCase`
+(Phase 1 — needs `DATABASE_URL` pointed at a database that already ran `make migrate-up && make
+seed` above; skips itself otherwise).

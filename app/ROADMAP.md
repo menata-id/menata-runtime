@@ -72,6 +72,21 @@ Model. A small verification script or test is enough; no HTTP server needed yet.
 
 **Milestone:** metadata loads from Postgres into memory correctly, on the new migration tooling.
 
+**Status update (2026-09-06):** Done. `internal/metadata` split as planned (loader.go/validate.go/
+compile.go, function-inventory-verified identical to `prototype/go`'s pre-split content, plus
+`materialize.go` ported unchanged); `internal/interpreter` ported verbatim. Migration tool: goose
+(chosen over golang-migrate/Atlas — pure-Go CLI via `go run`, same no-added-go.mod-dependency
+pattern this project's `templ generate` already uses). All 24 `prototype/go/migrations/*.sql`
+converted to goose's Up/Down format (23 in `migrations/`, `009_workspace_isolation_rls.sql` kept
+in `migrations/manual/` with its own version table -- same "not part of routine migrate-up"
+exclusion `prototype/go`'s Makefile already enforced for it); every Up and Down verified to run
+clean round-trip against a real Postgres database (`app/DEVELOPMENT.md`'s new "database setup"
+section). Verify step done against `app/`'s own `menata_app` database (never `prototype/go`'s
+`menata_runtime`): `make migrate-up && make seed` (seeds/001 + 004, Case 3 Approval) followed by
+`internal/metadata`'s new `TestLoadAllAgainstApprovalCase` -- confirms `ws_default`/`app_approval`/
+both Approval machines load correctly. `go build ./... && go vet ./... && go test ./...` clean.
+Proceeding to Phase 2.
+
 ## Phase 2 — Business logic layer
 
 **Port:** `internal/constraint`, `internal/permission`, `internal/executor` — all depend only on
