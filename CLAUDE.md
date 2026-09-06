@@ -24,10 +24,11 @@ true of one applies to the other six.
 exactly as they are — unrenamed, unrestructured — as the historical record of *how* the runtime's
 required capabilities were discovered and proven. **Real development now happens in
 [`app/`](app/)**, a new top-level folder graduating `prototype/go`'s own proven codebase
-(~90 capabilities, 219-test conformance suite) rather than starting from zero. `app/` is currently
-at blueprint stage (package skeleton + architecture docs, no ported business logic yet — see
-`app/README.md`). Do not add new capability work to `prototype/go/` under the assumption it's
-still the active development target; check `app/ROADMAP.md` first.
+(~90 capabilities, 219-test conformance suite) rather than starting from zero. The port is
+phased (`app/ROADMAP.md`) and moves fast — **don't trust a specific phase number cited anywhere
+outside `app/README.md`'s own "Current status" section to still be current**; that section is
+the one place updated every time a phase lands. Do not add new capability work to `prototype/go/`
+under the assumption it's still the active development target; check `app/ROADMAP.md` first.
 
 ## Two files named "roadmap" — do not confuse them
 

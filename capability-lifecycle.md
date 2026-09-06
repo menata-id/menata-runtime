@@ -6,7 +6,10 @@
 > deserves admission, design it completely, and grow the runtime architecture
 > to absorb it without bloating the core?
 >
-> Status: v0.1 | Created: 2026-07-04
+> Status: v0.2 — §4's `prototype/go`-today note gains a 2026-09-06 status update: the same
+> switch-based dispatch code now also exists (ported) in `app/`, `prototype/go/CLAUDE.md` remains
+> authoritative for both until `app/CLAUDE.md`'s own entries graduate | Previously v0.1 | Created:
+> 2026-07-04
 
 Reference implementations studied: Portal GA's constitutional stack (fitness functions in CI, ARB decision log, living registries, amendment process — Study 5) and the VS Code small-core lesson (`architecture-benchmark.md`).
 
@@ -90,6 +93,14 @@ A capability may enter **Incubating** without passing the gates; it may not reac
 > "The capability implementation loop" table and "Established patterns" section instead of this
 > one — that document is kept in sync with the real code; this section stays as the standing
 > target/rationale, not a description of current state.
+>
+> **Status update (2026-09-06):** the same switch-based dispatch code this note describes
+> (`internal/metadata/loader.go`, `internal/executor/executor.go`, `internal/handler/*.go`) has
+> since been ported verbatim into `app/` too (Phases 0–3 of `app/ROADMAP.md`, see `app/README.md`'s
+> "Current status"). `prototype/go/CLAUDE.md`'s pattern catalog still applies to that ported code —
+> `app/CLAUDE.md` says explicitly its own entry set hasn't graduated from `prototype/go/CLAUDE.md`
+> yet, so `prototype/go/CLAUDE.md` remains the one authoritative reference for **both** codebases
+> until that migration happens, not just for `prototype/go`.
 
 **Small core, registries at every seam.** Each engine exposes a registration point; capabilities plug in rather than patch the core:
 

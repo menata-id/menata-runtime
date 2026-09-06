@@ -530,13 +530,14 @@ agent session) to drift from it by accident.
 **Added 2026-09-06** (Study 34, `benchmarks/026-runtime-graduation-decision.md`): [`app/`](app/)
 is the real Menata Runtime application going forward — `prototype/`/`benchmarks/` below have done
 their job proving which capabilities a runtime needs, and stay as-is, unrenamed, as the historical
-record of that process. `app/` is currently at blueprint stage (package skeleton + architecture
-docs, no ported business logic yet — see [`app/README.md`](app/README.md) and
-[`app/ARCHITECTURE.md`](app/ARCHITECTURE.md)).
+record of that process. `app/`'s own port (`app/ROADMAP.md`, phased) moves fast — **for the
+current phase, read [`app/README.md`](app/README.md)'s own "Current status" section**, the one
+place kept current every time a phase lands; don't trust a phase number stated anywhere else,
+including this file, to still be accurate.
 
 | Location | What it is |
 |----------|-----------|
-| [app/](app/) | The real Menata Runtime application (blueprint stage) — graduating `prototype/go`'s own codebase, see `app/README.md` |
+| [app/](app/) | The real Menata Runtime application, port in progress — graduating `prototype/go`'s own codebase, see `app/README.md`'s "Current status" for the current phase |
 | [prototype/go/](prototype/go/) | The working Go + PostgreSQL + Templ + HTMX prototype |
 | [prototype/{salesforce,frappe,drupal,directus,budibase,camunda}/](prototype/) | Metadata-only proofs on other platforms — see [prototype/README.md](prototype/README.md) for the comparison scorecard |
 

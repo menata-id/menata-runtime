@@ -2306,6 +2306,29 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     the port is actually moving — re-check it every time a new `app/ROADMAP.md` phase lands, not
     only at the milestones the table names.
 
+    **Status update (2026-09-06, later same day): Phases 1, 2, and 3 are also done** —
+    `internal/metadata`/`internal/interpreter` (Phase 1, plus real migration tooling via goose),
+    `constraint`/`permission`/`executor` (Phase 2), and `internal/ui`/`internal/router`/
+    `internal/handler`/`cmd/server` (Phase 3) all ported; a real, bootable `app/` server exists
+    (`/health`, `/login` verified live). Full detail: `app/README.md`'s own "Current status"
+    section, kept current per phase — this note is not, and won't be re-updated every phase, so
+    treat it as a snapshot, not a tracker. Two corrections to this item's own table above, found
+    wrong on re-check rather than by a later drift:
+
+    - **Row 1's trigger has now fired.** Phase 2/3 ported exactly the switch-based
+      dispatch/capability-structuring code (`internal/metadata/loader.go`,
+      `internal/executor/executor.go`, `internal/handler/*.go`) `capability-lifecycle.md`'s note
+      was about. Corrected there directly (2026-09-06): `prototype/go/CLAUDE.md` remains
+      authoritative for *both* codebases, since `app/CLAUDE.md`'s own entries haven't graduated
+      yet (a named, not silent, gap — see `app/CLAUDE.md` itself).
+    - **Row 3's own reasoning was wrong, not just early.** It tied the "blueprint stage" wording
+      fix to Phase 6 (cutover) — but that wording became false the moment Phase 0 shipped any real
+      code, regardless of cutover timing; cutover is a separate fact (which deployment serves
+      `menata.app`) from whether `app/` still matches a "skeleton only" description. Root
+      `README.md`/`CLAUDE.md` corrected directly (2026-09-06) by removing the phase-specific claim
+      entirely and pointing to `app/README.md`'s own "Current status" instead — durable against
+      this exact mistake happening again next phase.
+
 ---
 
 ## Study 32 — Document Approval: PDF Signature Placement (2026-08-23)

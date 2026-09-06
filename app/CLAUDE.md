@@ -6,28 +6,35 @@ house patterns, mirroring the role `prototype/go/CLAUDE.md` plays for that codeb
 
 ## What this is, right now
 
-Blueprint stage (see `ARCHITECTURE.md` and `docs/decisions/001-graduation-from-prototype.md`). No
-business logic has been ported from `prototype/go` yet — only a package skeleton (`internal/*/
-doc.go`) and this documentation set. **Do not write real implementation code into these packages
-without checking whether a development plan/roadmap for the port already exists** — this
-blueprint was deliberately built stopping short of that (see `benchmarks/026-runtime-graduation-
-decision.md` at repo root for why porting is a separate, later phase, not part of the blueprint
-itself).
+Past blueprint stage — real code is landing per `ROADMAP.md`'s phased plan (`ARCHITECTURE.md` is
+the blueprint it follows; `docs/decisions/001-graduation-from-prototype.md` is the ADR). **For
+the current phase, read `README.md`'s own "Current status" section** — the one place updated
+every time a phase lands; don't trust a phase number stated anywhere else, including this file,
+to still be accurate. Do not write new implementation code outside what `ROADMAP.md`'s current
+phase calls for without checking it first — the phases are sequenced deliberately (leaf packages
+→ metadata → business logic → HTTP → conformance → CI → cutover), each depending on the last.
 
-## The source of truth for "how we actually work," until code is ported
+## The source of truth for "how we actually work" — not yet migrated here
 
 `../prototype/go/CLAUDE.md` carries this project's entire accumulated "caught live" gotcha catalog
 — real bugs found and fixed, patterns established under real conformance-test pressure, dozens of
-entries. None of it is duplicated here speculatively. **When a piece of `prototype/go` code is
-actually ported into a package here, its own relevant `CLAUDE.md` entries graduate into this file
-at the same time** — verbatim where the code didn't change, updated where the port changed
-something (e.g. `internal/metadata`'s loader.go split, `internal/storage`'s new abstraction). Until
-that happens for a given package, assume `prototype/go/CLAUDE.md`'s own entries about that
-package's `prototype/go` counterpart still apply here too.
+entries. **Status update (2026-09-06): this has NOT kept pace with the port.** `README.md`'s own
+status updates show `model`/`auth`/`db`/`config`/`store`/`internal/storage`/`internal/metadata`/
+`internal/interpreter`/`constraint`/`permission`/`executor`/`internal/ui`/`internal/router`/
+`internal/handler`/`cmd/server` are all ported (Phases 0–3 done) — but this file's own entry set
+is still empty; no `prototype/go/CLAUDE.md` entry has actually graduated yet. This is a named gap,
+not a silent one (`README.md`'s own "How should a document be written?" — cite evidence, don't
+paper over a gap): **until this file has its own entries, `prototype/go/CLAUDE.md`'s entries
+about a now-ported package's `prototype/go` counterpart remain the authoritative pattern catalog
+for the ported code here too** — the code is a verbatim/near-verbatim port, so its gotchas port
+with it even though the documentation about them hasn't moved yet. Migrating the relevant entries
+here (verbatim where the code didn't change, updated where the port changed something — e.g.
+`internal/metadata`'s loader.go split, `internal/storage`'s new abstraction) is unfinished work,
+not a decision that it's unnecessary.
 
 ## Established pattern so far
 
-Each `internal/<name>/doc.go` states, as of the blueprint pass: what it's graduated from (or "NEW"
-for `internal/storage`), its one-sentence responsibility, and the one architectural change (if
-any) this blueprint makes to it. Read the specific package's `doc.go` before touching it — don't
-assume it's a verbatim copy without checking.
+Each `internal/<name>/doc.go` states what it's graduated from (or "NEW" for `internal/storage`),
+its one-sentence responsibility, and the one architectural change (if any) this port makes to it.
+Read the specific package's `doc.go` before touching it — most are verbatim ports (see
+`ARCHITECTURE.md`'s "What's graduated as-is"), but don't assume that without checking.
