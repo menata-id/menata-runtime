@@ -289,6 +289,17 @@ doesn't give" framing (`roadmap.md` item 14). `internal/metadata`'s `validateOpe
 `validateReferences` (currently 0%, genuinely pure functions over `[]*model.Workspace`) are the
 one concrete opportunity this baseline surfaces for a future session, not required by this phase.
 
+**Status update (2026-09-06, taking up that named opportunity, not a new phase):**
+`internal/metadata/validate_test.go` added — `validateOperators` at 100% statement coverage (7
+cases), `validateReferences` at 48.6% (24 cases across reference fields, `owner_field`,
+`cross_record` aggregate/reference_field, process requirement backrefs, money currency, computed
+`source_field` — the headline CAP-F13/CAP-P02 checks plus the largest sub-checks; the View-config
+checks (`child_lines`, list-view sort/filter/steps/report/coord_placement, dashboard sections) and
+Subscription/Contract validation remain untested, a further opportunity for whoever picks this up
+next, not silently claimed done here). Uses `internal/testing/builders` for every case. Full
+219/219 conformance and `go build/vet/test ./...` re-verified; `scripts/check-quality-gates.sh`
+unaffected (test-only change).
+
 `go build ./... && go vet ./... && go test ./...`, `make check-css`, and the full conformance
 suite (219/219, via `local-ci.sh`) all clean after every change in this phase. Proceeding to
 Phase 6 (Cutover) whenever the owner decides to run it.
