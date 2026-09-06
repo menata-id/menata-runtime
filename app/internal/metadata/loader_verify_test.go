@@ -2,12 +2,11 @@ package metadata_test
 
 import (
 	"context"
-	"os"
 	"testing"
 
-	"menata.id/app/internal/db"
 	"menata.id/app/internal/metadata"
 	"menata.id/app/internal/model"
+	"menata.id/app/internal/testing/testdb"
 )
 
 // TestLoadAllAgainstApprovalCase is app/ROADMAP.md's own Phase 1 verify
@@ -17,15 +16,7 @@ import (
 // `make migrate-up && make seed` -- skipped otherwise, same posture
 // prototype/go's own conformance suite takes toward needing a real server.
 func TestLoadAllAgainstApprovalCase(t *testing.T) {
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		t.Skip("DATABASE_URL not set -- see app/ROADMAP.md Phase 1's verify step")
-	}
-	pool, err := db.Connect(dbURL)
-	if err != nil {
-		t.Fatalf("connect: %v", err)
-	}
-	defer pool.Close()
+	pool := testdb.Connect(t)
 
 	workspaces, err := metadata.NewLoader(pool).LoadAll(context.Background())
 	if err != nil {
