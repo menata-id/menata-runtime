@@ -95,3 +95,15 @@ target is set (see `ROADMAP.md`'s own Phase 5 status update) rather than a guess
 percentage, consistent with this project's own "conformance suite IS the test suite" philosophy.
 Full 219/219 conformance and `go test ./...` re-verified after every fix. `menata.app` still
 serves `prototype/go` — Phase 6 (Cutover) is next, whenever the owner decides to run it.
+
+**Status update (2026-09-06, post-Phase-5 engineering-practice hardening):** not a new phase —
+`app/docs/portal-ga3-code-quality-benchmark.md`'s own action items #3–#6 closed: 4 new CI quality
+gates (`scripts/check-quality-gates.sh`: error-leak scan, handler-LOC ratchet, `gocyclo` ratchet,
+actor-parameter convention), `internal/testing` scaffolding (builders/fixtures/httptest/mocks/
+testdb, verified against a real database), an ADR index (`docs/decisions/README.md`), and the
+actor-parameter convention written into `internal/permission/doc.go`. One real CWE-209 error leak
+found and fixed along the way (`admin.go`'s Reload handler). See that document's own "Reconciled
+against a decision this document didn't know about yet" note for how the new `internal/testing`
+scaffolding relates to this same status block's test-coverage target above — it doesn't change
+that target. Full 219/219 conformance and `go build/vet/test ./...` re-verified. `menata.app`
+still serves `prototype/go` — Phase 6 (Cutover) unchanged, still next whenever the owner decides.

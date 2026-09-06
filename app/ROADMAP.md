@@ -293,6 +293,12 @@ one concrete opportunity this baseline surfaces for a future session, not requir
 suite (219/219, via `local-ci.sh`) all clean after every change in this phase. Proceeding to
 Phase 6 (Cutover) whenever the owner decides to run it.
 
+**Status update (2026-09-06, post-Phase-5 hardening, not a new phase):** `app/docs/
+portal-ga3-code-quality-benchmark.md`'s action items #3–#6 closed — quality-ratchet CI gates,
+`internal/testing` scaffolding, ADR index, actor-parameter convention. Full detail in that
+document and in `README.md`'s own mirrored status update; not restated here. Does not change this
+phase's own test-coverage target above — see the benchmark doc's own reconciliation note.
+
 ## Phase 6 — Cutover
 
 **Decision point, not pre-decided here:** does `app/`'s server replace `prototype/go`'s own
