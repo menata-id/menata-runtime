@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Sample — Requirement Checklist</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
+</head>
+<body class="h-full text-slate-900">
+<div class="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-medium text-amber-800">
+  UI Sample — Process Overlay (BRD v2) design exploration. Static mockup, not wired to real data or the runtime. Delete once validated.
+</div>
+<header class="border-b border-slate-200 bg-white px-6 py-4">
+  <div class="mx-auto flex max-w-6xl items-center justify-between">
+    <div class="text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ ui-sample</span></div>
+    <nav hx-boost="true" class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+      <a href="/ui-sample/process-map.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Process Map</a>
+      <a href="/ui-sample/requirement-checklist.html" class="rounded-md bg-white px-3 py-1.5 font-medium text-slate-900 shadow-sm">Requirements</a>
+      <a href="/ui-sample/quorum-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Quorum Approval</a>
+      <a href="/ui-sample/sla-badge.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">SLA</a>
+      <a href="/ui-sample/worklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Worklist</a>
+    </nav>
+  </div>
+</header>
+<main class="mx-auto max-w-2xl px-6 py-8">
+  <div class="mb-4 flex items-center justify-between">
+    <h1 class="text-xl font-semibold text-slate-900">Submit → Submitted</h1>
+    <a href="/ui-sample/process-map.html" class="text-sm text-slate-400 transition hover:text-slate-600">← Back to process map</a>
+  </div>
+  <p class="mb-6 text-sm text-slate-500">
+    CAP-W01: every row below reads a counter/flag already maintained on this record at write-time
+    (§6.3 — write-time fan-in, read-time O(1)) — nothing here queries another table when the page loads.
+  </p>
+
+  <div id="req-card" class="rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      Requirements
+    </div>
+    <ul class="divide-y divide-slate-100">
+      <li class="flex items-start gap-3 px-4 py-4">
+        <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-semibold text-white">✓</span>
+        <div class="flex-1">
+          <div class="text-sm font-medium text-slate-900">Form — Completion notes</div>
+          <div class="text-xs text-slate-400">fld_completion_notes · required, non-empty</div>
+        </div>
+        <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">complete</span>
+      </li>
+
+      <li id="req-photo" class="flex items-start gap-3 px-4 py-4">
+        <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-semibold text-white">✓</span>
+        <div class="flex-1">
+          <div class="text-sm font-medium text-slate-900">Evidence — Completion photo</div>
+          <div class="text-xs text-slate-400">fld_completion_photo · cardinality 1..*</div>
+          <div class="mt-2 h-1.5 w-40 overflow-hidden rounded-full bg-slate-100">
+            <div class="h-full w-full rounded-full bg-emerald-500"></div>
+          </div>
+        </div>
+        <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">2 uploaded, min 1</span>
+      </li>
+
+      <li id="req-report" class="flex items-start gap-3 px-4 py-4">
+        <span id="report-dot" class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-500 text-xs font-semibold text-white">✗</span>
+        <div class="flex-1">
+          <div class="text-sm font-medium text-slate-900">Evidence — Completion report</div>
+          <div class="text-xs text-slate-400">fld_completion_report · cardinality 1..1</div>
+          <div class="mt-2 h-1.5 w-40 overflow-hidden rounded-full bg-slate-100">
+            <div id="report-bar" class="h-full w-0 rounded-full bg-rose-500 transition-all duration-500"></div>
+          </div>
+          <button
+            type="button"
+            class="mt-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50"
+            _="on click
+                 set #report-dot's *background-color to 'rgb(16 185 129)'
+                 put '✓' into #report-dot
+                 set #report-bar's *width to '100%'
+                 set #report-bar's *background-color to 'rgb(16 185 129)'
+                 set #report-status.innerText to '1 uploaded, min 1'
+                 remove .bg-rose-50 from #report-status
+                 remove .text-rose-600 from #report-status
+                 add .bg-emerald-50 to #report-status
+                 add .text-emerald-600 to #report-status
+                 remove @disabled from #submit-btn
+                 remove .cursor-not-allowed from #submit-btn
+                 remove .bg-slate-300 from #submit-btn
+                 add .bg-slate-900 to #submit-btn
+                 add .hover:bg-slate-700 to #submit-btn
+                 set #submit-help.innerText to 'All requirements met — ready to submit.'
+            "
+          >Simulate upload (demo only)</button>
+        </div>
+        <span id="report-status" class="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-600">0 uploaded — required</span>
+      </li>
+    </ul>
+    <div class="border-t border-slate-100 px-4 py-4">
+      <button id="submit-btn" type="button" disabled class="cursor-not-allowed rounded-md bg-slate-300 px-4 py-2 text-sm font-medium text-white">Submit</button>
+      <p id="submit-help" class="mt-2 text-xs text-slate-400">1 requirement remaining — Completion report.</p>
+    </div>
+  </div>
+</main>
+</body>
+</html>

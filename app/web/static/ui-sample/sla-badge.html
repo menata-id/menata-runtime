@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Sample — SLA Badge</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
+</head>
+<body class="h-full text-slate-900">
+<div class="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-medium text-amber-800">
+  UI Sample — Process Overlay (BRD v2) design exploration. Static mockup, not wired to real data or the runtime. Delete once validated.
+</div>
+<header class="border-b border-slate-200 bg-white px-6 py-4">
+  <div class="mx-auto flex max-w-6xl items-center justify-between">
+    <div class="text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ ui-sample</span></div>
+    <nav hx-boost="true" class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+      <a href="/ui-sample/process-map.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Process Map</a>
+      <a href="/ui-sample/requirement-checklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Requirements</a>
+      <a href="/ui-sample/quorum-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Quorum Approval</a>
+      <a href="/ui-sample/sla-badge.html" class="rounded-md bg-white px-3 py-1.5 font-medium text-slate-900 shadow-sm">SLA</a>
+      <a href="/ui-sample/worklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Worklist</a>
+    </nav>
+  </div>
+</header>
+<main class="mx-auto max-w-3xl px-6 py-8">
+  <h1 class="mb-1 text-xl font-semibold text-slate-900">SLA states</h1>
+  <p class="mb-6 text-sm text-slate-500">
+    CAP-W04: one <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">sla { duration, warn, escalate }</code>
+    declaration compiles to CAP-A11 (business-day-aware date arithmetic) + a scheduled event + escalation notify.
+  </p>
+
+  <div class="mb-8 rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">As a list-row pill</div>
+    <div class="space-y-3 p-4">
+      <div class="flex items-center justify-between rounded-md border border-slate-100 px-3 py-2">
+        <span class="text-sm text-slate-700">CA-2041 · Review</span>
+        <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">1d 14h remaining</span>
+      </div>
+      <div class="flex items-center justify-between rounded-md border border-slate-100 px-3 py-2">
+        <span class="text-sm text-slate-700">CA-2044 · Review</span>
+        <span id="warn-badge" class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+          <span id="warn-countdown">03:00:00</span> remaining — warning sent
+        </span>
+      </div>
+      <div class="flex items-center justify-between rounded-md border border-slate-100 px-3 py-2">
+        <span class="text-sm text-slate-700">CA-2039 · Review</span>
+        <span class="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-600">breached 6h ago — escalated</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">As a detail-page banner (breached)</div>
+    <div class="flex items-start gap-3 p-4">
+      <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">!</div>
+      <div class="flex-1">
+        <div class="text-sm font-semibold text-rose-700">This case has breached its SLA</div>
+        <p class="mt-1 text-sm text-rose-600">
+          Review state was due 2026-09-04 17:00 (2 Business Days). Escalated to <span class="font-medium">Manager</span>
+          on 2026-09-04 23:00.
+        </p>
+        <button
+          type="button"
+          class="mt-3 rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-600 shadow-sm hover:bg-rose-50"
+          _="on click add .opacity-40 to me then set me.innerText to 'Acknowledged' then add @disabled to me"
+        >Acknowledge</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var remaining = 3 * 3600; // 3h demo countdown, purely client-side flavor
+      var el = document.getElementById('warn-countdown');
+      function tick() {
+        if (remaining <= 0) return;
+        remaining -= 1;
+        var h = String(Math.floor(remaining / 3600)).padStart(2, '0');
+        var m = String(Math.floor((remaining % 3600) / 60)).padStart(2, '0');
+        var s = String(remaining % 60).padStart(2, '0');
+        el.textContent = h + ':' + m + ':' + s;
+      }
+      setInterval(tick, 1000);
+    })();
+  </script>
+</main>
+</body>
+</html>

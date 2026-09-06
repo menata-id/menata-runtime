@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Sample — Worklist</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
+</head>
+<body class="h-full text-slate-900">
+<div class="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-medium text-amber-800">
+  UI Sample — Process Overlay (BRD v2) design exploration. Static mockup, not wired to real data or the runtime. Delete once validated.
+</div>
+<header class="border-b border-slate-200 bg-white px-6 py-4">
+  <div class="mx-auto flex max-w-6xl items-center justify-between">
+    <div class="text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ ui-sample</span></div>
+    <nav hx-boost="true" class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+      <a href="/ui-sample/process-map.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Process Map</a>
+      <a href="/ui-sample/requirement-checklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Requirements</a>
+      <a href="/ui-sample/quorum-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Quorum Approval</a>
+      <a href="/ui-sample/sla-badge.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">SLA</a>
+      <a href="/ui-sample/worklist.html" class="rounded-md bg-white px-3 py-1.5 font-medium text-slate-900 shadow-sm">Worklist</a>
+    </nav>
+  </div>
+</header>
+<main class="mx-auto max-w-6xl px-6 py-8">
+  <h1 class="mb-1 text-xl font-semibold text-slate-900">Pending my decision</h1>
+  <p class="mb-6 text-sm text-slate-500">
+    §6.3: an indexed query across every Machine's overlay — the one query-shape win Concept A had
+    over v1, closed here by write-time fan-in instead of a second engine or a scan-and-filter.
+  </p>
+
+  <div class="mb-4 flex gap-2 text-sm">
+    <button type="button" class="rounded-full bg-slate-900 px-3 py-1 font-medium text-white" _="on click for b in <button/> in .filter-chip remove .bg-slate-900 from b then remove .text-white from b then add .bg-slate-100 to b then add .text-slate-600 to b end then remove .bg-slate-100 from me then remove .text-slate-600 from me then add .bg-slate-900 to me then add .text-white to me">All (3)</button>
+    <button type="button" class="filter-chip rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600" _="on click for b in <button/> in .filter-chip remove .bg-slate-900 from b then remove .text-white from b then add .bg-slate-100 to b then add .text-slate-600 to b end then remove .bg-slate-100 from me then remove .text-slate-600 from me then add .bg-slate-900 to me then add .text-white to me">Overdue (1)</button>
+    <button type="button" class="filter-chip rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600" _="on click for b in <button/> in .filter-chip remove .bg-slate-900 from b then remove .text-white from b then add .bg-slate-100 to b then add .text-slate-600 to b end then remove .bg-slate-100 from me then remove .text-slate-600 from me then add .bg-slate-900 to me then add .text-white to me">Due today (1)</button>
+  </div>
+
+  <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+    <table class="w-full text-sm">
+      <thead class="border-b border-slate-200 bg-slate-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Case</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Machine</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Waiting on you</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">SLA</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Quorum</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Action</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <tr class="bg-rose-50/40 hover:bg-rose-50">
+          <td class="px-4 py-3 font-medium text-slate-900">LR-0512</td>
+          <td class="px-4 py-3 text-slate-600">Leave Request</td>
+          <td class="px-4 py-3 text-slate-700">Approve</td>
+          <td class="px-4 py-3"><span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">breached 4h ago</span></td>
+          <td class="px-4 py-3 text-slate-500">ANY (1 of 2)</td>
+          <td class="px-4 py-3">
+            <div class="flex gap-2">
+              <button type="button" class="rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white hover:bg-slate-700">Approve</button>
+              <button type="button" class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">Reject</button>
+            </div>
+          </td>
+        </tr>
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3 font-medium text-slate-900">CA-2044</td>
+          <td class="px-4 py-3 text-slate-600">Corrective Action</td>
+          <td class="px-4 py-3 text-slate-700">Verify</td>
+          <td class="px-4 py-3"><span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">1d 2h left</span></td>
+          <td class="px-4 py-3">
+            <a href="/ui-sample/quorum-approval.html" class="text-slate-500 underline decoration-dotted underline-offset-2 hover:text-blue-600">1 of 2 (N_OF_M)</a>
+          </td>
+          <td class="px-4 py-3">
+            <div class="flex gap-2">
+              <button type="button" class="rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white hover:bg-slate-700">Approve</button>
+              <button type="button" class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">Reject</button>
+            </div>
+          </td>
+        </tr>
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3 font-medium text-slate-900">DOC-0091</td>
+          <td class="px-4 py-3 text-slate-600">Document Approval</td>
+          <td class="px-4 py-3 text-slate-700">Approve</td>
+          <td class="px-4 py-3"><span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">on track</span></td>
+          <td class="px-4 py-3 text-slate-500">ALL (2 of 2)</td>
+          <td class="px-4 py-3">
+            <div class="flex gap-2">
+              <button type="button" class="rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white hover:bg-slate-700">Approve</button>
+              <button type="button" class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">Reject</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>

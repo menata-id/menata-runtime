@@ -136,6 +136,16 @@ func main() {
 	r.Handle("/static/*", http.StripPrefix("/static/",
 		http.FileServer(http.Dir("web/static"))))
 
+	// UI Sample sandbox: static HTML/HTMX/Tailwind mockups exercising BRD v2
+	// Process Overlay's display requirements (process map, requirement
+	// checklist, quorum approval, SLA badge, worklist) before any of it is
+	// real capability work. Same trust class as /static/* -- no handler, no
+	// DB, no auth -- deliberately never routed through workspaceTx's real
+	// tables. Delete this route + web/static/ui-sample/ once the design is
+	// validated and ported into internal/ui for real.
+	r.Handle("/ui-sample/*", http.StripPrefix("/ui-sample/",
+		http.FileServer(http.Dir("web/static/ui-sample"))))
+
 	router.Mount(r, h)
 
 	// CAP-E02/E03: a background tick, independent of any HTTP request, for
@@ -424,12 +434,17 @@ func slogAccessLog(next http.Handler) http.Handler {
 // CSRF token already gets, not a per-request permission re-check; a file's
 // own record may itself be behind a role a Visitor-anonymous reader could
 // never see, but the FILE's key was never handed out anywhere the reader
-// couldn't already reach the record it belongs to).
+// couldn't already reach the record it belongs to), and /ui-sample/* (the
+// design-exploration sandbox -- static files, no data, same trust class as
+// /static/*).
 func isPublicPath(path string) bool {
 	if path == "/login" || path == "/health" {
 		return true
 	}
 	if strings.HasPrefix(path, "/webhooks/") || strings.HasPrefix(path, "/files/") {
+		return true
+	}
+	if strings.HasPrefix(path, "/ui-sample/") {
 		return true
 	}
 	return strings.HasPrefix(path, "/static/")

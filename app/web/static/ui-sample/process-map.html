@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Sample — Process Map</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
+</head>
+<body class="h-full text-slate-900">
+<div class="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-medium text-amber-800">
+  UI Sample — Process Overlay (BRD v2) design exploration. Static mockup, not wired to real data or the runtime. Delete once validated.
+</div>
+<header class="border-b border-slate-200 bg-white px-6 py-4">
+  <div class="mx-auto flex max-w-6xl items-center justify-between">
+    <div class="text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ ui-sample</span></div>
+    <nav hx-boost="true" class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+      <a href="/ui-sample/process-map.html" class="rounded-md bg-white px-3 py-1.5 font-medium text-slate-900 shadow-sm">Process Map</a>
+      <a href="/ui-sample/requirement-checklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Requirements</a>
+      <a href="/ui-sample/quorum-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Quorum Approval</a>
+      <a href="/ui-sample/sla-badge.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">SLA</a>
+      <a href="/ui-sample/worklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Worklist</a>
+    </nav>
+  </div>
+</header>
+<main class="mx-auto max-w-6xl px-6 py-8">
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-xl font-semibold text-slate-900">Corrective Action — Process Map</h1>
+      <p class="text-sm text-slate-500">Machine: <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">mch_corrective_action</code> · CAP-W05, read-only, generated from <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">process.states</code>/<code class="rounded bg-slate-100 px-1 py-0.5 text-xs">transitions</code></p>
+    </div>
+    <div class="flex gap-2 text-xs">
+      <span class="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-slate-500"><span class="h-2 w-2 rounded-full bg-slate-400"></span> role actor</span>
+      <span class="flex items-center gap-1 rounded-full border border-blue-200 bg-white px-2 py-1 text-blue-600"><span class="h-2 w-2 rounded-full bg-blue-500"></span> owner_field actor</span>
+      <span class="flex items-center gap-1 rounded-full border border-slate-200 border-dashed bg-white px-2 py-1 text-slate-400"><span class="h-2 w-2 rounded-full bg-slate-300"></span> system / auto</span>
+    </div>
+  </div>
+
+  <!-- Flow diagram -->
+  <div class="mb-6 overflow-x-auto rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="flex min-w-max items-center gap-2">
+      <span class="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 ring-2 ring-blue-100">Open <span class="ml-1 text-[10px] font-semibold uppercase text-blue-400">initial</span></span>
+      <span class="text-slate-300">→</span>
+      <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700">Assigned</span>
+      <span class="text-slate-300">→</span>
+      <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700">In_Progress</span>
+      <span class="text-slate-300">→</span>
+      <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700">Submitted</span>
+      <span class="flex flex-col items-center text-slate-300">
+        <span>→</span>
+        <span class="rounded border border-dashed border-slate-300 px-1 text-[10px] text-slate-400">auto</span>
+      </span>
+      <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700">Review</span>
+      <span class="flex flex-col items-center gap-0.5 text-amber-400">
+        <span>→</span>
+        <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">SLA 2 Business Days</span>
+      </span>
+      <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700">Verified</span>
+      <span class="text-slate-300">→</span>
+      <span class="rounded-full border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-500">Closed</span>
+    </div>
+    <div class="mt-4 flex items-center gap-2 border-t border-slate-100 pt-4 text-xs text-slate-400">
+      <span class="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 font-medium text-rose-600">↺ Revise</span>
+      <span>Review → In_Progress, on <code class="rounded bg-slate-100 px-1 py-0.5">fld_revision_count</code> increment — the WCP-10 revision loop, now visible instead of implied.</span>
+    </div>
+  </div>
+
+  <!-- Transition table -->
+  <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+    <table class="w-full text-sm">
+      <thead class="border-b border-slate-200 bg-slate-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Transition</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">From</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">To</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Actor</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Requirements</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">SLA</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3 font-medium text-slate-700">Assign</td>
+          <td class="px-4 py-3 text-slate-700">Open</td>
+          <td class="px-4 py-3 text-slate-700">Assigned</td>
+          <td class="px-4 py-3"><span class="text-slate-500">role: Supervisor</span></td>
+          <td class="px-4 py-3 text-slate-300">—</td>
+          <td class="px-4 py-3 text-slate-300">—</td>
+        </tr>
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3 font-medium text-slate-700">Start</td>
+          <td class="px-4 py-3 text-slate-700">Assigned</td>
+          <td class="px-4 py-3 text-slate-700">In_Progress</td>
+          <td class="px-4 py-3"><span class="text-blue-600">owner: fld_assignee</span></td>
+          <td class="px-4 py-3 text-slate-300">—</td>
+          <td class="px-4 py-3 text-slate-300">—</td>
+        </tr>
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3 font-medium text-slate-700">Submit</td>
+          <td class="px-4 py-3 text-slate-700">In_Progress</td>
+          <td class="px-4 py-3 text-slate-700">Submitted</td>
+          <td class="px-4 py-3"><span class="text-blue-600">owner: fld_assignee</span></td>
+          <td class="px-4 py-3 text-slate-600">
+            <a href="/ui-sample/requirement-checklist.html" class="underline decoration-dotted underline-offset-2 hover:text-blue-600">form · evidence 1..* · evidence 1..1</a>
+          </td>
+          <td class="px-4 py-3 text-slate-300">—</td>
+        </tr>
+        <tr class="bg-slate-50/50 hover:bg-slate-50">
+          <td class="px-4 py-3 font-medium text-slate-500">(auto)</td>
+          <td class="px-4 py-3 text-slate-500">Submitted</td>
+          <td class="px-4 py-3 text-slate-500">Review</td>
+          <td class="px-4 py-3 text-slate-400">system</td>
+          <td class="px-4 py-3 text-slate-300">—</td>
+          <td class="px-4 py-3 text-slate-300">—</td>
+        </tr>
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3 font-medium text-slate-700">Approve</td>
+          <td class="px-4 py-3 text-slate-700">Review</td>
+          <td class="px-4 py-3 text-slate-700">Verified</td>
+          <td class="px-4 py-3"><span class="text-slate-500">role: Reviewer</span></td>
+          <td class="px-4 py-3 text-slate-300">—</td>
+          <td class="px-4 py-3">
+            <a href="/ui-sample/sla-badge.html" class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 hover:border-amber-300">2 Business Days</a>
+          </td>
+        </tr>
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3 font-medium text-rose-600">Revise</td>
+          <td class="px-4 py-3 text-slate-700">Review</td>
+          <td class="px-4 py-3 text-slate-700">In_Progress</td>
+          <td class="px-4 py-3"><span class="text-slate-500">role: Reviewer</span></td>
+          <td class="px-4 py-3 text-slate-400">fld_revision_count += 1</td>
+          <td class="px-4 py-3 text-slate-300">—</td>
+        </tr>
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3 font-medium text-slate-700">Close</td>
+          <td class="px-4 py-3 text-slate-700">Verified</td>
+          <td class="px-4 py-3 text-slate-700">Closed</td>
+          <td class="px-4 py-3"><span class="text-slate-500">role: Supervisor</span></td>
+          <td class="px-4 py-3 text-slate-300">—</td>
+          <td class="px-4 py-3 text-slate-300">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>

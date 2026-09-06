@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Sample — Process Overlay — Overview</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
+</head>
+<body class="h-full text-slate-900">
+<div class="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-medium text-amber-800">
+  UI Sample — Process Overlay (BRD v2) design exploration. Static mockup, not wired to real data or the runtime. Delete once validated.
+</div>
+<header class="border-b border-slate-200 bg-white px-6 py-4">
+  <div class="mx-auto flex max-w-6xl items-center justify-between">
+    <div class="text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ ui-sample</span></div>
+    <nav hx-boost="true" class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+      <a href="/ui-sample/process-map.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Process Map</a>
+      <a href="/ui-sample/requirement-checklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Requirements</a>
+      <a href="/ui-sample/quorum-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Quorum Approval</a>
+      <a href="/ui-sample/sla-badge.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">SLA</a>
+      <a href="/ui-sample/worklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Worklist</a>
+    </nav>
+  </div>
+</header>
+<main class="mx-auto max-w-6xl px-6 py-10">
+  <h1 class="text-2xl font-semibold text-slate-900">Process Overlay — display requirements</h1>
+  <p class="mt-2 max-w-3xl text-sm text-slate-600">
+    Derived from <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">brd-menata-runtime-v2.md</code>
+    §7–9: five screens that make a declared <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">process</code>
+    block legible without reading raw metadata. Each is a standalone static page — click through with the
+    nav above (htmx <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">hx-boost</code> is wired on it),
+    interactive bits use hyperscript only, exactly like the real app's own CAP-V14/V15/V16/V21 widgets.
+  </p>
+
+  <div class="mt-8 grid gap-4 sm:grid-cols-2">
+    <a href="/ui-sample/process-map.html" class="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div class="text-xs font-semibold uppercase tracking-wide text-blue-600">CAP-W05</div>
+      <div class="mt-1 text-base font-semibold text-slate-900">Process Map</div>
+      <p class="mt-1 text-sm text-slate-500">Read-only state/transition graph rendered from a Machine's <code>process</code> block, richer than today's two-table view.</p>
+    </a>
+    <a href="/ui-sample/requirement-checklist.html" class="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div class="text-xs font-semibold uppercase tracking-wide text-blue-600">CAP-W01</div>
+      <div class="mt-1 text-base font-semibold text-slate-900">Requirement Checklist</div>
+      <p class="mt-1 text-sm text-slate-500">What a transition needs before it fires — form fields, evidence with cardinality, tasks — read from maintained counters, never queried live.</p>
+    </a>
+    <a href="/ui-sample/quorum-approval.html" class="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div class="text-xs font-semibold uppercase tracking-wide text-blue-600">CAP-W03</div>
+      <div class="mt-1 text-base font-semibold text-slate-900">Quorum Approval</div>
+      <p class="mt-1 text-sm text-slate-500">ALL / ANY / N_OF_M approval widget — who has decided, who's pending, and whether quorum is already met.</p>
+    </a>
+    <a href="/ui-sample/sla-badge.html" class="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div class="text-xs font-semibold uppercase tracking-wide text-blue-600">CAP-W04</div>
+      <div class="mt-1 text-base font-semibold text-slate-900">SLA Badge</div>
+      <p class="mt-1 text-sm text-slate-500">On-track / warning / breached states for a state's SLA, as a list-row pill and as a detail-page banner.</p>
+    </a>
+    <a href="/ui-sample/worklist.html" class="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md sm:col-span-2">
+      <div class="text-xs font-semibold uppercase tracking-wide text-blue-600">§6.3 — indexed worklist</div>
+      <div class="mt-1 text-base font-semibold text-slate-900">"Pending my decision"</div>
+      <p class="mt-1 text-sm text-slate-500">One cross-Machine, indexed queue — the query win Concept A had over v1, closed by write-time fan-in instead of a second engine.</p>
+    </a>
+  </div>
+</main>
+</body>
+</html>

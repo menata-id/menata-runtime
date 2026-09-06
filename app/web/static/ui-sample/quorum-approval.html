@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Sample — Quorum Approval</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
+</head>
+<body class="h-full text-slate-900">
+<div class="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-medium text-amber-800">
+  UI Sample — Process Overlay (BRD v2) design exploration. Static mockup, not wired to real data or the runtime. Delete once validated.
+</div>
+<header class="border-b border-slate-200 bg-white px-6 py-4">
+  <div class="mx-auto flex max-w-6xl items-center justify-between">
+    <div class="text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ ui-sample</span></div>
+    <nav hx-boost="true" class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+      <a href="/ui-sample/process-map.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Process Map</a>
+      <a href="/ui-sample/requirement-checklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Requirements</a>
+      <a href="/ui-sample/quorum-approval.html" class="rounded-md bg-white px-3 py-1.5 font-medium text-slate-900 shadow-sm">Quorum Approval</a>
+      <a href="/ui-sample/sla-badge.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">SLA</a>
+      <a href="/ui-sample/worklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Worklist</a>
+    </nav>
+  </div>
+</header>
+<main class="mx-auto max-w-2xl px-6 py-8">
+  <div class="mb-4 flex items-center justify-between">
+    <h1 class="text-xl font-semibold text-slate-900">Verify</h1>
+    <a href="/ui-sample/process-map.html" class="text-sm text-slate-400 transition hover:text-slate-600">← Back to process map</a>
+  </div>
+  <p class="mb-6 text-sm text-slate-500">
+    CAP-W03: quorum <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">N_OF_M</code>, generalizing CAP-A08's
+    parallel-approval rollup with a configured parameter instead of a hand-authored <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">min_approvals</code>.
+  </p>
+
+  <div id="quorum-card" class="rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+      <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">2 of 3 reviewers required</span>
+      <span id="quorum-count" class="text-xs font-semibold text-slate-500">1 / 2</span>
+    </div>
+    <div class="px-4 pt-4">
+      <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+        <div id="quorum-bar" class="h-full w-1/2 rounded-full bg-blue-500 transition-all duration-500"></div>
+      </div>
+    </div>
+
+    <ul class="divide-y divide-slate-100">
+      <li class="flex items-center gap-3 px-4 py-4">
+        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">DR</span>
+        <div class="flex-1">
+          <div class="text-sm font-medium text-slate-900">Dian Ramadhan</div>
+          <div class="text-xs text-slate-400">Reviewer</div>
+        </div>
+        <span class="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">✓ Approved</span>
+      </li>
+
+      <li id="row-you" class="flex items-center gap-3 px-4 py-4">
+        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">You</span>
+        <div class="flex-1">
+          <div class="text-sm font-medium text-slate-900">You</div>
+          <div class="text-xs text-slate-400">Reviewer</div>
+        </div>
+        <div id="you-actions" class="flex gap-2">
+          <button
+            type="button"
+            class="rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white shadow-sm transition-colors hover:bg-slate-700"
+            _="on click
+                 set #you-actions.innerHTML to '<span class=&quot;flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600&quot;>✓ Approved</span>'
+                 set #quorum-count.innerText to '2 / 2'
+                 set #quorum-bar's *width to '100%'
+                 remove .bg-blue-500 from #quorum-bar
+                 add .bg-emerald-500 to #quorum-bar
+                 remove .border-slate-200 from #quorum-card
+                 add .border-emerald-300 from #quorum-card
+                 remove @disabled from #verify-btn
+                 remove .cursor-not-allowed from #verify-btn
+                 remove .bg-slate-300 from #verify-btn
+                 add .bg-emerald-600 to #verify-btn
+                 add .hover:bg-emerald-500 to #verify-btn
+                 set #quorum-help.innerText to 'Quorum met — Verify is now enabled.'
+            "
+          >Approve</button>
+          <button type="button" class="rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50">Reject</button>
+        </div>
+      </li>
+
+      <li class="flex items-center gap-3 px-4 py-4">
+        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">MP</span>
+        <div class="flex-1">
+          <div class="text-sm font-medium text-slate-900">Maya Puspita</div>
+          <div class="text-xs text-slate-400">Reviewer</div>
+        </div>
+        <span class="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Pending</span>
+      </li>
+    </ul>
+
+    <div class="border-t border-slate-100 px-4 py-4">
+      <button id="verify-btn" type="button" disabled class="cursor-not-allowed rounded-md bg-slate-300 px-4 py-2 text-sm font-medium text-white">Verify</button>
+      <p id="quorum-help" class="mt-2 text-xs text-slate-400">Waiting on 1 more approval to meet quorum (2 of 3).</p>
+    </div>
+  </div>
+</main>
+</body>
+</html>
