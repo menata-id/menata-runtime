@@ -2524,6 +2524,27 @@ zero regressions. CAP-O10 (email invitation) and CAP-X15 (custom domain) remain 
 
 ---
 
+## Study 36 — One Identity, Many Workspaces: a Login-Time Workspace Picker (2026-09-06)
+
+Owner follow-up to CAP-O09's own build, same day: if the same email legitimately ends up
+belonging to more than one Workspace, show a "choose a workspace" screen after login instead of
+blocking it. Full benchmark: `benchmarks/028-multi-workspace-identity-benchmark.md`. Checked
+first, not assumed: this isn't UI-only — today's `users` row conflates identity with workspace
+membership (`UNIQUE(workspace_id, email)`), and `UserStore.GetByEmail` already resolves
+ambiguously by design (CAP-O09's own registry row names the same gap). A 5-platform comparator
+survey (Notion, Atlassian, Basecamp/37signals ID as the clean pattern — one global identity,
+membership as a separate relation, picker only when genuinely ambiguous; Slack's per-workspace-
+account model and Microsoft 365's personal/tenant email overlap named explicitly as the weaker
+patterns not to copy) grounds **CAP-O11**, registered ❌ Proposed in `capability-registry.md`
+(Workspace Services), with CAP-O01's own row gaining a pointer note (unchanged, still ✅). Real
+data check, not hypothetical: the live dev database has zero emails currently colliding across
+workspaces, so the proposed migration (new `workspace_memberships` table, same shape CAP-O07's
+`group_members` already proved) is lossless today — named as something to re-verify at
+implementation time, not trusted to still hold later. No code changed this pass — registration +
+benchmark only.
+
+---
+
 # Principles
 
 - **The map before the territory** — benchmark catalogs predict gaps before cases find them.
