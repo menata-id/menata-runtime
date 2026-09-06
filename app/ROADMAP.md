@@ -98,6 +98,14 @@ already-ported packages (Study 34 §7 Method 2), verbatim.
 **Milestone:** the full business-logic layer is portable and unit-testable in isolation, still no
 HTTP server.
 
+**Status update (2026-09-06):** Done. `constraint`/`permission`/`executor` ported verbatim (diffed
+against `prototype/go`, only the expected import-path lines differ). Two new go.mod dependencies
+pinned to `prototype/go/go.mod`'s own versions: `github.com/go-chi/chi/v5 v5.0.12` (executor uses
+its `middleware` package), `github.com/pdfcpu/pdfcpu v0.15.0` (CAP-F22 composite PDF signature).
+`internal/executor/executor_test.go` ported unchanged — all 14 cases pass, including the "-"
+operator fix (2026-09-05). `go build ./... && go vet ./... && go test ./...` clean. Proceeding to
+Phase 3.
+
 ## Phase 3 — HTTP layer
 
 **Port:** `internal/ui` (including the `.templ` sources and generated `_templ.go` files),

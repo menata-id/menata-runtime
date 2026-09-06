@@ -49,3 +49,10 @@ back cleanly against a real Postgres database. `internal/metadata`'s new
 a freshly migrated + seeded database. See `ROADMAP.md`'s own Phase 1 status update and
 `DEVELOPMENT.md`'s new "database setup" section for the how-to. `menata.app` still serves
 `prototype/go` — still Phase 6's decision, not before. Next: Phase 2 (business logic layer).
+
+**Status update (2026-09-06, Phase 2):** `constraint`/`permission`/`executor` ported verbatim
+(diffed against `prototype/go`, only import-path lines differ). `internal/executor/executor_test.go`
+ported unchanged, all 14 cases pass. Two new pinned dependencies: `github.com/go-chi/chi/v5` and
+`github.com/pdfcpu/pdfcpu`, matching `prototype/go/go.mod`'s own versions. `go build ./... && go
+vet ./... && go test ./...` clean. `menata.app` still serves `prototype/go`. Next: Phase 3 (HTTP
+layer).
