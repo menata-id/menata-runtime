@@ -55,13 +55,39 @@ from `prototype/go`'s `menata_runtime` (never point `app/`'s tooling at that dat
 live `menata.app` dev deployment's own data). Local dev:
 
 ```bash
-createdb menata_app   # once
 cd app
-export DATABASE_URL="postgres://postgres:password@localhost:5432/menata_app?sslmode=disable"
 make migrate-up       # goose (see Makefile) -- applies migrations/*.sql, tracked in goose_db_version
-make seed             # currently seeds/001_design_request.sql + 004_approval.sql (Case 3) only,
-                       # per ROADMAP.md Phase 1's scope -- grows to all 38 at Phase 4
+make seed             # every seeds/NNN_*.sql file (all 37, per ROADMAP.md Phase 4) except
+                       # 023/025/028, applied dynamically by the specific conformance tests
+                       # that need them -- see Makefile's own seed target comment
 ```
+
+**Status update (2026-09-06, Phase 4): dedicated database role, not `postgres`.** Phase 0–3's own
+verification used the shared `postgres` superuser directly against a `menata_app` database created
+ad hoc — expedient, but exactly the practice `prototype/go/DEVELOPMENT.md`'s own "Database role"
+section warns against (that role is cluster-wide on this shared host, running other apps'
+production databases too — it has already caused a real outage for another app once). Corrected
+here, same pattern prototype/go already established for `menata_runtime`/`menata_runtime_app`:
+
+```sql
+CREATE ROLE menata_app_owner WITH LOGIN PASSWORD '<strong-random-password>' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+CREATE DATABASE menata_app OWNER menata_app_owner;
+```
+
+`.env`'s `DATABASE_URL` uses this role, never `postgres`:
+
+```env
+DATABASE_URL=postgres://menata_app_owner:<password>@localhost:5432/menata_app?sslmode=disable
+PORT=4001
+SECURE_COOKIES=false
+```
+
+Owning the database gives this role everything `migrate-up`/`seed` need (including
+`CREATE EXTENSION pgcrypto`, a trusted extension installable without superuser) — verified by
+re-running the full migrate-up → seed → boot → conformance cycle end to end under this role alone,
+219/219 still passing. **Always use a dedicated role scoped to one database — never the shared
+`postgres` account — on any host that isn't exclusively yours**, the same rule
+`prototype/go/DEVELOPMENT.md` states for exactly this reason.
 
 `make migrate-down` reverses every migration (verified round-trip clean during Phase 1).
 `migrations/manual/009_workspace_isolation_rls.sql` is deliberately excluded from `migrate-up`

@@ -530,9 +530,13 @@ func TypeaheadPicker(name, value, label, url string) templ.Component {
 // FieldOptionsFragment (CAP-V16) is the HTMX-swapped response
 // TypeaheadPicker's search input targets -- handler.FieldOptions renders
 // this directly (not a full page). data-* attributes carry the option's id/
-// label for the page-level delegated click listener (layout.templ) to read
-// -- never interpolated into an inline event-handler attribute, which would
-// need escaping a Label as JS source, not just as an HTML attribute value.
+// label for each option's own Hyperscript click handler (app/ROADMAP.md
+// Phase 4 client-side JavaScript policy correction -- this used to be a
+// page-level delegated vanilla-JS listener in layout.templ) to read -- never
+// interpolated into the handler itself, which would need escaping a Label as
+// JS source, not just as an HTML attribute value. Hyperscript auto-wires a
+// freshly HTMX-swapped-in element the same as one present at initial page
+// load, so a per-option `_` attribute here needs no re-initialization step.
 func FieldOptionsFragment(target string, opts []ReferenceOption) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -568,7 +572,7 @@ func FieldOptionsFragment(target string, opts []ReferenceOption) templ.Component
 				var templ_7745c5c3_Var30 string
 				templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(target)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 109, Col: 24}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 113, Col: 24}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 				if templ_7745c5c3_Err != nil {
@@ -581,7 +585,7 @@ func FieldOptionsFragment(target string, opts []ReferenceOption) templ.Component
 				var templ_7745c5c3_Var31 string
 				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(opt.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 110, Col: 20}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 114, Col: 20}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 				if templ_7745c5c3_Err != nil {
@@ -594,20 +598,20 @@ func FieldOptionsFragment(target string, opts []ReferenceOption) templ.Component
 				var templ_7745c5c3_Var32 string
 				templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue(opt.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 111, Col: 26}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 115, Col: 26}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "\" _=\"on click\n\t\t\t\t\tjs(me)\n\t\t\t\t\t\tvar target = me.dataset.target;\n\t\t\t\t\t\tvar hidden = document.getElementById(target);\n\t\t\t\t\t\tvar search = document.getElementById(target + '_search');\n\t\t\t\t\t\tvar list = document.getElementById(target + '_opts');\n\t\t\t\t\t\tif (hidden) hidden.value = me.dataset.id;\n\t\t\t\t\t\tif (search) search.value = me.dataset.label;\n\t\t\t\t\t\tif (list) list.innerHTML = '';\n\t\t\t\t\tend\n\t\t\t\tend\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var33 string
 				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(opt.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 112, Col: 15}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 127, Col: 15}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 				if templ_7745c5c3_Err != nil {
@@ -660,7 +664,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 		var templ_7745c5c3_Var35 string
 		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 128, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 143, Col: 19}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 		if templ_7745c5c3_Err != nil {
@@ -673,7 +677,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 		var templ_7745c5c3_Var36 string
 		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 129, Col: 11}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 144, Col: 11}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 		if templ_7745c5c3_Err != nil {
@@ -708,7 +712,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 				var templ_7745c5c3_Var37 string
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 140, Col: 14}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 155, Col: 14}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 				if templ_7745c5c3_Err != nil {
@@ -721,7 +725,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 141, Col: 16}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 156, Col: 16}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 				if templ_7745c5c3_Err != nil {
@@ -739,7 +743,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 					var templ_7745c5c3_Var39 string
 					templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue(livePreviewURL)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 144, Col: 39}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 159, Col: 39}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 					if templ_7745c5c3_Err != nil {
@@ -752,7 +756,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 					var templ_7745c5c3_Var40 string
 					templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue(livePreviewField)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 145, Col: 43}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 160, Col: 43}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 					if templ_7745c5c3_Err != nil {
@@ -775,7 +779,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 					var templ_7745c5c3_Var41 string
 					templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue(opt.ID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 150, Col: 28}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 165, Col: 28}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 					if templ_7745c5c3_Err != nil {
@@ -798,7 +802,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 					var templ_7745c5c3_Var42 string
 					templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(opt.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 150, Col: 72}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 165, Col: 72}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 					if templ_7745c5c3_Err != nil {
@@ -821,7 +825,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 					var templ_7745c5c3_Var43 string
 					templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(livePreviewLabel)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 154, Col: 57}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 169, Col: 57}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 					if templ_7745c5c3_Err != nil {
@@ -841,7 +845,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var44 string
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 159, Col: 13}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 174, Col: 13}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 			if templ_7745c5c3_Err != nil {
@@ -854,7 +858,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var45 string
 			templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 160, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 175, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var45)
 			if templ_7745c5c3_Err != nil {
@@ -867,7 +871,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var46 string
 			templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 163, Col: 11}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 178, Col: 11}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 			if templ_7745c5c3_Err != nil {
@@ -885,7 +889,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var47 string
 			templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 166, Col: 13}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 181, Col: 13}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 			if templ_7745c5c3_Err != nil {
@@ -898,7 +902,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var48 string
 			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 167, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 182, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
 			if templ_7745c5c3_Err != nil {
@@ -916,7 +920,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 				var templ_7745c5c3_Var49 string
 				templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(opt)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 172, Col: 24}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 187, Col: 24}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 				if templ_7745c5c3_Err != nil {
@@ -939,7 +943,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 				var templ_7745c5c3_Var50 string
 				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(opt)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 172, Col: 59}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 187, Col: 59}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 				if templ_7745c5c3_Err != nil {
@@ -962,7 +966,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var51 string
 			templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 178, Col: 13}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 193, Col: 13}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var51)
 			if templ_7745c5c3_Err != nil {
@@ -975,7 +979,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var52 string
 			templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 179, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 194, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 			if templ_7745c5c3_Err != nil {
@@ -988,7 +992,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var53 string
 			templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue(value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 180, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 195, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 			if templ_7745c5c3_Err != nil {
@@ -1006,7 +1010,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var54 string
 			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 186, Col: 13}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 201, Col: 13}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 			if templ_7745c5c3_Err != nil {
@@ -1019,7 +1023,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var55 string
 			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 187, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 202, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var55)
 			if templ_7745c5c3_Err != nil {
@@ -1032,7 +1036,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var56 string
 			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 188, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 203, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 			if templ_7745c5c3_Err != nil {
@@ -1050,7 +1054,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var57 string
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 194, Col: 13}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 209, Col: 13}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 			if templ_7745c5c3_Err != nil {
@@ -1063,7 +1067,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var58 string
 			templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 195, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 210, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var58)
 			if templ_7745c5c3_Err != nil {
@@ -1076,7 +1080,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var59 string
 			templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue(value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 196, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 211, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
 			if templ_7745c5c3_Err != nil {
@@ -1094,7 +1098,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var60 string
 			templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 204, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 219, Col: 14}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var60)
 			if templ_7745c5c3_Err != nil {
@@ -1107,7 +1111,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var61 string
 			templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 205, Col: 16}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 220, Col: 16}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var61)
 			if templ_7745c5c3_Err != nil {
@@ -1120,7 +1124,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var62 string
 			templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.ResolveAttributeValue(value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 206, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 221, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var62)
 			if templ_7745c5c3_Err != nil {
@@ -1138,7 +1142,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var63 string
 			templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 215, Col: 13}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 230, Col: 13}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var63)
 			if templ_7745c5c3_Err != nil {
@@ -1151,7 +1155,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var64 string
 			templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 216, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 231, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var64)
 			if templ_7745c5c3_Err != nil {
@@ -1164,7 +1168,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var65 string
 			templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.ResolveAttributeValue(value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 217, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 232, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var65)
 			if templ_7745c5c3_Err != nil {
@@ -1182,7 +1186,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var66 string
 			templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 224, Col: 13}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 239, Col: 13}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var66)
 			if templ_7745c5c3_Err != nil {
@@ -1195,7 +1199,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var67 string
 			templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 225, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 240, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var67)
 			if templ_7745c5c3_Err != nil {
@@ -1208,7 +1212,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var68 string
 			templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.ResolveAttributeValue(value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 226, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 241, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var68)
 			if templ_7745c5c3_Err != nil {
@@ -1226,7 +1230,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var69 string
 			templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 232, Col: 13}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 247, Col: 13}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var69)
 			if templ_7745c5c3_Err != nil {
@@ -1239,7 +1243,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var70 string
 			templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 233, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 248, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var70)
 			if templ_7745c5c3_Err != nil {
@@ -1267,7 +1271,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var71 string
 			templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 241, Col: 13}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 256, Col: 13}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var71)
 			if templ_7745c5c3_Err != nil {
@@ -1280,7 +1284,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var72 string
 			templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 242, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 257, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var72)
 			if templ_7745c5c3_Err != nil {
@@ -1298,7 +1302,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var73 string
 			templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 248, Col: 13}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 263, Col: 13}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var73)
 			if templ_7745c5c3_Err != nil {
@@ -1311,7 +1315,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var74 string
 			templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 249, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 264, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var74)
 			if templ_7745c5c3_Err != nil {
@@ -1324,7 +1328,7 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 			var templ_7745c5c3_Var75 string
 			templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.ResolveAttributeValue(value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 250, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 265, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var75)
 			if templ_7745c5c3_Err != nil {
@@ -1349,12 +1353,15 @@ func FieldInput(f *model.Field, name, value string, refOptions []ReferenceOption
 // Empty rows are simply ignored by the handler on submit, not rejected.
 //
 // CAP-V15: sumFieldA/B (empty = no live total shown) name the two Fields a
-// live, client-side running total is kept for -- purely presentational,
-// read by layout.templ's one static, page-level, non-interpolated 'input'
-// listener via this element's own data-sum-a-field/data-sum-b-field
-// attributes, not by any per-render script (same discipline CAP-V16's own
-// TypeaheadPicker already established: config flows through data-*
-// attributes, never string-concatenated into JS source).
+// live, client-side running total is kept for -- purely presentational.
+// app/ROADMAP.md Phase 4 client-side JavaScript policy correction: this
+// used to be read by layout.templ's page-level delegated 'input' listener;
+// now it's this element's own Hyperscript `on input` handler, listening on
+// itself and relying on ordinary DOM event bubbling from its own row
+// inputs -- same data-sum-a-field/data-sum-b-field config attributes, same
+// discipline CAP-V16's own TypeaheadPicker already established (config
+// flows through data-* attributes, never string-concatenated into JS
+// source).
 func ChildLinesSection(title string, rows [][]FormField, sumFieldA, sumFieldALabel, sumFieldB, sumFieldBLabel string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -1388,7 +1395,7 @@ func ChildLinesSection(title string, rows [][]FormField, sumFieldA, sumFieldALab
 			var templ_7745c5c3_Var77 string
 			templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.ResolveAttributeValue(sumFieldA)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 273, Col: 31}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 291, Col: 31}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var77)
 			if templ_7745c5c3_Err != nil {
@@ -1401,13 +1408,13 @@ func ChildLinesSection(title string, rows [][]FormField, sumFieldA, sumFieldALab
 			var templ_7745c5c3_Var78 string
 			templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.ResolveAttributeValue(sumFieldB)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 274, Col: 31}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 292, Col: 31}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var78)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "\" _=\"on input\n\t\t\t\tjs(me)\n\t\t\t\t\tvar fa = me.dataset.sumAField, fb = me.dataset.sumBField;\n\t\t\t\t\tvar sumA = 0, sumB = 0;\n\t\t\t\t\tme.querySelectorAll('input[name$=_' + fa + ']').forEach(function(i) {\n\t\t\t\t\t\tsumA += parseFloat(i.value) || 0;\n\t\t\t\t\t});\n\t\t\t\t\tif (fb) {\n\t\t\t\t\t\tme.querySelectorAll('input[name$=_' + fb + ']').forEach(function(i) {\n\t\t\t\t\t\t\tsumB += parseFloat(i.value) || 0;\n\t\t\t\t\t\t});\n\t\t\t\t\t}\n\t\t\t\t\tvar elA = me.querySelector('.js-sum-a'), elB = me.querySelector('.js-sum-b');\n\t\t\t\t\tif (elA) elA.textContent = sumA.toFixed(2);\n\t\t\t\t\tif (elB) elB.textContent = sumB.toFixed(2);\n\t\t\t\tend\n\t\t\tend\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1419,7 +1426,7 @@ func ChildLinesSection(title string, rows [][]FormField, sumFieldA, sumFieldALab
 		var templ_7745c5c3_Var79 string
 		templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 277, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 312, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var79))
 		if templ_7745c5c3_Err != nil {
@@ -1457,7 +1464,7 @@ func ChildLinesSection(title string, rows [][]FormField, sumFieldA, sumFieldALab
 			var templ_7745c5c3_Var80 string
 			templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(sumFieldALabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 288, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 323, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 			if templ_7745c5c3_Err != nil {
@@ -1475,7 +1482,7 @@ func ChildLinesSection(title string, rows [][]FormField, sumFieldA, sumFieldALab
 				var templ_7745c5c3_Var81 string
 				templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(sumFieldBLabel)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 290, Col: 33}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components.templ`, Line: 325, Col: 33}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 				if templ_7745c5c3_Err != nil {

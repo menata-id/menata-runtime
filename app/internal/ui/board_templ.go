@@ -12,13 +12,16 @@ import "strconv"
 import "menata.id/app/internal/model"
 
 // Board (CAP-V14 Tier 2) renders a kanban board: one lane per GroupField
-// value_list option, cards draggable between lanes (layout.templ's own
-// dragstart/dragover/drop listeners -- see that file's own doc comment).
-// Every declared lane renders even when empty (BoardLane's own doc comment)
-// so an unused option still shows up as a valid drop target. The board
-// itself needs no htmx/JS to render correctly -- only the drag gesture
-// needs the script; a client with JS disabled still sees every card in its
-// correct lane, just without the ability to move one.
+// value_list option, cards draggable between lanes -- each card's own
+// Hyperscript `on dragstart` and each lane body's own `on dragover`/
+// `on drop` handlers below (app/ROADMAP.md Phase 4 client-side JavaScript
+// policy correction -- these used to be page-level delegated vanilla-JS
+// listeners in layout.templ). Every declared lane renders even when empty
+// (BoardLane's own doc comment) so an unused option still shows up as a
+// valid drop target. The board itself needs no htmx/JS to render correctly
+// -- only the drag gesture needs Hyperscript; a client with JS disabled
+// still sees every card in its correct lane, just without the ability to
+// move one.
 func Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName, groupField string, columns []ColumnDef, lanes []BoardLane, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -59,7 +62,7 @@ func Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(viewName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 17, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 20, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -82,7 +85,7 @@ func Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(machine.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 24, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 27, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -95,7 +98,7 @@ func Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfToken)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 25, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 28, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -113,7 +116,7 @@ func Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(lane.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 28, Col: 110}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 31, Col: 110}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 				if templ_7745c5c3_Err != nil {
@@ -126,7 +129,7 @@ func Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(lane.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 30, Col: 17}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 33, Col: 17}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -139,13 +142,13 @@ func Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(lane.Rows)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 31, Col: 71}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 34, Col: 71}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, ")</span></h2><div class=\"board-lane-body min-h-16 space-y-2 p-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, ")</span></h2><div class=\"board-lane-body min-h-16 space-y-2 p-2\" _=\"on dragover\n\t\t\t\t\t\t\tjs(event) event.preventDefault() end\n\t\t\t\t\t\tend\n\t\t\t\t\t\ton drop\n\t\t\t\t\t\t\tjs(event, me)\n\t\t\t\t\t\t\t\tevent.preventDefault();\n\t\t\t\t\t\t\t\tvar recordId = event.dataTransfer.getData('text/plain');\n\t\t\t\t\t\t\t\tvar lane = me.closest('.board-lane').dataset.lane;\n\t\t\t\t\t\t\t\tvar board = me.closest('[data-board-machine]');\n\t\t\t\t\t\t\t\tif (!recordId || !lane || !board) return;\n\t\t\t\t\t\t\t\tfetch('/' + board.dataset.boardMachine + '/' + recordId + '/board-move', {\n\t\t\t\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\t\t\t\theaders: { 'Content-Type': 'application/x-www-form-urlencoded' },\n\t\t\t\t\t\t\t\t\tbody: 'lane=' + encodeURIComponent(lane) + '&csrf_token=' + encodeURIComponent(board.dataset.boardCsrf)\n\t\t\t\t\t\t\t\t}).then(function() { location.reload(); });\n\t\t\t\t\t\t\tend\n\t\t\t\t\t\tend\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -163,7 +166,7 @@ func Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 					var templ_7745c5c3_Var9 templ.SafeURL
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + machine.ID + "/" + row.ID))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 41, Col: 61}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 63, Col: 61}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 					if templ_7745c5c3_Err != nil {
@@ -176,13 +179,13 @@ func Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(row.ID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 44, Col: 31}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 66, Col: 31}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" _=\"on dragstart\n\t\t\t\t\t\t\t\t\tjs(event, me) event.dataTransfer.setData('text/plain', me.dataset.recordId) end\n\t\t\t\t\t\t\t\tend\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -195,7 +198,7 @@ func Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *mod
 							var templ_7745c5c3_Var11 string
 							templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(cell.Value)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 48, Col: 59}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `board.templ`, Line: 73, Col: 59}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 							if templ_7745c5c3_Err != nil {

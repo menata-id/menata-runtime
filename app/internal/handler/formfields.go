@@ -117,7 +117,7 @@ func (h *Handler) buildFormFieldsFor(ctx context.Context, machine *model.Machine
 				if c.CrossRecord == nil || c.CrossRecord.Kind != "reference_field" || c.CrossRecord.ReferenceField != f.ID {
 					continue
 				}
-				ff.LivePreviewURL = "/api/" + f.Options.TargetMachine + "/"
+				ff.LivePreviewURL = "/api/v1/" + f.Options.TargetMachine + "/"
 				ff.LivePreviewField = c.CrossRecord.TargetField
 				if targetMachine, ok := h.interp.Get().GetMachine(f.Options.TargetMachine); ok {
 					if tf, ok := fieldIndex(targetMachine)[c.CrossRecord.TargetField]; ok {

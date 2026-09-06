@@ -178,6 +178,55 @@ time together with conformance, not as a substitute for it.
 **Milestone:** `app/`'s own conformance suite passes at full parity with whatever
 `prototype/go`'s own count is at the time this phase runs (219 as of this roadmap's writing).
 
+**Status update (2026-09-06):** Done — 219/219, full parity, via `./scripts/local-ci.sh`'s own
+fully automated isolated-schema/throwaway-port cycle (migrate-up → seed → build → boot →
+conformance), not just a manually-managed database.
+
+**Ported:** all 37 `seeds/*.sql` files (the roadmap's own "38" was an overcount — 37 exist, no
+`018`), the full `conformance/` suite (15 test files + `run.sh`/`lib.sh`/`README.md`),
+`scripts/local-ci.sh` (adjusted for `app/`'s own `menata_app` database and doc framing) and
+`scripts/check-css-classes.sh` (unchanged), and `web/` (`tailwind.config.js`, `package.json`,
+`input.css` — `output.css` is a gitignored build artifact, regenerated via `make build-css`,
+confirmed working with Node 20).
+
+**Client-side JavaScript policy correction:** the four named capabilities (CAP-V16 typeahead,
+CAP-V15 live-sum, CAP-V14 kanban drag-drop, CAP-V21 coordinate-placement) moved off
+`layout.templ`'s page-global delegated `<script>` block onto per-element Hyperscript `_="..."`
+attributes (`components.templ`, `board.templ`, `coordplace.templ`), each using Hyperscript's own
+`js(...)` escape for the DOM/fetch logic that doesn't have a natural Hyperscript-native form —
+colocated on the actual element, auto-reinitializing on an HTMX swap, not a growing shared file.
+Hyperscript pinned via CDN (`hyperscript.org@0.9.93`, latest stable at port time), same pattern
+`htmx.org@2.0.4` already uses. **Found, not fixed (flagged for a future pass):** CAP-V19
+(reference-field live preview) sits in the exact same shared script block in an identical
+situation, but was never one of the four this phase's own audit named — left as vanilla JS,
+unconverted, since converting it wasn't in this phase's actual scope.
+
+**Two real regressions found and fixed by the conformance run itself** (exactly what "ratchet,
+never regress" and this phase's own verify step exist to catch):
+1. **The rate limiter (Phase 3) was calibrated too aggressively for real use.** First full run: 121
+   passed, 98 failed, the overwhelming majority on an unexpected 429 — the suite itself (all
+   requests from one IP in this dev setup) peaked at 57 requests in a single wall-clock second, a
+   legitimate-traffic shape (a real browser session issuing several HTMX/typeahead/asset requests
+   in quick succession looks the same) the original 10 req/s-burst-30 defaults choked on. Reset to
+   30 req/s / burst 120 (`cmd/server/ratelimit.go`) — comfortably above the measured peak. Second
+   run: 216/219.
+2. **`internal/handler/formfields.go`'s CAP-V19 `LivePreviewURL` still hardcoded the bare `/api/`
+   prefix** Phase 3's own versioning change (`/api/v1/`) had already retired — a real dead-route
+   bug in the live application, not just a stale test. Fixed to `/api/v1/`; the matching
+   conformance assertion (`conformance/tests/060_ui_cluster.sh`) and the 9 hardcoded `/api/`
+   occurrences testing CAP-X07 directly (`conformance/tests/040_batches10_11_subnav.sh`, T118–T120)
+   updated to match. Third run: 219/219.
+
+**Also found and corrected, unrelated to this phase's own changes:** Phase 0–3's own verification
+had been using the shared `postgres` superuser directly against an ad hoc `menata_app` database —
+exactly the practice `prototype/go/DEVELOPMENT.md`'s "Database role" section warns against (a real
+outage for another app on this shared host, once already). Corrected to a dedicated
+`menata_app_owner` role owning `menata_app`, no superuser/createdb bits — re-verified 219/219
+under this role alone. See `DEVELOPMENT.md`'s own new section for the how-to.
+
+`go build ./... && go vet ./... && go test ./...` clean; `make check-css` clean (44 color
+utility classes, all present). Proceeding to Phase 5.
+
 ## Phase 5 — CI + operational hardening
 
 **Port:** mirror `prototype/go`'s three GitHub Actions workflows

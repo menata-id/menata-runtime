@@ -21,13 +21,15 @@ func formatPct(v float64) string {
 // CoordPlace (CAP-V21) renders a preview (PDF or plain image -- not
 // signature-specific, see model.CoordPlacementConfig's own doc comment)
 // with one pin at (x%, y%) of the currently-selected page. editable=false
-// renders the identical layout with no draggable pin and no
-// data-coordplace-* attributes at all -- layout.templ's shared drop
-// listener only ever fires on an element that carries them, so omitting
-// them is the read-only mode, not a second code path to keep in sync.
-// The preview element itself gets `pointer-events:none` only in editable
-// mode, so a click/drag anywhere over it (including where the embedded
-// PDF viewer would otherwise own the pixels) reaches the wrapping
+// renders the identical layout with no draggable pin, no data-coordplace-*
+// attributes, and no Hyperscript `_` attribute at all -- the drag handlers
+// below (app/ROADMAP.md Phase 4 client-side JavaScript policy correction --
+// these used to be page-level delegated vanilla-JS listeners in
+// layout.templ) only exist on the editable branch's own elements, so
+// omitting them is the read-only mode, not a second code path to keep in
+// sync. The preview element itself gets `pointer-events:none` only in
+// editable mode, so a click/drag anywhere over it (including where the
+// embedded PDF viewer would otherwise own the pixels) reaches the wrapping
 // .coordplace-preview div instead -- read-only mode leaves it interactive
 // (a viewer might reasonably want to scroll a multi-page-looking PDF
 // object), since nothing there needs to catch drag events anyway.
@@ -71,7 +73,7 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(viewName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 29, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 31, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -84,7 +86,7 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 			var templ_7745c5c3_Var4 templ.SafeURL
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + machine.ID + "/" + record.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 30, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 32, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -107,7 +109,7 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 					var templ_7745c5c3_Var5 string
 					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(p))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 37, Col: 37}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 39, Col: 37}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 					if templ_7745c5c3_Err != nil {
@@ -130,7 +132,7 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 					var templ_7745c5c3_Var6 string
 					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(p))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 37, Col: 81}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 39, Col: 81}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 					if templ_7745c5c3_Err != nil {
@@ -163,7 +165,7 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(machine.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 50, Col: 40}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 52, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 				if templ_7745c5c3_Err != nil {
@@ -176,7 +178,7 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(record.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 51, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 53, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 				if templ_7745c5c3_Err != nil {
@@ -189,7 +191,7 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfToken)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 52, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 54, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 				if templ_7745c5c3_Err != nil {
@@ -202,13 +204,13 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(page))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 53, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 55, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" _=\"on dragover\n\t\t\t\t\tjs(event) event.preventDefault() end\n\t\t\t\tend\n\t\t\t\ton drop\n\t\t\t\t\tjs(event, me)\n\t\t\t\t\t\tif (!me.dataset.coordplaceMachine) return;\n\t\t\t\t\t\tevent.preventDefault();\n\t\t\t\t\t\tvar rect = me.getBoundingClientRect();\n\t\t\t\t\t\tvar x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));\n\t\t\t\t\t\tvar y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));\n\t\t\t\t\t\tfetch('/' + me.dataset.coordplaceMachine + '/' + me.dataset.coordplaceRecord + '/place', {\n\t\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\t\theaders: { 'Content-Type': 'application/x-www-form-urlencoded' },\n\t\t\t\t\t\t\tbody: 'page=' + encodeURIComponent(me.dataset.coordplacePage) +\n\t\t\t\t\t\t\t\t'&x=' + x.toFixed(2) + '&y=' + y.toFixed(2) +\n\t\t\t\t\t\t\t\t'&csrf_token=' + encodeURIComponent(me.dataset.coordplaceCsrf)\n\t\t\t\t\t\t}).then(function() { location.reload(); });\n\t\t\t\t\tend\n\t\t\t\tend\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -220,7 +222,7 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 					var templ_7745c5c3_Var11 templ.SafeURL
 					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/files/" + previewKey + "#page=" + strconv.Itoa(page)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 56, Col: 112}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 77, Col: 112}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {
@@ -238,7 +240,7 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 					var templ_7745c5c3_Var12 string
 					templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue("/files/" + previewKey)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 58, Col: 38}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 79, Col: 38}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 					if templ_7745c5c3_Err != nil {
@@ -256,13 +258,13 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("left:" + formatPct(x) + "%; top:" + formatPct(y) + "%;")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 62, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 83, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\" draggable=\"true\"></div></div><p class=\"mt-2 text-xs text-slate-400\">Drag the pin to reposition — saved automatically on drop.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\" draggable=\"true\" _=\"on dragstart\n\t\t\t\t\t\tjs(event) event.dataTransfer.setData('text/plain', 'pin') end\n\t\t\t\t\tend\"></div></div><p class=\"mt-2 text-xs text-slate-400\">Drag the pin to reposition — saved automatically on drop.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -279,7 +281,7 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 					var templ_7745c5c3_Var14 templ.SafeURL
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/files/" + previewKey + "#page=" + strconv.Itoa(page)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 70, Col: 112}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 94, Col: 112}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 					if templ_7745c5c3_Err != nil {
@@ -297,7 +299,7 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 					var templ_7745c5c3_Var15 string
 					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue("/files/" + previewKey)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 72, Col: 38}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 96, Col: 38}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 					if templ_7745c5c3_Err != nil {
@@ -315,7 +317,7 @@ func CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machine
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("left:" + formatPct(x) + "%; top:" + formatPct(y) + "%;")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 76, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `coordplace.templ`, Line: 100, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {

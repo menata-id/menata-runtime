@@ -96,9 +96,13 @@ templ TypeaheadPicker(name, value, label, url string) {
 // FieldOptionsFragment (CAP-V16) is the HTMX-swapped response
 // TypeaheadPicker's search input targets -- handler.FieldOptions renders
 // this directly (not a full page). data-* attributes carry the option's id/
-// label for the page-level delegated click listener (layout.templ) to read
-// -- never interpolated into an inline event-handler attribute, which would
-// need escaping a Label as JS source, not just as an HTML attribute value.
+// label for each option's own Hyperscript click handler (app/ROADMAP.md
+// Phase 4 client-side JavaScript policy correction -- this used to be a
+// page-level delegated vanilla-JS listener in layout.templ) to read -- never
+// interpolated into the handler itself, which would need escaping a Label as
+// JS source, not just as an HTML attribute value. Hyperscript auto-wires a
+// freshly HTMX-swapped-in element the same as one present at initial page
+// load, so a per-option `_` attribute here needs no re-initialization step.
 templ FieldOptionsFragment(target string, opts []ReferenceOption) {
 	if len(opts) == 0 {
 		<div class="px-3 py-2 text-sm text-slate-400">No matches</div>
@@ -109,6 +113,17 @@ templ FieldOptionsFragment(target string, opts []ReferenceOption) {
 				data-target={ target }
 				data-id={ opt.ID }
 				data-label={ opt.Label }
+				_="on click
+					js(me)
+						var target = me.dataset.target;
+						var hidden = document.getElementById(target);
+						var search = document.getElementById(target + '_search');
+						var list = document.getElementById(target + '_opts');
+						if (hidden) hidden.value = me.dataset.id;
+						if (search) search.value = me.dataset.label;
+						if (list) list.innerHTML = '';
+					end
+				end"
 			>{ opt.Label }</div>
 		}
 	}
@@ -260,18 +275,38 @@ templ FieldInput(f *model.Field, name, value string, refOptions []ReferenceOptio
 // Empty rows are simply ignored by the handler on submit, not rejected.
 //
 // CAP-V15: sumFieldA/B (empty = no live total shown) name the two Fields a
-// live, client-side running total is kept for -- purely presentational,
-// read by layout.templ's one static, page-level, non-interpolated 'input'
-// listener via this element's own data-sum-a-field/data-sum-b-field
-// attributes, not by any per-render script (same discipline CAP-V16's own
-// TypeaheadPicker already established: config flows through data-*
-// attributes, never string-concatenated into JS source).
+// live, client-side running total is kept for -- purely presentational.
+// app/ROADMAP.md Phase 4 client-side JavaScript policy correction: this
+// used to be read by layout.templ's page-level delegated 'input' listener;
+// now it's this element's own Hyperscript `on input` handler, listening on
+// itself and relying on ordinary DOM event bubbling from its own row
+// inputs -- same data-sum-a-field/data-sum-b-field config attributes, same
+// discipline CAP-V16's own TypeaheadPicker already established (config
+// flows through data-* attributes, never string-concatenated into JS
+// source).
 templ ChildLinesSection(title string, rows [][]FormField, sumFieldA, sumFieldALabel, sumFieldB, sumFieldBLabel string) {
 	<div
 		class="mt-2 space-y-3 border-t border-slate-100 pt-5"
 		if sumFieldA != "" {
 			data-sum-a-field={ sumFieldA }
 			data-sum-b-field={ sumFieldB }
+			_="on input
+				js(me)
+					var fa = me.dataset.sumAField, fb = me.dataset.sumBField;
+					var sumA = 0, sumB = 0;
+					me.querySelectorAll('input[name$=_' + fa + ']').forEach(function(i) {
+						sumA += parseFloat(i.value) || 0;
+					});
+					if (fb) {
+						me.querySelectorAll('input[name$=_' + fb + ']').forEach(function(i) {
+							sumB += parseFloat(i.value) || 0;
+						});
+					}
+					var elA = me.querySelector('.js-sum-a'), elB = me.querySelector('.js-sum-b');
+					if (elA) elA.textContent = sumA.toFixed(2);
+					if (elB) elB.textContent = sumB.toFixed(2);
+				end
+			end"
 		}
 	>
 		<h2 class="text-sm font-semibold text-slate-700">{ title }</h2>

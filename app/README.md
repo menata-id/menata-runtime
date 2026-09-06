@@ -66,3 +66,20 @@ responds, `/login` renders. See `ROADMAP.md`'s own Phase 3 status update for the
 including the one extra storage-abstraction fix (`handler/coordplace.go`'s PDF preview) beyond
 Phase 0's original scope. `menata.app` still serves `prototype/go` — still Phase 6's decision.
 Next: Phase 4 (conformance parity).
+
+**Status update (2026-09-06, Phase 4): full conformance parity, 219/219.** All 37 seed files, the
+full conformance suite, `web/` (Tailwind), and the client-side JavaScript policy correction
+(CAP-V16/V15/V14/V21 moved to Hyperscript `_="..."` attributes; CAP-V19 found in the same
+situation but flagged, not fixed — out of this phase's own named scope) all ported. Verified via
+`./scripts/local-ci.sh`'s fully automated isolated-schema cycle, not just manual runs.
+
+The conformance run itself caught two real regressions before they could ship: the Phase 3 rate
+limiter was calibrated far too aggressively for real traffic shape (reset from 10 req/s/burst 30
+to 30/120 after measuring the suite's own peak), and `formfields.go`'s CAP-V19 live-preview URL
+still pointed at the pre-versioning `/api/` path (fixed to `/api/v1/`) — both are exactly what this
+phase's own verify step exists to catch. Separately, Phase 0–3's own dev-database access was
+corrected from the shared `postgres` superuser to a dedicated `menata_app_owner` role, matching
+`prototype/go/DEVELOPMENT.md`'s own documented "why not `postgres`" reasoning. See `ROADMAP.md`'s
+own Phase 4 status update and `DEVELOPMENT.md`'s database sections for full detail. `go build/vet/
+test` and `make check-css` all clean. `menata.app` still serves `prototype/go`. Next: Phase 5
+(CI + operational hardening).

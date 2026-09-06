@@ -13,13 +13,15 @@ func formatPct(v float64) string {
 // CoordPlace (CAP-V21) renders a preview (PDF or plain image -- not
 // signature-specific, see model.CoordPlacementConfig's own doc comment)
 // with one pin at (x%, y%) of the currently-selected page. editable=false
-// renders the identical layout with no draggable pin and no
-// data-coordplace-* attributes at all -- layout.templ's shared drop
-// listener only ever fires on an element that carries them, so omitting
-// them is the read-only mode, not a second code path to keep in sync.
-// The preview element itself gets `pointer-events:none` only in editable
-// mode, so a click/drag anywhere over it (including where the embedded
-// PDF viewer would otherwise own the pixels) reaches the wrapping
+// renders the identical layout with no draggable pin, no data-coordplace-*
+// attributes, and no Hyperscript `_` attribute at all -- the drag handlers
+// below (app/ROADMAP.md Phase 4 client-side JavaScript policy correction --
+// these used to be page-level delegated vanilla-JS listeners in
+// layout.templ) only exist on the editable branch's own elements, so
+// omitting them is the read-only mode, not a second code path to keep in
+// sync. The preview element itself gets `pointer-events:none` only in
+// editable mode, so a click/drag anywhere over it (including where the
+// embedded PDF viewer would otherwise own the pixels) reaches the wrapping
 // .coordplace-preview div instead -- read-only mode leaves it interactive
 // (a viewer might reasonably want to scroll a multi-page-looking PDF
 // object), since nothing there needs to catch drag events anyway.
@@ -51,6 +53,25 @@ templ CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machin
 				data-coordplace-record={ record.ID }
 				data-coordplace-csrf={ csrfToken }
 				data-coordplace-page={ strconv.Itoa(page) }
+				_="on dragover
+					js(event) event.preventDefault() end
+				end
+				on drop
+					js(event, me)
+						if (!me.dataset.coordplaceMachine) return;
+						event.preventDefault();
+						var rect = me.getBoundingClientRect();
+						var x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+						var y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
+						fetch('/' + me.dataset.coordplaceMachine + '/' + me.dataset.coordplaceRecord + '/place', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+							body: 'page=' + encodeURIComponent(me.dataset.coordplacePage) +
+								'&x=' + x.toFixed(2) + '&y=' + y.toFixed(2) +
+								'&csrf_token=' + encodeURIComponent(me.dataset.coordplaceCsrf)
+						}).then(function() { location.reload(); });
+					end
+				end"
 			>
 				if isPDF {
 					<object type="application/pdf" data={ templ.SafeURL("/files/" + previewKey + "#page=" + strconv.Itoa(page)) } class="absolute inset-0 h-full w-full" style="pointer-events:none;"></object>
@@ -61,6 +82,9 @@ templ CoordPlace(workspaceName, identity, csrfToken string, isAdmin bool, machin
 					class="coordplace-pin absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full border-2 border-white bg-red-500 shadow"
 					style={ "left:" + formatPct(x) + "%; top:" + formatPct(y) + "%;" }
 					draggable="true"
+					_="on dragstart
+						js(event) event.dataTransfer.setData('text/plain', 'pin') end
+					end"
 				></div>
 			</div>
 			<p class="mt-2 text-xs text-slate-400">Drag the pin to reposition — saved automatically on drop.</p>

@@ -4,13 +4,16 @@ import "strconv"
 import "menata.id/app/internal/model"
 
 // Board (CAP-V14 Tier 2) renders a kanban board: one lane per GroupField
-// value_list option, cards draggable between lanes (layout.templ's own
-// dragstart/dragover/drop listeners -- see that file's own doc comment).
-// Every declared lane renders even when empty (BoardLane's own doc comment)
-// so an unused option still shows up as a valid drop target. The board
-// itself needs no htmx/JS to render correctly -- only the drag gesture
-// needs the script; a client with JS disabled still sees every card in its
-// correct lane, just without the ability to move one.
+// value_list option, cards draggable between lanes -- each card's own
+// Hyperscript `on dragstart` and each lane body's own `on dragover`/
+// `on drop` handlers below (app/ROADMAP.md Phase 4 client-side JavaScript
+// policy correction -- these used to be page-level delegated vanilla-JS
+// listeners in layout.templ). Every declared lane renders even when empty
+// (BoardLane's own doc comment) so an unused option still shows up as a
+// valid drop target. The board itself needs no htmx/JS to render correctly
+// -- only the drag gesture needs Hyperscript; a client with JS disabled
+// still sees every card in its correct lane, just without the ability to
+// move one.
 templ Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName, groupField string, columns []ColumnDef, lanes []BoardLane, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) {
 	@Page(viewName, workspaceName, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4">
@@ -30,7 +33,26 @@ templ Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *mo
 						{ lane.Name }
 						<span class="ml-1 text-slate-400">({ strconv.Itoa(len(lane.Rows)) })</span>
 					</h2>
-					<div class="board-lane-body min-h-16 space-y-2 p-2">
+					<div
+						class="board-lane-body min-h-16 space-y-2 p-2"
+						_="on dragover
+							js(event) event.preventDefault() end
+						end
+						on drop
+							js(event, me)
+								event.preventDefault();
+								var recordId = event.dataTransfer.getData('text/plain');
+								var lane = me.closest('.board-lane').dataset.lane;
+								var board = me.closest('[data-board-machine]');
+								if (!recordId || !lane || !board) return;
+								fetch('/' + board.dataset.boardMachine + '/' + recordId + '/board-move', {
+									method: 'POST',
+									headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+									body: 'lane=' + encodeURIComponent(lane) + '&csrf_token=' + encodeURIComponent(board.dataset.boardCsrf)
+								}).then(function() { location.reload(); });
+							end
+						end"
+					>
 						if len(lane.Rows) == 0 {
 							<div class="rounded-md border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400">
 								No records
@@ -42,6 +64,9 @@ templ Board(workspaceName, identity, csrfToken string, isAdmin bool, machine *mo
 								class="board-card block cursor-move rounded-md border border-slate-200 bg-white p-3 text-sm shadow-sm hover:shadow"
 								draggable="true"
 								data-record-id={ row.ID }
+								_="on dragstart
+									js(event, me) event.dataTransfer.setData('text/plain', me.dataset.recordId) end
+								end"
 							>
 								for _, cell := range row.Cells {
 									if cell.Value != "" {

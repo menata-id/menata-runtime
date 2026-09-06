@@ -18,13 +18,21 @@ import (
 // reaching for a third-party middleware framework -- golang.org/x/time/rate
 // is the one small, official extended-stdlib package this needs.
 //
-// Defaults (10 req/s sustained, burst 30) are a starting point, not a
-// case-derived number -- no capability or incident has forced a specific
-// figure yet, per this project's own "Infer Before Configure" principle.
-// Revisit against real traffic once app/ has any.
+// Defaults, calibrated against real traffic once app/ finally had some:
+// app/ROADMAP.md Phase 4's own first full conformance run against these
+// original, ungrounded numbers (10 req/s, burst 30) failed 98/219 tests,
+// the overwhelming majority on an unexpected 429 -- one client (the suite
+// itself, all requests genuinely from one IP in this dev setup) peaked at
+// 57 requests in a single wall-clock second, a legitimate-traffic shape
+// this limiter must not choke on (a real browser session issuing several
+// HTMX/typeahead/asset requests in quick succession looks the same). Reset
+// to 30 req/s sustained / burst 120 -- comfortably above that measured
+// peak with real headroom, while still capping a genuine sustained flood
+// from one IP far below what this single-vCPU host could be pushed to.
+// Revisit again if a real deployment's own traffic shape says otherwise.
 const (
-	rateLimitPerSecond = 10
-	rateLimitBurst     = 30
+	rateLimitPerSecond = 30
+	rateLimitBurst     = 120
 	rateLimitIdleTTL   = 10 * time.Minute
 	rateLimitSweep     = 5 * time.Minute
 )
