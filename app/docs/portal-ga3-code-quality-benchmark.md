@@ -1,6 +1,16 @@
 # Portal GA v3 Code-Quality Benchmark
 
-> Status: v0.1 — draft, not yet acted on | Created: 2026-09-06 | Updated: 2026-09-06
+> Status: v0.2 — items #1–#2 already closed before this doc existed | Created: 2026-09-06 | Updated: 2026-09-06
+
+> **Correction (2026-09-06):** the original v0.1 draft cited `app/ARCHITECTURE.md`'s "Named, not
+> solved" gap table without first checking `app/README.md`'s own "Current status" section for
+> whether those gaps were still open — exactly the check `app/CLAUDE.md` says never to skip.
+> They were not: `ROADMAP.md`'s Phase 1 status update (predates this document) already closed the
+> migrations gap (goose, `.up`/`.down` pairs, rollback-verified), and Phase 3/4 already closed the
+> rate-limiting and API-versioning gaps. Action items #1 and #2 below are struck through as a
+> result; #3–#6 were independently verified still open against the current `ROADMAP.md` Phase 5
+> scope (mirrors 3 CI workflows + `govulncheck` only — no LOC/complexity budgets, no
+> `internal/testing` scaffolding, no ADR index, no actor-first convention).
 
 ## Purpose and scope
 
@@ -69,11 +79,11 @@ Priority ordered by which gap is both already named in `app/ARCHITECTURE.md` and
 close. This is a candidate list for `app/ROADMAP.md` sequencing, not a decision — placing these
 into a specific phase is the roadmap owner's call, not this document's.
 
-1. **Migration tool** (golang-migrate/goose/Atlas, `.up`/`.down` pairs, naming + replay checks in
-   `app/scripts/local-ci.sh`) — closes the highest-visibility named gap, and is a prerequisite for
-   ever doing a real rollback in production.
-2. **Rate-limiting middleware** on `internal/handler`'s existing middleware stack — closes the
-   second named gap, small and additive.
+1. ~~**Migration tool**~~ — already done. `ROADMAP.md`'s Phase 1 chose goose; all 24 migrations
+   are `.up`/`.down` pairs, verified to apply and roll back against a real Postgres database.
+2. ~~**Rate-limiting middleware**~~ — already done. `ROADMAP.md`'s Phase 3 added a hand-rolled
+   per-IP rate limiter (`cmd/server/ratelimit.go`), recalibrated against real traffic shape in
+   Phase 4.
 3. **CI gates in `app/scripts/local-ci.sh`**: security-pattern grep (raw `err.Error()` leakage),
    handler-size budget, `gocyclo` budget — cheap to add now, before more code lands, so violations
    never accumulate the way `internal/metadata/loader.go` did.
