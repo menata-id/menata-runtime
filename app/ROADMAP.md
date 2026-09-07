@@ -375,6 +375,30 @@ requires, independent of when 009 was actually applied.
 
 ---
 
+## Post-cutover: system logging & observability hardening
+
+**Not yet scheduled into a phase — a candidate backlog, following the same pattern
+`portal-ga3-code-quality-benchmark.md`'s action list used.** `app/docs/system-logging-audit.md`
+(2026-09-07) audited `app/`'s own process-level logging (`log/slog` call sites, the
+`slogAccessLog` access log, and how both relate to CAP-I04's correlation-id trail and the
+`record_events` business audit trail) against common structured-logging practice. It found the
+core shape sound (one unified JSON stream, correlation id threading request → security event →
+audit row for the call sites that use it, no secrets logged in cleartext) but nine concrete gaps
+still open, most notably: `correlation_id` is attached to only a minority of `slog` call sites
+despite CAP-I04's registry row currently claiming it's on "every log line"; log level and source
+location are not configurable (`slog.NewJSONHandler(os.Stdout, nil)`); a panic recovered by
+`middleware.Recoverer` logs through chi's own unstructured logger, not the process's JSON handler;
+production log retention/shipping is undocumented; and the two background ticker loops
+(`runScheduler`, `runOutboxDispatcher`) have no backoff/dedup on repeated per-workspace failures.
+
+See that document's own "Recommended action list" for the full nine-item gap list and priority
+ordering (correlation-id consistency and level/source configurability first, the SLO/metrics half
+of CAP-I04 last — already tracked at the registry level as CAP-I04's unstarted half, not
+re-scoped here). Whoever picks this up decides which items land together vs. separately; none of
+the nine block each other.
+
+---
+
 ## Explicitly out of scope for this roadmap
 
 - **Object storage (S3-compatible) backend for `internal/storage`** — the interface exists from
