@@ -95,6 +95,10 @@ func validateReferences(workspaces []*model.Workspace) error {
 	// one, so validating it (and its Contract's own field names) needs a
 	// global index, the same reasoning machineByID already exists for.
 	eventMachine := make(map[string]*model.Machine)
+	// CAP-V20 Tier 2: parent_stepper_view names a View id that may belong
+	// to a different Machine than the one declaring it -- same
+	// cross-machine-by-id need eventMachine already exists for.
+	viewByID := make(map[string]*model.View)
 	for _, ws := range workspaces {
 		for _, app := range ws.Applications {
 			for _, m := range app.Machines {
@@ -102,6 +106,9 @@ func validateReferences(workspaces []*model.Workspace) error {
 				machineByID[m.ID] = m
 				for _, e := range m.Events {
 					eventMachine[e.ID] = m
+				}
+				for _, v := range m.Views {
+					viewByID[v.ID] = v
 				}
 			}
 		}
@@ -429,6 +436,27 @@ func validateReferences(workspaces []*model.Workspace) error {
 							if _, ok := fieldByID[fid]; !ok {
 								return fmt.Errorf("view %s on machine %s: coord_placement.%s %q does not name a Field on this machine", v.ID, m.ID, label, fid)
 							}
+						}
+					}
+
+					// CAP-V20 Tier 2: every Children entry must name a real
+					// View, of a Type this runtime currently knows how to
+					// embed (internal/handler/embed.go's renderChildView
+					// switch -- embeddableChildTypes here must stay in
+					// sync with that switch's own case list, same
+					// discipline ActionType/FieldType exhaustiveness
+					// checks already rely on `go build` catching
+					// elsewhere). Same "Unknown = explicit" posture as
+					// coord_placement above -- a typo'd or not-yet-
+					// embeddable View id fails at load time, not as a
+					// silently-empty card at request time.
+					for _, child := range v.Config.Children {
+						target, ok := viewByID[child.View]
+						if !ok {
+							return fmt.Errorf("view %s on machine %s: children names %q, which does not name a View that exists", v.ID, m.ID, child.View)
+						}
+						if !model.EmbeddableChildViewTypes[target.Type] {
+							return fmt.Errorf("view %s on machine %s: children names %q (type %q) -- not a Type this runtime knows how to embed as a child", v.ID, m.ID, child.View, target.Type)
 						}
 					}
 

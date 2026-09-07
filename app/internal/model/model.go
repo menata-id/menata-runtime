@@ -729,6 +729,58 @@ type ViewConfig struct {
 	// DecisionStepper (CAP-V20) configures a "decision_stepper" View -- see
 	// DecisionStepperConfig's own doc comment.
 	DecisionStepper *DecisionStepperConfig `json:"decision_stepper,omitempty"`
+
+	// Children (CAP-V20 Tier 2, 2026-09-07 -- corrected same day from a
+	// first version, ParentStepperView, that hardcoded "decision_stepper"
+	// into this View's own config key) declares that THIS View should
+	// also render, inline alongside its own primary content, one or more
+	// OTHER Views named by id. Declaring the composition is all this key
+	// does -- it carries no opinion about WHAT KIND of View it's
+	// embedding. What a given Child actually IS, and how to render it, is
+	// resolved entirely from THAT View's own declared Type at render time
+	// (internal/handler/embed.go's renderChildView, a type switch),
+	// exactly the same "look at the View's own type, not a capability-
+	// specific config key" principle every other View-serving code path in
+	// this runtime already follows for a page's own PRIMARY view. Today
+	// only `decision_stepper` is a supported child type (Approval Step's
+	// own Detail embeds Approval Document's decision-stepper progress,
+	// closing the exact screen split document-approval.html's own mockup
+	// never had) -- adding a second embeddable type is additive there
+	// (one more `case`), never a redesign of this field or its own
+	// validation. Empty (the default) renders exactly as before this
+	// existed. Every entry validated at load time (metadata/validate.go):
+	// must name a real View, of a Type this runtime currently knows how
+	// to embed.
+	Children []ChildViewRef `json:"children,omitempty"`
+}
+
+// ChildViewRef (CAP-V20 Tier 2) is one entry in a View's own
+// Config.Children -- see that field's own doc comment for the full
+// reasoning. Deliberately just an id: the HOST view names WHICH View it
+// wants, never how to interpret it.
+type ChildViewRef struct {
+	View string `json:"view"`
+}
+
+// EmbeddableChildViewTypes is every View Type a View's own Config.Children
+// may currently reference -- the single source of truth both
+// metadata/validate.go (load-time "Unknown = explicit" check) and
+// internal/handler/embed.go (the actual render dispatch, a type switch)
+// read, so the two can never silently drift apart: validation can never
+// promise a Type the renderer doesn't handle, and the renderer never
+// handles a Type validation didn't already vet. Adding a second embeddable
+// Type (today ViewTypeDecisionStepper and ViewTypeCoordPlacement) means
+// adding it here AND a new `case` in embed.go's own switch -- both, on
+// purpose, not either alone. ViewTypeCoordPlacement (2026-09-07) is the
+// second real consumer of this whole mechanism -- Approval Step's own
+// Detail page also embeds its own signature-position pin inline
+// (document-approval.html's own "Your Signature Position" panel,
+// previously only reachable via a separate DetailLink to `/place`), the
+// case that turns Children from a plausible-but-single-user generalization
+// into one two independent Types actually share.
+var EmbeddableChildViewTypes = map[ViewType]bool{
+	ViewTypeDecisionStepper: true,
+	ViewTypeCoordPlacement:  true,
 }
 
 // DecisionStepperConfig (CAP-V20) declares a "decision_stepper" View.

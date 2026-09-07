@@ -1,5 +1,6 @@
 package ui
 
+import "path/filepath"
 import "strconv"
 import "menata.id/app/internal/model"
 import "menata.id/app/internal/store"
@@ -8,6 +9,20 @@ import "menata.id/app/internal/store"
 // -- plain strconv, no fmt.Sprintf needed for a single float.
 func formatPct(v float64) string {
 	return strconv.FormatFloat(v, 'f', 2, 64)
+}
+
+// isPDFPreview decides <object> vs <img> from the preview key's own file
+// extension -- a pure function of previewKey, deliberately computed HERE
+// rather than threaded in as a separate parameter (2026-09-07 cleanup: it
+// used to be, all the way from internal/handler/coordplace.go's own
+// internal isPDF variable, through both CoordPlace and CoordPlacePreview).
+// A render function's own tag choice for a file it's already been given
+// the key to shouldn't depend on the caller ALSO independently computing
+// and forwarding the same fact -- the caller can't do anything BUT recompute
+// exactly this, so making the render layer own it removes one more thing
+// that could, in principle, disagree with what previewKey itself says.
+func isPDFPreview(previewKey string) bool {
+	return filepath.Ext(previewKey) == ".pdf"
 }
 
 // CoordPlace (CAP-V21) renders a preview (PDF or plain image -- not
@@ -25,7 +40,7 @@ func formatPct(v float64) string {
 // .coordplace-preview div instead -- read-only mode leaves it interactive
 // (a viewer might reasonably want to scroll a multi-page-looking PDF
 // object), since nothing there needs to catch drag events anyway.
-templ CoordPlace(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, viewName, previewKey string, isPDF bool, page, pageCount int, x, y float64, editable bool, unreadCount int, subNav []SubNavLink) {
+templ CoordPlace(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, viewName, previewKey string, page, pageCount int, x, y float64, editable bool, unreadCount int, subNav []SubNavLink) {
 	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4 flex items-center justify-between">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
@@ -41,66 +56,89 @@ templ CoordPlace(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool
 				</select>
 			</form>
 		}
-		if previewKey == "" {
-			<div class="rounded-md border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">
-				No file to preview yet.
-			</div>
-		} else if editable {
-			<div
-				class="coordplace-preview relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
-				style="height: 70vh;"
-				data-coordplace-ws={ wsSlug }
-				data-coordplace-machine={ machine.ID }
-				data-coordplace-record={ record.ID }
-				data-coordplace-csrf={ csrfToken }
-				data-coordplace-page={ strconv.Itoa(page) }
-				_="on dragover
-					js(event) event.preventDefault() end
+		@CoordPlacePreview(wsSlug, csrfToken, machine.ID, record.ID, previewKey, page, pageCount, x, y, editable)
+	}
+}
+
+// CoordPlacePreview (CAP-V20 Tier 2) is CoordPlace's own preview+pin body,
+// extracted and exported so internal/handler/embed.go's
+// renderCoordPlacementChild can hand this exact same rendering back as a
+// templ.Component when a coord_placement View is embedded as another
+// View's own Child (model.go's Config.Children) -- e.g. Approval Step's
+// own Detail page showing "Your Signature Position" inline, next to its
+// Approve/Reject bar, the same document-approval.html mockup shape
+// StepperList (decisionstepper.templ) already closed for decision_stepper.
+// Deliberately does NOT include the page-selector `<form>` above it --
+// that form's `onchange="this.form.submit()"` re-GETs whatever page the
+// browser is CURRENTLY on with a `?page=` query param, which only makes
+// sense on coord_placement's own standalone `/place` route (CoordPlace
+// above); a host page embedding this (Detail) has no code reading that
+// query param for someone else's View. A multi-page file, embedded, always
+// shows its record's own currently-saved page -- page switching stays a
+// reason to visit the full `/place` view, which embed.go's own
+// EmbeddedSection.ActionHref already links to when pageCount > 1 (reusing
+// SectionWrapper's existing action-link slot rather than inventing a
+// second one here).
+templ CoordPlacePreview(wsSlug, csrfToken, machineID, recordID, previewKey string, page, pageCount int, x, y float64, editable bool) {
+	if previewKey == "" {
+		<div class="rounded-md border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">
+			No file to preview yet.
+		</div>
+	} else if editable {
+		<div
+			class="coordplace-preview relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
+			style="height: 70vh;"
+			data-coordplace-ws={ wsSlug }
+			data-coordplace-machine={ machineID }
+			data-coordplace-record={ recordID }
+			data-coordplace-csrf={ csrfToken }
+			data-coordplace-page={ strconv.Itoa(page) }
+			_="on dragover
+				js(event) event.preventDefault() end
+			end
+			on drop
+				js(event, me)
+					if (!me.dataset.coordplaceMachine) return;
+					event.preventDefault();
+					var rect = me.getBoundingClientRect();
+					var x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+					var y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
+					fetch('/' + me.dataset.coordplaceWs + '/' + me.dataset.coordplaceMachine + '/' + me.dataset.coordplaceRecord + '/place', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+						body: 'page=' + encodeURIComponent(me.dataset.coordplacePage) +
+							'&x=' + x.toFixed(2) + '&y=' + y.toFixed(2) +
+							'&csrf_token=' + encodeURIComponent(me.dataset.coordplaceCsrf)
+					}).then(function() { location.reload(); });
 				end
-				on drop
-					js(event, me)
-						if (!me.dataset.coordplaceMachine) return;
-						event.preventDefault();
-						var rect = me.getBoundingClientRect();
-						var x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
-						var y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
-						fetch('/' + me.dataset.coordplaceWs + '/' + me.dataset.coordplaceMachine + '/' + me.dataset.coordplaceRecord + '/place', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-							body: 'page=' + encodeURIComponent(me.dataset.coordplacePage) +
-								'&x=' + x.toFixed(2) + '&y=' + y.toFixed(2) +
-								'&csrf_token=' + encodeURIComponent(me.dataset.coordplaceCsrf)
-						}).then(function() { location.reload(); });
-					end
+			end"
+		>
+			if isPDFPreview(previewKey) {
+				<object type="application/pdf" data={ templ.SafeURL("/files/" + previewKey + "#page=" + strconv.Itoa(page)) } class="absolute inset-0 h-full w-full" style="pointer-events:none;"></object>
+			} else {
+				<img src={ "/files/" + previewKey } class="absolute inset-0 h-full w-full object-contain" style="pointer-events:none;"/>
+			}
+			<div
+				class="coordplace-pin absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full border-2 border-white bg-red-500 shadow"
+				style={ "left:" + formatPct(x) + "%; top:" + formatPct(y) + "%;" }
+				draggable="true"
+				_="on dragstart
+					js(event) event.dataTransfer.setData('text/plain', 'pin') end
 				end"
-			>
-				if isPDF {
-					<object type="application/pdf" data={ templ.SafeURL("/files/" + previewKey + "#page=" + strconv.Itoa(page)) } class="absolute inset-0 h-full w-full" style="pointer-events:none;"></object>
-				} else {
-					<img src={ "/files/" + previewKey } class="absolute inset-0 h-full w-full object-contain" style="pointer-events:none;"/>
-				}
-				<div
-					class="coordplace-pin absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full border-2 border-white bg-red-500 shadow"
-					style={ "left:" + formatPct(x) + "%; top:" + formatPct(y) + "%;" }
-					draggable="true"
-					_="on dragstart
-						js(event) event.dataTransfer.setData('text/plain', 'pin') end
-					end"
-				></div>
-			</div>
-			<p class="mt-2 text-xs text-slate-400">Drag the pin to reposition — saved automatically on drop.</p>
-		} else {
-			<div class="coordplace-preview relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100" style="height: 70vh;">
-				if isPDF {
-					<object type="application/pdf" data={ templ.SafeURL("/files/" + previewKey + "#page=" + strconv.Itoa(page)) } class="absolute inset-0 h-full w-full"></object>
-				} else {
-					<img src={ "/files/" + previewKey } class="absolute inset-0 h-full w-full object-contain"/>
-				}
-				<div
-					class="coordplace-pin absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow"
-					style={ "left:" + formatPct(x) + "%; top:" + formatPct(y) + "%;" }
-				></div>
-			</div>
-		}
+			></div>
+		</div>
+		<p class="mt-2 text-xs text-slate-400">Drag the pin to reposition — saved automatically on drop.</p>
+	} else {
+		<div class="coordplace-preview relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100" style="height: 70vh;">
+			if isPDFPreview(previewKey) {
+				<object type="application/pdf" data={ templ.SafeURL("/files/" + previewKey + "#page=" + strconv.Itoa(page)) } class="absolute inset-0 h-full w-full"></object>
+			} else {
+				<img src={ "/files/" + previewKey } class="absolute inset-0 h-full w-full object-contain"/>
+			}
+			<div
+				class="coordplace-pin absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow"
+				style={ "left:" + formatPct(x) + "%; top:" + formatPct(y) + "%;" }
+			></div>
+		</div>
 	}
 }

@@ -48,22 +48,48 @@ func (h *Handler) DecisionStepper(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	ds := view.Config.DecisionStepper
-	stepsMachineID := machine.Config["steps_machine"]
-	stepsParentField := machine.Config["steps_parent_field"]
-	if stepsMachineID == "" || stepsParentField == "" {
-		http.NotFound(w, r)
-		return
-	}
-	stepsMachine, ok := h.interp.Get().GetMachine(stepsMachineID)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
 	rec, err := h.records.Get(r.Context(), recordID)
 	if err != nil || rec.MachineID != machineID {
 		http.NotFound(w, r)
 		return
+	}
+	steps, err := h.computeStepperSteps(r, role, machine, view, rec)
+	if err != nil {
+		http.Error(w, "failed to load steps", http.StatusInternalServerError)
+		return
+	}
+	if steps == nil {
+		http.NotFound(w, r) // Config.steps_machine/steps_parent_field missing -- same as before this helper existed
+		return
+	}
+
+	a := h.auth(r)
+	page := ui.DecisionStepper(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, view.Name, steps, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render decision stepper", "error", err)
+	}
+}
+
+// computeStepperSteps (CAP-V20) is DecisionStepper's own step-computation
+// core, extracted so Detail (record_crud.go) can reuse it verbatim for the
+// inline-progress fix below -- both the full-page stepper (DecisionStepper
+// above) and the inline card on a Step's own Detail page need the EXACT
+// same done/current/pending + per-step triggers logic, and duplicating it
+// would let the two silently diverge the next time either changes. Returns
+// (nil, nil) -- not an error -- when the parent Machine's own Config is
+// missing steps_machine/steps_parent_field, matching DecisionStepper's own
+// pre-existing "404, not a 500" posture for a Machine that declares the
+// View but not its Config.
+func (h *Handler) computeStepperSteps(r *http.Request, role []string, machine *model.Machine, view *model.View, rec *store.Record) ([]ui.StepperStep, error) {
+	ds := view.Config.DecisionStepper
+	stepsMachineID := machine.Config["steps_machine"]
+	stepsParentField := machine.Config["steps_parent_field"]
+	if stepsMachineID == "" || stepsParentField == "" {
+		return nil, nil
+	}
+	stepsMachine, ok := h.interp.Get().GetMachine(stepsMachineID)
+	if !ok {
+		return nil, nil
 	}
 
 	// Same filter-in-Go shape childLists already uses (formfields.go) --
@@ -71,12 +97,11 @@ func (h *Handler) DecisionStepper(w http.ResponseWriter, r *http.Request) {
 	// stepsParentField points back at this record.
 	all, err := h.records.List(r.Context(), stepsMachineID, "", "")
 	if err != nil {
-		http.Error(w, "failed to load steps", http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 	var children []*store.Record
 	for _, c := range all {
-		if fmt.Sprintf("%v", c.Data[stepsParentField]) == recordID {
+		if fmt.Sprintf("%v", c.Data[stepsParentField]) == rec.ID {
 			children = append(children, c)
 		}
 	}
@@ -126,12 +151,79 @@ func (h *Handler) DecisionStepper(w http.ResponseWriter, r *http.Request) {
 			RecordID:      c.ID,
 		})
 	}
+	return steps, nil
+}
 
-	a := h.auth(r)
-	page := ui.DecisionStepper(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, view.Name, steps, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
-	if err := page.Render(r.Context(), w); err != nil {
-		slog.Error("render decision stepper", "error", err)
+// renderDecisionStepperChild (CAP-V20 Tier 2) is the "decision_stepper"
+// case of embed.go's renderChildView dispatch -- the Type-specific half of
+// embedding a decision-stepper View as another View's own Child. hostRec is
+// whatever record the HOST page is showing (e.g. one Approval Step); view
+// is the ALREADY-RESOLVED, already-type-checked decision_stepper View being
+// embedded (e.g. Approval Document's own vw_ad_progress) -- resolving which
+// View to embed at all, and confirming it's actually this Type, is
+// renderChildView's own job, not this function's.
+//
+// This finds the PARENT record (hostRec's own value for whatever Field the
+// stepper View's owning Machine declares as Config["steps_parent_field"]),
+// checks the acting role can read it, and reuses computeStepperSteps
+// verbatim -- the exact same computation the full-page /progress route
+// (DecisionStepper above) already runs. Returns nil whenever there's
+// genuinely nothing to show (hostRec doesn't actually reference a parent,
+// the role can't read it, or the parent record can't be loaded) --
+// deliberately no error return, since embedding a child is a purely
+// additive extra on a page whose real job (show the host record's own
+// fields) must still render even when this fails.
+func (h *Handler) renderDecisionStepperChild(r *http.Request, hostRec *store.Record, view *model.View) *ui.EmbeddedSection {
+	parent, ok := h.interp.Get().GetMachine(view.MachineID)
+	if !ok {
+		// view came from the interpreter's own index (renderChildView's
+		// GetView call) -- its own MachineID not resolving to a real
+		// Machine in that same interpreter would mean the in-memory model
+		// is internally inconsistent, not just "nothing to show here."
+		slog.Warn("decision_stepper child embed: view's own machine_id does not resolve",
+			"view", view.ID, "machine_id", view.MachineID)
+		return nil
 	}
+	stepsParentField := parent.Config["steps_parent_field"]
+	parentID := fmt.Sprintf("%v", hostRec.Data[stepsParentField])
+	if parentID == "" || parentID == "<nil>" {
+		// Ordinary, expected state -- e.g. a Step whose own parent
+		// reference field genuinely isn't set (yet). Not logged: this is
+		// ambient data state, not a configuration problem.
+		return nil
+	}
+	_, parentAppID := h.interp.Get().ScopeFor(parent.ID)
+	parentRole := h.roleForApp(r, parentAppID)
+	if !h.guard.CanRead(parent, parentRole) {
+		// Ordinary access-control outcome (this session's own role can't
+		// read the parent Machine) -- not logged, same as any other
+		// permission-scoped content simply not appearing for this actor.
+		return nil
+	}
+	parentRec, err := h.records.Get(r.Context(), parentID)
+	if err != nil {
+		// hostRec's own reference field named a parent id that doesn't
+		// resolve -- a dangling reference, real data-integrity signal.
+		slog.Warn("decision_stepper child embed: parent reference does not resolve to a real record",
+			"view", view.ID, "host_record", hostRec.ID, "parent_field", stepsParentField, "parent_id", parentID, "error", err)
+		return nil
+	}
+	steps, err := h.computeStepperSteps(r, parentRole, parent, view, parentRec)
+	if err != nil {
+		slog.Warn("decision_stepper child embed: failed to compute steps", "view", view.ID, "parent_record", parentRec.ID, "error", err)
+		return nil
+	}
+	if steps == nil {
+		// computeStepperSteps' own (nil, nil) means the PARENT Machine
+		// (parent, above) is missing Config.steps_machine/steps_parent_field
+		// -- a real metadata gap: something declared this decision_stepper
+		// View as embeddable, but the Machine it belongs to never finished
+		// the CAP-X03 config CAP-V20 depends on.
+		slog.Warn("decision_stepper child embed: parent machine has no steps_machine/steps_parent_field configured",
+			"view", view.ID, "parent_machine", parent.ID)
+		return nil
+	}
+	return &ui.EmbeddedSection{Title: view.Name, Content: ui.StepperList(h.workspaceSlug(r), h.auth(r).CSRFToken, steps)}
 }
 
 // stepLabel names one step "Step <sequence> — <assignee>" when it can,

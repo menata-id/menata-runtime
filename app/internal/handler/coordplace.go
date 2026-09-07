@@ -54,7 +54,7 @@ func (h *Handler) CoordPlace(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	previewKey, pageCount, isPDF, ok := h.coordPlacePreview(r, cp, rec)
+	previewKey, pageCount, ok := h.coordPlacePreview(r, cp, rec)
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -79,7 +79,7 @@ func (h *Handler) CoordPlace(w http.ResponseWriter, r *http.Request) {
 
 	editable := h.guard.CanEdit(machine, role) && coordPlaceOwnerOK(machine, role, h.identityID(r), rec.Data)
 	a := h.auth(r)
-	pageComp := ui.CoordPlace(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, view.Name, previewKey, isPDF, page, pageCount, x, y, editable, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	pageComp := ui.CoordPlace(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, view.Name, previewKey, page, pageCount, x, y, editable, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := pageComp.Render(r.Context(), w); err != nil {
 		slog.Error("render coord place", "error", err)
 	}
@@ -123,7 +123,7 @@ func (h *Handler) SetCoordPlace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cp := view.Config.CoordPlacement
-	_, pageCount, _, ok := h.coordPlacePreview(r, cp, rec)
+	_, pageCount, ok := h.coordPlacePreview(r, cp, rec)
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -153,34 +153,114 @@ func (h *Handler) SetCoordPlace(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/"+machineID+"/"+recordID+"/place", http.StatusSeeOther)
 }
 
+// renderCoordPlacementChild (CAP-V20 Tier 2) is the "coord_placement" case
+// of embed.go's renderChildView dispatch -- see that switch's own doc
+// comment. Unlike renderDecisionStepperChild, this one is same-record: a
+// coord_placement View's own Config (ReferenceField/PageField/XField/
+// YField) names Fields on the SAME record being embedded, not a different
+// parent's -- Approval Step's own Detail page embeds ITS OWN signature
+// position, not some other record's, closing document-approval.html's own
+// "Your Signature Position" panel exactly as drawn (same screen as the
+// Approve/Reject bar). Reuses coordPlacePreview and coordPlaceOwnerOK
+// verbatim -- the exact same resolution/ownership logic CoordPlace (the
+// standalone /place route above) already runs, just against hostRec
+// directly instead of a URL param. Returns nil whenever there's genuinely
+// nothing to show -- deliberately no error return, same "purely additive
+// extra" posture as renderDecisionStepperChild. Two DIFFERENT reasons can
+// produce that nil, logged at two different levels on purpose: no preview
+// yet (coordPlacePreview's own `ok=false` -- e.g. the reference isn't set,
+// or the file hasn't been uploaded) is an ordinary in-progress record, not
+// worth a log line; hostRec.MachineID not resolving to a real Machine
+// would mean this record's own data is pointing at something metadata no
+// longer declares -- structurally shouldn't happen given load-time
+// validation, exactly the class of drift this codebase has hit for real
+// before (see capability-registry.md's CAP-V20 row, the mch_ca_lifted
+// incident), so it's worth a Warn with enough context to actually debug.
+func (h *Handler) renderCoordPlacementChild(r *http.Request, hostRec *store.Record, view *model.View) *ui.EmbeddedSection {
+	cp := view.Config.CoordPlacement
+	previewKey, pageCount, ok := h.coordPlacePreview(r, cp, hostRec)
+	if !ok {
+		return nil
+	}
+	hostMachine, ok := h.interp.Get().GetMachine(hostRec.MachineID)
+	if !ok {
+		slog.Warn("coord_placement child embed: host record's own machine_id does not resolve",
+			"view", view.ID, "record", hostRec.ID, "machine_id", hostRec.MachineID)
+		return nil
+	}
+	page := int(toFloat(hostRec.Data[cp.PageField]))
+	if page < 1 {
+		page = 1
+	}
+	if page > pageCount {
+		page = pageCount
+	}
+	x, y := toFloat(hostRec.Data[cp.XField]), toFloat(hostRec.Data[cp.YField])
+	if x == 0 && y == 0 {
+		x, y = 50, 50 // an unset pin starts centered, matching CoordPlace's own default
+	}
+	_, appID := h.interp.Get().ScopeFor(hostMachine.ID)
+	role := h.roleForApp(r, appID)
+	editable := h.guard.CanEdit(hostMachine, role) && coordPlaceOwnerOK(hostMachine, role, h.identityID(r), hostRec.Data)
+
+	sec := &ui.EmbeddedSection{
+		Title:   view.Name,
+		Content: ui.CoordPlacePreview(h.workspaceSlug(r), h.auth(r).CSRFToken, hostMachine.ID, hostRec.ID, previewKey, page, pageCount, x, y, editable),
+	}
+	if pageCount > 1 {
+		// Page-switching only works on the standalone /place route (its own
+		// handler reads ?page= -- see CoordPlacePreview's own doc comment
+		// for why the embedded copy can't support that itself).
+		sec.ActionLabel = "Open full preview →"
+		sec.ActionHref = "/" + h.workspaceSlug(r) + "/" + hostMachine.ID + "/" + hostRec.ID + "/place"
+	}
+	return sec
+}
+
 // coordPlacePreview resolves the referenced record's own preview file,
 // returning its storage key, page count (1 for a non-PDF image -- CAP-V21
 // is not signature/PDF-specific, "equally usable to mark a defect location
-// on an equipment photo" per its own registry row), whether it's a PDF, and
-// whether a usable preview was found at all.
-func (h *Handler) coordPlacePreview(r *http.Request, cp *model.CoordPlacementConfig, rec *store.Record) (key string, pageCount int, isPDF bool, ok bool) {
+// on an equipment photo" per its own registry row), and whether a usable
+// preview was found at all.
+//
+// Deliberately does NOT return "is this a PDF" (2026-09-07 cleanup) --
+// isPDF used to be a fourth return value, threaded all the way down through
+// both callers into ui.CoordPlace/ui.CoordPlacePreview as its own separate
+// bool parameter, even though it's a pure function of `key` (its own file
+// extension) with no other information in it. A render function deciding
+// `<object>` vs `<img>` should derive that itself from the previewKey it
+// already has (CoordPlacePreview's own isPDFPreview, coordplace.templ) --
+// not be handed a second, independently-computed fact that could in
+// principle disagree with the first. This function still computes isPDF
+// LOCALLY, because IT has a real, different reason to need it (whether to
+// even attempt counting PDF pages below) -- that's a backend concern
+// unrelated to the render layer's own tag choice, so it stays internal.
+func (h *Handler) coordPlacePreview(r *http.Request, cp *model.CoordPlacementConfig, rec *store.Record) (key string, pageCount int, ok bool) {
 	refID := fmt.Sprintf("%v", rec.Data[cp.ReferenceField])
 	if refID == "" || refID == "<nil>" {
-		return "", 0, false, false
+		return "", 0, false
 	}
 	previewRec, err := h.records.Get(r.Context(), refID)
 	if err != nil {
-		return "", 0, false, false
+		slog.Warn("coord_placement reference_field points at a record that no longer resolves",
+			"reference_field", cp.ReferenceField, "referenced_id", refID, "error", err)
+		return "", 0, false
 	}
 	key, _ = previewRec.Data[cp.PreviewField].(string)
 	if key == "" {
-		return "", 0, false, false
+		return "", 0, false
 	}
-	isPDF = filepath.Ext(key) == ".pdf"
 	pageCount = 1
-	if isPDF {
+	if filepath.Ext(key) == ".pdf" {
 		if data, _, err := h.storage.Get(key); err == nil {
 			if pc, err := pdfapi.PageCount(bytes.NewReader(data), pdfmodel.NewDefaultConfiguration()); err == nil && pc > 0 {
 				pageCount = pc
 			}
+		} else {
+			slog.Warn("coord_placement preview file missing from storage", "key", key, "error", err)
 		}
 	}
-	return key, pageCount, isPDF, true
+	return key, pageCount, true
 }
 
 // coordPlaceOwnerOK mirrors permission.Guard.CanTrigger's own OwnerField

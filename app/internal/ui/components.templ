@@ -1,5 +1,6 @@
 package ui
 
+import "strconv"
 import "menata.id/app/internal/model"
 
 // CSRFField (CAP-X02) is the hidden synchronizer-token field every
@@ -342,4 +343,227 @@ templ ChildLinesSection(title string, rows [][]FormField, sumFieldA, sumFieldALa
 			</div>
 		}
 	</div>
+}
+
+// ---------------------------------------------------------------------------
+// General presentation primitives (Study 38, benchmarks/029-composed-view-
+// component-inventory.md) -- extracted from recurring shapes across
+// app/web/static/ui-sample/*.html, cross-checked by component-proof.html's
+// own markup diff against every source mockup. Each one is a pure
+// presentation primitive: no new metadata mechanism, no new capability row
+// (Study 38's own verdict table). Doc comment on each names its cluster #
+// and real call site(s) -- see app/docs/ui-component-library.md for the full
+// catalog, including primitives NOT yet wired to a real page.
+// ---------------------------------------------------------------------------
+
+// Avatar (Study 38 Cluster 3) renders a person as a 2-letter-initials circle
+// -- the single-avatar half of the Avatar/Avatar Stack cluster (8 of 14
+// ui-sample mockups use this shape). Call site: AvatarStack below, and any
+// future single-person context (a Detail page's own "assigned to", CAP-F05/
+// CAP-F13 rendering) that wants the same visual as the group ones.
+templ Avatar(initials string) {
+	<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">{ initials }</span>
+}
+
+// AvatarStack (Study 38 Cluster 3) renders the overlapping-circle "N
+// members" variant -- groups.html/group-approval.html's own group-card
+// shape. Call site: AdminUsers' Groups list (admin.templ) -- replaces the
+// previous plain comma-joined name list with the same visual ui-sample
+// already explored, names kept alongside as the accessible text.
+templ AvatarStack(initials []string) {
+	<div class="flex -space-x-2">
+		for _, in := range initials {
+			<span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-[10px] font-semibold text-slate-600">{ in }</span>
+		}
+	</div>
+}
+
+// RecordSummaryCard (Study 38 Cluster 2, ✓ proven by component-proof.html's
+// own markup diff against 4 independent sources -- quorum-approval.html,
+// requirement-checklist.html, sla-badge.html, process-map.html -- rendered
+// pixel-identical from this one shape). Wrapper/avatar/title are fixed;
+// subtitle and badge are the only free-text/free-content params, matching
+// process-map.html's own real variance (subtitle adds "submitted by", badge
+// reads "Currently: Review" not just "Review") without needing an enum.
+//
+// Not yet wired to a real page: this runtime's Process Overlay screens
+// (CAP-W01/W03/W04/W05, the mockups' own real source) aren't ported here
+// yet, and List's own row rendering (list.templ) is a table, not a card
+// list -- no current View type renders one record per card. Available for
+// whichever of those lands first; see app/docs/ui-component-library.md.
+templ RecordSummaryCard(avatarInitials, title, subtitle string, badge templ.Component) {
+	<div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+		@Avatar(avatarInitials)
+		<div class="flex-1">
+			<div class="text-sm font-semibold text-slate-900">{ title }</div>
+			<div class="text-xs text-slate-400">{ subtitle }</div>
+		</div>
+		if badge != nil {
+			@badge
+		}
+	</div>
+}
+
+// StickyActionBar (Study 38 Cluster 7, ✓ proven with a correction by
+// component-proof.html: the original assumption -- a single disabled-
+// until-ready button -- breaks on document-approval.html, which always
+// shows TWO always-enabled buttons (Reject + Approve), not a state variant
+// of one. Corrected shape takes an arbitrary children slot instead of a
+// fixed button param, the same "0..N components" fix component-proof.html
+// itself landed on.
+//
+// label/message may both be empty (Detail's own call below has no
+// SLA/quorum context to show yet) -- the bar still renders, actions
+// right-aligned, same layout `justify-between` already gives for free.
+//
+// Call site: Detail (detail.templ) -- the record-level Approve/Reject/
+// Submit/etc. button row, moved OUTSIDE the fields card specifically so
+// `position: sticky` has a real effect (an `overflow-hidden` ancestor -- the
+// fields card's own rounded-corner clipping -- silently breaks sticky
+// positioning, which the original inline button row sat inside).
+templ StickyActionBar(label, message string) {
+	<div class="sticky bottom-0 mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/95 px-5 py-4 backdrop-blur">
+		if label != "" || message != "" {
+			<div>
+				if label != "" {
+					<div class="text-xs text-slate-400">{ label }</div>
+				}
+				if message != "" {
+					<p class="text-sm font-medium text-slate-600">{ message }</p>
+				}
+			</div>
+		} else {
+			<div></div>
+		}
+		<div class="flex flex-wrap items-center gap-2">
+			{ children... }
+		</div>
+	</div>
+}
+
+// SectionWrapper (Study 38 Cluster 1) is the "title + source-View badge +
+// optional action link, wraps arbitrary content" shape approval-
+// dashboard.html uses 3× (Summary/Pending Documents/Recent Activity) --
+// named there as the literal missing mechanism CAP-V10 Tier 2's own
+// `Children` rendering needs to mark "here is where View X's data begins."
+// Folds into that Tier 2's own scope per Study 38's verdict, not a
+// capability row of its own.
+//
+// Not yet wired to a real page: CAP-V10 Tier 2 (a page composing several
+// DIFFERENT Views) is still ❌ not admitted -- today's real Dashboard
+// (dashboard.templ, CAP-V10 Tier 1 ✅) is one View's own Sections, not
+// several Views' worth of independently-sourced content, so it has nothing
+// for this wrapper to mark. Ready the moment Tier 2 lands; see
+// app/docs/ui-component-library.md.
+templ SectionWrapper(title, viewBadge, actionLabel, actionHref string) {
+	<div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+		<div class="flex items-center justify-between gap-2">
+			<h3 class="text-sm font-semibold text-slate-900">{ title }</h3>
+			<div class="flex items-center gap-2">
+				if viewBadge != "" {
+					<span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">{ viewBadge }</span>
+				}
+				if actionLabel != "" {
+					<a href={ templ.SafeURL(actionHref) } class="text-xs font-medium text-blue-600 hover:text-blue-800">{ actionLabel }</a>
+				}
+			</div>
+		</div>
+		<div class="mt-2">
+			{ children... }
+		</div>
+	</div>
+}
+
+// StatTile (Study 38 Cluster 5) is the "uppercase label + large number"
+// pair -- approval-dashboard.html's own Total Pending/Overdue/Due Today
+// tiles, and additional A1 evidence for the already-proposed CAP-V23
+// (kpi-with-delta). Deliberately renders label+value ONLY, no card chrome
+// -- Dashboard's own tile link (dashboard.templ) is already a bordered,
+// hoverable card, and approval-dashboard.html's own static tile wraps this
+// same pair in its own card too; giving StatTile its own border would
+// double it up at the one real call site this session wired.
+//
+// Call site: Dashboard (dashboard.templ) -- byte-identical classes to what
+// was there before, only moved into a shared component, so this is a pure
+// extraction with zero visual change at the existing call site.
+templ StatTile(label string, value int) {
+	<div class="text-xs font-semibold uppercase tracking-wide text-slate-500">{ label }</div>
+	<div class="mt-1 text-2xl font-semibold text-slate-900">{ strconv.Itoa(value) }</div>
+}
+
+// ActivityFeedItem (Study 38 Cluster 6) is one narrative row -- "actor verb
+// object, timestamp" -- distinct from a Divided List row by shape: this one
+// has no trailing action/status, it's chronological narrative. Reinforces
+// R28 (CAP-R04 → ✅ record history timeline) as a second use-case: the same
+// visual shape also serves a cross-record activity feed, not just one
+// record's own field-diff history.
+//
+// Not yet wired to a real page: nothing in this runtime today resolves a
+// cross-record "who did what when" feed (CAP-R04 is scoped to one record).
+// Available the moment that feed exists; see app/docs/ui-component-library.md.
+templ ActivityFeedItem(actorInitials, line, meta string) {
+	<li class="flex gap-3 px-4 py-3">
+		@Avatar(actorInitials)
+		<div class="flex-1 text-sm">
+			<div class="text-slate-800">{ line }</div>
+			<div class="mt-0.5 text-xs text-slate-400">{ meta }</div>
+		</div>
+	</li>
+}
+
+// DividedList (Study 38 Cluster 4) is the shared `<ul class="divide-y">`
+// wrapper behind both ActivityFeedItem rows and any other "row: leading
+// avatar/icon + content + trailing status/action" list -- generalizes
+// CAP-V02's own row rendering. Distinct from Cluster 6 (ActivityFeedItem)
+// by content shape (actionable/status row vs. narrative row), same wrapper
+// either way.
+templ DividedList() {
+	<ul class="divide-y divide-slate-100">
+		{ children... }
+	</ul>
+}
+
+// MemberChip (Study 38 Cluster 9, additional A1 evidence for the already-
+// proposed R13/CAP-F03 Tier 2) renders one Group-membership checkbox as a
+// removable-looking chip -- group-detail.html's own member-chip shape --
+// while staying a REAL <input type="checkbox" name="member_id"> under the
+// hood, so GroupDetail's existing "Save members" POST (SetMembers, CAP-O07)
+// needs no handler change at all. A checked member renders as a solid chip
+// (avatar + name + ×); an unchecked candidate renders as a dashed-outline
+// "+ name" pill, exactly ui-sample's own two variants.
+//
+// Known simplification, named rather than silently accepted: the border/
+// background/text-color toggle on click is live (Hyperscript, below), but
+// the avatar-vs-"+" glyph and the ×-vs-+ trailing glyph reflect this page's
+// LOAD-time checked state until the form is actually submitted -- a second,
+// separate live-DOM-swap step this pass didn't need for the underlying
+// membership change to work correctly. Same posture as shellBottomBar's own
+// "deliberately no active-tab highlighting yet" comment (layout.templ).
+//
+// Takes `name` only, not a separately-computed `initials` too (2026-09-07
+// cleanup, same fix as CoordPlacePreview's own isPDFPreview): initials(name)
+// is a pure function of name with nothing else in it, so computing it here
+// instead of trusting a second, independently-passed parameter removes one
+// more place the two could in principle disagree.
+templ MemberChip(id, name string, checked bool) {
+	<label
+		class={ "inline-flex cursor-pointer items-center gap-2 rounded-full border py-1 pl-1 pr-2 text-sm transition-colors",
+			templ.KV("border-slate-200 bg-slate-50 text-slate-700", checked),
+			templ.KV("border-dashed border-slate-300 text-slate-500 hover:border-blue-300 hover:text-blue-600", !checked) }
+		_="on change from <input/> in me
+			toggle .border-slate-200 .bg-slate-50 .text-slate-700 on me
+			toggle .border-dashed .border-slate-300 .text-slate-500 on me
+		end"
+	>
+		<input type="checkbox" name="member_id" value={ id } checked?={ checked } class="sr-only"/>
+		if checked {
+			<span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600">{ initials(name) }</span>
+		}
+		{ name }
+		if checked {
+			<span class="text-slate-400">×</span>
+		} else {
+			<span class="text-slate-400">+</span>
+		}
+	</label>
 }

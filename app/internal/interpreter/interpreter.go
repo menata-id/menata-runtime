@@ -17,6 +17,7 @@ type Interpreter struct {
 	machines            map[string]*model.Machine
 	subscriptionsByPub  map[string][]*model.Subscription
 	holidaysByWorkspace map[string]map[string]bool
+	viewsByID           map[string]*model.View
 }
 
 func New(workspaces []*model.Workspace) *Interpreter {
@@ -27,6 +28,7 @@ func New(workspaces []*model.Workspace) *Interpreter {
 		machines:            make(map[string]*model.Machine),
 		subscriptionsByPub:  make(map[string][]*model.Subscription),
 		holidaysByWorkspace: make(map[string]map[string]bool),
+		viewsByID:           make(map[string]*model.View),
 	}
 	for _, ws := range workspaces {
 		i.workspacesByID[ws.ID] = ws
@@ -47,10 +49,27 @@ func New(workspaces []*model.Workspace) *Interpreter {
 				for _, sub := range m.Subscriptions {
 					i.subscriptionsByPub[sub.PublisherEventID] = append(i.subscriptionsByPub[sub.PublisherEventID], sub)
 				}
+				// CAP-V20 Tier 2: a View's own Config.ParentStepperView
+				// names a View id that may belong to a DIFFERENT Machine
+				// (e.g. Approval Step's own Detail View names Approval
+				// Document's vw_ad_progress) -- a global by-id index, same
+				// reasoning eventMachine/machineByID already establish in
+				// metadata/validate.go for the same class of cross-machine
+				// reference.
+				for _, v := range m.Views {
+					i.viewsByID[v.ID] = v
+				}
 			}
 		}
 	}
 	return i
+}
+
+// GetView (CAP-V20 Tier 2) looks up a View by its own id, regardless of
+// which Machine declares it -- see viewsByID's own doc comment on New.
+func (i *Interpreter) GetView(id string) (*model.View, bool) {
+	v, ok := i.viewsByID[id]
+	return v, ok
 }
 
 // SubscriptionsFor (CAP-I01) returns every Subscription (on any Machine,

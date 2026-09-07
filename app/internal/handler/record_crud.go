@@ -1010,8 +1010,18 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	if h.interp.Get().DecisionStepperView(machineID) != nil { // CAP-V20
 		extraLinks = append(extraLinks, ui.DetailLink{Label: "View Progress", URL: "/" + h.workspaceSlug(r) + "/" + machineID + "/" + recordID + "/progress"})
 	}
+	// CAP-V20 Tier 2: this View's own declared Config.Children (empty on
+	// every View that doesn't declare any, i.e. everywhere except Approval
+	// Step's own vw_as_detail today) -- see model.go's own doc comment on
+	// Children and internal/handler/embed.go's renderEmbeddedViews for the
+	// full reasoning. Detail has no idea what it's embedding; it only
+	// knows it got zero or more titled sections back.
+	var embedded []ui.EmbeddedSection
+	if detailView != nil {
+		embedded = h.renderEmbeddedViews(r, rec, detailView.Config.Children)
+	}
 	a := h.auth(r)
-	page := ui.Detail(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), extraLinks)
+	page := ui.Detail(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), extraLinks, embedded)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render detail", "error", err)
 	}

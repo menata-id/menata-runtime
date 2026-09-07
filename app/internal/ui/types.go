@@ -1,5 +1,8 @@
 package ui
 
+import "strings"
+
+import "github.com/a-h/templ"
 import "menata.id/app/internal/model"
 
 // Card is a clickable summary tile — an Application on the workspace home
@@ -159,6 +162,32 @@ type StepperStep struct {
 	Triggers      []EventTrigger
 	StepMachineID string
 	RecordID      string
+}
+
+// EmbeddedSection (CAP-V20 Tier 2) is one OTHER View's content, rendered
+// inline on a host page that declared it via Config.Children (model.go) --
+// Title is that View's own declared Name, Content is whatever
+// handler-side, Type-specific dispatch (internal/handler/embed.go's
+// renderChildView) already resolved. Detail (detail.templ) -- or any
+// future host page that wants to support Children -- renders this
+// generically (a title + arbitrary content, via SectionWrapper): it never
+// needs to know WHAT KIND of View produced the Content, only that it has
+// some. Same reasoning that made this a Children/dispatch-by-Type
+// mechanism instead of a single-purpose "show a decision stepper" flag in
+// the first place -- see model.go's own Config.Children doc comment.
+//
+// ActionLabel/ActionHref are optional and Type-specific (set by whichever
+// render*Child function built this Section, empty when it has nothing to
+// link to) -- reuses SectionWrapper's own pre-existing action-link slot
+// rather than inventing a second one. renderCoordPlacementChild's own doc
+// comment (embed.go) is the first real user: a multi-page embedded preview
+// links here to its own standalone `/place` page, where page-switching
+// actually works.
+type EmbeddedSection struct {
+	Title       string
+	Content     templ.Component
+	ActionLabel string
+	ActionHref  string
 }
 
 // ChildList is a sub-list on a parent's detail page (CAP-V06): every record
@@ -358,4 +387,44 @@ type NotificationItem struct {
 	Unread  bool
 	When    string
 	Date    string // CAP-O05: "YYYY-MM-DD", the digest grouping key
+}
+
+// initials extracts up to two uppercase initials from a person's display
+// name (first letter of the first word + first letter of the last word) --
+// the "DR"/"RN"/"MP" shape every Avatar in ui-sample's mockups uses
+// (components.templ's Avatar/AvatarStack/MemberChip). Falls back to the
+// first one or two runes for a single-word name. Presentation-only, same
+// heuristic posture as displayLabel's own doc comment (internal/handler/
+// format.go) -- Menata Language has no "initial" concept, this is a
+// prototype-honest guess, not a stored value.
+func initials(name string) string {
+	fields := strings.Fields(name)
+	switch len(fields) {
+	case 0:
+		return ""
+	case 1:
+		r := []rune(fields[0])
+		if len(r) >= 2 {
+			return strings.ToUpper(string(r[:2]))
+		}
+		return strings.ToUpper(string(r))
+	default:
+		a := []rune(fields[0])
+		b := []rune(fields[len(fields)-1])
+		if len(a) == 0 || len(b) == 0 {
+			return ""
+		}
+		return strings.ToUpper(string(a[0]) + string(b[0]))
+	}
+}
+
+// memberInitials maps a Group's own MemberNames (AdminGroupRow) through
+// initials() for AvatarStack's own []string param -- admin.templ's Groups
+// list call site.
+func memberInitials(names []string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = initials(n)
+	}
+	return out
 }

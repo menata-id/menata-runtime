@@ -1,0 +1,30 @@
+-- seeds/042_inline_view_composition.sql
+-- CAP-V20 Tier 2: declares that Approval Step's own Detail View
+-- (vw_as_detail, seeds/004_approval.sql) should also render, inline,
+-- two OTHER Views that belong to this same Case:
+--   - vw_ad_progress (seeds/037_decision_stepper_lab.sql) -- Approval
+--     Document's own decision stepper, a DIFFERENT Machine's View
+--   - vw_as_place (seeds/036_coord_placement_lab.sql) -- this SAME
+--     record's own signature-position pin, previously only reachable via
+--     a separate "Set Position" DetailLink
+-- Together these close document-approval.html's own mockup exactly:
+-- Approve/Reject, Decision Progress, AND "Your Signature Position" all on
+-- one screen, the whole point of `children` being a generic mechanism
+-- (any View may embed any other View its own Config names) rather than a
+-- single-purpose "show a decision stepper" flag -- see model.go's own
+-- Config.Children doc comment for the full reasoning, including the
+-- corrected-same-day history of how this started narrower than it is now.
+-- What each embedded View actually IS gets resolved from its own declared
+-- `type` at render time (internal/handler/embed.go's renderChildView,
+-- dispatch by View.Type), never from this key's own name or shape.
+--
+-- vw_as_detail already exists (seeded by 004_approval.sql) -- editing an
+-- already-seeded row's content needs a companion UPDATE, not another
+-- INSERT ... ON CONFLICT DO NOTHING (that would silently no-op on any
+-- database that already ran 004, per prototype/go/CLAUDE.md's own "editing
+-- an already-seeded row" gotcha). This UPDATE sets the complete, final
+-- `children` array each time (not an accumulating append), so it's safe to
+-- re-run and safe to edit in place as this Case's own composition grows --
+-- unlike `event_actions`, there's no duplicate-row risk here.
+UPDATE views SET config = config || '{"children":[{"view":"vw_ad_progress"},{"view":"vw_as_place"}]}'
+    WHERE id = 'vw_as_detail';

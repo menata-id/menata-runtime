@@ -97,11 +97,13 @@ templ AdminUsers(workspaceName, wsSlug, identity, csrfToken string, unreadCount 
 						class="flex flex-wrap items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors"
 					>
 						<div class="w-44 shrink-0 text-sm font-medium text-slate-900">{ g.Name }</div>
-						<div class="text-xs text-slate-500">
+						<div class="flex items-center gap-3">
 							if len(g.MemberNames) == 0 {
-								no members
+								<span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[10px] font-semibold text-slate-400">0</span>
+								<span class="text-xs text-slate-400">no members</span>
 							} else {
-								{ strings.Join(g.MemberNames, ", ") }
+								@AvatarStack(memberInitials(g.MemberNames))
+								<span class="text-xs text-slate-500">{ strings.Join(g.MemberNames, ", ") }</span>
 							}
 						</div>
 						<div class="ml-auto flex flex-wrap items-center gap-3 text-xs text-slate-500">
@@ -151,12 +153,9 @@ templ GroupDetail(workspaceName, wsSlug, identity, csrfToken string, unreadCount
 		<h2 class="mb-2 text-sm font-semibold text-slate-900">Members</h2>
 		<form method="POST" action={ templ.SafeURL("/" + wsSlug + "/admin/groups/" + data.ID + "/members") } class="mb-8 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
 			@CSRFField(csrfToken)
-			<div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+			<div class="flex flex-wrap gap-2">
 				for _, m := range data.Members {
-					<label class="flex items-center gap-2 text-sm text-slate-700">
-						<input type="checkbox" name="member_id" value={ m.ID } checked?={ m.Checked }/>
-						{ m.Name }
-					</label>
+					@MemberChip(m.ID, m.Name, m.Checked)
 				}
 			</div>
 			<button

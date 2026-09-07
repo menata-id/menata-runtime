@@ -789,6 +789,59 @@ Field Status **tidak perlu** dimasukkan ke `config.fields` pada view Form — St
 
 Contoh lengkap tiap bentuk `config` (worked examples): `runtime-metadata-schema.md` §"View `config` per type".
 
+#### Komposisi View — `children` (CAP-V20 Tier 2, `app/`, 2026-09-07)
+
+Satu View bisa menyatakan bahwa ia ingin menampilkan View LAIN sekaligus, inline, di halamannya
+sendiri — bukan cuma tautan pindah halaman. Contoh nyata: halaman Detail milik Approval Step (yang
+tempat tombol Approve/Reject-nya berada) juga menampilkan progress seluruh alur Approval Document
+di situ juga, tanpa perlu pindah ke halaman `/progress` yang terpisah.
+
+**Kuncinya cuma satu, generik, tidak terikat ke satu tipe View tertentu, dan berupa array — boleh
+lebih dari satu entry:**
+
+```yaml
+views:
+  - id: vw_as_detail
+    name: Step Detail
+    type: detail
+    children:
+      - view: vw_ad_progress   # id View LAIN, boleh milik Machine yang berbeda (decision_stepper)
+      - view: vw_as_place      # id View LAIN lagi, boleh milik Machine yang SAMA (coord_placement)
+```
+
+```sql
+UPDATE views SET config = config || '{"children":[{"view":"vw_ad_progress"},{"view":"vw_as_place"}]}'
+    WHERE id = 'vw_as_detail';
+```
+
+Contoh di atas persis yang dipakai Case 3 (Document Approval) — halaman Detail Approval Step
+menampilkan progress seluruh alur (`vw_ad_progress`, milik Machine LAIN — Approval Document) **dan**
+posisi tanda tangannya sendiri (`vw_as_place`, milik Machine yang SAMA — Approval Step), berdampingan
+dengan tombol Approve/Reject di satu layar yang sama.
+
+**Prinsip pentingnya — ini bukan "flag per kapabilitas":** `children` tidak pernah menyebut "ini
+decision stepper" atau tipe apa pun. Runtime menentukan cara merender tiap entry `children` dengan
+melihat `type` milik View yang direferensikan itu sendiri, saat render — bukan dari nama key
+metadata-nya. Ini prinsip yang sama dipakai di seluruh runtime ini untuk View utama sebuah halaman
+(router melihat `type` View, baru memutuskan cara render) — `children` cuma menerapkan prinsip yang
+sama untuk View TAMBAHAN yang ikut ditampilkan. Praktiknya: menambah satu tipe View baru yang bisa
+di-`children`-kan adalah kerja tambahan di kode (satu `case` baru di dispatch-nya), bukan mengubah
+bentuk `children` itu sendiri.
+
+**Batasan saat ini:** baru `decision_stepper` dan `coord_placement` yang bisa di-`children`-kan
+(dicek saat load — kalau `view` menunjuk ke View dengan tipe lain, metadata gagal dimuat dengan
+pesan error yang jelas, bukan diam-diam tidak menampilkan apa-apa saat runtime). Menambah tipe lain
+(misalnya suatu saat `list` atau `report` juga boleh disisipkan) adalah kerja implementasi baru
+(satu `case` di dispatch + satu entry di daftar tipe yang diizinkan), bukan perubahan bentuk
+metadata ini — `coord_placement` sendiri ditambahkan belakangan dengan cara persis begitu, tanpa
+mengubah bentuk `children` yang sudah dipakai `decision_stepper`.
+
+Referensi implementasi lengkap: `app/internal/model/model.go` (`ViewConfig.Children`,
+`ChildViewRef`, `EmbeddableChildViewTypes`), `app/internal/handler/embed.go` (dispatch-nya),
+`app/internal/metadata/validate.go` (validasi saat load). Contoh metadata lengkap Document
+Approval + Group (termasuk `children` ini dalam konteks satu aplikasi utuh):
+`app/docs/examples/document-approval.md`.
+
 ---
 
 ## Urutan INSERT yang Benar
