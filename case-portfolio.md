@@ -7,7 +7,10 @@
 > is a designed experiment — and surprises (patterns the case reveals that
 > were not targeted) are themselves findings.
 >
-> Status: v0.32 — Case 3 gains a 2026-09-06 note: a new owner request (per-Step user-or-group
+> Status: v0.33 — Case 3's 2026-09-06 note gets its admission-test outcome (2026-09-07): the
+> approver-type toggle and saved-template gaps pass all five criteria (`CAP-F24`, `CAP-V28`, both
+> ❌ Proposed); the step-reorder/authoring gap fails A4 (composes from already-✅ `CAP-F16`, no new
+> row). Previously v0.32 — Case 3 gains a 2026-09-06 note: a new owner request (per-Step user-or-group
 > approver choice, submission-time step reordering, and a saved default flow per Document Type),
 > prototyped only as a static UI-sample mockup (`app/web/static/ui-sample/document-submit.html`),
 > not yet run through `capability-registry.md`'s admission test — three candidate gaps named,
@@ -153,6 +156,18 @@ Step ordering/authoring, rather than Steps being pre-existing records; (3) a sav
 mechanism scoped by Document Type. Left as documented, undecided gaps here — no CAP row opened
 yet, consistent with this file's own role (name the business requirement and check it against
 what's ✅) versus `capability-registry.md`'s (run the actual admission test and register a row).
+
+**Admission test run (2026-09-07):** all three checked against `capability-lifecycle.md` §2. (1)
+the approver-type toggle passes all five criteria — registered **`CAP-F24`** ❌ Proposed, dual
+evidence being this note plus WRP-3 Deferred Allocation (already cited on `CAP-F13`'s own row for
+this same case). (2) submission-time Step ordering/authoring fails A4 (non-composability) — it
+composes entirely from already-✅ `CAP-F16` (`child_lines`) once `CAP-F24`'s field shape exists,
+so it needs no capability row of its own; a build task, not an admission blocker. (3) the
+saved-template mechanism passes all five — registered **`CAP-V28`** ❌ Proposed, dual evidence
+being this note plus the DocuSign/Adobe Sign Templates and Salesforce Approval Process pattern,
+depending on `CAP-F24` existing first. Full reasoning on each row in `capability-registry.md`.
+Neither is built yet — admission only, per this repo's own "a capability is real only once a case
+exercises it AND a test verifies it."
 
 # Case 3 — extension note (2026-09-07): approval assistant (MCP) — target declaration
 

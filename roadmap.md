@@ -2438,6 +2438,24 @@ Case 18 (org-chart shape for `CAP-V26`).
 pointing here. Two new mockups (`approval-dashboard.html`, `component-proof.html`) added to
 `app/web/static/ui-sample/`, linked from its `index.html`.
 
+**Addendum (2026-09-07, same day) — admission test run on Case 3's own named gaps.** So Document
+Approval's own remaining mockup-only pieces could actually move to being built, the owner asked
+for the full `capability-lifecycle.md` §2 admission test on the four items this study and Study 37
+had left as mockups without a registry verdict. Outcome: the per-record approver-type toggle
+(user vs. Group, chosen at submission) and the category-keyed saved template both pass all five
+criteria, registered `CAP-F24` and `CAP-V28` (❌ Proposed) — `CAP-F24`'s dual evidence is Case 3's
+own 2026-09-06 note plus WRP-3 Deferred Allocation (Workflow Resource Patterns literature, already
+load-bearing on `CAP-F13`'s own row for this same case); `CAP-V28`'s is the same case note plus the
+DocuSign/Adobe Sign Templates and Salesforce Approval Process pattern. Submission-time step
+reorder/authoring fails A4 — it composes entirely from already-✅ `CAP-F16` (`child_lines`) once
+`CAP-F24`'s field pair exists, so it gets no row of its own, only a build note. `CAP-V10` Tier 2
+was re-run the same pass and still fails A1: its only terrain is this study's own exploratory
+`approval-dashboard.html` mockup, not a real declared case — stays HOLD, not admitted, consistent
+with the "revisit if a future case demonstrates otherwise" condition on the Page row in
+`capability-registry.md` §Tracked but Not Yet Studied still not being met by a mockup built to test
+the concept rather than a business-declared need. `capability-registry.md` v0.61 and
+`case-portfolio.md` v0.33 carry the full reasoning. No code built yet — admission only.
+
 ---
 
 ## Study 32 — Document Approval: PDF Signature Placement (2026-08-23)
