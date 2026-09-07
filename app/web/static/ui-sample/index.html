@@ -148,6 +148,56 @@
       <p class="mt-1 text-sm text-slate-500">Members tab plus an Application Roles tab for assigning approval roles per app.</p>
     </a>
   </div>
+
+  <h2 class="mt-12 text-lg font-semibold text-slate-900">Case coverage (Study 38)</h2>
+  <p class="mt-1 max-w-3xl text-sm text-slate-600">
+    All 21 <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">case-portfolio.md</code> cases,
+    cross-checked against every mockup above — one row per case, so a gap is visible here instead
+    of only inside a benchmark document. Full method and reasoning per row:
+    <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">benchmarks/029-composed-view-component-inventory.md</code>.
+  </p>
+  <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+    <table class="w-full text-sm">
+      <thead class="border-b border-slate-200 bg-slate-50">
+        <tr>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">#</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Case</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">View-relevant target</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">1</td><td class="px-4 py-2.5 font-medium text-slate-800">Design Request</td><td class="px-4 py-2.5 text-slate-500">CAP-V01–V03 (form/list/detail)</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — foundational, every Machine exercises it</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">2</td><td class="px-4 py-2.5 font-medium text-slate-800">Leave Request</td><td class="px-4 py-2.5 text-slate-500">same as Case 1</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — one row inside <a href="/ui-sample/worklist.html" class="underline decoration-dotted hover:text-blue-600">worklist.html</a> only</span></td></tr>
+        <tr class="bg-emerald-50/40 hover:bg-emerald-50"><td class="px-4 py-2.5 text-slate-400">3</td><td class="px-4 py-2.5 font-medium text-slate-800">Document Approval</td><td class="px-4 py-2.5 text-slate-500">CAP-F13/A07/A08, CAP-V20/V21, CAP-V10 T2</td><td class="px-4 py-2.5"><span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ mocked — 6 screens + approval-dashboard.html</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">4</td><td class="px-4 py-2.5 font-medium text-slate-800">Maintenance Reminder</td><td class="px-4 py-2.5 text-slate-500">—</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — no distinct View shape declared</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">5</td><td class="px-4 py-2.5 font-medium text-slate-800">Inventory / Stock Movement</td><td class="px-4 py-2.5 text-slate-500">—</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — no distinct View shape declared</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">6</td><td class="px-4 py-2.5 font-medium text-slate-800">Petty Cash Ledger</td><td class="px-4 py-2.5 text-slate-500">—</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — no distinct View shape declared</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">7</td><td class="px-4 py-2.5 font-medium text-slate-800">Customer Complaint</td><td class="px-4 py-2.5 text-slate-500">CMMN / SLA / escalation</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — covered only by the generic "Corrective Action" example (<a href="/ui-sample/requirement-checklist.html" class="underline decoration-dotted hover:text-blue-600">requirement-checklist</a>/<a href="/ui-sample/sla-badge.html" class="underline decoration-dotted hover:text-blue-600">sla-badge</a>/<a href="/ui-sample/process-map.html" class="underline decoration-dotted hover:text-blue-600">process-map</a>), not this case itself</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">8</td><td class="px-4 py-2.5 font-medium text-slate-800">Payment Confirmation</td><td class="px-4 py-2.5 text-slate-500">—</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — no distinct View shape declared</span></td></tr>
+        <tr class="bg-amber-50/50 hover:bg-amber-50"><td class="px-4 py-2.5 text-slate-400">9</td><td class="px-4 py-2.5 font-medium text-slate-800">Accounting (Trial Balance)</td><td class="px-4 py-2.5 text-slate-500">CAP-V13 report view</td><td class="px-4 py-2.5"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">queued · priority 2 — grouped totals/running balance shape never explored</span></td></tr>
+        <tr class="bg-amber-50/50 hover:bg-amber-50"><td class="px-4 py-2.5 text-slate-400">10</td><td class="px-4 py-2.5 font-medium text-slate-800">Organization Composite</td><td class="px-4 py-2.5 text-slate-500">CAP-V10 (cross-app dashboard)</td><td class="px-4 py-2.5"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">queued · priority 3 — a second, differently-shaped composed page</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">11</td><td class="px-4 py-2.5 font-medium text-slate-800">Social App</td><td class="px-4 py-2.5 text-slate-500">CAP-V05 feed</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">declined — infinite-scroll/feed UI explicitly reviewed and not admitted, Study 8</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">12</td><td class="px-4 py-2.5 font-medium text-slate-800">Community Site</td><td class="px-4 py-2.5 text-slate-500">CAP-A14</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — no distinct View shape declared</span></td></tr>
+        <tr class="bg-rose-50/50 hover:bg-rose-50"><td class="px-4 py-2.5 text-slate-400">13</td><td class="px-4 py-2.5 font-medium text-slate-800">Blog / One-Page Site</td><td class="px-4 py-2.5 text-slate-500">CAP-V10 (public landing), CAP-P07</td><td class="px-4 py-2.5"><span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">queued · priority 1 — CAP-V10's own original cited evidence, zero visual exploration to date</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">14</td><td class="px-4 py-2.5 font-medium text-slate-800">Lending Services</td><td class="px-4 py-2.5 text-slate-500">CAP-A15 (schedule)</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — a repayment-schedule table is a distinct shape but no case pressure to mock it yet</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">15</td><td class="px-4 py-2.5 font-medium text-slate-800">E-commerce</td><td class="px-4 py-2.5 text-slate-500">CAP-R08 (cart)</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — no distinct View shape declared</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">16</td><td class="px-4 py-2.5 font-medium text-slate-800">Point of Sale</td><td class="px-4 py-2.5 text-slate-500">composition only</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — pure composition of Cases 5/8/15, no new shape expected</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">17</td><td class="px-4 py-2.5 font-medium text-slate-800">Helpdesk</td><td class="px-4 py-2.5 text-slate-500">reuses Case 7</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — domain-portability only, no new shape expected</span></td></tr>
+        <tr class="bg-amber-50/50 hover:bg-amber-50"><td class="px-4 py-2.5 text-slate-400">18</td><td class="px-4 py-2.5 font-medium text-slate-800">HR Operations</td><td class="px-4 py-2.5 text-slate-500">CAP-F13 tree (org chart)</td><td class="px-4 py-2.5"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">queued · priority 4 — direct visual precedent for CAP-V26 Tree lens</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">19</td><td class="px-4 py-2.5 font-medium text-slate-800">Project Management (Trello-like)</td><td class="px-4 py-2.5 text-slate-500">CAP-V14 Tier 2 board</td><td class="px-4 py-2.5"><span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">real code, not mocked — review <code>internal/ui/board.templ</code>'s live render instead</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">20</td><td class="px-4 py-2.5 font-medium text-slate-800">Hospital System</td><td class="px-4 py-2.5 text-slate-500">CAP-V07/V18 resource calendar, CAP-P06</td><td class="px-4 py-2.5"><span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">real code, not mocked — review <code>internal/ui/calendar.templ</code>'s live render instead</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">21</td><td class="px-4 py-2.5 font-medium text-slate-800">E-learning</td><td class="px-4 py-2.5 text-slate-500">CAP-F21 (certificate)</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">not queued — no distinct View shape declared</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="mt-3 max-w-3xl text-xs text-slate-500">
+    <span class="mr-3"><span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span> mocked</span>
+    <span class="mr-3"><span class="inline-block h-2 w-2 rounded-full bg-rose-500"></span> queued · priority 1</span>
+    <span class="mr-3"><span class="inline-block h-2 w-2 rounded-full bg-amber-500"></span> queued · priority 2–4</span>
+    <span class="mr-3"><span class="inline-block h-2 w-2 rounded-full bg-blue-500"></span> real code exists, review instead of re-mocking</span>
+    <span><span class="inline-block h-2 w-2 rounded-full bg-slate-400"></span> not queued / declined</span>
+  </p>
 </main>
 </body>
 </html>
