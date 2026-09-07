@@ -27,12 +27,24 @@
 </header>
 <main class="mx-auto max-w-2xl px-6 py-8">
   <div class="mb-4 flex items-center justify-between">
-    <h1 class="text-xl font-semibold text-slate-900">Verify</h1>
+    <h1 class="text-xl font-semibold text-slate-900">Approve</h1>
     <a href="/ui-sample/process-map.html" class="text-sm text-slate-400 transition hover:text-slate-600">← Back to process map</a>
+  </div>
+  <div class="mb-6 flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">AP</span>
+    <div class="flex-1">
+      <div class="text-sm font-semibold text-slate-900">CA-2044 · Line 3 Conveyor Sensor Fault</div>
+      <div class="text-xs text-slate-400">Corrective Action · Andi Prasetyo · 01 Sep 2026</div>
+    </div>
+    <span class="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">Review</span>
   </div>
   <p class="mb-6 text-sm text-slate-500">
     CAP-W03: quorum <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">N_OF_M</code>, generalizing CAP-A08's
     parallel-approval rollup with a configured parameter instead of a hand-authored <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">min_approvals</code>.
+    Exploration only — <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">brd-menata-runtime-v2.md</code> §8's own
+    Corrective Action example declares plain <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">Approve</code>
+    (single Reviewer, no quorum); this page shows what it would look like if that same transition
+    were configured as a 2-of-3 quorum instead.
   </p>
 
   <div id="quorum-card" class="rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -79,7 +91,7 @@
                  remove .bg-slate-300 from #verify-btn
                  add .bg-emerald-600 to #verify-btn
                  add .hover:bg-emerald-500 to #verify-btn
-                 set #quorum-help.innerText to 'Quorum met — Verify is now enabled.'
+                 set #quorum-help.innerText to 'Quorum met — Approve is now enabled.'
             "
           >Approve</button>
           <button type="button" class="rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50">Reject</button>
@@ -95,11 +107,11 @@
         <span class="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Pending</span>
       </li>
     </ul>
+  </div>
 
-    <div class="border-t border-slate-100 px-4 py-4">
-      <button id="verify-btn" type="button" disabled class="cursor-not-allowed rounded-md bg-slate-300 px-4 py-2 text-sm font-medium text-white">Verify</button>
-      <p id="quorum-help" class="mt-2 text-xs text-slate-400">Waiting on 1 more approval to meet quorum (2 of 3).</p>
-    </div>
+  <div class="sticky bottom-0 mt-6 flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/95 py-4 backdrop-blur">
+    <div><div class="text-xs text-slate-400">Quorum</div><p id="quorum-help" class="text-sm font-medium text-slate-600">Waiting on 1 more approval to meet quorum (2 of 3).</p></div>
+    <button id="verify-btn" type="button" disabled class="cursor-not-allowed rounded-md bg-slate-300 px-5 py-2 text-sm font-medium text-white shadow-sm">Approve</button>
   </div>
 </main>
 </body>

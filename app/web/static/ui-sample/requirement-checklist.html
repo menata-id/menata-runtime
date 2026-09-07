@@ -30,6 +30,14 @@
     <h1 class="text-xl font-semibold text-slate-900">Submit → Submitted</h1>
     <a href="/ui-sample/process-map.html" class="text-sm text-slate-400 transition hover:text-slate-600">← Back to process map</a>
   </div>
+  <div class="mb-6 flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">AP</span>
+    <div class="flex-1">
+      <div class="text-sm font-semibold text-slate-900">CA-2044 · Line 3 Conveyor Sensor Fault</div>
+      <div class="text-xs text-slate-400">Corrective Action · Andi Prasetyo · 01 Sep 2026</div>
+    </div>
+    <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">In_Progress</span>
+  </div>
   <p class="mb-6 text-sm text-slate-500">
     CAP-W01: every row below reads a counter/flag already maintained on this record at write-time
     (§6.3 — write-time fan-in, read-time O(1)) — nothing here queries another table when the page loads.
@@ -94,10 +102,11 @@
         <span id="report-status" class="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-600">0 uploaded — required</span>
       </li>
     </ul>
-    <div class="border-t border-slate-100 px-4 py-4">
-      <button id="submit-btn" type="button" disabled class="cursor-not-allowed rounded-md bg-slate-300 px-4 py-2 text-sm font-medium text-white">Submit</button>
-      <p id="submit-help" class="mt-2 text-xs text-slate-400">1 requirement remaining — Completion report.</p>
-    </div>
+  </div>
+
+  <div class="sticky bottom-0 mt-6 flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/95 py-4 backdrop-blur">
+    <div><div class="text-xs text-slate-400">Requirements</div><p id="submit-help" class="text-sm font-medium text-slate-600">1 requirement remaining — Completion report.</p></div>
+    <button id="submit-btn" type="button" disabled class="cursor-not-allowed rounded-md bg-slate-300 px-5 py-2 text-sm font-medium text-white shadow-sm">Submit</button>
   </div>
 </main>
 </body>
