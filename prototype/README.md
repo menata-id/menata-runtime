@@ -79,6 +79,7 @@ Note: Camunda scores higher than Directus/Budibase because DMN covers all 4 cons
 | [salesforce/](salesforce/) | Salesforce Metadata API | Enterprise platform | Metadata Proof |
 | [camunda/](camunda/) | Camunda 8 + BPMN + DMN | Process engine | Metadata Proof |
 | [objectstack/](objectstack/) | ObjectStack (TypeScript + Zod metadata, microkernel runtime) | **Comparator study, not a metadata proof** | Study 37 (2026-09-07) |
+| [symfony/](symfony/) | Symfony (PHP, general-purpose web framework — no metadata layer) | **Infrastructure comparator study, not a metadata proof** | Study 39 (2026-09-07) |
 
 **Note on `objectstack/` (added 2026-09-07):** it is not scored in the table above and produced no
 `design-request.yaml` translation. It is a peer-runtime comparison — architecture, folder
@@ -87,6 +88,14 @@ owner's request and placed here by the owner's explicit instruction (root `READM
 "Where does a new document go?" rule would otherwise put it under `benchmarks/`). See
 [objectstack/README.md](objectstack/README.md) for why, and for the pointer trail
 (`roadmap.md` Study 37, `capability-registry.md` v0.55).
+
+**Note on `symfony/` (added 2026-09-07):** same genre as `objectstack/` above — not scored, no
+`design-request.yaml` translation — but a different kind of comparator: Symfony is a
+general-purpose PHP framework with no metadata layer, so this study asks whether its runtime
+*infrastructure* (DI, events, middleware, validation, security, cache, packaging, observability)
+names a real gap in `app/`'s own infrastructure, not whether it has Menata's business
+capabilities. Placed here by the owner's own suggestion, same reasoning as `objectstack/`. See
+[symfony/README.md](symfony/README.md); pointer trail: `roadmap.md` Study 39.
 
 ---
 

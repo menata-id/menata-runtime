@@ -2399,9 +2399,13 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     Study 38's live cross-check against the real running app (its own second addendum, below).
     Ordered so already-admitted work goes first, and nothing gets built ahead of its own admission
     test:
-    1. **`CAP-F24`** (per-record approver-type toggle, User vs Group) — already `❌ Proposed`,
-       dual evidence already on record, unblocks `document-submit.html`'s own approval-steps
-       section. Build first: nothing else in this list depends on it, and it in turn unblocks #2.
+    1. ~~`CAP-F24`~~ (per-record approver-type toggle, User vs Group) — **✅ done (2026-09-07)**,
+       owner-directed POC priority. `migrations/028_dynamic_actor_permission.sql`,
+       `seeds/043_approver_type_toggle.sql`, conformance T240–T242 (six positive+negative pairs),
+       full suite 229→235 on a fresh isolated schema, zero regressions. Full account —
+       including two real bugs this same build caught and fixed (a double-Approver-picker
+       regression, and a `MemberChip`-vs-conformance-scraper mismatch from an earlier session's
+       own UI work) — on `capability-registry.md`'s own `CAP-F24` row.
     2. **`CAP-V28`** (category-keyed saved approval-flow template) — already `❌ Proposed`,
        explicitly depends on `CAP-F24`'s field pair existing first (its own row's own dependency
        note) — build second, not in parallel.
@@ -2828,6 +2832,59 @@ are both ❌→✅ — full detail in "Recommended order" item 24's own two entr
 `capability-registry.md` v0.58. Not a Study 37 finding revised, just this study's own suggested
 order (§7) actually being followed through, two steps in. Steps 3+ (CAP-F13 T2/CAP-R04, the
 analytics trio, the permissions pass, the integration pass) remain ❌/⚠️, unchanged.
+
+---
+
+## Study 39 — Symfony Comparator Study (2026-09-07)
+
+Owner-supplied: an AI session's own essay comparing `app/` against Symfony (a general-purpose PHP
+web framework with no metadata layer) across twelve infrastructure areas — DI/service container,
+event system, HTTP kernel/middleware, validation, serialization/API, form abstraction, security,
+cache, plugin/bundle system, observability — with a priority table and a "combine both strengths"
+closing sketch. The owner asked which parts are correct, which duplicate ground Study 37
+(ObjectStack) already covered, and which should feed the roadmap. Full study:
+`prototype/symfony/README.md` (+ `docs/gap-analysis-and-recommendations.md`). **Placed under
+`prototype/` at the owner's own suggestion**, same placement as Study 37's ObjectStack folder;
+root `README.md` Tier 4, `prototype/README.md`, and this entry all point there.
+
+Because Symfony has no metadata/business-application layer at all, this study is a different
+genre than Study 37's capability-by-capability comparison: it asks whether Symfony's runtime
+*infrastructure* — the plumbing under any web application — names a real gap in `app/`'s own
+infrastructure, not whether Symfony has Menata's business capabilities (it structurally can't).
+One Symfony-side fact was independently verified rather than assumed (`symfony.com/doc/bundles
+.html`, current): since Symfony 4/Flex, organizing an application's *own* code into Bundles is
+explicitly not recommended — bundles are for sharing code across applications only. That is
+additional field evidence, from a completely different technology family, for the same conclusion
+Study 37 §2 already reached about ObjectStack's microkernel+DI design: a plugin/bundle mechanism
+solves a multi-package-wiring problem that a single static Go binary with no third-party
+extension ecosystem does not have.
+
+**Headline finding: every real gap the essay names was already registered from Study 37/38, at
+one of these statuses** — `CAP-C13` (expression/validation) ✅ already built; `CAP-X07` Tier 2
+(API completeness + OpenAPI), `CAP-P08`/`CAP-P09`/`CAP-O12` (permission scope depth + approver
+resolution), `CAP-I04` (observability trace), `CAP-X17` (metadata versioning) all ❌/⚠️ registered,
+awaiting build order. A third independent source (after ObjectStack and the second-opinion review)
+converging on the same short list from an unrelated technology stack is useful corroborating
+evidence, not a new gap — this study changes no build priority already set by `prototype/
+objectstack/docs/second-opinion-reconciliation.md` §5. Several of the essay's other claimed gaps
+turned out to already be solved by a different, cheaper mechanism than the one it names: general
+application events are already the Event→Action metadata grammar (`CAP-E*`/`CAP-A*`); form
+abstraction is already the Field+View+Constraint metadata triple (the essay's own recommended
+target architecture, reconstructed from first principles without recognizing `app/` already has
+it); a "view compilation cache" is a false premise — `templ` compiles to Go at build time, so
+there is no per-request template-compile cost in this architecture to cache. DI/Service
+Container and Plugin/Bundle kernel are both rejected as runtime mechanisms, same reasoning and
+verdict as Study 37 §2's ObjectStack rejection.
+
+**No capability admitted, no registry row changed, no code changed.** One new terrain connection
+recorded for a future admission test, not proposed as a capability now: `CAP-P07` (public/
+unauthenticated access, ✅) is exactly the surface `app/ARCHITECTURE.md`'s own already-named
+"no rate-limiting/DoS-protection middleware" gap would protect — Symfony's core `RateLimiter`
+component is industry confirmation this is a standard primitive, worth an admission-test pass
+whenever a case exercises `CAP-P07` under real anonymous traffic. One scoping note for whoever
+builds `CAP-P08`/`CAP-P09`: confirm `CAP-C13` expressions are usable inside Permission conditions
+specifically — its own row doesn't yet name Permission as a consuming surface, and the essay's
+Voter-style example is exactly that use.
 
 ---
 
