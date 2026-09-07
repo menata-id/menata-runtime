@@ -24,6 +24,7 @@
       <a href="/ui-sample/groups.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Groups</a>
       <a href="/ui-sample/document-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Doc Approval</a>
       <a href="/ui-sample/group-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Groups (Approval)</a>
+      <a href="/ui-sample/approval-dashboard.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Dashboard (composed)</a>
     </nav>
   </div>
 </header>
@@ -62,6 +63,26 @@
       <div class="text-xs font-semibold uppercase tracking-wide text-blue-600">§6.3 — indexed worklist</div>
       <div class="mt-1 text-base font-semibold text-slate-900">"Pending my decision"</div>
       <p class="mt-1 text-sm text-slate-500">One cross-Machine, indexed queue — the query win Concept A had over v1, closed by write-time fan-in instead of a second engine.</p>
+    </a>
+  </div>
+
+  <h2 class="mt-12 text-lg font-semibold text-slate-900">Composed page (CAP-V10 Tier 2 exploration)</h2>
+  <p class="mt-1 max-w-3xl text-sm text-slate-600">
+    Not a new capability — a page composing three already-existing Views by id: today's real
+    CAP-V10 summary tiles, plus two embedded <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">list</code>
+    Views (pending documents, recent activity). Built to find what composing a page out of Views
+    actually needs visually, since none of the screens above are a composed page.
+  </p>
+  <div class="mt-4 grid gap-4 sm:grid-cols-2">
+    <a href="/ui-sample/approval-dashboard.html" class="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md sm:col-span-2">
+      <div class="text-xs font-semibold uppercase tracking-wide text-amber-600">CAP-V10 Tier 2</div>
+      <div class="mt-1 text-base font-semibold text-slate-900">Approval Dashboard</div>
+      <p class="mt-1 text-sm text-slate-500">Summary tiles + an embedded Pending Documents list + an embedded Recent Activity feed, one page.</p>
+    </a>
+    <a href="/ui-sample/component-proof.html" class="block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md sm:col-span-2">
+      <div class="text-xs font-semibold uppercase tracking-wide text-amber-600">Study 38</div>
+      <div class="mt-1 text-base font-semibold text-slate-900">Component Consolidation Proof</div>
+      <p class="mt-1 text-sm text-slate-500">Renders the Record Summary Card (4 sources) and Sticky Action Bar (3 sources) from one shared shape each, side-by-side with their originals — proves reuse, and finds one real correction to the action-bar's own assumed shape.</p>
     </a>
   </div>
 

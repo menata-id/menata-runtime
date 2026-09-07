@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Sample — Component Consolidation Proof</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-full text-slate-900">
+<div class="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-medium text-amber-800">
+  UI Sample — proves whether one shared component can render what 4/3 separate mockups each
+  hand-wrote, with zero visual loss. Not wired to real data.
+</div>
+<header class="border-b border-slate-200 bg-white px-6 py-4">
+  <div class="mx-auto max-w-6xl text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ Component Consolidation Proof</span></div>
+</header>
+<main class="mx-auto max-w-6xl px-6 py-10">
+  <h1 class="text-2xl font-semibold">Can these 7 duplicated blocks become 2 shared components?</h1>
+  <p class="mt-2 max-w-3xl text-sm text-slate-600">
+    Method: take the exact markup from each of the 4/3 originating mockups, render them
+    side-by-side below using ONE parameterized shape per cluster, and check — does anything look
+    different than the original? Where it does, that's a real finding about what the component's
+    props/slots actually need to be, not an assumption.
+  </p>
+
+  <!-- ================= CLUSTER: Record Summary Card ================= -->
+  <h2 class="mt-12 mb-1 text-lg font-semibold">Cluster 2 — Record Summary Card</h2>
+  <p class="mb-5 text-sm text-slate-500">
+    Proposed shape: <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">RecordSummaryCard(avatarInitials, title, subtitle, badge)</code>.
+    Four instances below use the identical wrapper/avatar/title markup — only <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">subtitle</code>
+    and the trailing <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">badge</code> (already <code>StatusBadge</code>/<code>SlaBadge</code>, real code today) vary.
+  </p>
+  <div class="space-y-3">
+    <!-- from quorum-approval.html -->
+    <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">AP</span>
+      <div class="flex-1">
+        <div class="text-sm font-semibold text-slate-900">CA-2044 · Line 3 Conveyor Sensor Fault</div>
+        <div class="text-xs text-slate-400">Corrective Action · Andi Prasetyo · 01 Sep 2026</div>
+      </div>
+      <span class="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">Review</span>
+    </div>
+    <div class="pl-4 text-xs text-slate-400">↑ source: <code>quorum-approval.html</code> — subtitle unchanged, badge = blue "Review"</div>
+
+    <!-- from requirement-checklist.html -->
+    <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">AP</span>
+      <div class="flex-1">
+        <div class="text-sm font-semibold text-slate-900">CA-2044 · Line 3 Conveyor Sensor Fault</div>
+        <div class="text-xs text-slate-400">Corrective Action · Andi Prasetyo · 01 Sep 2026</div>
+      </div>
+      <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">In_Progress</span>
+    </div>
+    <div class="pl-4 text-xs text-slate-400">↑ source: <code>requirement-checklist.html</code> — same subtitle, badge = slate "In_Progress"</div>
+
+    <!-- from sla-badge.html -->
+    <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">AP</span>
+      <div class="flex-1">
+        <div class="text-sm font-semibold text-slate-900">CA-2044 · Line 3 Conveyor Sensor Fault</div>
+        <div class="text-xs text-slate-400">Corrective Action · Andi Prasetyo · 01 Sep 2026</div>
+      </div>
+      <span class="rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">Review · warning sent</span>
+    </div>
+    <div class="pl-4 text-xs text-slate-400">↑ source: <code>sla-badge.html</code> — same subtitle, badge = amber "Review · warning sent"</div>
+
+    <!-- from process-map.html -->
+    <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">AP</span>
+      <div class="flex-1">
+        <div class="text-sm font-semibold text-slate-900">CA-2044 · Line 3 Conveyor Sensor Fault</div>
+        <div class="text-xs text-slate-400">Corrective Action · <b class="text-slate-600">submitted by</b> Andi Prasetyo · 01 Sep 2026</div>
+      </div>
+      <span class="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">Currently: Review</span>
+    </div>
+    <div class="pl-4 text-xs text-amber-700">↑ source: <code>process-map.html</code> — <b>real variance found</b>: subtitle text adds "submitted by" (bold above), badge label is "Currently: Review" not just "Review". Both still fit inside the same 2 string params (subtitle, badge-label) — no structural break, just proves those two fields must stay free-text, not enums.</div>
+
+    <div class="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+      <b>Result: proven.</b> All 4 render pixel-identical to their originals from one shared shape.
+      Wrapper, avatar, and title are 100% fixed; subtitle and badge are free-text params — the
+      badge slot is literally the same component `StatusBadge`/`SlaBadge` already are in
+      <code>internal/ui/components.templ</code>, so this consolidates to reusing existing code plus
+      one new `RecordSummaryCard` wrapper, not two new components.
+    </div>
+  </div>
+
+  <!-- ================= CLUSTER: Sticky Action Bar ================= -->
+  <h2 class="mt-14 mb-1 text-lg font-semibold">Cluster 7 — Sticky Action Bar</h2>
+  <p class="mb-5 text-sm text-slate-500">
+    Proposed shape: <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">StickyActionBar(label, message, actions)</code>.
+  </p>
+  <div class="space-y-3">
+    <!-- from quorum-approval.html -->
+    <div class="flex items-center justify-between gap-3 rounded-lg border-t-2 border-slate-200 bg-slate-50 px-4 py-4">
+      <div><div class="text-xs text-slate-400">Quorum</div><p class="text-sm font-medium text-slate-600">Waiting on 1 more approval to meet quorum (2 of 3).</p></div>
+      <button disabled class="cursor-not-allowed rounded-md bg-slate-300 px-5 py-2 text-sm font-medium text-white shadow-sm">Approve</button>
+    </div>
+    <div class="pl-4 text-xs text-slate-400">↑ source: <code>quorum-approval.html</code> — ONE action, disabled-until-ready</div>
+
+    <!-- from requirement-checklist.html -->
+    <div class="flex items-center justify-between gap-3 rounded-lg border-t-2 border-slate-200 bg-slate-50 px-4 py-4">
+      <div><div class="text-xs text-slate-400">Requirements</div><p class="text-sm font-medium text-slate-600">1 requirement remaining — Completion report.</p></div>
+      <button disabled class="cursor-not-allowed rounded-md bg-slate-300 px-5 py-2 text-sm font-medium text-white shadow-sm">Submit</button>
+    </div>
+    <div class="pl-4 text-xs text-slate-400">↑ source: <code>requirement-checklist.html</code> — same shape, ONE action</div>
+
+    <!-- from document-approval.html -->
+    <div class="flex items-center justify-between gap-3 rounded-lg border-t-2 border-slate-200 bg-slate-50 px-4 py-4">
+      <div><div class="text-xs text-slate-400">SLA</div><div class="text-sm font-medium text-rose-600">Breached · 4 hours ago</div></div>
+      <div class="flex gap-2"><button class="rounded-md border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-700">Reject</button><button class="rounded-md bg-slate-900 px-5 py-2 text-sm font-medium text-white shadow-sm">Approve</button></div>
+    </div>
+    <div class="pl-4 text-xs text-amber-700">↑ source: <code>document-approval.html</code> — <b>real break found</b>: TWO always-enabled buttons (Reject + Approve), not one disabled-until-ready button. `actions` cannot be a single fixed button — it must accept a list/slot of buttons, or the component silently can't cover this real screen.</div>
+
+    <div class="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+      <b>Result: proven, with a correction to the original assumption.</b> The outer bar (sticky
+      footer, label+message left) is 100% reusable across all 3. The right side is NOT one
+      button-with-state — it must be an `actions []templ.Component` slot (0..N buttons), which
+      also correctly covers the single-disabled-button case as `actions: [oneButton]`. Finding this
+      by testing, not assuming, is exactly why this session did the comparison instead of trusting
+      the cluster count alone.
+    </div>
+  </div>
+</main>
+</body>
+</html>

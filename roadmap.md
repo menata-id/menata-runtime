@@ -2397,6 +2397,49 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
 
 ---
 
+## Study 38 — Composed-View UI Component Inventory (2026-09-07)
+
+Direct follow-on: rather than assert a content-primitive vocabulary for `CAP-V10` Tier 2 (Study
+37's own gap), this study derived it from the 14 real static UI-sample mockups this project has
+already built (`app/web/static/ui-sample/*.html`), plus one new mockup (`approval-dashboard.html`)
+built specifically to close the one shape none of the 14 covered — a page composing more than one
+View. Full write-up: `benchmarks/029-composed-view-component-inventory.md`.
+
+**Method:** cluster recurring markup across the mockups (same method as Study 8/28), pre-screen
+each cluster per `capability-lifecycle.md` §2. 11 clusters found; most (avatar, card, divided list,
+sticky action bar, filter chip) are presentation primitives with no registry impact — reusable
+`templ` components, not capabilities. Five carry real registry evidence: the "Section wrapper"
+pattern folds directly into `CAP-V10` Tier 2's own scope (its rendering mechanism); Stat Tile
+reinforces `CAP-V23`; Activity Feed adds a second use-case to R28 (`CAP-R04` → ✅); Removable Chip
+reinforces R13 (`CAP-F03` Tier 2); a two-column page grid is a second independent instance of the
+already-named G22/R19-R20 layout gap. One pattern (Choice Card) was found only once and explicitly
+**not** admitted — a single instance is not a pattern, named so it isn't silently lost.
+
+**Consolidation proof, not just clustering:** a second new mockup, `component-proof.html`, tests
+whether one shared component actually renders what its 4 (or 3) source mockups each hand-wrote,
+by diffing real markup rather than asserting similarity. Record Summary Card (4 sources) proved
+clean — one shared shape reproduces all 4 exactly, reusing `StatusBadge`/`SlaBadge` (already real
+code) as its badge slot. Sticky Action Bar (3 sources) found a real correction: the original
+single-button assumption breaks on `document-approval.html`'s own two-always-enabled-button
+layout — corrected to an `actions []templ.Component` slot before any Go code gets written against
+the narrower, wrong assumption.
+
+**Case-to-mockup coverage pass:** cross-checked all 21 `case-portfolio.md` cases against the 14+1
+mockups — only Case 3 (Document Approval) is well-covered; Cases 19/20 have real running code
+(`board.templ`/`calendar.templ`) but no mockup, worth reviewing directly instead of re-mocking;
+most cases have no View-distinct shape declared at all. Highest-priority gap: **Case 13** (Blog
+one-page landing) is `CAP-V10`'s own original cited evidence yet has zero visual exploration — the
+literal case for the content-mixing question this session's own discussion raised. Next candidates
+named, in order: Case 13, Case 9 (Trial Balance shape), Case 10 (a second composed-dashboard case),
+Case 18 (org-chart shape for `CAP-V26`).
+
+**Registry impact:** no capability admitted, consistent with Study 37's own discipline —
+`capability-registry.md` (`CAP-V10`, `CAP-V23`, `CAP-R04`, `CAP-F03` rows) carries dated notes
+pointing here. Two new mockups (`approval-dashboard.html`, `component-proof.html`) added to
+`app/web/static/ui-sample/`, linked from its `index.html`.
+
+---
+
 ## Study 32 — Document Approval: PDF Signature Placement (2026-08-23)
 
 Owner-requested extension of Case 3 (Document Approval): the approved artifact must be a real
