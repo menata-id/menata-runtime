@@ -2395,6 +2395,36 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     question. No new row, no status change, no code — `capability-registry.md` v0.59's `CAP-V10`
     row carries the same note.
 
+25. **New (2026-09-07) — priority order for Document Approval's own remaining mockup gaps**, per
+    Study 38's live cross-check against the real running app (its own second addendum, below).
+    Ordered so already-admitted work goes first, and nothing gets built ahead of its own admission
+    test:
+    1. **`CAP-F24`** (per-record approver-type toggle, User vs Group) — already `❌ Proposed`,
+       dual evidence already on record, unblocks `document-submit.html`'s own approval-steps
+       section. Build first: nothing else in this list depends on it, and it in turn unblocks #2.
+    2. **`CAP-V28`** (category-keyed saved approval-flow template) — already `❌ Proposed`,
+       explicitly depends on `CAP-F24`'s field pair existing first (its own row's own dependency
+       note) — build second, not in parallel.
+    3. **Run the A1–A5 admission test** (not build yet) on the two gaps this session's own live
+       cross-check newly named: a card-per-record list rendering (`CAP-V02`'s own new note) and a
+       computed-SLA-bucket list filter (`CAP-V09`/`CAP-V17`'s own new note). Both have real case
+       pressure now (`document-approval.html`'s own inbox) where they didn't before — worth an
+       honest admission pass rather than staying silently unnamed, per `guides/breaking-down-ui-
+       components-for-metadata.md`'s own Langkah 9.
+    4. **`CAP-V21`'s "multiple sibling pins on one shared preview" generalization**
+       (`document-signature-placement.html`'s own shape) — lower priority than 1–3: it's a
+       generalization of an already-✅ capability, not a blocker for anything else in this list,
+       and its own row already named the deferral deliberately, not as an oversight.
+    5. **`CAP-V10` Tier 2** stays where item 24 above already put it (§8, "as their cases arrive")
+       — `approval-dashboard.html` is exploratory evidence the study built specifically to test
+       the concept, not a business-declared need on its own; Study 38's own case-to-mockup
+       coverage pass named Case 13 (Blog landing) and Case 10 (Organization Composite) as the
+       mockups that would actually move this one, not another Case 3 extension.
+    6. **`Choice Card`** (the bordered-radio picker, `document-submit.html`'s Approval Mode)
+       stays **not admitted** — still exactly one instance after this cross-check, no change to
+       Study 38's own verdict. Revisit only if a second, independent mockup or case produces the
+       same shape, per that study's own stated condition.
+
 ---
 
 ## Study 38 — Composed-View UI Component Inventory (2026-09-07)
@@ -2455,6 +2485,44 @@ with the "revisit if a future case demonstrates otherwise" condition on the Page
 `capability-registry.md` §Tracked but Not Yet Studied still not being met by a mockup built to test
 the concept rather than a business-declared need. `capability-registry.md` v0.61 and
 `case-portfolio.md` v0.33 carry the full reasoning. No code built yet — admission only.
+
+**Second addendum (2026-09-07, `app/`) — CAP-V20 Tier 2 built, generalized, and cross-checked live
+against 4 of this study's own named mockups.** Direct follow-on to the addendum above: rather than
+leave `CAP-V20`'s own "View composition" note as a proposal, the owner asked for the narrower,
+already-real slice of it to actually ship — a View embedding another View inline (not `CAP-V10`
+Tier 2's full "any View composes any Views" page type, a smaller sibling of it). Landed as
+`ViewConfig.Children []ChildViewRef{view: <id>}`, dispatched by the referenced View's own declared
+`Type` (`internal/handler/embed.go`), exactly the `{view: <id>}` shape this study's own CAP-V10
+note (above) had already named for Tier 2 — built so the two mechanisms converge cheaply if Tier 2
+is ever admitted, not as a substitute for it. Two embeddable Types shipped the same day
+(`decision_stepper`, then `coord_placement` as a real second consumer, not a hypothetical one) —
+full account, including two same-day architecture corrections the owner caught directly, on
+`capability-registry.md`'s `CAP-V20` row. The resulting general-purpose method (how to decompose a
+mockup into metadata-driven components without repeating either correction) is now its own guide:
+`guides/breaking-down-ui-components-for-metadata.md`.
+
+Building it was also used as a live test of this study's own remaining named gaps — 4 of the
+mockups this study's evidence draws on (`document-submit.html`, `document-signature-
+placement.html`, `document-approval.html`, `approval-dashboard.html`) were checked directly
+against the real running app (`menata.app`), not just read as static files, to confirm which of
+their own pieces are already metadata-configurable today and which still aren't:
+
+| Mockup | Already metadata-only (proven live) | Still blocked, and by what |
+|---|---|---|
+| `document-approval.html` | Detail section (Document + Approval Progress + Signature Position + sticky Approve/Reject), via `children` above | Inbox list rendered as CARDS (not this study's own table-only `list` View — see new `CAP-V02` note below) with SLA-bucket filter chips (new gap, see new `CAP-V09`/`CAP-V17` note below) and a per-row quorum-progress badge ("ALL·2/3") |
+| `document-submit.html` | Plain fields, multi-step wizard (`CAP-V12` ✅), embedded approval-step rows (`CAP-F16` ✅) | Approval Mode as a `Choice Card` (this study's own Cluster 10 — still only 1 instance, correctly not admitted); per-step User/Group toggle (`CAP-F24`, ❌ Proposed); "save as default flow" checkbox (`CAP-V28`, ❌ Proposed) |
+| `document-signature-placement.html` | One step's own pin, embedded via `children` (`coord_placement`) | All sibling steps' pins shown overlaid on one shared preview — `CAP-V21`'s own row already named this exact shape as a deferred generalization, "no case has asked for the latter" until now |
+| `approval-dashboard.html` | The "Summary" stat-tile section — labeled `"✅ CAP-V10 today"` in the mockup's own markup | Embedding the `pending_documents`/`recent_activity` sections alongside it — labeled `"new, embedded"` in the same markup; needs `CAP-V10` Tier 2, still ❌ not admitted |
+
+**Two gaps this cross-check surfaced that weren't named anywhere before**, recorded per "silence is
+not a decision" rather than left implicit: `CAP-V02`'s row (list = table) gained a note that no
+View type renders one record per card (`RecordSummaryCard` exists as a component,
+`app/docs/ui-component-library.md`, but has no consumer — `list`'s own row shape is table-only);
+`CAP-V09`/`CAP-V17`'s rows gained a note that filtering a list by a COMPUTED SLA urgency bucket
+(Overdue/Due Today/All) has no mechanism today — `CAP-V09`'s filter only compares real stored
+field values (`$current_user` included), `CAP-V17`'s urgency bucket is computed at render time and
+never exposed as a filterable value. Neither has been run through the A1–A5 admission test yet —
+named, not admitted, same posture as `Choice Card`.
 
 ---
 

@@ -287,6 +287,26 @@ fixed by resetting that one column to `NULL`, its documented default state per t
 own comment — unrelated to this session's UI work, but worth naming here since fixing it was part
 of getting to a clean verification pass.
 
+## Known gaps against real mockups (2026-09-07)
+
+Cross-checked live (against `menata.app`, not just static reading) whether four more `ui-sample`
+mockups — `document-submit.html`, `document-signature-placement.html`, `document-approval.html`,
+`approval-dashboard.html` — can be produced by metadata configuration alone. Full table + evidence:
+`roadmap.md`'s Study 38, second addendum. Short version: the `children` composition proven above
+(Assembly proof) covers exactly the Detail-page pieces of `document-approval.html` and
+`document-signature-placement.html`; everything else these four mockups show beyond that is a
+named, tracked gap — `CAP-F24`/`CAP-V28` (❌ Proposed, not yet built), `Choice Card` (still not
+admitted, one instance), `CAP-V21`'s own "multiple pins on one preview" deferral, `CAP-V10` Tier 2
+(❌ not admitted), and two gaps this cross-check named for the first time: no `list` View renders
+as cards (`RecordSummaryCard` above has no consumer — `capability-registry.md`'s `CAP-V02` row),
+and no mechanism filters a list by a computed SLA-urgency bucket (`CAP-V09`/`CAP-V17` rows).
+`roadmap.md`'s own item 25 has the priority order for closing these.
+
+The general method used to reach this verdict — how to tell a real metadata gap from something
+that just needs a `templ` primitive, and how to avoid the two architecture mistakes this document's
+own correction history (above) already walked back once each — is written up as its own guide:
+`guides/breaking-down-ui-components-for-metadata.md`.
+
 ## Conventions for the next primitive
 
 Follow `components.templ`'s existing pattern, established by `CSRFField`/`StatusBadge`/
