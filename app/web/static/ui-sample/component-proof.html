@@ -3,35 +3,82 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>UI Sample — Component Consolidation Proof</title>
+<title>UI Sample — Component Inventory & Consolidation Proof</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="h-full text-slate-900">
 <div class="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-medium text-amber-800">
-  UI Sample — proves whether one shared component can render what 4/3 separate mockups each
-  hand-wrote, with zero visual loss. Not wired to real data.
+  UI Sample — Study 38's full component inventory. Two clusters are cross-tested against every
+  source that uses them (rendered from one shared shape, diffed for loss); the rest are named with
+  their real source links, not yet cross-tested. Not wired to real data.
 </div>
 <header class="border-b border-slate-200 bg-white px-6 py-4">
-  <div class="mx-auto max-w-6xl text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ Component Consolidation Proof</span></div>
+  <div class="mx-auto max-w-6xl text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ Component Inventory</span></div>
 </header>
 <main class="mx-auto max-w-6xl px-6 py-10">
-  <h1 class="text-2xl font-semibold">Can these 7 duplicated blocks become 2 shared components?</h1>
+  <h1 class="text-2xl font-semibold">Component Inventory</h1>
   <p class="mt-2 max-w-3xl text-sm text-slate-600">
-    Method: take the exact markup from each of the 4/3 originating mockups, render them
-    side-by-side below using ONE parameterized shape per cluster, and check — does anything look
-    different than the original? Where it does, that's a real finding about what the component's
-    props/slots actually need to be, not an assumption.
+    11 clusters found across the 14+1 mockups in this folder (full method:
+    <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">benchmarks/029-composed-view-component-inventory.md</code>).
+    Each row below jumps to its own section — every section links back to its real source
+    mockup(s), so a claim here can always be checked against where it actually came from.
   </p>
 
-  <!-- ================= CLUSTER: Record Summary Card ================= -->
-  <h2 class="mt-12 mb-1 text-lg font-semibold">Cluster 2 — Record Summary Card</h2>
+  <div class="mt-6 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+    <table class="w-full text-sm">
+      <thead class="border-b border-slate-200 bg-slate-50">
+        <tr>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">#</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Component</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Sources</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">1</td><td class="px-4 py-2.5"><a href="#c1" class="font-medium text-blue-600 hover:underline">Section wrapper</a></td><td class="px-4 py-2.5 text-slate-500">3× approval-dashboard.html</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">identified — 1 file, 3 uses</span></td></tr>
+        <tr class="bg-emerald-50/40 hover:bg-emerald-50"><td class="px-4 py-2.5 text-slate-400">2</td><td class="px-4 py-2.5"><a href="#c2" class="font-medium text-blue-600 hover:underline">Record Summary Card</a></td><td class="px-4 py-2.5 text-slate-500">4× quorum-approval, requirement-checklist, sla-badge, process-map</td><td class="px-4 py-2.5"><span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ proven — diffed against all 4 sources</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">3</td><td class="px-4 py-2.5"><a href="#c3" class="font-medium text-blue-600 hover:underline">Avatar / Avatar Stack</a></td><td class="px-4 py-2.5 text-slate-500">8× — worklist, quorum-approval, requirement-checklist, sla-badge, process-map, groups, group-detail, group-approval</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">identified — not yet cross-tested</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">4</td><td class="px-4 py-2.5"><a href="#c4" class="font-medium text-blue-600 hover:underline">Divided List</a></td><td class="px-4 py-2.5 text-slate-500">3× quorum-approval, requirement-checklist, group-detail</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">identified — not yet cross-tested</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">5</td><td class="px-4 py-2.5"><a href="#c5" class="font-medium text-blue-600 hover:underline">Stat Tile / KPI Card</a></td><td class="px-4 py-2.5 text-slate-500">3× approval-dashboard.html</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">identified — 1 file, 3 uses</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">6</td><td class="px-4 py-2.5"><a href="#c6" class="font-medium text-blue-600 hover:underline">Activity Feed / Timeline List</a></td><td class="px-4 py-2.5 text-slate-500">1× approval-dashboard.html</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">identified — single instance so far</span></td></tr>
+        <tr class="bg-amber-50/40 hover:bg-amber-50"><td class="px-4 py-2.5 text-slate-400">7</td><td class="px-4 py-2.5"><a href="#c7" class="font-medium text-blue-600 hover:underline">Sticky Action Bar</a></td><td class="px-4 py-2.5 text-slate-500">3× quorum-approval, requirement-checklist, document-approval</td><td class="px-4 py-2.5"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">✓ proven, with a correction — see below</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">8</td><td class="px-4 py-2.5"><a href="#c8" class="font-medium text-blue-600 hover:underline">Filter Chip / Segmented Control</a></td><td class="px-4 py-2.5 text-slate-500">3× worklist, document-approval, document-submit</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">identified — not yet cross-tested</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">9</td><td class="px-4 py-2.5"><a href="#c9" class="font-medium text-blue-600 hover:underline">Removable Chip / Tag</a></td><td class="px-4 py-2.5 text-slate-500">1× group-detail.html</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">identified — single instance so far</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">10</td><td class="px-4 py-2.5"><a href="#c10" class="font-medium text-blue-600 hover:underline">Choice Card</a></td><td class="px-4 py-2.5 text-slate-500">1× document-submit.html</td><td class="px-4 py-2.5"><span class="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-600">not admitted — 1 instance is not a pattern</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">11</td><td class="px-4 py-2.5"><a href="#c11" class="font-medium text-blue-600 hover:underline">Two-column / Grid Layout</a></td><td class="px-4 py-2.5 text-slate-500">2× document-approval, approval-dashboard</td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">identified — not yet cross-tested</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="mt-3 text-xs text-slate-500">
+    <span class="mr-3"><span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span> proven by diff</span>
+    <span class="mr-3"><span class="inline-block h-2 w-2 rounded-full bg-amber-500"></span> proven, correction found</span>
+    <span class="mr-3"><span class="inline-block h-2 w-2 rounded-full bg-slate-400"></span> identified, not yet cross-tested</span>
+    <span><span class="inline-block h-2 w-2 rounded-full bg-rose-400"></span> not admitted</span>
+  </p>
+
+  <!-- ================= 1. Section wrapper ================= -->
+  <h2 id="c1" class="mt-14 mb-1 scroll-mt-6 text-lg font-semibold">1 — Section wrapper</h2>
+  <p class="mb-4 text-sm text-slate-500">Title + source-View badge + optional action link, wraps arbitrary content. The mechanism <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">CAP-V10</code> Tier 2 needs to mark "here is where View X's data begins." Source: <a href="/ui-sample/approval-dashboard.html" class="text-blue-600 hover:underline">approval-dashboard.html</a>.</p>
+  <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div class="flex items-center justify-between">
+      <h3 class="text-sm font-semibold text-slate-900">Pending Documents</h3>
+      <div class="flex items-center gap-2"><span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">view: pending_documents</span><a href="#" class="text-xs font-medium text-blue-600">View all →</a></div>
+    </div>
+    <div class="mt-2 text-xs text-slate-400">[ wrapped content — any resolved View renders here ]</div>
+  </div>
+
+  <!-- ================= 2. Record Summary Card (already-proven section, kept from prior version) ================= -->
+  <h2 id="c2" class="mt-14 mb-1 scroll-mt-6 text-lg font-semibold">2 — Record Summary Card <span class="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 align-middle text-xs font-medium text-emerald-700">✓ proven</span></h2>
   <p class="mb-5 text-sm text-slate-500">
-    Proposed shape: <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">RecordSummaryCard(avatarInitials, title, subtitle, badge)</code>.
-    Four instances below use the identical wrapper/avatar/title markup — only <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">subtitle</code>
-    and the trailing <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">badge</code> (already <code>StatusBadge</code>/<code>SlaBadge</code>, real code today) vary.
+    Shape: <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">RecordSummaryCard(avatarInitials, title, subtitle, badge)</code>.
+    Rendered below from the exact markup of all 4 sources —
+    <a href="/ui-sample/quorum-approval.html" class="text-blue-600 hover:underline">quorum-approval.html</a>,
+    <a href="/ui-sample/requirement-checklist.html" class="text-blue-600 hover:underline">requirement-checklist.html</a>,
+    <a href="/ui-sample/sla-badge.html" class="text-blue-600 hover:underline">sla-badge.html</a>,
+    <a href="/ui-sample/process-map.html" class="text-blue-600 hover:underline">process-map.html</a> —
+    to check whether one shape reproduces all 4 with no loss.
   </p>
   <div class="space-y-3">
-    <!-- from quorum-approval.html -->
     <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
       <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">AP</span>
       <div class="flex-1">
@@ -40,9 +87,8 @@
       </div>
       <span class="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">Review</span>
     </div>
-    <div class="pl-4 text-xs text-slate-400">↑ source: <code>quorum-approval.html</code> — subtitle unchanged, badge = blue "Review"</div>
+    <div class="pl-4 text-xs text-slate-400">↑ source: <a href="/ui-sample/quorum-approval.html" class="underline decoration-dotted hover:text-blue-600">quorum-approval.html</a> — badge = blue "Review"</div>
 
-    <!-- from requirement-checklist.html -->
     <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
       <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">AP</span>
       <div class="flex-1">
@@ -51,9 +97,8 @@
       </div>
       <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">In_Progress</span>
     </div>
-    <div class="pl-4 text-xs text-slate-400">↑ source: <code>requirement-checklist.html</code> — same subtitle, badge = slate "In_Progress"</div>
+    <div class="pl-4 text-xs text-slate-400">↑ source: <a href="/ui-sample/requirement-checklist.html" class="underline decoration-dotted hover:text-blue-600">requirement-checklist.html</a> — badge = slate "In_Progress"</div>
 
-    <!-- from sla-badge.html -->
     <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
       <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">AP</span>
       <div class="flex-1">
@@ -62,9 +107,8 @@
       </div>
       <span class="rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">Review · warning sent</span>
     </div>
-    <div class="pl-4 text-xs text-slate-400">↑ source: <code>sla-badge.html</code> — same subtitle, badge = amber "Review · warning sent"</div>
+    <div class="pl-4 text-xs text-slate-400">↑ source: <a href="/ui-sample/sla-badge.html" class="underline decoration-dotted hover:text-blue-600">sla-badge.html</a> — badge = amber "Review · warning sent"</div>
 
-    <!-- from process-map.html -->
     <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
       <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">AP</span>
       <div class="flex-1">
@@ -73,53 +117,100 @@
       </div>
       <span class="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">Currently: Review</span>
     </div>
-    <div class="pl-4 text-xs text-amber-700">↑ source: <code>process-map.html</code> — <b>real variance found</b>: subtitle text adds "submitted by" (bold above), badge label is "Currently: Review" not just "Review". Both still fit inside the same 2 string params (subtitle, badge-label) — no structural break, just proves those two fields must stay free-text, not enums.</div>
+    <div class="pl-4 text-xs text-amber-700">↑ source: <a href="/ui-sample/process-map.html" class="underline decoration-dotted hover:text-blue-600">process-map.html</a> — <b>real variance found</b>: subtitle adds "submitted by", badge reads "Currently: Review". Both still fit as free-text params.</div>
 
     <div class="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-      <b>Result: proven.</b> All 4 render pixel-identical to their originals from one shared shape.
-      Wrapper, avatar, and title are 100% fixed; subtitle and badge are free-text params — the
-      badge slot is literally the same component `StatusBadge`/`SlaBadge` already are in
-      <code>internal/ui/components.templ</code>, so this consolidates to reusing existing code plus
-      one new `RecordSummaryCard` wrapper, not two new components.
+      <b>Result: proven.</b> All 4 render pixel-identical to their originals. Wrapper/avatar/title
+      are 100% fixed; subtitle and badge are free-text params — the badge slot is literally
+      `StatusBadge`/`SlaBadge`, already real code in `internal/ui/components.templ`.
     </div>
   </div>
 
-  <!-- ================= CLUSTER: Sticky Action Bar ================= -->
-  <h2 class="mt-14 mb-1 text-lg font-semibold">Cluster 7 — Sticky Action Bar</h2>
+  <!-- ================= 3. Avatar ================= -->
+  <h2 id="c3" class="mt-14 mb-1 scroll-mt-6 text-lg font-semibold">3 — Avatar / Avatar Stack</h2>
+  <p class="mb-4 text-sm text-slate-500">Initials circle (single) or overlapping-circle group (stack, "N members"). 8 sources: <a href="/ui-sample/worklist.html" class="text-blue-600 hover:underline">worklist</a>, <a href="/ui-sample/quorum-approval.html" class="text-blue-600 hover:underline">quorum-approval</a>, <a href="/ui-sample/requirement-checklist.html" class="text-blue-600 hover:underline">requirement-checklist</a>, <a href="/ui-sample/sla-badge.html" class="text-blue-600 hover:underline">sla-badge</a>, <a href="/ui-sample/process-map.html" class="text-blue-600 hover:underline">process-map</a>, <a href="/ui-sample/groups.html" class="text-blue-600 hover:underline">groups</a>, <a href="/ui-sample/group-detail.html" class="text-blue-600 hover:underline">group-detail</a>, <a href="/ui-sample/group-approval.html" class="text-blue-600 hover:underline">group-approval</a>.</p>
+  <div class="flex items-center gap-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <span class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">AP</span>
+    <div class="flex -space-x-2">
+      <span class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-[10px] font-semibold text-slate-600">DR</span>
+      <span class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-blue-100 text-[10px] font-semibold text-blue-700">RN</span>
+      <span class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-[10px] font-semibold text-slate-600">MP</span>
+    </div>
+    <span class="text-xs text-slate-400">single vs. stacked variant, side by side</span>
+  </div>
+
+  <!-- ================= 4. Divided List ================= -->
+  <h2 id="c4" class="mt-14 mb-1 scroll-mt-6 text-lg font-semibold">4 — Divided List</h2>
+  <p class="mb-4 text-sm text-slate-500">Rows: avatar/icon + content + trailing status or action, <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">divide-y</code>. Sources: <a href="/ui-sample/quorum-approval.html" class="text-blue-600 hover:underline">quorum-approval</a>, <a href="/ui-sample/requirement-checklist.html" class="text-blue-600 hover:underline">requirement-checklist</a>, <a href="/ui-sample/group-detail.html" class="text-blue-600 hover:underline">group-detail</a>. Generalizes <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">CAP-V02</code>'s own row rendering.</p>
+  <div class="rounded-lg border border-slate-200 bg-white shadow-sm"><ul class="divide-y divide-slate-100"><li class="flex items-center gap-3 px-4 py-3"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">DR</span><div class="flex-1 text-sm font-medium text-slate-900">Dian Ramadhan</div><span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">✓ Approved</span></li><li class="flex items-center gap-3 px-4 py-3"><span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">MP</span><div class="flex-1 text-sm font-medium text-slate-900">Maya Puspita</div><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Pending</span></li></ul></div>
+
+  <!-- ================= 5. Stat Tile ================= -->
+  <h2 id="c5" class="mt-14 mb-1 scroll-mt-6 text-lg font-semibold">5 — Stat Tile / KPI Card</h2>
+  <p class="mb-4 text-sm text-slate-500">Large number + label + color accent + breakdown chips. Source: <a href="/ui-sample/approval-dashboard.html" class="text-blue-600 hover:underline">approval-dashboard.html</a>. Reinforces <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">CAP-V23</code> (kpi-with-delta) evidence.</p>
+  <div class="max-w-xs rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Total Pending</div>
+    <div class="mt-2 text-3xl font-semibold text-slate-900">12</div>
+  </div>
+
+  <!-- ================= 6. Activity Feed ================= -->
+  <h2 id="c6" class="mt-14 mb-1 scroll-mt-6 text-lg font-semibold">6 — Activity Feed / Timeline List</h2>
+  <p class="mb-4 text-sm text-slate-500">Actor + verb + object + timestamp, narrative not actionable. Source: <a href="/ui-sample/approval-dashboard.html" class="text-blue-600 hover:underline">approval-dashboard.html</a>. Ties to R28 (<code class="rounded bg-slate-100 px-1 py-0.5 text-xs">CAP-R04</code> → ✅ history timeline View) as a second use-case.</p>
+  <div class="max-w-lg rounded-lg border border-slate-200 bg-white shadow-sm"><ul class="divide-y divide-slate-100"><li class="flex gap-3 px-4 py-3"><span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">RN</span><div class="flex-1 text-sm"><div class="text-slate-800"><span class="font-medium">Rina Nur</span> approved <span class="font-medium">Vendor Contract Q3</span></div><div class="mt-0.5 text-xs text-slate-400">10:42 · Finance Review</div></div></li></ul></div>
+
+  <!-- ================= 7. Sticky Action Bar (already-proven, kept) ================= -->
+  <h2 id="c7" class="mt-14 mb-1 scroll-mt-6 text-lg font-semibold">7 — Sticky Action Bar <span class="ml-2 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-medium text-amber-800">✓ proven, correction found</span></h2>
   <p class="mb-5 text-sm text-slate-500">
-    Proposed shape: <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">StickyActionBar(label, message, actions)</code>.
+    Shape: <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">StickyActionBar(label, message, actions)</code>. Sources:
+    <a href="/ui-sample/quorum-approval.html" class="text-blue-600 hover:underline">quorum-approval.html</a>,
+    <a href="/ui-sample/requirement-checklist.html" class="text-blue-600 hover:underline">requirement-checklist.html</a>,
+    <a href="/ui-sample/document-approval.html" class="text-blue-600 hover:underline">document-approval.html</a>.
   </p>
   <div class="space-y-3">
-    <!-- from quorum-approval.html -->
     <div class="flex items-center justify-between gap-3 rounded-lg border-t-2 border-slate-200 bg-slate-50 px-4 py-4">
       <div><div class="text-xs text-slate-400">Quorum</div><p class="text-sm font-medium text-slate-600">Waiting on 1 more approval to meet quorum (2 of 3).</p></div>
       <button disabled class="cursor-not-allowed rounded-md bg-slate-300 px-5 py-2 text-sm font-medium text-white shadow-sm">Approve</button>
     </div>
-    <div class="pl-4 text-xs text-slate-400">↑ source: <code>quorum-approval.html</code> — ONE action, disabled-until-ready</div>
+    <div class="pl-4 text-xs text-slate-400">↑ source: <a href="/ui-sample/quorum-approval.html" class="underline decoration-dotted hover:text-blue-600">quorum-approval.html</a> — ONE action, disabled-until-ready</div>
 
-    <!-- from requirement-checklist.html -->
     <div class="flex items-center justify-between gap-3 rounded-lg border-t-2 border-slate-200 bg-slate-50 px-4 py-4">
       <div><div class="text-xs text-slate-400">Requirements</div><p class="text-sm font-medium text-slate-600">1 requirement remaining — Completion report.</p></div>
       <button disabled class="cursor-not-allowed rounded-md bg-slate-300 px-5 py-2 text-sm font-medium text-white shadow-sm">Submit</button>
     </div>
-    <div class="pl-4 text-xs text-slate-400">↑ source: <code>requirement-checklist.html</code> — same shape, ONE action</div>
+    <div class="pl-4 text-xs text-slate-400">↑ source: <a href="/ui-sample/requirement-checklist.html" class="underline decoration-dotted hover:text-blue-600">requirement-checklist.html</a> — same shape, ONE action</div>
 
-    <!-- from document-approval.html -->
     <div class="flex items-center justify-between gap-3 rounded-lg border-t-2 border-slate-200 bg-slate-50 px-4 py-4">
       <div><div class="text-xs text-slate-400">SLA</div><div class="text-sm font-medium text-rose-600">Breached · 4 hours ago</div></div>
       <div class="flex gap-2"><button class="rounded-md border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-700">Reject</button><button class="rounded-md bg-slate-900 px-5 py-2 text-sm font-medium text-white shadow-sm">Approve</button></div>
     </div>
-    <div class="pl-4 text-xs text-amber-700">↑ source: <code>document-approval.html</code> — <b>real break found</b>: TWO always-enabled buttons (Reject + Approve), not one disabled-until-ready button. `actions` cannot be a single fixed button — it must accept a list/slot of buttons, or the component silently can't cover this real screen.</div>
+    <div class="pl-4 text-xs text-amber-700">↑ source: <a href="/ui-sample/document-approval.html" class="underline decoration-dotted hover:text-blue-600">document-approval.html</a> — <b>real break found</b>: TWO always-enabled buttons, not one disabled-until-ready button.</div>
 
     <div class="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-      <b>Result: proven, with a correction to the original assumption.</b> The outer bar (sticky
-      footer, label+message left) is 100% reusable across all 3. The right side is NOT one
-      button-with-state — it must be an `actions []templ.Component` slot (0..N buttons), which
-      also correctly covers the single-disabled-button case as `actions: [oneButton]`. Finding this
-      by testing, not assuming, is exactly why this session did the comparison instead of trusting
-      the cluster count alone.
+      <b>Result: proven, with a correction.</b> The outer bar is 100% reusable across all 3. The
+      right side must be an `actions []templ.Component` slot (0..N), not a single fixed button —
+      the single-button case is just a 1-element slice.
     </div>
   </div>
+
+  <!-- ================= 8. Filter Chip ================= -->
+  <h2 id="c8" class="mt-14 mb-1 scroll-mt-6 text-lg font-semibold">8 — Filter Chip / Segmented Control</h2>
+  <p class="mb-4 text-sm text-slate-500">Sources: <a href="/ui-sample/worklist.html" class="text-blue-600 hover:underline">worklist</a>, <a href="/ui-sample/document-approval.html" class="text-blue-600 hover:underline">document-approval</a> (status filter), <a href="/ui-sample/document-submit.html" class="text-blue-600 hover:underline">document-submit</a> (mode toggle — same shape, different use). Presentation of <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">CAP-V09</code>'s existing filter.</p>
+  <div class="flex gap-2 text-sm"><button class="rounded-full bg-slate-900 px-3 py-1 font-medium text-white">All (3)</button><button class="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">Overdue (1)</button></div>
+
+  <!-- ================= 9. Removable Chip ================= -->
+  <h2 id="c9" class="mt-14 mb-1 scroll-mt-6 text-lg font-semibold">9 — Removable Chip / Tag</h2>
+  <p class="mb-4 text-sm text-slate-500">Source: <a href="/ui-sample/group-detail.html" class="text-blue-600 hover:underline">group-detail.html</a>'s member chips. Reinforces R13 (<code class="rounded bg-slate-100 px-1 py-0.5 text-xs">CAP-F03</code> Tier 2, multi-select as tags).</p>
+  <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-1 pr-2 text-sm text-slate-700"><span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600">DR</span>Dian Ramadhan<button class="text-slate-400 hover:text-rose-600">×</button></span>
+
+  <!-- ================= 10. Choice Card ================= -->
+  <h2 id="c10" class="mt-14 mb-1 scroll-mt-6 text-lg font-semibold">10 — Choice Card <span class="ml-2 rounded-full bg-rose-50 px-2 py-0.5 align-middle text-xs font-medium text-rose-600">not admitted</span></h2>
+  <p class="mb-4 text-sm text-slate-500">Radio input rendered as a bordered card with label + description. Source: <a href="/ui-sample/document-submit.html" class="text-blue-600 hover:underline">document-submit.html</a>'s Sequential/Parallel mode picker — <b>1 occurrence only</b>. Named so it isn't silently lost; revisit if a second instance appears.</p>
+  <label class="inline-block max-w-xs rounded-md border-2 border-blue-500 bg-blue-50 p-4"><input type="radio" checked /> <span class="ml-1 text-sm font-medium">Sequential</span><div class="mt-1 text-xs text-slate-500">One approver at a time</div></label>
+
+  <!-- ================= 11. Grid Layout ================= -->
+  <h2 id="c11" class="mt-14 mb-1 scroll-mt-6 text-lg font-semibold">11 — Two-column / Grid Layout</h2>
+  <p class="mb-4 text-sm text-slate-500">Content 2/3 + sidebar 1/3, or page-level section grid. Sources: <a href="/ui-sample/document-approval.html" class="text-blue-600 hover:underline">document-approval.html</a> (Detail-page level), <a href="/ui-sample/approval-dashboard.html" class="text-blue-600 hover:underline">approval-dashboard.html</a> (composed-page level). Second independent instance of the already-named G22/R19-R20 layout gap.</p>
+  <div class="grid max-w-lg grid-cols-3 gap-2 text-xs"><div class="col-span-2 rounded border border-dashed border-slate-300 p-4 text-center text-slate-400">2/3 main</div><div class="rounded border border-dashed border-slate-300 p-4 text-center text-slate-400">1/3 sidebar</div></div>
+
 </main>
 </body>
 </html>
