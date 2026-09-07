@@ -2383,6 +2383,18 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
        `CAP-V24`–`V27` as their cases arrive; the "silent no-ops become load errors" ratchet
        (gap doc §6) whenever `internal/metadata/validate.go` is next touched.
 
+    **Addendum (2026-09-07, same day):** a third external document, an unsolicited "Composable
+    Metadata Runtime" architectural-direction proposal, was brought and reconciled against this
+    same study's already-reconciled position on a Page/Component/Slot ontology (§2 of
+    `second-opinion-reconciliation.md`). Full reconciliation:
+    `prototype/objectstack/docs/composable-view-proposal-reconciliation.md`. Confirms the earlier
+    rejection of a dynamic Component Registry/Canvas as SPA-shaped machinery this server-rendered
+    runtime has no structural need for, and refines `CAP-V10` Tier 2's own scope with one genuine
+    addition the earlier pass left open (a small closed static-content vocabulary mixable into a
+    page's composed children) plus the data-resolution mechanism and an open context-passing
+    question. No new row, no status change, no code — `capability-registry.md` v0.59's `CAP-V10`
+    row carries the same note.
+
 ---
 
 ## Study 32 — Document Approval: PDF Signature Placement (2026-08-23)

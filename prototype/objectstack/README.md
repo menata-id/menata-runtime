@@ -1,6 +1,12 @@
 # Menata Runtime — ObjectStack Comparator Study
 
-> Status: v1.1 — an independent second review of the same two repos (brought by the owner the same
+> Status: v1.2 — a third external document (an unsolicited "Composable Metadata Runtime"
+> architectural-direction proposal) reconciled against this study's own already-settled position on
+> a Page/Component/Slot ontology, in `docs/composable-view-proposal-reconciliation.md`: confirms the
+> earlier rejection of dynamic component dispatch/Canvas as SPA-shaped machinery, refines `CAP-V10`
+> Tier 2's scope with a small closed static-content vocabulary and its data-resolution mechanism, and
+> names an open context-passing question. No row admitted, no code changed | Previously v1.1 — an
+> independent second review of the same two repos (brought by the owner the same
 > day) reconciled against this study in `docs/second-opinion-reconciliation.md`: six narrow additions
 > (R24–R29), one re-prioritisation (R21 MCP → propose the Case 3 assistant extension now), five of
 > its "critical" items declined with reasons, updated priority order in that doc's §5 | Previously
@@ -61,6 +67,7 @@ conformance tests rather than prose as proof here.
 | [docs/capability-comparison.md](docs/capability-comparison.md) | The six areas the owner named — **field types, views, workflow/automation, approvals, permissions, analytics** — plus other highlights (MCP/AI tools, metadata versioning, notifications, search, validation gates, i18n, packaging), each as a table against the registry |
 | [docs/gap-analysis-and-recommendations.md](docs/gap-analysis-and-recommendations.md) | The gap list, what Menata Runtime should adopt (with the best-practice basis for each), what it should deliberately *not* copy, and where Menata Runtime is ahead — framed by the owner's two words: **flexible** (can build anything) and **powerful** (stays fast on efficient server resources) |
 | [docs/second-opinion-reconciliation.md](docs/second-opinion-reconciliation.md) | An independent second review of the same repos (owner-supplied, 2026-09-07) checked claim-by-claim against registry rows and `app/` source: agreements, disagreements with evidence, six additions (R24–R29: relation policy, searchable fields, API completion, metadata snapshots/rollback, history timeline, event presentation), what was declined and why, and the **updated priority order that supersedes the gap doc's §7** |
+| [docs/composable-view-proposal-reconciliation.md](docs/composable-view-proposal-reconciliation.md) | A third external document (owner-supplied, 2026-09-07) — a "Composable Metadata Runtime" architectural-direction proposal — reconciled against this study's own already-settled position on a Page/Component/Slot ontology (`second-opinion-reconciliation.md` §2): confirms the SPA-shaped rejection of dynamic component dispatch/Canvas, refines `CAP-V10` Tier 2's scope with a small closed static-content vocabulary + its data-resolution mechanism, names an open context-passing question |
 
 ## Executive summary
 
