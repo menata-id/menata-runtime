@@ -1,6 +1,10 @@
 # Menata Runtime — ObjectStack Comparator Study
 
-> Status: v1.0 — Study 37, first pass: ObjectStack studied from its own source tree and docs, compared
+> Status: v1.1 — an independent second review of the same two repos (brought by the owner the same
+> day) reconciled against this study in `docs/second-opinion-reconciliation.md`: six narrow additions
+> (R24–R29), one re-prioritisation (R21 MCP → propose the Case 3 assistant extension now), five of
+> its "critical" items declined with reasons, updated priority order in that doc's §5 | Previously
+> v1.0 — Study 37, first pass: ObjectStack studied from its own source tree and docs, compared
 > area-by-area against Menata Runtime, gaps and candidate capabilities named (none admitted to the
 > registry yet — owner decision pending) | Created: 2026-09-07 | Updated: 2026-09-07
 
@@ -56,6 +60,7 @@ conformance tests rather than prose as proof here.
 | [docs/architecture-and-backend.md](docs/architecture-and-backend.md) | Backend architecture, monorepo/folder structure, request path, storage model, metadata pipeline, expression layer, extension/escape-hatch model, deployment/cluster/observability — each set side-by-side with `app/`'s own shape |
 | [docs/capability-comparison.md](docs/capability-comparison.md) | The six areas the owner named — **field types, views, workflow/automation, approvals, permissions, analytics** — plus other highlights (MCP/AI tools, metadata versioning, notifications, search, validation gates, i18n, packaging), each as a table against the registry |
 | [docs/gap-analysis-and-recommendations.md](docs/gap-analysis-and-recommendations.md) | The gap list, what Menata Runtime should adopt (with the best-practice basis for each), what it should deliberately *not* copy, and where Menata Runtime is ahead — framed by the owner's two words: **flexible** (can build anything) and **powerful** (stays fast on efficient server resources) |
+| [docs/second-opinion-reconciliation.md](docs/second-opinion-reconciliation.md) | An independent second review of the same repos (owner-supplied, 2026-09-07) checked claim-by-claim against registry rows and `app/` source: agreements, disagreements with evidence, six additions (R24–R29: relation policy, searchable fields, API completion, metadata snapshots/rollback, history timeline, event presentation), what was declined and why, and the **updated priority order that supersedes the gap doc's §7** |
 
 ## Executive summary
 

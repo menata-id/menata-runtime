@@ -2601,6 +2601,22 @@ registry row changed, no code changed** — evidence for an owner decision, per 
 "declare targets first" discipline. Suggested next-session order in §7 (email transport decision
 first; expression layer second; analytics trio third; permissions pass fourth).
 
+**Status update (2026-09-07, same day): second opinion reconciled.** The owner brought an
+independent review of the same two repos; `prototype/objectstack/docs/second-opinion-
+reconciliation.md` checks it claim-by-claim against registry rows and `app/` source. Six narrow
+additions accepted (R24 relation policy on `reference` — `on_delete` / permission-follows-parent
+/ inverse name, `CAP-F13` T2; R25 declared searchable fields, `CAP-O04` T2; R26 complete Data +
+Event API with OpenAPI, `CAP-X07` T2; R27 metadata snapshots/diff/rollback, candidate `CAP-X17`;
+R28 record history timeline View closing `CAP-R04` ⚠️; R29 Event presentation options, `CAP-P04`
+T2), R21 MCP re-prioritised (propose the Case 3 "approval assistant" extension as its case), and
+five of that review's "critical" items declined with reasons (runtime plugin kernel, multi-DB
+drivers, UI component ontology, realtime bus up front, full connector family) — where it argued
+from ObjectStack's architecture it proposed substrate no case needs; where it argued from what a
+business application needs to be operated and trusted it found real gaps. Its star-rating matrix
+was contradicted by ✅ rows in four areas (search, files, tenancy, approvals) — the H7
+declared-≠-enforced lesson again. Updated priority order in that doc's §5. Still no capability
+admitted, no row changed.
+
 ---
 
 # Principles

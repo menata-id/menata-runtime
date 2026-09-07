@@ -297,6 +297,10 @@ year of enforce-or-remove ADRs. No registry row — this is `CAP-X05`'s own defi
 
 ## 7. Suggested order for upcoming sessions
 
+**Superseded (2026-09-07, same day):** `second-opinion-reconciliation.md` §5 carries the current
+order, after six additions (R24–R29) and one re-prioritisation (R21). The list below is kept as
+written, per the append-don't-rewrite convention.
+
 1. **R23 → decide the email transport** (`CAP-O10`) — it gates R9/R10 links, `CAP-V11`, and real
    `CAP-A10`. Both projects paid for deferring it.
 2. **R1 expression layer** (`CAP-F14` ✅ + `CAP-C13`) — highest leverage; cel-go; fail-closed scope.
