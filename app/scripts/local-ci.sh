@@ -80,7 +80,15 @@ echo "==> build"
 make build > "$LOG_DIR/build.log" 2>&1
 
 echo "==> starting throwaway server on :$PORT"
-DATABASE_URL="$TEST_DB_URL" PORT="$PORT" SECURE_COOKIES=false ./bin/server > "$LOG_DIR/server.log" 2>&1 &
+# CAP-O10: SMTP_HOST explicitly forced empty -- godotenv.Load() (cmd/server/
+# main.go) reads app/.env same as this throwaway server's own cwd, and a
+# real deployment's .env may have a real relay configured there. Without
+# this override, every invitation-creation test would actually dial out to
+# that relay (real 1-2s network round trips) instead of hitting internal/
+# mailer's log-only fallback -- 170_workspace_invitations.sh's own
+# SERVER_LOG-based token recovery only works against that fallback's log
+# line, and a real send obviously never produces one.
+DATABASE_URL="$TEST_DB_URL" PORT="$PORT" SECURE_COOKIES=false SMTP_HOST="" ./bin/server > "$LOG_DIR/server.log" 2>&1 &
 SERVER_PID=$!
 
 healthy=false

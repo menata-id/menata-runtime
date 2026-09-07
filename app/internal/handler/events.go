@@ -258,7 +258,11 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 
 	// CAP-E06 — state guard: the event may only fire when the record's
 	// CURRENT data satisfies its condition (e.g. Reject only from Submitted).
-	if event.Condition != nil && !constraint.Eval(*event.Condition, rec.Data) {
+	// CAP-C13: no `old` here -- nothing has been simulated yet at this
+	// point, so there is no meaningful "before" distinct from `record`
+	// itself; current_user IS available (actorIdentityID, the same
+	// account-id convention CAP-F05 `user` fields already store).
+	if event.Condition != nil && !constraint.Eval(*event.Condition, rec.Data, constraint.EvalContext{CurrentUser: actorIdentityID}) {
 		return &ruleViolation{fmt.Sprintf("%s is not allowed in the record's current state", event.Name)}
 	}
 
@@ -303,7 +307,10 @@ func (h *Handler) triggerEvent(ctx context.Context, machine *model.Machine, even
 	workspaceID, _ := h.interp.Get().ScopeFor(machine.ID)
 	holidays := h.interp.Get().Holidays(workspaceID)
 	newData := h.exec.Simulate(machine, event, rec, actorRole, actorIdentity, eventInput, holidays)
-	if violations := h.engine.Violations(machine, withChangePolicyCreatedAt(machine, newData, rec.CreatedAt)); len(violations) > 0 {
+	// CAP-C13: `old` is the record's own data BEFORE this event's actions
+	// ran -- the natural "did this event actually change the field I care
+	// about" comparison point, e.g. `record.status != old.status`.
+	if violations := h.engine.Violations(machine, withChangePolicyCreatedAt(machine, newData, rec.CreatedAt), constraint.EvalContext{Old: rec.Data, CurrentUser: actorIdentityID}); len(violations) > 0 {
 		return &ruleViolation{strings.Join(violations, " ")}
 	}
 	// CAP-C08: cross-record constraints (e.g. debit=credit, period-open) need

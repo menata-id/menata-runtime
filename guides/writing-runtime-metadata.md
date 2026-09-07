@@ -525,6 +525,63 @@ menganggap "terpenuhi" untuk operator yang tidak dikenal). Tetap tuliskan di `.m
 baru ditambahkan ke runtime tanpa mengubah `.menata`, tapi jangan asumsikan sudah jalan di
 runtime hanya karena loadnya tidak error.
 
+**Koreksi (2026-09-07):** paragraf di atas sudah basi di dua hal, dibiarkan apa adanya
+(konvensi append-don't-rewrite repo ini) tapi jangan dipercaya lagi. Pertama, `greater_than_or_equal`/
+`less_than_or_equal` sendiri sudah diimplementasikan (CAP-C05) — lihat tabel di atas. Kedua, dan
+lebih penting: operator yang TIDAK dikenal sekarang justru **gagal saat load** (CAP-X05,
+`validateOperators`), bukan diam-diam "selalu terpenuhi" lagi — jadi menulis operator yang belum
+ada di runtime sekarang bikin `make migrate-up`/reload GAGAL, bukan cuma no-op senyap. Cek
+`internal/model/model.go`'s `SupportedOperators` (app/, bukan prototype/go/) untuk daftar yang
+benar-benar aktual sebelum menulis operator baru di `.menata`.
+
+**Operator "expression" (CAP-C13, ✅, 2026-09-07)** -- lapisan ekspresi umum, bukan satu
+field/operator/value lagi, tapi satu string CEL (Common Expression Language,
+`github.com/google/cel-go`) bebas — bisa gabungan aritmatika, perbandingan, dan operator boolean
+dalam satu klausa, sesuatu yang mustahil ditulis dengan operator triple biasa di atas (mis. "qty *
+unit_price > 100"). Berlaku di tempat yang sama triple biasa berlaku hari ini: `constraints.expression`/
+`constraints.condition`, `events.condition`, `event_actions.params.if`, dan `views.config.filter`
+— semuanya lewat satu `internal/expr` package yang sama, bukan lima implementasi terpisah.
+
+Variabel yang bisa dibaca sebuah ekspresi, TIDAK LEBIH dari ini (structural guardrail, bukan
+kebijakan yang bisa lupa dicek — tidak ada fungsi I/O yang pernah didaftarkan ke environment-nya
+sama sekali):
+
+| Variabel | Isinya |
+|---|---|
+| `record` | data record ini sekarang (map, field id sebagai key — sama seperti field/operator/value biasa membaca `data[field]`) |
+| `old` | snapshot record SEBELUM perubahan berjalan — map kosong (bukan error) kalau memang belum ada "before" (Create, filter List) |
+| `current_user` | id akun yang sedang bertindak, `""` kalau belum ada yang resolve di titik itu |
+| `today`, `now` | tanggal ("2026-09-07") dan waktu (RFC3339) saat ini, sebagai string biasa — bukan tipe timestamp CEL, supaya perbandingan dengan field `date` (juga string) tidak pernah beda tipe |
+
+Bentuk JSON-nya (menggantikan `field`/`operator`/`value` sepenuhnya, bukan menambah di sampingnya):
+
+```sql
+INSERT INTO constraints (id, machine_id, rule, expression, condition, position) VALUES
+    ('cst_eo_no_draft_to_closed', 'mch_expr_order',
+     'An order cannot move directly from Draft to Closed -- it must be Approved first.',
+     '{"operator":"expression","expression":"!(old.fld_eo_status == \"Draft\" && record.fld_eo_status == \"Closed\")"}',
+     NULL, 0);
+```
+
+**Fail-closed, bukan fail-open** — beda dari default `constraint.Eval` untuk operator lain (lihat
+koreksi di atas): sebuah ekspresi yang gagal di-compile ATAU gagal dievaluasi (syntax salah,
+referensi field yang tidak ada di `record`/`old`, dll.) dianggap **tidak terpenuhi** (`false`),
+bukan "terpenuhi". Kesalahan syntax sendiri sudah tertangkap saat load (`expr.Compile`,
+`validateOperators`/`validateReferences`), sama seperti operator tidak dikenal di atas — gagal
+load itu sendiri, bukan gagal senyap saat runtime.
+
+**CAP-F14 completion (✅, 2026-09-07)**: field bertipe `computed` sekarang juga bisa pakai
+`options.expression` (CEL, menggantikan `source_field`/`factor`/`factor_field` sepenuhnya untuk
+field itu) untuk formula umum, bukan cuma satu perkalian:
+
+```json
+{"expression": "double(record.fld_eo_quantity) * double(record.fld_eo_unit_price) * (1.0 - double(record.fld_eo_discount_pct) / 100.0)"}
+```
+
+Nilai `record.<field>` di CEL selalu bertipe dinamis (string/angka apa adanya dari JSONB) —
+`double(...)` eksplisit dibutuhkan sebelum operasi aritmatika kalau sumbernya bisa berupa string
+angka, sama seperti contoh di atas.
+
 `condition` = `NULL` untuk constraint tanpa kondisi.
 
 ---

@@ -2,10 +2,12 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
 
+	"menata.id/app/internal/expr"
 	"menata.id/app/internal/model"
 )
 
@@ -46,12 +48,22 @@ func formatMoney(val string, f *model.Field, data map[string]any) string {
 }
 
 // computedValue (CAP-F14) resolves a `computed` field's display value at
-// render time -- data[Options.SourceField] * Options.Factor -- never
-// stored, matching CAP-V13's own "computed at render time" precedent. A
-// non-numeric or missing source renders blank rather than "0", the same
-// "don't fabricate a number for missing data" posture SumField already
-// takes.
+// render time -- never stored, matching CAP-V13's own "computed at render
+// time" precedent. Options.Expression (CAP-F14 completion, CAP-C13's own
+// expression layer), when set, REPLACES the plain SourceField*multiplier
+// calculation below entirely -- see FieldOptions.Expression's own doc
+// comment for why the two are mutually exclusive. A compile/eval error
+// (bad expression text, a type mismatch, a reference to a field this
+// record doesn't have) renders blank and logs a warning -- the same
+// "prototype-honest heuristic, graceful degrade" posture this codebase
+// already applies elsewhere (FieldOptions.RestrictToGroup's own doc
+// comment), not a 500 for one bad computed Field on an otherwise-normal
+// page. A non-bool/non-numeric/non-string CEL result (a list, a map) also
+// renders blank -- not a shape this Field type is meant to display.
 func computedValue(f *model.Field, data map[string]any) string {
+	if f.Options.Expression != "" {
+		return formatExpressionValue(f, data)
+	}
 	raw, ok := data[f.Options.SourceField]
 	if !ok {
 		return ""
@@ -72,6 +84,33 @@ func computedValue(f *model.Field, data map[string]any) string {
 		}
 	}
 	return strconv.FormatFloat(n*multiplier, 'f', -1, 64)
+}
+
+// formatExpressionValue is computedValue's CAP-C13 branch -- evaluates
+// Options.Expression against this record's own data (no `old`/
+// `current_user`: a rendered value has no notion of "before this request"
+// or "who's viewing," unlike a Constraint/Event condition) and renders
+// whatever CEL type comes back in the same plain-string shape every other
+// Field value already is.
+func formatExpressionValue(f *model.Field, data map[string]any) string {
+	v, err := expr.Eval(f.Options.Expression, expr.Vars{Record: data})
+	if err != nil {
+		slog.Warn("computed field expression failed", "field", f.ID, "error", err)
+		return ""
+	}
+	switch val := v.(type) {
+	case float64:
+		return strconv.FormatFloat(val, 'f', -1, 64)
+	case int64:
+		return strconv.FormatInt(val, 10)
+	case bool:
+		return strconv.FormatBool(val)
+	case string:
+		return val
+	default:
+		slog.Warn("computed field expression returned an unrenderable type", "field", f.ID, "type", fmt.Sprintf("%T", v))
+		return ""
+	}
 }
 
 // slaUrgency (CAP-V17) computes a countdown badge's label and urgency

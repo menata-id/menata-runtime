@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"menata.id/app/internal/expr"
 	"menata.id/app/internal/model"
 )
 
@@ -17,13 +18,26 @@ import (
 // trap this catches at load time instead: "Unknown = explicit"
 // (capability-lifecycle.md §4 rule 3), same discipline as
 // validateReferences' dangling-reference check.
+//
+// CAP-C13: an "expression" operator is additionally compiled here (not just
+// recognized) -- expr.Compile catches a CEL syntax error at LoadAll time,
+// the same "fails the load, not a random later request" discipline this
+// function's own header already states for an unrecognized operator. A
+// runtime-only failure (a reference to a field this specific record doesn't
+// have) can't be caught here -- that's internal/expr's own fail-closed
+// contract at evaluation time instead.
 func validateOperators(workspaces []*model.Workspace) error {
-	checkExpr := func(expr *model.ConstraintExpression, ctx string) error {
-		if expr == nil {
+	checkExpr := func(ce *model.ConstraintExpression, ctx string) error {
+		if ce == nil {
 			return nil
 		}
-		if !model.SupportedOperators[expr.Operator] {
-			return fmt.Errorf("%s: unrecognized operator %q", ctx, expr.Operator)
+		if !model.SupportedOperators[ce.Operator] {
+			return fmt.Errorf("%s: unrecognized operator %q", ctx, ce.Operator)
+		}
+		if ce.Operator == "expression" {
+			if err := expr.Compile(ce.Expression); err != nil {
+				return fmt.Errorf("%s: invalid expression %q: %w", ctx, ce.Expression, err)
+			}
 		}
 		return nil
 	}
@@ -48,8 +62,9 @@ func validateOperators(workspaces []*model.Workspace) error {
 				}
 				for _, v := range m.Views {
 					for _, fc := range v.Config.Filter {
-						if !model.SupportedOperators[fc.Operator] {
-							return fmt.Errorf("view %s's filter on machine %s: unrecognized operator %q", v.ID, m.ID, fc.Operator)
+						ce := model.ConstraintExpression{Field: fc.Field, Operator: fc.Operator, Value: fc.Value, Expression: fc.Expression}
+						if err := checkExpr(&ce, fmt.Sprintf("view %s's filter on machine %s", v.ID, m.ID)); err != nil {
+							return err
 						}
 					}
 				}
@@ -242,8 +257,22 @@ func validateReferences(workspaces []*model.Workspace) error {
 				// CAP-F14: a `computed` field's source_field must name a
 				// real number/money Field on the same machine -- the
 				// arithmetic only makes sense against a numeric value.
+				// CAP-F14 completion (CAP-C13): Expression, when set,
+				// REPLACES source_field/factor entirely (FieldOptions.
+				// Expression's own doc comment) -- validated by compiling
+				// it, the same load-time discipline validateOperators
+				// already applies to Constraint/Event/View expressions,
+				// not by the source_field checks below (which don't apply
+				// to this Field at all in that case).
 				for _, f := range m.Fields {
 					if f.Type != model.FieldTypeComputed {
+						continue
+					}
+					if f.Options.Expression != "" {
+						if err := expr.Compile(f.Options.Expression); err != nil {
+							return fmt.Errorf("field %s (%s) on machine %s: invalid computed expression %q: %w",
+								f.ID, f.Name, m.ID, f.Options.Expression, err)
+						}
 						continue
 					}
 					sf, ok := fieldByID[f.Options.SourceField]
@@ -323,6 +352,9 @@ func validateReferences(workspaces []*model.Workspace) error {
 						}
 					}
 					for _, fc := range v.Config.Filter {
+						if fc.Operator == "expression" {
+							continue // CAP-C13: Expression replaces Field entirely, see FilterCondition's own doc comment
+						}
 						if _, ok := fieldByID[fc.Field]; !ok {
 							return fmt.Errorf("view %s on machine %s: filter field %q does not name a Field on this machine", v.ID, m.ID, fc.Field)
 						}

@@ -2351,7 +2351,22 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
        `capability-registry.md`'s own CAP-O10 row (v0.57). Gates real CAP-A10, CAP-V11, CAP-W04
        escalation mail, CAP-W09/approval links — those still wait on their own case pressure, this
        item only unblocks the transport itself.
-    2. **Expression layer** — `CAP-C13` + `CAP-F14` completion (cel-go; fail-closed, no I/O).
+    2. ~~Expression layer~~ — **✅ done (2026-09-07)**. `internal/expr` (CEL via
+       `github.com/google/cel-go`, one CEL environment declaring exactly `record`/`old`/
+       `current_user`/`today`/`now` and zero custom functions -- fail-closed and no-I/O both
+       structural, not policy). New `"expression"` operator on `ConstraintExpression`/
+       `FilterCondition` (Constraint/Event condition, action `if` guard, View filter -- one shared
+       dispatch in `constraint.Eval`, every pre-existing operator unchanged); `FieldOptions.
+       Expression` completes CAP-F14 (real multi-field formulas, not just source*factor).
+       `old`/`current_user` threaded through the call sites that actually have them (Update,
+       event-trigger post-Simulate, CAP-A09's per-action `if`); Create/List-filter get
+       current_user only, a named scope cut. Load-time CEL-syntax validation
+       (`internal/metadata/validate.go`, same CAP-X05 discipline as an unrecognized operator).
+       Proof case: `seeds/041_expression_lab.sql`. Full detail in `capability-registry.md`'s own
+       CAP-C13/CAP-F14 rows (v0.58). Conformance T237–T239 (T236 for CAP-F14), full suite
+       235→239, zero regressions. Not built this pass, named not hidden: cel-go's own
+       cost-estimator budget and JSONB-predicate pushdown for list filters (optimizations, not
+       correctness, no case demands them yet).
     3. **`CAP-F13` Tier 2 relation policy + `CAP-R04` history timeline** — cheap, both close
        *correctness* gaps Case 3 has today (dangling children after soft delete; no history
        surface), before any breadth work.
@@ -2665,6 +2680,13 @@ admitted, no row changed.
 assistant" extension declared in `case-portfolio.md` (terrain for `CAP-X16`'s A1); build ordering
 recorded as "Recommended order" item 24 above. No Prio assigned yet, no code changed, 225/225
 untouched.
+
+**Status update (2026-09-07, third same day): item 24's own steps 1–2 built, in order.**
+`CAP-O10` (step 1, Prio 16) and `CAP-C13`/`CAP-F14` completion (step 2, `CAP-C13` now Prio 17)
+are both ❌→✅ — full detail in "Recommended order" item 24's own two entries above and
+`capability-registry.md` v0.58. Not a Study 37 finding revised, just this study's own suggested
+order (§7) actually being followed through, two steps in. Steps 3+ (CAP-F13 T2/CAP-R04, the
+analytics trio, the permissions pass, the integration pass) remain ❌/⚠️, unchanged.
 
 ---
 

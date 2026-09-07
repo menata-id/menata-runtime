@@ -88,7 +88,12 @@ func (e *Executor) Simulate(machine *model.Machine, event *model.Event, record *
 		if action.Type != model.ActionSetField {
 			continue
 		}
-		if !actionApplies(action, newData) {
+		// CAP-C13: `old` is record.Data as it stood BEFORE this Simulate
+		// started -- meaningful even mid-loop, since it's the one fixed
+		// point every action's own "if" guard can compare newData's
+		// in-progress mutations against, e.g. `record.status != old.status`
+		// regardless of which action in this same Event already changed it.
+		if !actionApplies(action, newData, record.Data, "") {
 			continue
 		}
 		field, _ := action.Params["field"].(string)
@@ -102,9 +107,16 @@ func (e *Executor) Simulate(machine *model.Machine, event *model.Event, record *
 
 // actionApplies (CAP-A09): an action carrying an "if" param only runs when
 // that condition (the same field/operator/value shape a Constraint's own
-// `condition` uses) is satisfied against the record's current data — an
-// action with no "if" always applies, unchanged from before this existed.
-func actionApplies(action *model.EventAction, data map[string]any) bool {
+// `condition` uses, now including CAP-C13's "expression" operator) is
+// satisfied against the record's current data — an action with no "if"
+// always applies, unchanged from before this existed. old (constraint.
+// EvalContext, CAP-C13) is the pre-mutation record snapshot; currentUser is
+// the acting identity's account id, "" from Simulate's own call site (that
+// function's callers only ever pass actorIdentity, a display label, not
+// the account id CAP-C13's current_user variable is meant to hold -- a
+// named scope cut, not a silent gap: no case has asked for it at that
+// specific granularity yet).
+func actionApplies(action *model.EventAction, data, old map[string]any, currentUser string) bool {
 	raw, ok := action.Params["if"]
 	if !ok {
 		return true
@@ -113,7 +125,7 @@ func actionApplies(action *model.EventAction, data map[string]any) bool {
 	if !ok {
 		return true
 	}
-	return constraint.Eval(expr, data)
+	return constraint.Eval(expr, data, constraint.EvalContext{Old: old, CurrentUser: currentUser})
 }
 
 func paramsToExpr(v any) (model.ConstraintExpression, bool) {
@@ -126,6 +138,10 @@ func paramsToExpr(v any) (model.ConstraintExpression, bool) {
 	expr.Operator, _ = m["operator"].(string)
 	expr.Value, _ = m["value"].(string)
 	expr.ValueField, _ = m["value_field"].(string)
+	expr.Expression, _ = m["expression"].(string) // CAP-C13
+	if expr.Operator == "expression" {
+		return expr, expr.Expression != ""
+	}
 	return expr, expr.Field != "" && expr.Operator != ""
 }
 
@@ -319,7 +335,7 @@ func (e *Executor) Persist(ctx context.Context, machine *model.Machine, event *m
 	snapshot := record.Data
 
 	for _, action := range event.Actions {
-		if !actionApplies(action, newData) {
+		if !actionApplies(action, newData, snapshot, actorIdentityID) {
 			continue
 		}
 		switch action.Type {

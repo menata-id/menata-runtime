@@ -319,6 +319,21 @@ type FieldOptions struct {
 	Factor      float64 `json:"factor,omitempty"`
 	FactorField string  `json:"factor_field,omitempty"`
 
+	// computed (CAP-F14 completion, 2026-09-07, CAP-C13's own expression
+	// layer, internal/expr): Expression, when set, REPLACES the
+	// SourceField*multiplier calculation above entirely with a general CEL
+	// expression -- any arithmetic, string, or conditional combination of
+	// `record`'s own fields, not just one multiply. SourceField/Factor/
+	// FactorField stay exactly as they were ("keep as sugar over the same
+	// evaluator" per capability-registry.md's own CAP-F14 row) for every
+	// computed Field declared before this existed; a Field never sets both
+	// -- Expression wins if it's non-empty. Not validated against a
+	// specific return type at load time (CEL itself is dynamically typed);
+	// a runtime type mismatch (e.g. concatenating a string where a number
+	// was expected) is a render-time error, degrading to a blank rendered
+	// value (formatComputedField's own doc comment), not a 500.
+	Expression string `json:"expression,omitempty"`
+
 	// text (CAP-F18, 2026-07-12): non-empty AutoNumberPrefix marks this
 	// field as auto-generated at Create when left blank -- "INV-0001",
 	// zero-padded to AutoNumberPadding digits (0 = no padding), backed by
@@ -469,6 +484,13 @@ type Constraint struct {
 // checked cross-record (constraint.Engine can't do this alone, see
 // handler.uniquenessViolations), not evaluated by constraint.Eval.
 // Values (operator "in" only, CAP-W07) is a membership list.
+// Expression (CAP-C13, operator "expression" only): a raw CEL expression
+// (internal/expr) replacing the plain field/operator/value triple entirely
+// -- every other field on this struct is ignored when Operator is
+// "expression". Every operator ABOVE this one keeps working completely
+// unchanged ("sugar" over the same condition-checking job, per CAP-C13's
+// own registry row) -- no existing Constraint/Event/View metadata needs to
+// change for this capability to exist.
 type ConstraintExpression struct {
 	Field      string   `json:"field,omitempty"`
 	Fields     []string `json:"fields,omitempty"`
@@ -476,6 +498,7 @@ type ConstraintExpression struct {
 	Value      string   `json:"value,omitempty"`
 	ValueField string   `json:"value_field,omitempty"`
 	Values     []string `json:"values,omitempty"`
+	Expression string   `json:"expression,omitempty"`
 }
 
 // ChangePolicyCreatedAtField is the synthetic, never-persisted data key
@@ -556,6 +579,7 @@ var SupportedOperators = map[string]bool{
 	"in":                    true, // CAP-W07
 	"on_or_after":           true, // CAP-W07
 	"on_or_before":          true, // CAP-W07
+	"expression":            true, // CAP-C13 -- see ConstraintExpression's own doc comment
 }
 
 // AggregateCondition (CAP-A14) gates an Event on a computed sum across
@@ -774,6 +798,10 @@ type FilterCondition struct {
 	Field    string `json:"field"`
 	Operator string `json:"operator"`
 	Value    string `json:"value,omitempty"`
+	// Expression (CAP-C13, operator "expression" only) mirrors
+	// ConstraintExpression's own field of the same name -- a raw CEL
+	// expression replacing Field/Value entirely for this one filter clause.
+	Expression string `json:"expression,omitempty"`
 }
 
 // ChildLinesConfig (CAP-F16) declares that a form view also authors N rows

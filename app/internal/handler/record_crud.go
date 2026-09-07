@@ -106,7 +106,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 				if val == "$current_user" {
 					val = identityID
 				}
-				if !constraint.Eval(model.ConstraintExpression{Field: fc.Field, Operator: fc.Operator, Value: val}, rec.Data) {
+				if !constraint.Eval(model.ConstraintExpression{Field: fc.Field, Operator: fc.Operator, Value: val, Expression: fc.Expression}, rec.Data, constraint.EvalContext{CurrentUser: identityID}) {
 					match = false
 					break
 				}
@@ -618,7 +618,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	// Constraints too (referential integrity still applies, below).
 	var violations []string
 	if !h.inScratchState(machine, data) {
-		violations = h.engine.Violations(machine, withChangePolicyCreatedAt(machine, data, time.Now()))
+		// CAP-C13: no `old` at Create -- there is no prior record, the same
+		// "empty, not a special case" degrade internal/expr's own doc
+		// comment names. current_user IS available (h.identityID), the same
+		// account-id convention the List filter's own $current_user
+		// substitution already uses.
+		violations = h.engine.Violations(machine, withChangePolicyCreatedAt(machine, data, time.Now()), constraint.EvalContext{CurrentUser: h.identityID(r)})
 	}
 	refViolations, err := h.referenceViolations(r.Context(), machine, data)
 	if err != nil {
@@ -859,7 +864,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	// a scratch record can be incomplete, not corrupt.
 	var violations []string
 	if !h.inScratchState(machine, data) {
-		violations = h.engine.Violations(machine, withChangePolicyCreatedAt(machine, data, rec.CreatedAt))
+		// CAP-C13: `old` is the record's own data as it was BEFORE this
+		// Update's form values were merged in above -- a real "did this
+		// field actually change" comparison, e.g. `record.status !=
+		// old.status`, not just record vs. a fixed literal.
+		violations = h.engine.Violations(machine, withChangePolicyCreatedAt(machine, data, rec.CreatedAt), constraint.EvalContext{Old: rec.Data, CurrentUser: h.identityID(r)})
 	}
 	refViolations, err := h.referenceViolations(r.Context(), machine, data)
 	if err != nil {
