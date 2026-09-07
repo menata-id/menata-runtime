@@ -154,6 +154,38 @@ mechanism scoped by Document Type. Left as documented, undecided gaps here — n
 yet, consistent with this file's own role (name the business requirement and check it against
 what's ✅) versus `capability-registry.md`'s (run the actual admission test and register a row).
 
+# Case 3 — extension note (2026-09-07): approval assistant (MCP) — target declaration
+
+**Business reality:** an approver (or the submitter) asks an AI assistant, in plain language,
+*"which documents are waiting for my approval, and why is each one blocked?"* or *"approve every
+document in my queue that satisfies the Finance policy"* — and the assistant does it **inside the
+same application**, seeing only what that person may see and performing only the Events that
+person may perform, with every action landing in the same audit trail as a click in the UI.
+Raised by Study 37 (`prototype/objectstack/`, the ObjectStack comparator study) and its
+second-opinion reconciliation (`docs/second-opinion-reconciliation.md` §3): ObjectStack's headline
+is that every object/action is a governed MCP tool under the same RBAC/RLS/FLS as a human; the
+worked prompts above are the second review's own examples and are a natural continuation of this
+case's lineage (Study 32 signatures → per-step approvers → saved flows). Declared here, per this
+file's rules, **before** anything is built, so `CAP-X16` has the terrain half of admission A1.
+
+**Declared targets:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| "Perform Approve on Step X" from an assistant, with the same permission/ownership/SoD checks as the UI | **CAP-X07 Tier 2 (new)** — `POST /api/v1/{machine}/{record}/events/{event}` + full Data API + OpenAPI | The Event *is* the tool; no second authorization path |
+| Expose Machines and `ai_exposed` Events as MCP tools under a session or user-bound API key | **CAP-X16 (new)** | ObjectStack `packages/mcp`, ADR-0011/0109 |
+| "Which documents await *my* approval" | CAP-V05 (filtered list "pending my approval") + CAP-P05/P06 trimming | Reused — the assistant lists what the person's own inbox would |
+| "Why is this one blocked" | CAP-W01 requirements + CAP-W05 process map + CAP-V20 stepper state | Reused — the Overlay already knows which requirement is unmet; the assistant reads it |
+| "Approve every one that satisfies policy X" | CAP-C13 expression (proposed) as the policy predicate, CAP-P03 SoD unchanged | The assistant filters; the runtime still refuses what the person may not do |
+| Every assistant action auditable to the person, not to "the AI" | CAP-R04 `record_events` (`performed_by` = the user the key is bound to) + CAP-I04 correlation | Reused — ObjectStack design principle IV, same posture |
+
+**Deliberately out of scope:** the assistant's own model, prompting, or conversation memory — the
+runtime exposes tools, it does not host an agent (ObjectStack keeps those in its commercial ObjectOS
+tier too). Any autonomous approval without a human-bound credential is a non-goal, not a future ⚠️.
+
+**Status:** target declaration only; `CAP-X16` and `CAP-X07` Tier 2 registered ❌ Proposed in
+`capability-registry.md` v0.56 the same day. Not built.
+
 ---
 
 # Case 4 — Maintenance Reminder (target declaration)

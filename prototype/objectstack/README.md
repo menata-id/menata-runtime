@@ -113,7 +113,14 @@ pre-screen for each, in
 `CAP-I04`, `CAP-W02`, `CAP-O10`, `CAP-V11`, `CAP-F03`, `CAP-F13`, `CAP-W03`, `CAP-W04`,
 `CAP-V12`, `CAP-R06`, …). Each is pre-screened against `capability-lifecycle.md` §2's five
 admission criteria, and the ones that pass A1 (dual evidence) only because of this study plus a
-*declared* case target are marked as such. Admitting any of them is an owner decision, recorded
+*declared* case target are marked as such.
+
+**Status update (2026-09-07, same day): registered, per direct owner decision.**
+`capability-registry.md` v0.56 now carries 14 new ❌ Proposed rows (`CAP-C13`, `C14`, `V22`–`V27`,
+`P08`, `P09`, `O12`, `W09`, `A16`, `X16`, `X17`) and Study 37 notes on 15 existing rows; the Case 3
+"approval assistant" extension is declared in `case-portfolio.md` (terrain half of A1 for
+`CAP-X16`); `roadmap.md`'s "Recommended order" item 24 carries the build ordering from
+`docs/second-opinion-reconciliation.md` §5. No Prio assigned in the registry yet, no code changed. Admitting any of them is an owner decision, recorded
 in `capability-registry.md` when it happens — the registry's own status header (v0.55) points
 here so the pending decision is visible, per its "declare targets first" discipline.
 

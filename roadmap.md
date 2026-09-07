@@ -2338,6 +2338,31 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
       entirely and pointing to `app/README.md`'s own "Current status" instead — durable against
       this exact mistake happening again next phase.
 
+24. **New (2026-09-07, Study 37 — ObjectStack comparator study + second-opinion reconciliation):
+    the recommended order for the capabilities registered ❌ Proposed in `capability-registry.md`
+    v0.56**, per `prototype/objectstack/docs/second-opinion-reconciliation.md` §5 (which supersedes
+    the gap doc's own §7). No Prio assigned in the registry yet — this list is the ordering until
+    the owner assigns one there:
+
+    1. **Email transport decision (`CAP-O10`)** — gates real CAP-A10, CAP-V11, CAP-W04 escalation
+       mail, CAP-W09/approval links. Both projects deferred it past the point cases needed it.
+    2. **Expression layer** — `CAP-C13` + `CAP-F14` completion (cel-go; fail-closed, no I/O).
+    3. **`CAP-F13` Tier 2 relation policy + `CAP-R04` history timeline** — cheap, both close
+       *correctness* gaps Case 3 has today (dangling children after soft delete; no history
+       surface), before any breadth work.
+    4. **Analytics trio** — `CAP-V22` dataset → `CAP-V23` chart → `CAP-X10` indexes, one pass
+       with a measured before/after on Case 9 and Case 15 data volumes.
+    5. **Permissions pass** — `CAP-O12` unit tree → `CAP-P08` scope depth → `CAP-P09` resolvers,
+       Cases 18/20 as proof cases.
+    6. **Integration pass** — `CAP-X07` Tier 2 (complete Data + Event API, OpenAPI) → `CAP-X16`
+       MCP, with the Case 3 "approval assistant" extension (declared in `case-portfolio.md`
+       2026-09-07) as its proof case.
+    7. `CAP-W03`/`W04` Tier 2 + `CAP-W09` approval enrichments; `CAP-A16` outbound webhook
+       (design the encrypted-credential option once, here); `CAP-X17` metadata snapshots.
+    8. `CAP-C14`, `CAP-F03` T2, `CAP-V12` T2, `CAP-V10` T2, `CAP-O04` T2, `CAP-P04` T2,
+       `CAP-V24`–`V27` as their cases arrive; the "silent no-ops become load errors" ratchet
+       (gap doc §6) whenever `internal/metadata/validate.go` is next touched.
+
 ---
 
 ## Study 32 — Document Approval: PDF Signature Placement (2026-08-23)
@@ -2616,6 +2641,13 @@ business application needs to be operated and trusted it found real gaps. Its st
 was contradicted by ✅ rows in four areas (search, files, tenancy, approvals) — the H7
 declared-≠-enforced lesson again. Updated priority order in that doc's §5. Still no capability
 admitted, no row changed.
+
+**Status update (2026-09-07, later same day): candidates registered, per direct owner decision.**
+`capability-registry.md` v0.56 — 14 new ❌ Proposed rows (`CAP-C13`, `C14`, `V22`–`V27`, `P08`,
+`P09`, `O12`, `W09`, `A16`, `X16`, `X17`), Study 37 notes on 15 existing rows; Case 3 "approval
+assistant" extension declared in `case-portfolio.md` (terrain for `CAP-X16`'s A1); build ordering
+recorded as "Recommended order" item 24 above. No Prio assigned yet, no code changed, 225/225
+untouched.
 
 ---
 
