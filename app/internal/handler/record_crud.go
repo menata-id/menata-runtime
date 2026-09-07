@@ -190,6 +190,10 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 				if label, err := h.userLabel(r.Context(), val); err == nil && label != "" {
 					val = label
 				}
+			case cols[j].Type == model.FieldTypeGroup && val != "":
+				if label, err := h.groupLabel(r.Context(), val); err == nil && label != "" {
+					val = label
+				}
 			case cols[j].Type == model.FieldTypeBoolean:
 				val = boolLabel(val) // CAP-F09
 			case cols[j].Type == model.FieldTypeMoney && val != "":
@@ -969,6 +973,10 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 			if label, err := h.userLabel(r.Context(), val); err == nil && label != "" {
 				val = label
 			}
+		case f.Type == model.FieldTypeGroup && val != "":
+			if label, err := h.groupLabel(r.Context(), val); err == nil && label != "" {
+				val = label
+			}
 		case f.Type == model.FieldTypeBoolean:
 			val = boolLabel(val) // CAP-F09
 		case f.Type == model.FieldTypeMoney && val != "":
@@ -988,7 +996,7 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	childLists := h.childLists(r.Context(), h.workspaceSlug(r), machine, recordID)
-	events := h.interp.Get().PermittedEventsForRecord(machineID, role, h.identityID(r), rec.Data)
+	events := h.interp.Get().PermittedEventsForRecord(machineID, role, h.identityID(r), rec.Data, h.groupMembersFunc(r.Context()))
 	// CAP-P04: an event declaring InputFields (e.g. "delegate to") renders
 	// an inline picker alongside its trigger button, same field/options
 	// shape a Form uses -- built here, not in ui, since resolving a `user`

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -93,6 +94,25 @@ func (h *Handler) identity(r *http.Request) string {
 // the ownership *comparison* itself needs the id.
 func (h *Handler) identityID(r *http.Request) string {
 	return h.auth(r).User.ID
+}
+
+// groupMembersFunc (CAP-F24) is the one place a lazy `func(groupID string)
+// map[string]bool` closure gets built for Guard.CanTrigger/Interpreter.
+// PermittedEventsForRecord's own groupMembers param -- both stay free of a
+// direct GroupStore/context dependency (their own doc comments explain
+// why), so the real DB call lives here instead, behind a closure that's
+// only actually invoked when a matching Permission's DynamicActor resolves
+// to "Group" for the specific record being checked. Every call site that
+// needs either function passes this exact closure -- never builds its own.
+func (h *Handler) groupMembersFunc(ctx context.Context) func(groupID string) map[string]bool {
+	return func(groupID string) map[string]bool {
+		members, err := h.groups.MemberIDs(ctx, groupID)
+		if err != nil {
+			slog.Warn("dynamic actor gate: failed to resolve group members", "group", groupID, "error", err)
+			return nil
+		}
+		return members
+	}
 }
 
 // workspace (CAP-X06): which Workspace this session is authenticated into --

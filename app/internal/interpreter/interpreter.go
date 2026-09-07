@@ -1,11 +1,11 @@
 package interpreter
 
 import (
-	"fmt"
 	"slices"
 	"sort"
 
 	"menata.id/app/internal/model"
+	"menata.id/app/internal/permission"
 )
 
 // Interpreter builds an indexed Application Model from Runtime Metadata.
@@ -295,14 +295,18 @@ func (i *Interpreter) PermittedEvents(machineID string, roles []string) []*model
 	return out
 }
 
-// PermittedEventsForRecord is PermittedEvents narrowed by CAP-P02 ownership:
-// an event gated by a Permission with an OwnerField is only included if
-// recordData's value for that field matches identityID — so a Detail page
-// never offers an Approve/Reject button for a Step that isn't actually
-// assigned to the viewer, even though the POST was already blocked either
-// way. identityID is the acting user's account id (CAP-F05, same
-// ID-not-name comparison Guard.CanTrigger makes), not their display name.
-func (i *Interpreter) PermittedEventsForRecord(machineID string, roles []string, identityID string, recordData map[string]any) []*model.Event {
+// PermittedEventsForRecord is PermittedEvents narrowed by CAP-P02 ownership
+// (OwnerField) and CAP-F24 (DynamicActor) — an event gated either way is
+// only included if identityID actually satisfies THIS record's own gate,
+// resolved by permission.ResolveActorGate (the exact same logic
+// Guard.CanTrigger uses for the POST itself, so a Detail page never offers
+// a button the POST would then reject) — so a Detail page never offers an
+// Approve/Reject button for a Step that isn't actually assigned to the
+// viewer, even though the POST was already blocked either way. identityID
+// is the acting user's account id (CAP-F05, same ID-not-name comparison
+// Guard.CanTrigger makes), not their display name. groupMembers is the
+// same lazy, DB-free callback CanTrigger takes — see its own doc comment.
+func (i *Interpreter) PermittedEventsForRecord(machineID string, roles []string, identityID string, recordData map[string]any, groupMembers func(groupID string) map[string]bool) []*model.Event {
 	m, ok := i.machines[machineID]
 	if !ok {
 		return nil
@@ -312,8 +316,8 @@ func (i *Interpreter) PermittedEventsForRecord(machineID string, roles []string,
 		if !slices.Contains(roles, perm.Role) {
 			continue
 		}
-		for _, eid := range perm.Events {
-			if perm.OwnerField == "" || fmt.Sprintf("%v", recordData[perm.OwnerField]) == identityID {
+		if permission.ResolveActorGate(perm, identityID, recordData, groupMembers) {
+			for _, eid := range perm.Events {
 				allowed[eid] = true
 			}
 		}

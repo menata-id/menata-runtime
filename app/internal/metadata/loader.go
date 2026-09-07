@@ -416,7 +416,8 @@ func (l *Loader) loadConstraints(ctx context.Context, machineID string) ([]*mode
 
 func (l *Loader) loadPermissions(ctx context.Context, machineID string) ([]*model.Permission, error) {
 	rows, err := l.db.Query(ctx,
-		`SELECT id, machine_id, role, events, owner_field, can_read, can_create, can_edit, can_delete, hidden_fields
+		`SELECT id, machine_id, role, events, owner_field, can_read, can_create, can_edit, can_delete, hidden_fields,
+		        actor_type_field, actor_user_field, actor_group_field
 		 FROM permissions WHERE machine_id = $1`,
 		machineID)
 	if err != nil {
@@ -427,12 +428,32 @@ func (l *Loader) loadPermissions(ctx context.Context, machineID string) ([]*mode
 	var out []*model.Permission
 	for rows.Next() {
 		p := &model.Permission{}
-		var ownerField *string
-		if err := rows.Scan(&p.ID, &p.MachineID, &p.Role, &p.Events, &ownerField, &p.CanRead, &p.CanCreate, &p.CanEdit, &p.CanDelete, &p.HiddenFields); err != nil {
+		var ownerField, actorTypeField, actorUserField, actorGroupField *string
+		if err := rows.Scan(&p.ID, &p.MachineID, &p.Role, &p.Events, &ownerField, &p.CanRead, &p.CanCreate, &p.CanEdit, &p.CanDelete, &p.HiddenFields,
+			&actorTypeField, &actorUserField, &actorGroupField); err != nil {
 			return nil, err
 		}
 		if ownerField != nil {
 			p.OwnerField = *ownerField
+		}
+		// CAP-F24: built from whichever of the three columns are set, even
+		// partially -- a partial triple (e.g. actor_type_field but no
+		// actor_user_field) must still reach validate.go's own
+		// "Unknown = explicit" check as a real, rejected error, not
+		// silently disappear here as "not declared" the way nil-ing the
+		// whole struct on any missing column would.
+		if actorTypeField != nil || actorUserField != nil || actorGroupField != nil {
+			da := &model.DynamicActorGate{}
+			if actorTypeField != nil {
+				da.ActorTypeField = *actorTypeField
+			}
+			if actorUserField != nil {
+				da.ActorUserField = *actorUserField
+			}
+			if actorGroupField != nil {
+				da.ActorGroupField = *actorGroupField
+			}
+			p.DynamicActor = da
 		}
 		out = append(out, p)
 	}

@@ -93,6 +93,8 @@ func (h *Handler) buildFormFieldsFor(ctx context.Context, wsSlug string, machine
 			opts = h.referenceOptions(ctx, f.Options.TargetMachine)
 		case model.FieldTypeUser:
 			opts = h.userFieldOptions(ctx, machine.ID, machine.ApplicationID, f.Options.RestrictToGroup)
+		case model.FieldTypeGroup:
+			opts = h.groupFieldOptions(ctx, machine.ID)
 		}
 		ff := ui.FormField{Field: f, Name: f.ID, Value: val, Options: opts}
 		if (f.Type == model.FieldTypeReference || f.Type == model.FieldTypeUser) && len(opts) > typeaheadThreshold {
@@ -176,6 +178,8 @@ func (h *Handler) buildChildLinesData(ctx context.Context, machine *model.Machin
 				opts = h.referenceOptions(ctx, f.Options.TargetMachine)
 			case model.FieldTypeUser:
 				opts = h.userFieldOptions(ctx, childMachine.ID, childMachine.ApplicationID, f.Options.RestrictToGroup)
+			case model.FieldTypeGroup:
+				opts = h.groupFieldOptions(ctx, childMachine.ID)
 			}
 			row = append(row, ui.FormField{Field: f, Name: childRowName(i, fid), Options: opts})
 		}
@@ -474,4 +478,36 @@ func (h *Handler) userLabel(ctx context.Context, userID string) (string, error) 
 		return "", err
 	}
 	return u.Name, nil
+}
+
+// groupFieldOptions (CAP-F24) lists every Group in machineID's own
+// workspace as a `group`-typed Field's picker candidates -- unlike
+// userFieldOptions, there's no role/restrict-to-group narrowing to apply:
+// a Group isn't scoped to an Application's own role vocabulary the way a
+// `user` Field's candidate pool is, it's the workspace's own flat Group
+// list, same source /admin/groups itself lists from.
+func (h *Handler) groupFieldOptions(ctx context.Context, machineID string) []ui.ReferenceOption {
+	workspaceID, _ := h.interp.Get().ScopeFor(machineID)
+	groups, err := h.groups.ListByWorkspace(ctx, workspaceID)
+	if err != nil {
+		slog.Error("list group field options", "workspace", workspaceID, "error", err)
+		return nil
+	}
+	opts := make([]ui.ReferenceOption, 0, len(groups))
+	for _, g := range groups {
+		opts = append(opts, ui.ReferenceOption{ID: g.ID, Label: g.Name})
+	}
+	return opts
+}
+
+// groupLabel (CAP-F24) resolves one Group id's display name, for rendering
+// an already-set `group` Field value (detail/list views) -- the
+// Group-field counterpart to userLabel. Same "plain text, never a link"
+// posture -- no per-Group profile page exists in this prototype either.
+func (h *Handler) groupLabel(ctx context.Context, groupID string) (string, error) {
+	g, err := h.groups.GetByID(ctx, groupID)
+	if err != nil {
+		return "", err
+	}
+	return g.Name, nil
 }

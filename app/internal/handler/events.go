@@ -53,7 +53,7 @@ func (h *Handler) TriggerEvent(w http.ResponseWriter, r *http.Request) {
 	// which didn't need it). Compared by id (CAP-F05), not by identity's
 	// display name -- triggerEvent below still gets the human-readable
 	// identity, for audit attribution and CAP-A02's current_user.
-	if !h.guard.CanTrigger(machine, role, h.identityID(r), eventID, rec.Data) {
+	if !h.guard.CanTrigger(machine, role, h.identityID(r), eventID, rec.Data, h.groupMembersFunc(r.Context())) {
 		h.logPermissionDenied(r.Context(), "trigger", machineID, eventID, role, identity)
 		http.Error(w, "not permitted", http.StatusForbidden)
 		return

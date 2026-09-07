@@ -181,13 +181,24 @@ user_option_id() {
 # discipline as user_option_id, just a checkbox+label pair instead of an
 # <option>, since GroupDetail's own membership list is real workspace user
 # ids, not a separate vocabulary.
+#
+# Split on `<label` (not a single grep -oE, 2026-09-07 fix): MemberChip
+# (Study 38 Cluster 9, internal/ui/components.templ) renders each member as
+# a `<label>` whose own Hyperscript `_="..."` attribute contains real
+# embedded newlines, and whose visible name sits between an optional
+# initials <span> and a trailing ×/+ <span> -- both breaking the original
+# single-line, name-immediately-before-</label> assumption this helper had
+# before that component existed. Flattening newlines to spaces first, then
+# splitting into one record per `<label`, tolerates arbitrary markup
+# between value="ID" and the name as long as both are the SAME chip.
 group_member_checkbox_id() {
     local url="$1" jar="$2" name="$3"
-    curl -s -b "$jar" "$url" \
-        | grep -oE "value=\"[a-f0-9-]+\"> $name</label>" \
-        | head -1 \
-        | grep -oE '"[a-f0-9-]+"' \
-        | tr -d '"'
+    curl -s -b "$jar" "$url" | tr '\n' ' ' | awk -v RS='<label' -v name="$name" '
+        index($0, name) && match($0, /value="[a-f0-9-]+"/) {
+            print substr($0, RSTART + 7, RLENGTH - 8)
+            exit
+        }
+    '
 }
 
 add_business_days() { # <n> -> echoes YYYY-MM-DD, n business days from today (weekends only)

@@ -131,10 +131,11 @@ templ FieldOptionsFragment(target string, opts []ReferenceOption) {
 }
 
 // FieldInput renders the correct input element for a field type.
-// refOptions is used for FieldTypeReference's and FieldTypeUser's picker
-// choices (CAP-F05 — a `user` field is reference-sugar over the workspace's
-// own users, same picker shape, options sourced from UserStore instead of
-// RecordStore by the caller).
+// refOptions is used for FieldTypeReference's, FieldTypeUser's, and
+// FieldTypeGroup's picker choices (CAP-F05/CAP-F24 — `user`/`group` are
+// both reference-sugar, over the workspace's own users/groups
+// respectively, same picker shape, options sourced from UserStore/
+// GroupStore instead of RecordStore by the caller).
 // name is the HTML input's id/name -- normally f.ID, but CAP-F16's embedded
 // child-line rows pass an indexed name (e.g. "child_0_fld_x") instead, so
 // the same rendering logic serves both a Machine's own form fields and a
@@ -148,7 +149,7 @@ templ FieldInput(f *model.Field, name, value string, refOptions []ReferenceOptio
 			}
 		</label>
 		switch f.Type {
-		case model.FieldTypeReference, model.FieldTypeUser:
+		case model.FieldTypeReference, model.FieldTypeUser, model.FieldTypeGroup:
 			if typeahead {
 				@TypeaheadPicker(name, value, typeaheadLabel, typeaheadURL)
 			} else {

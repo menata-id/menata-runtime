@@ -26,7 +26,20 @@ type Guard struct{}
 // comparison, matching how every reference-style field is compared
 // elsewhere. Never compare against a display name here: names are mutable
 // and not guaranteed unique, exactly the failure mode this exists to avoid.
-func (g *Guard) CanTrigger(machine *model.Machine, roles []string, identityID, eventID string, recordData map[string]any) bool {
+//
+// groupMembers (CAP-F24) is a callback, not a store dependency -- this
+// package stays free of any direct DB import, the same "Interpreter/Guard
+// do fast in-memory lookups, no DB access at request time" posture
+// interpreter.go's own package doc comment already states. It's invoked
+// ONLY when a matching Permission's own DynamicActor gate resolves to
+// "Group" for this specific record -- the caller (internal/handler)
+// supplies it as a thin closure over the real GroupStore, resolved lazily
+// so a Machine that never uses CAP-F24 costs nothing extra. See
+// resolveActor below for the shared resolution logic PermittedEventsForRecord
+// (interpreter.go) also uses -- kept in this package since both Guard.
+// CanTrigger and the interpreter's own equivalent check need byte-identical
+// semantics, and this package has no dependency on interpreter.
+func (g *Guard) CanTrigger(machine *model.Machine, roles []string, identityID, eventID string, recordData map[string]any, groupMembers func(groupID string) map[string]bool) bool {
 	for _, perm := range machine.Permissions {
 		if !slices.Contains(roles, perm.Role) {
 			continue
@@ -35,13 +48,44 @@ func (g *Guard) CanTrigger(machine *model.Machine, roles []string, identityID, e
 			if eid != eventID {
 				continue
 			}
-			if perm.OwnerField == "" {
-				return true
-			}
-			return fmt.Sprintf("%v", recordData[perm.OwnerField]) == identityID
+			return ResolveActorGate(perm, identityID, recordData, groupMembers)
 		}
 	}
 	return false
+}
+
+// ResolveActorGate (CAP-F24) is the one place BOTH Guard.CanTrigger and
+// Interpreter.PermittedEventsForRecord decide whether identityID may act on
+// a Permission that already matched by role+event -- kept as a single
+// shared function (not duplicated in both packages) so the two can never
+// silently diverge on what "this record's own gate" means. Order of
+// checks, deliberate: DynamicActor first (CAP-F24, per-record), because a
+// record that HAS set its own ActorTypeField is expressing a real, explicit
+// choice that should win over a Machine-wide default; OwnerField second,
+// as the fallback for a record that never set ActorTypeField at all (one
+// created before CAP-F24 existed, or on a Permission that only ever
+// declared OwnerField in the first place); no gate at all means role alone
+// is sufficient, the pre-existing default.
+func ResolveActorGate(perm *model.Permission, identityID string, recordData map[string]any, groupMembers func(groupID string) map[string]bool) bool {
+	if da := perm.DynamicActor; da != nil {
+		switch fmt.Sprintf("%v", recordData[da.ActorTypeField]) {
+		case "User":
+			return fmt.Sprintf("%v", recordData[da.ActorUserField]) == identityID
+		case "Group":
+			groupID := fmt.Sprintf("%v", recordData[da.ActorGroupField])
+			if groupID == "" || groupMembers == nil {
+				return false
+			}
+			return groupMembers(groupID)[identityID]
+		}
+		// ActorTypeField unset/unrecognized on this record -- fall through
+		// to OwnerField below, the legacy-record compatibility path
+		// model.go's own DynamicActor doc comment names explicitly.
+	}
+	if perm.OwnerField == "" {
+		return true
+	}
+	return fmt.Sprintf("%v", recordData[perm.OwnerField]) == identityID
 }
 
 // CanRead/CanCreate/CanEdit (CAP-P05): CRUD-level permission, independent of

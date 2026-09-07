@@ -150,6 +150,46 @@ func validateReferences(workspaces []*model.Workspace) error {
 					}
 				}
 
+				// CAP-F24: a DynamicActor gate is all-or-nothing -- a
+				// partial triple (the loader keeps whichever columns were
+				// actually set, metadata/loader.go's own doc comment)
+				// fails loudly here rather than silently checking only the
+				// fields that happen to be present. Each of the three must
+				// also name a real Field on THIS machine, of the right
+				// Type -- same "Unknown = explicit" discipline as
+				// owner_field just above.
+				for _, p := range m.Permissions {
+					da := p.DynamicActor
+					if da == nil {
+						continue
+					}
+					if da.ActorTypeField == "" || da.ActorUserField == "" || da.ActorGroupField == "" {
+						return fmt.Errorf("permission %s on machine %s: dynamic actor gate is incomplete -- actor_type_field, actor_user_field, and actor_group_field must all be set together",
+							p.ID, m.ID)
+					}
+					typeField, ok := fieldByID[da.ActorTypeField]
+					if !ok {
+						return fmt.Errorf("permission %s on machine %s: actor_type_field %q does not name a Field on this machine", p.ID, m.ID, da.ActorTypeField)
+					}
+					if typeField.Type != model.FieldTypeValueList {
+						return fmt.Errorf("permission %s on machine %s: actor_type_field %q must be type \"value_list\", got %q", p.ID, m.ID, da.ActorTypeField, typeField.Type)
+					}
+					userField, ok := fieldByID[da.ActorUserField]
+					if !ok {
+						return fmt.Errorf("permission %s on machine %s: actor_user_field %q does not name a Field on this machine", p.ID, m.ID, da.ActorUserField)
+					}
+					if userField.Type != model.FieldTypeUser {
+						return fmt.Errorf("permission %s on machine %s: actor_user_field %q must be type \"user\", got %q", p.ID, m.ID, da.ActorUserField, userField.Type)
+					}
+					groupField, ok := fieldByID[da.ActorGroupField]
+					if !ok {
+						return fmt.Errorf("permission %s on machine %s: actor_group_field %q does not name a Field on this machine", p.ID, m.ID, da.ActorGroupField)
+					}
+					if groupField.Type != model.FieldTypeGroup {
+						return fmt.Errorf("permission %s on machine %s: actor_group_field %q must be type \"group\", got %q", p.ID, m.ID, da.ActorGroupField, groupField.Type)
+					}
+				}
+
 				// CAP-C08: a Constraint's cross_record must resolve cleanly --
 				// same "wait until everything's loaded" reasoning as CAP-W01's
 				// requirement-target check right below (a ChildMachine or a

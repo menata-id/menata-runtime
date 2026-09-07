@@ -237,16 +237,25 @@ type Field struct {
 type FieldType string
 
 const (
-	FieldTypeText      FieldType = "text"
-	FieldTypeRichText  FieldType = "rich_text"
-	FieldTypeNumber    FieldType = "number"
-	FieldTypeMoney     FieldType = "money"
-	FieldTypeBoolean   FieldType = "boolean"
-	FieldTypeDate      FieldType = "date"
-	FieldTypeDateTime  FieldType = "date_time"
-	FieldTypeTime      FieldType = "time"     // CAP-F10, 2026-07-12
-	FieldTypeDuration  FieldType = "duration" // CAP-F10, 2026-07-12
-	FieldTypeUser      FieldType = "user"
+	FieldTypeText     FieldType = "text"
+	FieldTypeRichText FieldType = "rich_text"
+	FieldTypeNumber   FieldType = "number"
+	FieldTypeMoney    FieldType = "money"
+	FieldTypeBoolean  FieldType = "boolean"
+	FieldTypeDate     FieldType = "date"
+	FieldTypeDateTime FieldType = "date_time"
+	FieldTypeTime     FieldType = "time"     // CAP-F10, 2026-07-12
+	FieldTypeDuration FieldType = "duration" // CAP-F10, 2026-07-12
+	FieldTypeUser     FieldType = "user"
+	// FieldTypeGroup (CAP-F24, 2026-09-07) is reference sugar over CAP-O07's
+	// groups table -- same posture as FieldTypeUser's own sugar over
+	// CAP-O01's users (CAP-F05): stores a Group's own database-generated
+	// UUID, renders as a picker populated from GroupStore, resolved to a
+	// display name at Detail/List time. Unlike `reference`, never needs
+	// Options.TargetMachine -- a Group isn't a Machine, same reason
+	// FieldOptions.RestrictToGroup (CAP-F23) already names a Group by NAME
+	// rather than validating it at load time like a real target_machine.
+	FieldTypeGroup     FieldType = "group"
 	FieldTypeFile      FieldType = "file"
 	FieldTypeValueList FieldType = "value_list"
 	FieldTypeReference FieldType = "reference"
@@ -601,6 +610,16 @@ type AggregateCondition struct {
 // e.g. only the specific Approver named on an Approval Step, not anyone
 // holding the "Approver" role, may decide it (WRP-1 Direct Allocation).
 // Empty = role-only, the default.
+// DynamicActor (CAP-F24, 2026-09-07): a per-record ALTERNATIVE to
+// OwnerField's static single-Field gate — see that type's own doc comment.
+// A Permission may declare both at once: internal/permission/guard.go's
+// CanTrigger treats DynamicActor as the primary check whenever the
+// record's own ActorTypeField resolves to a recognized value ("User" or
+// "Group"), falling back to OwnerField for any record that doesn't (one
+// created before this feature existed, or one that simply never set it) —
+// this is what let Approval Step adopt CAP-F24 without invalidating
+// already-seeded Steps or already-written conformance tests that only
+// ever set the original static field.
 // CanRead/CanCreate/CanEdit (CAP-P05): CRUD-level permission, independent of
 // Events. A role with no Permission row at all on a machine has none of
 // these — deny-by-default.
@@ -610,11 +629,29 @@ type Permission struct {
 	Role         string
 	Events       []string // event ids
 	OwnerField   string
+	DynamicActor *DynamicActorGate
 	CanRead      bool
 	CanCreate    bool
 	CanEdit      bool
 	CanDelete    bool     // CAP-R03 -- defaults false at the DB level, unlike the other three
 	HiddenFields []string // CAP-P06 -- field ids this role's Permission excludes from List/Detail/Form rendering
+}
+
+// DynamicActorGate (CAP-F24) names three Fields on the SAME Machine:
+// ActorTypeField is a `value_list` Field whose per-record VALUE ("User" or
+// "Group") selects which of ActorUserField (`user`-typed) or
+// ActorGroupField (`group`-typed, FieldTypeGroup) is THIS record's own real
+// approver — resolved at Approve/Reject time, never at Machine-design
+// time, unlike a plain OwnerField which names the same Field for every
+// record. The unselected one of the two candidate Fields simply stays
+// null on that record — same "declared but not this record's concern"
+// pattern CAP-F17's own currency Fields already use. Validated at load
+// time (metadata/validate.go): all three Fields must exist on the Machine
+// and be the right Type.
+type DynamicActorGate struct {
+	ActorTypeField  string
+	ActorUserField  string
+	ActorGroupField string
 }
 
 // View describes how a Machine's data is presented.

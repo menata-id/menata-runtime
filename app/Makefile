@@ -102,6 +102,7 @@ seed:
 	psql "$(DB_URL)" -f seeds/040_membership_backfill.sql
 	psql "$(DB_URL)" -f seeds/041_expression_lab.sql
 	psql "$(DB_URL)" -f seeds/042_inline_view_composition.sql
+	psql "$(DB_URL)" -f seeds/043_approver_type_toggle.sql
 
 # The real test suite for HTTP/behavioral correctness -- requires migrate-up
 # + seed already applied and the server running (`make dev` in another

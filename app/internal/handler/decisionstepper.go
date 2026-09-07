@@ -134,7 +134,7 @@ func (h *Handler) computeStepperSteps(r *http.Request, role []string, machine *m
 
 		var triggers []ui.EventTrigger
 		if state == "current" {
-			for _, evt := range h.interp.Get().PermittedEventsForRecord(stepsMachineID, role, identityID, c.Data) {
+			for _, evt := range h.interp.Get().PermittedEventsForRecord(stepsMachineID, role, identityID, c.Data, h.groupMembersFunc(r.Context())) {
 				trig := ui.EventTrigger{Event: evt}
 				if len(evt.InputFields) > 0 {
 					trig.Inputs = h.buildFormFieldsFor(r.Context(), h.workspaceSlug(r), stepsMachine, evt.InputFields, nil)
