@@ -5,7 +5,19 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.54 — CAP-O11 (multi-workspace identity + login-time workspace picker) implemented and
+> Status: v0.55 — Study 37 (ObjectStack comparator study, `prototype/objectstack/`, placed there by
+> explicit owner instruction) registered as new evidence, 2026-09-07. **No row changed, no
+> capability admitted** — the study names 14 candidate new rows (suggested `CAP-C13`, `CAP-V22`,
+> `CAP-V23`, `CAP-P08`, `CAP-O12`, `CAP-P09`, `CAP-W09`, `CAP-A16`, `CAP-C14`, `CAP-V24`–`V26`,
+> `CAP-V27`, `CAP-X16`) and Tier-2/evidence notes for existing rows (`CAP-X10`, `CAP-I04`,
+> `CAP-W02`, `CAP-O10`, `CAP-V11`, `CAP-F03`, `CAP-F13`, `CAP-W03`, `CAP-W04`, `CAP-V12`,
+> `CAP-R06`), each pre-screened against `capability-lifecycle.md` §2 in
+> `prototype/objectstack/docs/gap-analysis-and-recommendations.md` §3 — admission is an owner
+> decision, recorded here row-by-row when it happens, per this registry's own "declare targets
+> first" discipline. The study's second finding worth this header: ObjectStack's own ADRs
+> (0020, 0049, 0061, 0078) document years of declared-but-unenforced metadata surfaces — the
+> failure mode this registry's "✅ only with a conformance test" ratchet exists to prevent |
+> Previously v0.54 — CAP-O11 (multi-workspace identity + login-time workspace picker) implemented and
 > conformance-proven, ❌→✅ (T220–T225, 225/225 total, zero regressions, `./scripts/local-ci.sh`),
 > 2026-09-06. `users.email` is now globally unique; a new `workspace_memberships` table (mirrors
 > CAP-O07's `group_members`) is the real fix, login-time `/choose-workspace` is the UI on top.

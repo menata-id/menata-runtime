@@ -2555,6 +2555,54 @@ Manually verified live against the real dev database (migration applied there to
 
 ---
 
+## Study 37 — ObjectStack Comparator Study (2026-09-07)
+
+Owner-requested, raised directly in conversation: *"this looks conceptually similar to Menata
+Runtime — study it, compare, find the gaps, and say what should be in Menata Runtime to be
+flexible and powerful."* ObjectStack (`objectstack-ai/objectstack`, Apache-2.0, TypeScript) is a
+metadata-interpreting business-app runtime — Zod-schema metadata compiled to one JSON artifact,
+a microkernel with plugins, table-per-object storage via knex, a React console, a CEL expression
+layer, a DAG flow engine with approval nodes, four-layer permissions, a semantic analytics
+dataset, and an MCP server so AI agents operate the app under the same permissions. Studied from
+a clone of its source tree (commit `ac76425f`, 2026-09-07 — 864-file Zod spec, 131 ADRs, 438 doc
+pages, ~790k non-test lines) rather than from its marketing page, because its own ADRs record a
+long history of *declared-but-unenforced* surfaces (state machine: three shapes, zero enforcement,
+ADR-0020; `$search` a silent no-op on every surface, ADR-0061; an enforce-or-remove ADR-0049 to
+clean up) — which makes its feature lists unreliable and is itself the study's strongest argument
+for this registry's own "✅ only with a conformance test" ratchet.
+
+Full study: `prototype/objectstack/README.md` (+ `docs/architecture-and-backend.md`,
+`docs/capability-comparison.md`, `docs/gap-analysis-and-recommendations.md`). **Placed under
+`prototype/` by explicit owner instruction**, not under `benchmarks/` where root `README.md`'s
+placement rule would put it; root `README.md` Tier 4, `prototype/README.md`, and
+`capability-registry.md` v0.55 all point to it so the placement can't be missed. It is not a
+metadata-proof prototype and carries no 16-feature score.
+
+Headline findings: 31 gaps (`gap-analysis-and-recommendations.md` §2), 23 recommendations
+(R1–R23, §3) — of which 14 would be new registry rows (`CAP-C13` expression operator +
+`CAP-F14` completion, `CAP-V22` semantic dataset, `CAP-V23` chart section, `CAP-P08` scope-depth
+permissions, `CAP-O12` unit tree + manager designation, `CAP-P09` manager/unit approver
+resolver, `CAP-W09` revision loop with cap, `CAP-A16` outbound webhook action, `CAP-C14` format
+validators, `CAP-V24`–`V26` gantt/gallery/tree lenses, `CAP-V27` personal saved views, `CAP-X16`
+governed MCP surface) and the rest Tier-2 notes or new evidence on existing rows (`CAP-X10`
+indexes — the recommended answer to table-per-object; `CAP-I04` trace UI; `CAP-W02` re-scoped to
+ObjectStack ADR-0009's narrow execution-pinned form; `CAP-O10` email transport, which both
+projects deferred past the point cases needed it and which gates four other rows). Where Menata
+Runtime is ahead, named so it isn't traded away: metadata-only with no code hatch, the
+conformance ratchet, the Process Overlay (Study 20's server-economy argument holds against a
+21-node DAG engine), the business calendar behind SLAs (ObjectStack's escalation is wall-clock
+only), `CAP-W07` change policy, SoD/delegation, PDF signature compositing, and a resource
+footprint ~37× smaller — the owner's "powerful" criterion literally. What deliberately not to
+copy (§5): plugin kernel, TypeScript authoring, SPA console, DAG engine, table-per-object + drift
+subsystem, 50 field types wholesale, code hatches, enterprise-gated tenancy, cluster primitives.
+One discipline recommended regardless (§6): turn `runtime-metadata-schema.md`'s documented silent
+no-ops into load-time errors, ObjectStack ADR-0049/0078-style. **No capability admitted, no
+registry row changed, no code changed** — evidence for an owner decision, per this registry's
+"declare targets first" discipline. Suggested next-session order in §7 (email transport decision
+first; expression layer second; analytics trio third; permissions pass fourth).
+
+---
+
 # Principles
 
 - **The map before the territory** — benchmark catalogs predict gaps before cases find them.
