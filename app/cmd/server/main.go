@@ -20,6 +20,7 @@ import (
 	"menata.id/app/internal/db"
 	"menata.id/app/internal/handler"
 	"menata.id/app/internal/interpreter"
+	"menata.id/app/internal/mailer"
 	"menata.id/app/internal/metadata"
 	"menata.id/app/internal/permission"
 	"menata.id/app/internal/router"
@@ -88,8 +89,16 @@ func main() {
 	workspaceStore := store.NewWorkspaceStore(pool) // CAP-O09
 	memberships := store.NewMembershipStore(pool)   // CAP-O11
 	groups := store.NewGroupStore(pool)             // CAP-O07
+	invitations := store.NewInvitationStore(pool)   // CAP-O10
+	mail := mailer.New(mailer.Config{               // CAP-O10, see internal/mailer's own doc comment
+		Host:     cfg.SMTPHost,
+		Port:     cfg.SMTPPort,
+		Username: cfg.SMTPUsername,
+		Password: cfg.SMTPPassword,
+		From:     cfg.SMTPFrom,
+	})
 	fileStorage := storage.NewLocalDisk("uploads")
-	h := handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, workspaceStore, memberships, groups, cfg.SecureCookies, fileStorage)
+	h := handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, workspaceStore, memberships, groups, invitations, mail, cfg.SecureCookies, fileStorage)
 
 	r := chi.NewRouter()
 	// app/ROADMAP.md Phase 5 fix (govulncheck flagged GO-2026-5777/5775):
@@ -449,6 +458,15 @@ func isPublicPath(path string) bool {
 	if strings.HasPrefix(path, "/ui-sample/") {
 		return true
 	}
+	// CAP-O10: /{wsSlug}/invite/accept -- token is the auth (like
+	// /files/{key} above), the same trust boundary a session/CSRF token
+	// already gets. Suffix match, not a fixed path, since the real path
+	// carries a variable workspace slug this global middleware runs ahead
+	// of chi ever populating (same reasoning visitorAuth's own manual path
+	// parsing already documents).
+	if strings.HasSuffix(path, "/invite/accept") {
+		return true
+	}
 	return strings.HasPrefix(path, "/static/")
 }
 
@@ -661,7 +679,7 @@ func csrfProtect(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if r.URL.Path == "/login" || r.URL.Path == "/signup" || strings.HasPrefix(r.URL.Path, "/webhooks/") {
+		if r.URL.Path == "/login" || r.URL.Path == "/signup" || strings.HasPrefix(r.URL.Path, "/webhooks/") || strings.HasSuffix(r.URL.Path, "/invite/accept") {
 			next.ServeHTTP(w, r)
 			return
 		}

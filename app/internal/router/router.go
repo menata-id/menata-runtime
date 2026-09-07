@@ -20,6 +20,8 @@ import (
 //	/{wsSlug}/apps/{applicationID}           one application's own machines
 //	/{wsSlug}/admin/users                    workspace user/role management (CAP-O01, Admin-only)
 //	POST /{wsSlug}/admin/reload              re-load metadata without restart, Admin-only (CAP-X04)
+//	/{wsSlug}/admin/invitations               invite by email into this workspace (CAP-O10, Admin-only)
+//	/{wsSlug}/invite/accept                   accept a CAP-O10 invitation (public, token is the auth)
 //	/{wsSlug}/notifications                  in-app notification inbox (CAP-A10)
 //	/{wsSlug}/apps/{applicationID}/export     Application metadata export, Admin-only (CAP-X08)
 //	POST /{wsSlug}/apps/import                Application metadata import, Admin-only (CAP-X08)
@@ -81,6 +83,14 @@ func Mount(r chi.Router, h *handler.Handler) {
 		r.Get("/admin/users", h.AdminUsers)
 		r.Post("/admin/users/{userID}", h.AdminUpdateUser)
 		r.Post("/admin/reload", h.Reload) // CAP-X04, Admin-only
+
+		r.Get("/admin/invitations", h.AdminInvitations)                             // CAP-O10, Admin-only
+		r.Post("/admin/invitations", h.AdminCreateInvitation)                       // CAP-O10, Admin-only
+		r.Post("/admin/invitations/{invitationID}/revoke", h.AdminRevokeInvitation) // CAP-O10, Admin-only
+		r.Post("/admin/invitations/{invitationID}/resend", h.AdminResendInvitation) // CAP-O10, Admin-only
+
+		r.Get("/invite/accept", h.InviteAcceptForm) // CAP-O10, public -- see cmd/server/main.go's isPublicPath/csrfProtect
+		r.Post("/invite/accept", h.InviteAccept)    // CAP-O10, public
 
 		r.Post("/admin/groups", h.AdminCreateGroup)                       // CAP-O07, Admin-only
 		r.Get("/admin/groups/{groupID}", h.AdminGroupDetail)              // CAP-O07, Admin-only

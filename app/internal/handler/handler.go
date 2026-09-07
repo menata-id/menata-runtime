@@ -12,6 +12,7 @@ import (
 	"menata.id/app/internal/constraint"
 	"menata.id/app/internal/executor"
 	"menata.id/app/internal/interpreter"
+	"menata.id/app/internal/mailer"
 	"menata.id/app/internal/metadata"
 	"menata.id/app/internal/model"
 	"menata.id/app/internal/permission"
@@ -29,9 +30,11 @@ type Handler struct {
 	outbox        *store.OutboxStore // CAP-W06: notify/subscription fan-out enqueue here, runOutboxDispatcher performs the write
 	sessions      *store.SessionStore
 	users         *store.UserStore
-	workspaces    *store.WorkspaceStore   // CAP-O09
+	workspaces    *store.WorkspaceStore  // CAP-O09
 	memberships   *store.MembershipStore // CAP-O11
 	groups        *store.GroupStore      // CAP-O07
+	invitations   *store.InvitationStore // CAP-O10
+	mailer        mailer.Sender          // CAP-O10
 	secureCookies bool
 	engine        *constraint.Engine
 	guard         *permission.Guard
@@ -39,7 +42,7 @@ type Handler struct {
 	storage       storage.Store // CAP-F06: uploaded-file bytes, see upload.go
 }
 
-func New(interp *interpreter.Store, loader *metadata.Loader, pool *pgxpool.Pool, records *store.RecordStore, notifications *store.NotificationStore, outbox *store.OutboxStore, sessions *store.SessionStore, users *store.UserStore, workspaces *store.WorkspaceStore, memberships *store.MembershipStore, groups *store.GroupStore, secureCookies bool, fileStorage storage.Store) *Handler {
+func New(interp *interpreter.Store, loader *metadata.Loader, pool *pgxpool.Pool, records *store.RecordStore, notifications *store.NotificationStore, outbox *store.OutboxStore, sessions *store.SessionStore, users *store.UserStore, workspaces *store.WorkspaceStore, memberships *store.MembershipStore, groups *store.GroupStore, invitations *store.InvitationStore, mail mailer.Sender, secureCookies bool, fileStorage storage.Store) *Handler {
 	return &Handler{
 		interp:        interp,
 		loader:        loader,
@@ -52,6 +55,8 @@ func New(interp *interpreter.Store, loader *metadata.Loader, pool *pgxpool.Pool,
 		workspaces:    workspaces,
 		memberships:   memberships,
 		groups:        groups,
+		invitations:   invitations,
+		mailer:        mail,
 		secureCookies: secureCookies,
 		engine:        &constraint.Engine{},
 		guard:         &permission.Guard{},

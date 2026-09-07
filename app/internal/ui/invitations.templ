@@ -1,0 +1,203 @@
+package ui
+
+// AdminInvitations (CAP-O10) -- the workspace Admin's invite-management
+// page, alongside CAP-O01's existing /admin/users. Reuses AdminUsers' own
+// Page shell and appGroups vocabulary source (Interpreter.AllRoles) so a
+// new invitation's per-Application role picker offers exactly the same
+// options AdminUpdateUser's own selects do.
+templ AdminInvitations(workspaceName, wsSlug, identity, csrfToken string, unreadCount int, invitations []AdminInvitationRow, appGroups []RoleGroup) {
+	@Page("Invitations", workspaceName, wsSlug, identity, csrfToken, true, unreadCount, nil) {
+		<div class="mb-1 flex items-center justify-between">
+			<h1 class="text-xl font-semibold text-slate-900">Invitations</h1>
+			<a href={ templ.SafeURL("/" + wsSlug + "/admin/users") } class="text-sm text-blue-600 hover:text-blue-700">
+				← Manage users
+			</a>
+		</div>
+		<p class="mb-5 text-sm text-slate-500">
+			Invite someone who doesn't have access to this workspace yet by email (CAP-O10). They
+			receive a one-time link to accept; if their email already has a Menata account elsewhere,
+			accepting just adds this workspace as a new membership, no second account is created.
+		</p>
+		<form method="POST" action={ templ.SafeURL("/" + wsSlug + "/admin/invitations") } class="mb-6 space-y-3 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+			@CSRFField(csrfToken)
+			<div class="flex flex-wrap items-end gap-3">
+				<div class="space-y-1.5">
+					<label for="email" class="block text-xs font-medium text-slate-700">Email</label>
+					<input
+						type="email"
+						id="email"
+						name="email"
+						required?={ true }
+						class="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+					/>
+				</div>
+				<div class="space-y-1.5">
+					<label for="workspace_role" class="block text-xs font-medium text-slate-700">Workspace role</label>
+					<select
+						id="workspace_role"
+						name="workspace_role"
+						class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+					>
+						<option value="Member">Member</option>
+						<option value="Admin">Admin</option>
+					</select>
+				</div>
+				for _, g := range appGroups {
+					<div class="space-y-1.5">
+						<label class="block text-xs font-medium text-slate-700">{ g.AppName }</label>
+						<select
+							name={ "app_role_" + g.AppID }
+							class="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+						>
+							<option value="">— none —</option>
+							for _, role := range g.Roles {
+								<option value={ role }>{ role }</option>
+							}
+						</select>
+					</div>
+				}
+				<button
+					type="submit"
+					class="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 transition-colors"
+				>
+					Send invitation
+				</button>
+			</div>
+		</form>
+		<div class="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+			for _, inv := range invitations {
+				<div class="flex flex-wrap items-center gap-4 px-5 py-3.5">
+					<div class="w-56 shrink-0 text-sm font-medium text-slate-900">{ inv.Email }</div>
+					<div class="text-xs text-slate-500">{ inv.Role }</div>
+					@invitationStatusPill(inv.Status)
+					if inv.Status == "pending" || inv.Status == "expired" {
+						<form method="POST" action={ templ.SafeURL("/" + wsSlug + "/admin/invitations/" + inv.ID + "/resend") } class="ml-auto">
+							@CSRFField(csrfToken)
+							<button type="submit" class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
+								Resend
+							</button>
+						</form>
+						<form method="POST" action={ templ.SafeURL("/" + wsSlug + "/admin/invitations/" + inv.ID + "/revoke") }>
+							@CSRFField(csrfToken)
+							<button type="submit" class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
+								Revoke
+							</button>
+						</form>
+					}
+				</div>
+			}
+			if len(invitations) == 0 {
+				<div class="px-5 py-3.5 text-sm text-slate-400">No invitations yet.</div>
+			}
+		</div>
+	}
+}
+
+templ invitationStatusPill(status string) {
+	switch status {
+	case "accepted":
+		<span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">accepted</span>
+	case "revoked":
+		<span class="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">revoked</span>
+	case "expired":
+		<span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">expired</span>
+	default:
+		<span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">pending</span>
+	}
+}
+
+// InviteAcceptPage (CAP-O10) -- GET/POST /{wsSlug}/invite/accept's own
+// standalone shell, same reasoning LoginPage/SignupPage already give:
+// there's no identity/CSRF/unread-count to show before a session exists.
+// hasAccount switches between the two branches resolveInvitation resolves
+// server-side: false shows Name+Password (a brand-new identity), true
+// shows only Password (proving control of an identity that already
+// exists, before granting it a new membership here).
+templ InviteAcceptPage(errorMsg, token, wsSlug, email string, hasAccount bool) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Accept invitation — Menata Runtime</title>
+			<link rel="stylesheet" href="/static/css/output.css"/>
+		</head>
+		<body class="flex min-h-screen items-center justify-center bg-slate-50 text-slate-900 antialiased">
+			<div class="mx-auto w-full max-w-sm px-4">
+				<div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+					<h1 class="text-lg font-semibold text-slate-900">Accept invitation</h1>
+					if hasAccount {
+						<p class="mt-1 text-sm text-slate-500">
+							{ email } already has a Menata account. Enter its password to join this workspace.
+						</p>
+					} else {
+						<p class="mt-1 text-sm text-slate-500">
+							Set up your account to join this workspace as { email }.
+						</p>
+					}
+					if errorMsg != "" {
+						<div class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+							{ errorMsg }
+						</div>
+					}
+					<form method="POST" action={ templ.SafeURL("/" + wsSlug + "/invite/accept") } class="mt-5 space-y-4">
+						<input type="hidden" name="token" value={ token }/>
+						if !hasAccount {
+							<div class="space-y-1.5">
+								<label for="name" class="block text-sm font-medium text-slate-700">Your name</label>
+								<input
+									type="text"
+									id="name"
+									name="name"
+									required?={ true }
+									autofocus?={ true }
+									class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+								/>
+							</div>
+						}
+						<div class="space-y-1.5">
+							<label for="password" class="block text-sm font-medium text-slate-700">Password</label>
+							<input
+								type="password"
+								id="password"
+								name="password"
+								required?={ true }
+								autofocus?={ hasAccount }
+								class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+							/>
+						</div>
+						<button
+							type="submit"
+							class="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+						>
+							Join workspace
+						</button>
+					</form>
+				</div>
+			</div>
+		</body>
+	</html>
+}
+
+// InviteInvalidPage (CAP-O10) is the one generic outcome for every
+// unusable token state -- see errInvalidInvitation's own doc comment for
+// why this never distinguishes expired/accepted/revoked/unknown.
+templ InviteInvalidPage(message string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Invitation — Menata Runtime</title>
+			<link rel="stylesheet" href="/static/css/output.css"/>
+		</head>
+		<body class="flex min-h-screen items-center justify-center bg-slate-50 text-slate-900 antialiased">
+			<div class="mx-auto w-full max-w-sm px-4">
+				<div class="rounded-lg border border-slate-200 bg-white p-6 text-center shadow-sm">
+					<p class="text-sm text-slate-700">{ message }</p>
+					<a href="/login" class="mt-4 inline-block text-sm text-blue-600 hover:text-blue-700">Go to login</a>
+				</div>
+			</div>
+		</body>
+	</html>
+}

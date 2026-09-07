@@ -98,6 +98,13 @@ if [ "$healthy" != true ]; then
 fi
 
 echo "==> conformance"
-ORIGIN="http://localhost:$PORT" DATABASE_URL="$TEST_DB_URL" ./conformance/run.sh
+# SERVER_LOG (CAP-O10): the throwaway server's own JSON stdout, same
+# documented-exception spirit as DATABASE_URL/T19's psql use above -- an
+# invitation's real token is never persisted anywhere (only its SHA-256
+# hash), so a test proving the accept flow end-to-end has no HTTP-visible
+# way to learn it. In this dev/CI configuration (SMTP_HOST unset,
+# internal/mailer's own logSender fallback) the token only ever appears in
+# the emailed link text, which lands here instead of a real inbox.
+ORIGIN="http://localhost:$PORT" DATABASE_URL="$TEST_DB_URL" SERVER_LOG="$LOG_DIR/server.log" ./conformance/run.sh
 
 echo "==> local-ci PASSED"

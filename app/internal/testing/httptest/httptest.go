@@ -13,6 +13,7 @@ import (
 
 	"menata.id/app/internal/handler"
 	"menata.id/app/internal/interpreter"
+	"menata.id/app/internal/mailer"
 	"menata.id/app/internal/metadata"
 	"menata.id/app/internal/storage"
 	"menata.id/app/internal/store"
@@ -42,9 +43,10 @@ func NewHandler(t *testing.T, pool *pgxpool.Pool) *handler.Handler {
 	workspaceStore := store.NewWorkspaceStore(pool)
 	memberships := store.NewMembershipStore(pool)
 	groups := store.NewGroupStore(pool)
+	invitations := store.NewInvitationStore(pool)
 	fileStorage := storage.NewLocalDisk(t.TempDir())
 
-	return handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, workspaceStore, memberships, groups, false, fileStorage)
+	return handler.New(interpStore, loader, pool, records, notifications, outbox, sessions, users, workspaceStore, memberships, groups, invitations, mailer.New(mailer.Config{}), false, fileStorage)
 }
 
 // Actor returns a minimal *store.Auth for role in workspaceID -- enough to

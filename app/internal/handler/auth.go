@@ -33,9 +33,17 @@ func (h *Handler) Root(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/"+h.workspaceSlugForID(a.User.WorkspaceID)+"/", http.StatusSeeOther)
 }
 
-// LoginForm — email + password login page (CAP-X02).
+// LoginForm — email + password login page (CAP-X02). message is an
+// optional non-error informational banner (CAP-O10's InviteAcceptForm
+// redirects here with ?message=already-a-member when an accepted
+// invitation turned out to be redundant) -- reuses LoginPage's own single
+// banner slot rather than adding a second one just for this.
 func (h *Handler) LoginForm(w http.ResponseWriter, r *http.Request) {
-	if err := ui.LoginPage("").Render(r.Context(), w); err != nil {
+	msg := ""
+	if r.URL.Query().Get("message") == "already-a-member" {
+		msg = "You're already a member of that workspace. Log in to continue."
+	}
+	if err := ui.LoginPage(msg).Render(r.Context(), w); err != nil {
 		slog.Error("render login", "error", err)
 	}
 }

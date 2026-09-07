@@ -212,6 +212,16 @@ type AdminGroupRow struct {
 	AppRoles    map[string]string // application id -> role, direct-only (this Group's own grants)
 }
 
+// AdminInvitationRow (CAP-O10) is one row on the /admin/invitations page --
+// Status is the display value (invitationDisplayStatus's own "expired"
+// computed at read time, not a separate stored value).
+type AdminInvitationRow struct {
+	ID     string
+	Email  string
+	Role   string
+	Status string
+}
+
 // GroupMemberOption is one selectable workspace user on the Group edit page
 // (/admin/groups/{id}) -- Checked reflects this Group's current membership.
 type GroupMemberOption struct {

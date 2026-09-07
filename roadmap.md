@@ -2344,8 +2344,13 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     the gap doc's own §7). No Prio assigned in the registry yet — this list is the ordering until
     the owner assigns one there:
 
-    1. **Email transport decision (`CAP-O10`)** — gates real CAP-A10, CAP-V11, CAP-W04 escalation
-       mail, CAP-W09/approval links. Both projects deferred it past the point cases needed it.
+    1. ~~Email transport decision (`CAP-O10`)~~ — **✅ done (2026-09-07)**. `internal/mailer`
+       (plain SMTP, stdlib `net/smtp`, no new dependency — log-only fallback when `SMTP_HOST` is
+       unset, every dev/CI run today); full CAP-O10 build (invite/revoke/resend, public accept
+       flow, `migrations/027_workspace_invitations.sql`), conformance T226–T235. Full detail in
+       `capability-registry.md`'s own CAP-O10 row (v0.57). Gates real CAP-A10, CAP-V11, CAP-W04
+       escalation mail, CAP-W09/approval links — those still wait on their own case pressure, this
+       item only unblocks the transport itself.
     2. **Expression layer** — `CAP-C13` + `CAP-F14` completion (cel-go; fail-closed, no I/O).
     3. **`CAP-F13` Tier 2 relation policy + `CAP-R04` history timeline** — cheap, both close
        *correctness* gaps Case 3 has today (dangling children after soft delete; no history
@@ -2546,6 +2551,18 @@ existing session-derived trust boundary; self-service founding (`/signup`) creat
 its first Admin account together and signs them in immediately, reusing CAP-X04's own reload
 mechanism to make the new workspace servable with no restart. `./scripts/local-ci.sh`: 219/219,
 zero regressions. CAP-O10 (email invitation) and CAP-X15 (custom domain) remain ❌, unchanged.
+
+**Status update (2026-09-07): CAP-O10 implemented, ❌→✅** (Study 37's own "Recommended order"
+item 24, step 1 — see `roadmap.md`'s own entry there). Both named-not-solved items from this
+study's original write-up are resolved, not deferred further: the email-transport decision (§5.6)
+picked plain SMTP (`internal/mailer`, stdlib `net/smtp`, no new dependency, log-only fallback when
+unconfigured); the cross-workspace-identity open question (§5.3) is resolved by CAP-O11 (built the
+same week, after this study but before this implementation pass) rather than by either of the two
+options §5.3 named — accepting now just adds a `workspace_memberships` row on the real identity
+(its own password re-verified first), never the "block with a message" fallback nor a second
+disconnected identity. CAP-X15 (custom domain) remains ❌, unchanged — no case has forced it yet.
+Full build detail in `capability-registry.md`'s own CAP-O10 row (v0.57); conformance 225→235, zero
+regressions.
 
 ---
 

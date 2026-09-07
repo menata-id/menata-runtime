@@ -1,6 +1,6 @@
 382 internal/handler/admin.go
 358 internal/handler/api.go
-415 internal/handler/auth.go
+423 internal/handler/auth.go
 230 internal/handler/coordplace.go
 120 internal/handler/crossrecord.go
 210 internal/handler/csv.go
@@ -9,7 +9,8 @@
 724 internal/handler/events.go
 135 internal/handler/format.go
 477 internal/handler/formfields.go
-312 internal/handler/handler.go
+317 internal/handler/handler.go
+417 internal/handler/invitations.go
 257 internal/handler/processmap.go
 1009 internal/handler/record_crud.go
 60 internal/handler/requirement.go

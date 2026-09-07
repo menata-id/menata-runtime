@@ -252,6 +252,22 @@ see `docs/decisions/007-conformance-suite-split.md`).
 | T217 | CAP-F23 | once the Group exists with only Bob as a member, the picker offers Bob but not Carol (who still holds the role directly) |
 | T218 | CAP-F23 | a role-holder outside the Group can still be assigned via raw POST and still Approves normally -- the picker is UX-only, not a new authorization mechanism |
 | T219 | CAP-F23 | a duplicate Group name is rejected with a clean 400, not an unhandled 500 (migrations/024's uniqueness constraint) |
+| T220 | CAP-O11 | an identity with 2+ workspace memberships is sent to the picker, not auto-entered |
+| T221 | CAP-O11 | the picker lists every real membership (ws_default and ws_acme) |
+| T222 | CAP-O11 | picking a real membership lands in that exact workspace, session usable there |
+| T223 | CAP-O11 | a workspace_id this identity does not actually hold is rejected, not silently honored |
+| T224 | CAP-O11 | a second login remembers the last chosen workspace, skips the picker |
+| T225 | CAP-O11 | an existing single-membership account still auto-enters with zero picker friction |
+| T226 | CAP-O10 | a non-Admin is denied POST /admin/invitations |
+| T227 | CAP-O10 | Admin creates an invitation, listed on /admin/invitations |
+| T228 | CAP-O10 | a new-email invitation's accept page shows the new-account form (no identity exists yet) |
+| T229 | CAP-O10 | accepting creates a real account+membership -- redirect lands in the workspace, a fresh login with the just-set password succeeds |
+| T230 | CAP-O10 | inviting an email with an existing identity elsewhere (CAP-O11) shows the password-confirm form, not a second new-account form |
+| T231 | CAP-O10 | an existing identity's wrong password is rejected, no membership granted |
+| T232 | CAP-O10 | the real password joins the workspace -- a fresh login now shows the CAP-O11 picker, proving a real second membership |
+| T233 | CAP-O10 | a revoked invitation's own link stops working |
+| T234 | CAP-O10 | an unknown token shows the same generic invalid page, not a crash (no token-guessing oracle) |
+| T235 | CAP-O10 | resend invalidates the old token and issues a working new one |
 
 *(T178–T185 — CAP-W06 async outbox, CAP-X08 import — exist in `tests/070_action_outbox.sh`/
 `tests/080_metadata_import.sh` but predate this table catching up to them; not added by this
