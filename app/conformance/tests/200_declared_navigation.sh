@@ -2,34 +2,37 @@
 # --- CAP-O03 Tier 5, Phase 1: declared navigation ---
 # benchmarks/009-in-app-navigation-benchmark.md's own implementation-plan
 # follow-on finding. seeds/045_declared_navigation_pilot.sql declares
-# app_approval's own nav (Approval Document, a Dashboard view, and a
-# "Reference" group containing Signature) -- Approval Step is deliberately
-# left undeclared, the exact clutter this capability exists to remove.
-# app_accounting (seeds/008, no declared entries) is the regression control
-# proving every Application without one keeps CAP-O03's original inferred
-# behavior byte-for-byte unchanged.
+# app_approval's own real nav (Approval Document, a Dashboard view) --
+# Approval Step is deliberately left undeclared, the exact clutter this
+# capability exists to remove. seeds/046_navigation_group_lab.sql is a
+# dedicated, separate fixture (app_nav_lab) for the group/nesting half of
+# Phase 1, kept independent of app_approval's own actual curation choices
+# after a live correction dropped that pilot's own group entry (Signature
+# wasn't a real menu destination either, and the group label's own width
+# overflowed a narrow viewport -- capability-registry.md's CAP-O03 Tier 5
+# row has the full account). app_accounting (seeds/008, no declared
+# entries) is the regression control proving every Application without one
+# keeps CAP-O03's original inferred behavior byte-for-byte unchanged.
 
 ALICE_NAV=$(session_for alice@example.com password)
 
 # T243 -- the sub-nav strip on a declared Application shows exactly the
 # declared entries, in declared order: the Machine target (active, since
-# this IS mch_approval_document's own page), the View target (linking to
-# its own collection-level route), and the group label with its one nested
-# child -- Approval Step is absent entirely, not merely unlinked.
+# this IS mch_approval_document's own page) and the View target (linking
+# to its own collection-level route) -- Approval Step is absent entirely,
+# not merely unlinked.
 SUBNAV_BODY=$(get_body "$BASE_URL/mch_approval_document" "$ALICE_NAV")
 echo "$SUBNAV_BODY" | grep -q 'bg-white text-blue-700 shadow-sm">[[:space:]]*Approval Document' && \
     echo "$SUBNAV_BODY" | grep -q 'href="/ws_default/mch_approval_document/dashboard"' && \
-    echo "$SUBNAV_BODY" | grep -q 'uppercase tracking-wide text-slate-400">[[:space:]]*Reference' && \
-    echo "$SUBNAV_BODY" | grep -q 'href="/ws_default/mch_signature"' && \
     ! echo "$SUBNAV_BODY" | grep -q '>Approval Step<'
-check T243 "CAP-O03" "declared navigation's sub-nav strip shows exactly the declared entries (machine, view, group+child), Approval Step absent" $?
+check T243 "CAP-O03" "declared navigation's sub-nav strip shows exactly the declared entries (machine, view), Approval Step absent" $?
 
 # T244 -- the same curation applies to the Application's own app-launcher
 # card list (AppMachines), not just the per-Machine strip -- both call
 # sites read the same declared entries.
 APPCARDS_BODY=$(get_body "$BASE_URL/apps/app_approval" "$ALICE_NAV")
 echo "$APPCARDS_BODY" | grep -q '>Approval Document<' && \
-    echo "$APPCARDS_BODY" | grep -q '>Signature<' && \
+    echo "$APPCARDS_BODY" | grep -q '>Dashboard<' && \
     ! echo "$APPCARDS_BODY" | grep -q '>Approval Step<'
 check T244 "CAP-O03" "declared navigation's app-launcher card list matches the sub-nav strip's own curation" $?
 
@@ -50,3 +53,19 @@ ACCOUNTANT=$(session_for accountant@example.com password)
 body_contains "$BASE_URL/mch_journal_entry_line" 'href="/ws_default/mch_journal_entry"' "$ACCOUNTANT" && \
     body_contains "$BASE_URL/mch_journal_entry_line" 'href="/ws_default/mch_journal_entry_line"' "$ACCOUNTANT"
 check T246 "CAP-O03" "an Application with no declared navigation entries keeps CAP-O03's original inferred sub-nav unchanged" $?
+
+# T247 -- the group/nesting mechanism itself, on its own dedicated fixture
+# (app_nav_lab, seeds/046): a group entry renders as a plain unclickable
+# label, its one nested child renders as an ordinary link immediately
+# after it, on BOTH the sub-nav strip and the app-launcher card list.
+# Visitor/anonymous (CAP-P07) -- no session needed.
+LABNAV_BODY=$(curl -s "$BASE_URL/mch_nav_primary")
+echo "$LABNAV_BODY" | grep -q 'uppercase tracking-wide text-slate-400">[[:space:]]*Secondary Group' && \
+    echo "$LABNAV_BODY" | grep -q 'href="/ws_default/mch_nav_secondary"'
+check T247a "CAP-O03" "a declared group entry renders as an unclickable label, its nested child as a link right after it (sub-nav strip)" $?
+
+NAVLAB=$(session_for nav.lab@example.com password)
+LABAPP_BODY=$(get_body "$BASE_URL/apps/app_nav_lab" "$NAVLAB")
+echo "$LABAPP_BODY" | grep -q 'col-span-full[^<]*>[[:space:]]*Secondary Group' && \
+    echo "$LABAPP_BODY" | grep -q '>Secondary<'
+check T247b "CAP-O03" "the same group/child nesting renders on the app-launcher card list" $?
