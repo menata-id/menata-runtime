@@ -11,7 +11,15 @@
 > from one feature of an app to another *without losing their place* — which is a distinct
 > concept in `006-runtime-model.md`'s own hierarchy (Navigation, sibling to Page/View).
 >
-> Status: v0.3 — gains Drupal as a 7th benchmarked platform (`Menu`/`MenuLinkContent` as first-
+> Status: v0.4 — gains a full layer-by-layer implementation plan for `CAP-O03` Tier 5 (declared
+> navigation, owner-requested "Option B" following v0.3's own trade-off): schema
+> (`navigation_entries`, `Menu`/`MenuLinkContent`-shaped), loader validation, model, handler
+> dispatch (declared-first, infer-fallback, zero migration cost for every existing Application),
+> conformance sketch, and a phased rollout (Phase 1 = same-Application Machine/View/group targets;
+> Phase 2 = external URLs + cross-Application entries, deliberately deferred). Recommends building
+> this directly instead of `CAP-O03` Tier 4 — Tier 5 subsumes it entirely. `capability-registry.md`
+> v0.67 and `case-portfolio.md`'s new Case 10 note (v0.35) carry the admission itself | Previously
+> v0.3 — gains Drupal as a 7th benchmarked platform (`Menu`/`MenuLinkContent` as first-
 > class entities, not a flag on the content they link to — architecturally distinct from the
 > other six, per the owner's own observation that this study leaned too heavily on ERP/metadata
 > platforms whose menu is comparatively limited) and a direct read against this runtime's OWN
@@ -342,3 +350,163 @@ speculative "might need it someday" (§6 would reject that outright) but a docum
 what this runtime's own foundational model already promised and what three tiers of real building
 have actually shipped — worth a deliberate look the day a case finally does ask for it, rather
 than defaulting straight to "add another exception flag."
+
+---
+
+# Follow-on finding (2026-09-08) — `CAP-O03` Tier 5 implementation plan
+
+Owner request, immediately following the trade-off above: *"buat plan untuk opsi B, sebagaimana
+sudah ada di konsep menata runtime"* — the day did ask for it, sooner than "revisit... the day a
+case finally does" above anticipated. `case-portfolio.md`'s new Case 10 extension note (2026-09-08)
+and `capability-registry.md`'s new `CAP-O03` Tier 5 row (v0.67) record the admission itself; this
+section is the layer-by-layer plan (`capability-lifecycle.md` §3 "Definition of done") — design
+only, nothing built yet.
+
+## Shape, stated once before the layers
+
+An Application MAY declare `navigation_entries`. **If it does, that declaration entirely replaces
+`CAP-O03`'s own inferred listing for that Application** — no merge, no partial override, one clear
+rule. **If it does not, today's exact inferred behavior (Tiers 2–4's own lineage) is unchanged** —
+every existing seed, every existing conformance test, every Application in this portfolio keeps
+working with zero migration. This is `001-design-principles.md` §6 "Infer Before Configure" applied
+at the Application level, not just the Machine level Tier 4 would have used: the default stays free
+inference; declaring navigation is itself the exception, and once declared, it is authoritative.
+
+## 1. Language
+
+No `.menata` grammar change — Navigation, like `master_data`/`immutable_field` before it, is a
+Runtime Metadata-layer translation of implicit business intent ("this app's menu should read: X,
+then a Reports group with Y and Z"), not a Business Knowledge concept the Language spec itself
+needs new vocabulary for. Matches how `writing-runtime-metadata.md` already treats Machine `config`
+keys.
+
+## 2. Metadata schema
+
+New table, sibling to `views` in shape (same `ON CONFLICT (id) DO NOTHING` seed-safety convention,
+same flat structure — no JSONB `config` blob needed here, every field is a real column since none
+of them vary by "type" the way a View's `config` does):
+
+```sql
+CREATE TABLE navigation_entries (
+    id              TEXT PRIMARY KEY,          -- nav_<app-infix>_<slug>, same ID convention as fld_/evt_/vw_
+    application_id  TEXT NOT NULL REFERENCES applications(id),
+    parent_id       TEXT REFERENCES navigation_entries(id),  -- NULL = top-level
+    position        INT NOT NULL,               -- ordering among siblings, same role as fields.position
+    label           TEXT NOT NULL,               -- display text; NOT inferred from target.Name --
+                                                  -- explicit, since a group header has no target to infer from
+    target_type     TEXT NOT NULL,               -- 'machine' | 'view' | 'url' | 'group'
+    target_machine  TEXT REFERENCES machines(id),
+    target_view     TEXT REFERENCES views(id),
+    target_url      TEXT,                        -- Phase 2, see below -- column reserved now so
+                                                   -- Phase 2 needs no migration, only a loader change
+    UNIQUE (application_id, id)
+);
+```
+
+`id`'s prefix follows `writing-runtime-metadata.md`'s existing convention table exactly — add one
+row: `Navigation Entry | nav_ | nav_ad_document`.
+
+## 3. Loader (`internal/metadata`)
+
+Same "Unknown = explicit" discipline `validateOperators`/`validateReferences` already apply
+elsewhere (CAP-X05): at load time, not render time —
+
+- `target_type = 'machine'` requires `target_machine` to resolve to a real Machine in the SAME
+  Application (cross-Application entries are Phase 2, see below) — dangling reference fails boot,
+  same severity as a dangling `target_machine` on a `reference` Field today.
+- `target_type = 'view'` requires `target_view` to resolve to a real View on a Machine in the same
+  Application.
+- `target_type = 'group'` requires `target_machine`/`target_view`/`target_url` to all be NULL — a
+  pure heading has no destination, catching an author's copy-paste mistake at load time rather than
+  a silently-broken link at render time.
+- `parent_id`, if set, must resolve to another `navigation_entries` row in the SAME Application —
+  and a cycle check (walk `parent_id` to root, reject if the walk revisits a node) at load time, the
+  same "reject at boot, not at request time" posture CAP-V20's `EmbeddableChildViewTypes` check
+  already established for a different kind of cross-reference.
+
+## 4. Application Model (`internal/model`, `internal/interpreter`)
+
+`NavigationEntry{ID, ApplicationID, ParentID, Position, Label, TargetType, TargetMachine,
+TargetView}` — a plain struct, no `config` JSONB unmarshal needed (see §2). `Interpreter` gains
+`NavigationFor(applicationID string) []NavigationEntry` (empty slice, not nil, when none declared —
+the render layer's own signal to fall back to inference) alongside the existing
+`MachinesForApplication`, not replacing it — Tiers 2–4's inference path stays exactly as-is and
+keeps calling `MachinesForApplication` when `NavigationFor` returns empty.
+
+## 5. Engine
+
+None needed — this is a pure read/render concern, no Event/Action/Constraint touches it, matching
+Tiers 2–4's own posture (CAP-O03's entire lineage has never needed executor changes).
+
+## 6. UI / dispatch (`internal/handler`)
+
+`subNavFor`/`AppMachines` (`app/internal/handler/handler.go`) both gain one branch at their very
+top: `if entries := h.interp.Get().NavigationFor(applicationID); len(entries) > 0 { return
+renderDeclaredNav(entries, role) }` — falls through to today's existing inference code unchanged
+when empty. `renderDeclaredNav` walks the tree (`parent_id`), permission-trims each entry exactly
+the way `AppMachines` already trims Machines today (`target_type='machine'`/`'view'` entries need
+`Guard.CanRead` on the resolved Machine; `target_type='group'` entries render unconditionally,
+disappearing only if ALL of their own children get trimmed away — an empty group heading is noise,
+same reasoning `subNavFor` already uses to return `nil` below 2 machines). Rendering itself reuses
+`subNavBar`'s existing nested-link markup (`internal/ui/layout.templ`) — a tree of links is a
+strict generalization of today's flat list, not a new component.
+
+## 7. Conformance sketch
+
+- An Application with 3 Machines and 2 declared `navigation_entries` (skipping the 3rd): the
+  sub-nav strip and app-launcher card list show exactly the declared 2, in declared `position`
+  order — the 3rd Machine, while still fully readable/writable directly, is absent from both.
+- The SAME Application's Machine still reachable and functional by direct link/reference even
+  though absent from nav (mirrors Tier 4's own planned negative case — discoverability only, never
+  access).
+- A SECOND Application with zero declared entries renders identically to today, byte-for-byte —
+  the regression guard proving every existing seeded Application is unaffected.
+- A dangling `target_machine`/`target_view` fails `make migrate-up`/reload, not a silent empty
+  render (CAP-X05 discipline).
+- A `parent_id` cycle fails load with a clear error naming the cycle (mirrors `CAP-V20`'s own
+  negative-case discipline for a wrong-type `children` reference).
+- A role that cannot read a declared entry's target Machine does not see that entry, group headers
+  included when every child under one gets trimmed away.
+
+## 8. Docs
+
+`writing-runtime-metadata.md` gains a "Navigation" section once built, mirroring the existing
+"Views" section's own shape (YAML → SQL worked example) — not written now, since documenting a
+mechanism as usable before it exists would mislead a reader mid-seed, the same discipline that kept
+this plan out of that guide today.
+
+## 9. Registry
+
+`capability-registry.md`'s `CAP-O03` Tier 5 row already carries the admission; flip ❌→✅ with the
+real implementation account once built, same pattern every other row in this file follows.
+
+## Phased rollout
+
+**Phase 1 (this plan, recommended first slice):** `target_type` ∈ {`machine`, `view`, `group`},
+same-Application only, ordering + nesting + hiding. This alone closes both motivating cases in
+full — Case 3's original observed clutter (declare `Approval Document` only) and Case 10's
+cross-Machine ordering/grouping need within one Application.
+
+**Phase 2 (named, deliberately deferred, not built now):** `target_type = 'url'` (external links —
+column already reserved in §2's schema so this needs no migration, only a loader change) and
+cross-Application entries (an entry in one Application's nav pointing into another — Case 10's OWN
+full scenario, one employee moving across 4 *different* applications, needs this eventually, but
+Phase 1's same-Application scope already delivers the sharpest, cheapest slice of that same need).
+Breadcrumbs and quick actions (the other two items on `006-runtime-model.md`'s own "menus,
+breadcrumbs, tabs, shortcuts, quick actions" line) are a third, later phase again — no case has
+asked for either specifically yet, named per "silence is not a decision" rather than silently
+folded into Phase 1's scope.
+
+**Pilot, if/when this is actually built:** `app_approval` is the obvious first real user — one
+`navigation_entries` row (`Approval Document` only) closes the exact clutter this whole
+conversation started from, on the same live application already used to verify every other piece
+of Case 3's own metadata-driven-display story this session.
+
+## Recommendation restated
+
+Do not build `CAP-O03` Tier 4 as a separate prior step. Build this Tier 5's Phase 1 directly — the
+cost delta between "a hide flag" and "a full declared allow-list" is smaller than it first looks
+(one new table + one loader pass + one dispatch branch, vs. one config key + one dispatch branch),
+and Tier 4 would be fully thrown away the moment Tier 5 ships, since an explicit allow-list needs
+no separate "hide" mechanism — Drupal and Salesforce's own designs need none either, for the same
+reason.

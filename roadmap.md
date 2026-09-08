@@ -2530,6 +2530,20 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     `capability-registry.md` v0.66 carries the dated account. No new capability admitted, no code
     built.
 
+    **Third addendum (2026-09-08), same day — the day arrived: `CAP-O03` Tier 5 admitted, full
+    plan written.** Owner directly asked for a plan for Option B, citing this runtime's own
+    concept as the reason. Re-run with the owner's own request plus Case 10's base scenario (PT
+    Maju Bersama, one employee crossing 4 of 8 applications in one morning) as terrain evidence —
+    the same "owner request" evidentiary weight already accepted for `CAP-F24`/`CAP-V28` — Option B
+    now passes all five admission criteria. Registered `CAP-O03` Tier 5 (declared navigation);
+    `Tier 4`'s own row corrected in place (append-don't-rewrite) rather than rewritten. Full
+    layer-by-layer plan (schema `navigation_entries`, loader validation, model, handler dispatch
+    declared-first/infer-fallback, conformance sketch, phased rollout) written into
+    `benchmarks/009`'s own third follow-on finding — design only, nothing built. Explicit
+    recommendation on the registry row: build Tier 5's Phase 1 directly, skip Tier 4 as a separate
+    step, since Tier 5 subsumes it entirely. `case-portfolio.md`'s new Case 10 note (v0.35) and
+    `capability-registry.md` v0.67 carry the dated account.
+
 ---
 
 ## Study 38 — Composed-View UI Component Inventory (2026-09-07)
