@@ -11,7 +11,12 @@
 > from one feature of an app to another *without losing their place* — which is a distinct
 > concept in `006-runtime-model.md`'s own hierarchy (Navigation, sibling to Page/View).
 >
-> Status: v0.4 — gains a full layer-by-layer implementation plan for `CAP-O03` Tier 5 (declared
+> Status: v0.5 — the v0.4 plan below is now built: `CAP-O03` Tier 5 Phase 1 shipped and deployed
+> live the same day, 239/239 conformance clean, piloted on `app_approval` itself. One real bug
+> caught and fixed during manual verification (a View target was marked "active" by Machine-id
+> match alone, the coarse rule that's only correct for a Machine target — fixed to match by exact
+> request path). `capability-registry.md` v0.68 has the full implementation account. Previously
+> v0.4 — gains a full layer-by-layer implementation plan for `CAP-O03` Tier 5 (declared
 > navigation, owner-requested "Option B" following v0.3's own trade-off): schema
 > (`navigation_entries`, `Menu`/`MenuLinkContent`-shaped), loader validation, model, handler
 > dispatch (declared-first, infer-fallback, zero migration cost for every existing Application),
@@ -510,3 +515,15 @@ cost delta between "a hide flag" and "a full declared allow-list" is smaller tha
 and Tier 4 would be fully thrown away the moment Tier 5 ships, since an explicit allow-list needs
 no separate "hide" mechanism — Drupal and Salesforce's own designs need none either, for the same
 reason.
+
+## Built (2026-09-08, same day)
+
+The recommendation above was followed exactly: Phase 1 shipped, Tier 4 was never built.
+`capability-registry.md`'s own `CAP-O03` Tier 5 row carries the full implementation account
+(files touched, the real Active-matching bug caught and fixed during manual verification before
+conformance even ran, the 239/239 clean result, and the live pilot on `app_approval`). Recorded
+here too, briefly, so this plan's own status is legible without cross-referencing: every §1–9
+layer above shipped as sketched, with zero deviation from the plan except the one bug fix named on
+the registry row — the schema, loader validation, dispatch shape (declared-first/infer-fallback),
+and phased scope (Phase 2's `url`/cross-Application/breadcrumbs/quick-actions still deliberately
+deferred) all match what this section described before any code was written.

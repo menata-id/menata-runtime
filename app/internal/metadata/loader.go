@@ -47,6 +47,11 @@ func (l *Loader) LoadAll(ctx context.Context) ([]*model.Workspace, error) {
 				return nil, fmt.Errorf("load machines for %s: %w", app.ID, err)
 			}
 			app.Machines = machines
+			navEntries, err := l.loadNavigationEntries(ctx, app.ID)
+			if err != nil {
+				return nil, fmt.Errorf("load navigation entries for %s: %w", app.ID, err)
+			}
+			app.NavigationEntries = navEntries
 		}
 		ws.Applications = apps
 		ws.Holidays, err = l.loadHolidays(ctx, ws.ID)
@@ -55,6 +60,9 @@ func (l *Loader) LoadAll(ctx context.Context) ([]*model.Workspace, error) {
 		}
 	}
 	if err := validateReferences(workspaces); err != nil {
+		return nil, err
+	}
+	if err := validateNavigationEntries(workspaces); err != nil {
 		return nil, err
 	}
 	// CAP-W03's declarative quorum form: an `approval` requirement injects
@@ -456,6 +464,35 @@ func (l *Loader) loadPermissions(ctx context.Context, machineID string) ([]*mode
 			p.DynamicActor = da
 		}
 		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// loadNavigationEntries (CAP-O03 Tier 5, Phase 1) loads applicationID's own
+// declared navigation, if any -- an empty (not nil) slice when none exist,
+// the exact signal internal/handler's subNavFor/AppMachines use to fall
+// back to their existing inferred listing.
+func (l *Loader) loadNavigationEntries(ctx context.Context, applicationID string) ([]*model.NavigationEntry, error) {
+	rows, err := l.db.Query(ctx,
+		`SELECT id, application_id, COALESCE(parent_id, ''), position, label, target_type,
+		        COALESCE(target_machine, ''), COALESCE(target_view, ''), COALESCE(target_url, '')
+		 FROM navigation_entries WHERE application_id = $1 ORDER BY position`,
+		applicationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []*model.NavigationEntry{}
+	for rows.Next() {
+		e := &model.NavigationEntry{}
+		var targetType string
+		if err := rows.Scan(&e.ID, &e.ApplicationID, &e.ParentID, &e.Position, &e.Label, &targetType,
+			&e.TargetMachine, &e.TargetView, &e.TargetURL); err != nil {
+			return nil, err
+		}
+		e.TargetType = model.NavigationTargetType(targetType)
+		out = append(out, e)
 	}
 	return out, rows.Err()
 }

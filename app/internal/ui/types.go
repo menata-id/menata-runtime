@@ -13,6 +13,19 @@ type Card struct {
 	ID          string
 	Name        string
 	Description string
+	// Href (CAP-O03 Tier 5, Phase 1), when set, overrides the caller's own
+	// hrefPrefix+ID convention -- needed once a card can represent a
+	// declared navigation entry whose target isn't simply "this same
+	// prefix, this Machine's own id" (a View target routes to that View's
+	// own collection-level path, e.g. .../dashboard). Empty string (the
+	// zero value, every pre-existing caller) keeps CardGrid's original
+	// hrefPrefix+ID behavior unchanged.
+	Href string
+	// IsHeading (CAP-O03 Tier 5, Phase 1) renders this entry as a
+	// full-width, unclickable section label instead of a card -- a
+	// declared navigation "group" entry with no target of its own, its
+	// own children rendered as ordinary cards immediately after it.
+	IsHeading bool
 }
 
 // SubNavLink (CAP-O03 Tier 2) is one entry in the persistent, Application-
@@ -27,6 +40,20 @@ type SubNavLink struct {
 	ID     string
 	Name   string
 	Active bool // this is the Machine the current page already belongs to
+	// Href (CAP-O03 Tier 5, Phase 1), when set, overrides the templ's own
+	// "/"+wsSlug+"/"+ID convention -- see Card.Href's own doc comment for
+	// why. Empty string (every pre-existing Tier 2 caller) keeps the
+	// original behavior unchanged.
+	Href string
+	// IsGroup (CAP-O03 Tier 5, Phase 1) renders this entry as a plain,
+	// unclickable label inline in the strip instead of a link -- a
+	// declared "group" entry with no target of its own; its own children
+	// render as ordinary links immediately after it. A deliberately flat
+	// simplification, named not hidden: this is not a real collapsible
+	// submenu (no client-side JS, matching this codebase's own no-SPA
+	// posture) -- grouping is DECLARED and rendered in order, not
+	// visually collapsed behind a hover/click interaction.
+	IsGroup bool
 }
 
 // ViewNavLink (CAP-O03 Tier 3) is one entry in the within-Machine view-type

@@ -68,18 +68,35 @@ templ Page(title, workspaceName, wsSlug, identity, csrfToken string, isAdmin boo
 // JS, no new route -- reuses the exact data link CAP-O03's own AppMachines
 // page already resolves (Interpreter.ScopeFor/MachinesForApplication),
 // just rendered persistently instead of as a one-time landing page.
+// subNavHref (CAP-O03 Tier 5, Phase 1) is l.Href when the caller set one
+// (a declared navigation entry, whose target might be a View's own
+// collection-level route, not just a Machine), else the original Tier 2
+// convention -- see SubNavLink.Href's own doc comment.
+func subNavHref(wsSlug string, l SubNavLink) string {
+	if l.Href != "" {
+		return l.Href
+	}
+	return "/" + wsSlug + "/" + l.ID
+}
+
 templ subNavBar(wsSlug string, links []SubNavLink) {
 	<nav class="bg-slate-100 border-b border-slate-200">
 		<div class="mx-auto max-w-5xl px-4 flex items-center gap-1 h-9 overflow-x-auto">
 			for _, l := range links {
-				<a
-					href={ templ.SafeURL("/" + wsSlug + "/" + l.ID) }
-					class={ "shrink-0 rounded px-2.5 py-1 text-xs font-medium transition-colors",
-						templ.KV("bg-white text-blue-700 shadow-sm", l.Active),
-						templ.KV("text-slate-500 hover:text-slate-800 hover:bg-slate-200", !l.Active) }
-				>
-					{ l.Name }
-				</a>
+				if l.IsGroup {
+					<span class="shrink-0 px-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+						{ l.Name }
+					</span>
+				} else {
+					<a
+						href={ templ.SafeURL(subNavHref(wsSlug, l)) }
+						class={ "shrink-0 rounded px-2.5 py-1 text-xs font-medium transition-colors",
+							templ.KV("bg-white text-blue-700 shadow-sm", l.Active),
+							templ.KV("text-slate-500 hover:text-slate-800 hover:bg-slate-200", !l.Active) }
+					>
+						{ l.Name }
+					</a>
+				}
 			}
 		</div>
 	</nav>

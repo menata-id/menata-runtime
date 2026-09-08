@@ -17,7 +17,48 @@ type Application struct {
 	WorkspaceID string
 	Name        string
 	Machines    []*Machine
+	// NavigationEntries (CAP-O03 Tier 5, Phase 1) is this Application's own
+	// declared navigation, if any -- empty when nothing is declared, the
+	// signal internal/handler's subNavFor/AppMachines use to fall back to
+	// their existing inferred listing unchanged. See NavigationEntry's own
+	// doc comment.
+	NavigationEntries []*NavigationEntry
 }
+
+// NavigationEntry (CAP-O03 Tier 5, Phase 1) is one declared, ordered,
+// optionally-nested item in an Application's own navigation -- real
+// metadata, not inferred from Machine/View structure the way CAP-O03
+// Tiers 2-4 all are. Modeled on Drupal's Menu/MenuLinkContent split
+// (benchmarks/009-in-app-navigation-benchmark.md): ParentID gives
+// arbitrary-depth nesting (a "group" entry with no target of its own,
+// followed by its own children), Position orders siblings, same role as
+// Field.Position.
+//
+// Phase 1 supports TargetType "machine"/"view"/"group" only. "url"
+// (external links) is a reserved Phase 2 column+type, rejected at load
+// time today (internal/metadata/validate.go) rather than silently
+// accepted and never rendered.
+type NavigationEntry struct {
+	ID            string
+	ApplicationID string
+	ParentID      string // "" = top-level
+	Position      int
+	Label         string
+	TargetType    NavigationTargetType
+	TargetMachine string // set only when TargetType == machine
+	TargetView    string // set only when TargetType == view
+	TargetURL     string // Phase 2, reserved -- see doc comment above
+}
+
+// NavigationTargetType is what a NavigationEntry actually links to.
+type NavigationTargetType string
+
+const (
+	NavigationTargetMachine NavigationTargetType = "machine"
+	NavigationTargetView    NavigationTargetType = "view"
+	NavigationTargetURL     NavigationTargetType = "url" // Phase 2, not yet supported
+	NavigationTargetGroup   NavigationTargetType = "group"
+)
 
 // Machine is the primary realization unit — it realizes one business capability.
 // Config holds machine-level settings (CAP-X03) — values that configure how

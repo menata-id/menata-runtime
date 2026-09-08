@@ -7,6 +7,16 @@ package ui
 // ("/apps/" for Applications, "/" for a Machine within one). backLink is
 // shown above the heading when set (empty at the workspace home itself,
 // "/" when drilled into one Application).
+// cardHref (CAP-O03 Tier 5, Phase 1) is card.Href when the caller set one
+// (a declared navigation entry whose target isn't simply hrefPrefix+ID --
+// see Card.Href's own doc comment), else the original convention.
+func cardHref(hrefPrefix string, card Card) string {
+	if card.Href != "" {
+		return card.Href
+	}
+	return hrefPrefix + card.ID
+}
+
 templ CardGrid(pageTitle, workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, heading, subtitle, hrefPrefix, backLink string, cards []Card, unreadCount int) {
 	@Page(pageTitle, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, nil) {
 		<div class="mb-6">
@@ -21,15 +31,21 @@ templ CardGrid(pageTitle, workspaceName, wsSlug, identity, csrfToken string, isA
 		}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			for _, card := range cards {
-				<a
-					href={ templ.SafeURL(hrefPrefix + card.ID) }
-					class="group block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-blue-400 hover:shadow-md"
-				>
-					<div class="font-semibold text-slate-900 transition-colors group-hover:text-blue-600">
+				if card.IsHeading {
+					<div class="col-span-full mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400 first:mt-0">
 						{ card.Name }
 					</div>
-					<div class="mt-1 text-xs text-slate-400">{ card.Description }</div>
-				</a>
+				} else {
+					<a
+						href={ templ.SafeURL(cardHref(hrefPrefix, card)) }
+						class="group block rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-blue-400 hover:shadow-md"
+					>
+						<div class="font-semibold text-slate-900 transition-colors group-hover:text-blue-600">
+							{ card.Name }
+						</div>
+						<div class="mt-1 text-xs text-slate-400">{ card.Description }</div>
+					</a>
+				}
 			}
 		</div>
 	}

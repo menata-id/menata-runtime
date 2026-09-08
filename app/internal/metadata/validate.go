@@ -603,3 +603,108 @@ func validateReferences(workspaces []*model.Workspace) error {
 	}
 	return nil
 }
+
+// navigationCollectionViewTypes (CAP-O03 Tier 5, Phase 1) are the View
+// types that actually have a collection-level route (no record id needed)
+// -- exactly the set the router registers under /{machineID}/{slug} rather
+// than /{machineID}/{recordID}/{slug}. A NavigationEntry can only ever
+// target one of these: linking to a record-scoped View (Detail, coord_
+// placement, decision_stepper, document) with no record to supply would
+// have nothing real to route to. See internal/router/router.go for the
+// authoritative route list this mirrors.
+var navigationCollectionViewTypes = map[model.ViewType]bool{
+	model.ViewTypeList:       true,
+	model.ViewTypeForm:       true,
+	model.ViewTypeDashboard:  true,
+	model.ViewTypeCalendar:   true,
+	model.ViewTypeTimeline:   true,
+	model.ViewTypeReport:     true,
+	model.ViewTypeBoard:      true,
+	model.ViewTypeProcessMap: true,
+}
+
+// validateNavigationEntries (CAP-O03 Tier 5, Phase 1) enforces the same
+// "Unknown = explicit" load-time discipline validateReferences already
+// applies to `reference` fields -- a dangling or malformed declared-nav
+// entry fails boot, not a silent empty render later.
+func validateNavigationEntries(workspaces []*model.Workspace) error {
+	for _, ws := range workspaces {
+		for _, app := range ws.Applications {
+			if len(app.NavigationEntries) == 0 {
+				continue // nothing declared -- CAP-O03's own inferred listing applies, nothing to validate
+			}
+			machineByID := make(map[string]*model.Machine, len(app.Machines))
+			for _, m := range app.Machines {
+				machineByID[m.ID] = m
+			}
+			viewByID := make(map[string]*model.View)
+			for _, m := range app.Machines {
+				for _, v := range m.Views {
+					viewByID[v.ID] = v
+				}
+			}
+			entryByID := make(map[string]*model.NavigationEntry, len(app.NavigationEntries))
+			for _, e := range app.NavigationEntries {
+				entryByID[e.ID] = e
+			}
+
+			for _, e := range app.NavigationEntries {
+				switch e.TargetType {
+				case model.NavigationTargetMachine:
+					if e.TargetMachine == "" {
+						return fmt.Errorf("navigation entry %s (application %s): type machine requires target_machine", e.ID, app.ID)
+					}
+					if _, ok := machineByID[e.TargetMachine]; !ok {
+						return fmt.Errorf("navigation entry %s (application %s): dangling reference — target_machine %q does not name a Machine in this Application", e.ID, app.ID, e.TargetMachine)
+					}
+				case model.NavigationTargetView:
+					if e.TargetView == "" {
+						return fmt.Errorf("navigation entry %s (application %s): type view requires target_view", e.ID, app.ID)
+					}
+					v, ok := viewByID[e.TargetView]
+					if !ok {
+						return fmt.Errorf("navigation entry %s (application %s): dangling reference — target_view %q does not name a View on any Machine in this Application", e.ID, app.ID, e.TargetView)
+					}
+					if !navigationCollectionViewTypes[v.Type] {
+						return fmt.Errorf("navigation entry %s (application %s): target_view %q is a %q View, which has no collection-level route to link to (only list/form/dashboard/calendar/timeline/report/board/process_map are supported navigation targets)", e.ID, app.ID, e.TargetView, v.Type)
+					}
+				case model.NavigationTargetGroup:
+					if e.TargetMachine != "" || e.TargetView != "" || e.TargetURL != "" {
+						return fmt.Errorf("navigation entry %s (application %s): type group must not set target_machine/target_view/target_url", e.ID, app.ID)
+					}
+				case model.NavigationTargetURL:
+					// Phase 2, reserved column -- rejected explicitly rather
+					// than silently accepted and never rendered, per
+					// "Unknown = explicit" (capability-lifecycle.md §4).
+					return fmt.Errorf("navigation entry %s (application %s): type url is not supported yet (CAP-O03 Tier 5 Phase 2, not built)", e.ID, app.ID)
+				default:
+					return fmt.Errorf("navigation entry %s (application %s): unsupported target_type %q", e.ID, app.ID, e.TargetType)
+				}
+
+				if e.ParentID == "" {
+					continue
+				}
+				if _, ok := entryByID[e.ParentID]; !ok {
+					return fmt.Errorf("navigation entry %s (application %s): dangling reference — parent_id %q does not name another navigation entry in this Application", e.ID, app.ID, e.ParentID)
+				}
+				// Cycle check: walk parent_id to root: a well-formed tree
+				// terminates at "" within len(entries) hops; revisiting a
+				// node first means a cycle.
+				visited := map[string]bool{e.ID: true}
+				cur := e.ParentID
+				for cur != "" {
+					if visited[cur] {
+						return fmt.Errorf("navigation entry %s (application %s): parent_id chain forms a cycle at %q", e.ID, app.ID, cur)
+					}
+					visited[cur] = true
+					parent, ok := entryByID[cur]
+					if !ok {
+						break // already reported as a dangling reference above for that entry
+					}
+					cur = parent.ParentID
+				}
+			}
+		}
+	}
+	return nil
+}

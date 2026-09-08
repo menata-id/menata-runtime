@@ -240,19 +240,27 @@ func (h *Handler) AppMachines(w http.ResponseWriter, r *http.Request) {
 	}
 	a := h.auth(r)
 	role := h.roleForApp(r, appID)
-	machines := h.interp.Get().MachinesForApplication(appID)
-	cards := make([]ui.Card, 0, len(machines))
-	for _, m := range machines {
-		if !h.guard.CanRead(m, role) {
-			continue
-		}
-		cards = append(cards, ui.Card{
-			ID:          m.ID,
-			Name:        m.Name,
-			Description: fmt.Sprintf("%d fields · %d events", len(m.Fields), len(m.Events)),
-		})
-	}
 	wsSlug := h.workspaceSlug(r)
+	var cards []ui.Card
+	// CAP-O03 Tier 5, Phase 1: a declared navigation entirely replaces the
+	// inferred listing below for this Application -- see benchmarks/009's
+	// implementation-plan follow-on finding.
+	if entries := h.interp.Get().NavigationFor(appID); len(entries) > 0 {
+		cards = h.declaredNavCards(wsSlug, entries, role, "")
+	} else {
+		machines := h.interp.Get().MachinesForApplication(appID)
+		cards = make([]ui.Card, 0, len(machines))
+		for _, m := range machines {
+			if !h.guard.CanRead(m, role) {
+				continue
+			}
+			cards = append(cards, ui.Card{
+				ID:          m.ID,
+				Name:        m.Name,
+				Description: fmt.Sprintf("%d fields · %d events", len(m.Fields), len(m.Events)),
+			})
+		}
+	}
 	page := ui.CardGrid(app.Name, h.workspaceName(r), wsSlug, a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), app.Name, "Select a machine to view its records.", "/"+wsSlug+"/", "/"+wsSlug+"/", cards, h.unreadCount(r.Context(), a))
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render app machines", "error", err)
@@ -292,11 +300,20 @@ func fieldIndex(m *model.Machine) map[string]*model.Field {
 // the full reasoning.
 func (h *Handler) subNavFor(r *http.Request, machine *model.Machine) []ui.SubNavLink {
 	_, applicationID := h.interp.Get().ScopeFor(machine.ID)
+	role := h.roleForApp(r, applicationID)
+	// CAP-O03 Tier 5, Phase 1: a declared navigation entirely replaces the
+	// inferred listing below for this Application.
+	if entries := h.interp.Get().NavigationFor(applicationID); len(entries) > 0 {
+		links := h.declaredNavLinks(h.workspaceSlug(r), entries, role, machine.ID, r.URL.Path)
+		if len(links) < 2 {
+			return nil // same "nothing worth switching to" rule the inferred path below already uses
+		}
+		return links
+	}
 	siblings := h.interp.Get().MachinesForApplication(applicationID)
 	if len(siblings) < 2 {
 		return nil // nothing to move sideways to
 	}
-	role := h.roleForApp(r, applicationID)
 	links := make([]ui.SubNavLink, 0, len(siblings))
 	for _, m := range siblings {
 		if !h.guard.CanRead(m, role) {
@@ -308,6 +325,131 @@ func (h *Handler) subNavFor(r *http.Request, machine *model.Machine) []ui.SubNav
 		return nil // permission-trimmed down to nothing worth switching between
 	}
 	return links
+}
+
+// navigationEntryHref (CAP-O03 Tier 5, Phase 1) resolves a Machine/View
+// target to a real path. The View-type-to-slug map mirrors internal/
+// router/router.go's own route table exactly -- keep the two in sync;
+// internal/metadata/validate.go's navigationCollectionViewTypes is the
+// load-time gate that guarantees only a type present here ever reaches
+// this function.
+func navigationEntryCollectionSlug(t model.ViewType) string {
+	switch t {
+	case model.ViewTypeDashboard:
+		return "/dashboard"
+	case model.ViewTypeCalendar:
+		return "/calendar"
+	case model.ViewTypeTimeline:
+		return "/timeline"
+	case model.ViewTypeReport:
+		return "/report"
+	case model.ViewTypeBoard:
+		return "/board"
+	case model.ViewTypeProcessMap:
+		return "/process-map"
+	case model.ViewTypeForm:
+		return "/new"
+	default: // model.ViewTypeList, and any type validate.go should have already rejected
+		return ""
+	}
+}
+
+// resolvedNavEntry is declaredNavLinks/declaredNavCards' own shared
+// intermediate shape -- one tree walked once, permission-trimmed once,
+// then rendered into whichever of ui.SubNavLink/ui.Card the caller needs.
+type resolvedNavEntry struct {
+	Label           string
+	Href            string // "" for a group
+	IsGroup         bool
+	IsMachineTarget bool   // true only for TargetType machine -- see declaredNavLinks' own Active comment
+	MachineID       string // "" for a group
+}
+
+// resolveDeclaredNav (CAP-O03 Tier 5, Phase 1) walks applicationID's own
+// declared navigation_entries tree (already Position-ordered by loader.go)
+// depth-first, flattening a group's own children immediately after it --
+// a deliberate rendering simplification (see ui.SubNavLink.IsGroup's own
+// doc comment): grouping is declared and ordered in the data model, not
+// rendered as a real collapsible submenu. Permission-trimmed exactly like
+// the inferred path (Guard.CanRead on the resolved Machine); a group with
+// zero visible children after trimming is dropped entirely, the same
+// "nothing worth showing" rule subNavFor's inferred path already applies.
+func (h *Handler) resolveDeclaredNav(wsSlug string, entries []*model.NavigationEntry, role []string) []resolvedNavEntry {
+	childrenOf := make(map[string][]*model.NavigationEntry)
+	for _, e := range entries {
+		childrenOf[e.ParentID] = append(childrenOf[e.ParentID], e)
+	}
+	var walk func(parentID string) []resolvedNavEntry
+	walk = func(parentID string) []resolvedNavEntry {
+		var out []resolvedNavEntry
+		for _, e := range childrenOf[parentID] {
+			switch e.TargetType {
+			case model.NavigationTargetMachine:
+				m, ok := h.interp.Get().GetMachine(e.TargetMachine)
+				if !ok || !h.guard.CanRead(m, role) {
+					continue
+				}
+				out = append(out, resolvedNavEntry{Label: e.Label, Href: "/" + wsSlug + "/" + m.ID, IsMachineTarget: true, MachineID: m.ID})
+			case model.NavigationTargetView:
+				v, ok := h.interp.Get().GetView(e.TargetView)
+				if !ok {
+					continue
+				}
+				m, ok := h.interp.Get().GetMachine(v.MachineID)
+				if !ok || !h.guard.CanRead(m, role) {
+					continue
+				}
+				out = append(out, resolvedNavEntry{Label: e.Label, Href: "/" + wsSlug + "/" + v.MachineID + navigationEntryCollectionSlug(v.Type), MachineID: v.MachineID})
+			case model.NavigationTargetGroup:
+				children := walk(e.ID)
+				if len(children) == 0 {
+					continue // an empty group heading is noise, same reasoning subNavFor already uses
+				}
+				out = append(out, resolvedNavEntry{Label: e.Label, IsGroup: true})
+				out = append(out, children...)
+			}
+		}
+		return out
+	}
+	return walk("")
+}
+
+// declaredNavLinks resolves entries into the sub-nav strip's own link list.
+// Active is deliberately two different granularities depending on target
+// type: a Machine target matches by MachineID alone -- coarse, "which
+// Machine section am I in," the exact behavior CAP-O03 Tier 2's own
+// inferred strip has always had (every page belonging to that Machine
+// highlights it, List/Detail/Form alike). A View target is a single
+// specific route, not a whole Machine's worth of pages, so it can only
+// ever match the CURRENT request's own exact path -- matching by
+// MachineID alone would incorrectly mark it active from every OTHER page
+// of the same Machine too (caught live: the Dashboard entry lit up on the
+// Document's own Detail page before this fix).
+func (h *Handler) declaredNavLinks(wsSlug string, entries []*model.NavigationEntry, role []string, activeMachineID, currentPath string) []ui.SubNavLink {
+	resolved := h.resolveDeclaredNav(wsSlug, entries, role)
+	out := make([]ui.SubNavLink, 0, len(resolved))
+	for _, e := range resolved {
+		active := false
+		switch {
+		case e.IsGroup:
+			active = false
+		case e.IsMachineTarget:
+			active = e.MachineID == activeMachineID
+		default: // view target
+			active = e.Href == currentPath
+		}
+		out = append(out, ui.SubNavLink{Name: e.Label, Href: e.Href, IsGroup: e.IsGroup, Active: active})
+	}
+	return out
+}
+
+func (h *Handler) declaredNavCards(wsSlug string, entries []*model.NavigationEntry, role []string, activeMachineID string) []ui.Card {
+	resolved := h.resolveDeclaredNav(wsSlug, entries, role)
+	out := make([]ui.Card, 0, len(resolved))
+	for _, e := range resolved {
+		out = append(out, ui.Card{Name: e.Label, Href: e.Href, IsHeading: e.IsGroup})
+	}
+	return out
 }
 
 func findFieldByID(machine *model.Machine, id string) *model.Field {

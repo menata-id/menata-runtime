@@ -66,6 +66,7 @@ Setiap elemen Runtime Metadata memiliki ID stabil. ID **tidak boleh berubah** se
 | Constraint | `cst_` | `cst_lr_reason_required` |
 | Permission | `perm_` | `perm_lr_employee` |
 | View | `vw_` | `vw_lr_form` |
+| Navigation Entry | `nav_` | `nav_ad_document` |
 
 Untuk machine dengan banyak elemen, tambahkan infix singkat setelah prefix agar tidak bentrok antar machine:
 
@@ -844,6 +845,69 @@ Approval + Group (termasuk `children` ini dalam konteks satu aplikasi utuh):
 
 ---
 
+### Navigation (CAP-O03 Tier 5, Phase 1, `app/`, 2026-09-08)
+
+Secara default, menu sub-nav dan kartu app-launcher satu Application **selalu otomatis** —
+setiap Machine di Application itu jadi satu link, tanpa perlu metadata apa pun (`CAP-O03`
+Tier 2). Tulis `navigation_entries` hanya kalau default itu tidak cukup — ada Machine yang
+memang ada dan bisa diakses (lewat `reference`, `children`, atau link langsung dari record
+lain) tapi bukan tujuan menu yang sebenarnya untuk pengguna (contoh: Approval Step, yang
+cuma pernah dicapai lewat alur Approval Document, tidak pernah dipilih langsung dari menu).
+
+```yaml
+navigation:
+  - id: nav_ad_document
+    label: Approval Document
+    target: { type: machine, machine: mch_approval_document }
+  - id: nav_ad_dashboard
+    label: Dashboard
+    target: { type: view, view: vw_ad_dashboard }
+  - id: nav_ad_reference
+    label: Reference
+    target: { type: group }
+    children:
+      - id: nav_ad_signature
+        label: Signature
+        target: { type: machine, machine: mch_signature }
+```
+
+```sql
+INSERT INTO navigation_entries (id, application_id, parent_id, position, label, target_type, target_machine, target_view) VALUES
+    ('nav_ad_document',  'app_approval', NULL,               0, 'Approval Document', 'machine', 'mch_approval_document', NULL),
+    ('nav_ad_dashboard', 'app_approval', NULL,               1, 'Dashboard',         'view',    NULL,                    'vw_ad_dashboard'),
+    ('nav_ad_reference', 'app_approval', NULL,               2, 'Reference',         'group',   NULL,                    NULL),
+    ('nav_ad_signature', 'app_approval', 'nav_ad_reference', 0, 'Signature',         'machine', 'mch_signature',         NULL)
+ON CONFLICT (id) DO NOTHING;
+```
+
+**Aturan kuncinya, satu kalimat:** begitu satu Application punya *satu saja* baris
+`navigation_entries`, itu **sepenuhnya menggantikan** daftar otomatis untuk Application itu —
+tidak digabung. Machine yang tidak ikut dideklarasikan (Approval Step di contoh atas) hilang
+dari menu, tapi tetap 100% bisa diakses langsung — ini murni soal kemunculan di menu, bukan
+mekanisme otorisasi baru (`Permission`/`CanRead` tetap berlaku persis seperti biasa).
+
+Field yang berlaku (`target.type`):
+
+| `target.type` | Field lain yang wajib | Catatan |
+|---|---|---|
+| `machine` | `machine` (id Machine, harus di Application yang sama) | Tujuan menu paling umum |
+| `view` | `view` (id View) | Hanya untuk View bertipe koleksi — `list`/`form`/`dashboard`/`calendar`/`timeline`/`report`/`board`/`process_map`. View per-record (`detail`, `coord_placement`, `decision_stepper`, `document`) ditolak saat load — tidak ada tujuan tanpa id record |
+| `group` | — (tidak boleh isi `machine`/`view`/`url`) | Label pengelompokan saja, anak-anaknya (lewat `children` di YAML / `parent_id` di SQL) tampil tepat setelahnya. Rendering-nya sengaja flat (label + anak berurutan), **bukan** dropdown/submenu yang bisa di-collapse — tidak ada JS baru |
+| `url` | — | **Belum didukung** (Phase 2) — `validateNavigationEntries` menolak saat load, bukan diam-diam diabaikan |
+
+`position` menentukan urutan sesama saudara (root maupun dalam satu grup), sama perannya
+dengan `fields.position`. Kalau seluruh anak sebuah `group` tersaring habis oleh permission
+role yang sedang login, group itu sendiri ikut hilang dari render — bukan tampil sebagai label
+kosong.
+
+Referensi implementasi lengkap: `app/internal/model/model.go` (`NavigationEntry`,
+`NavigationTargetType`), `app/internal/metadata/validate.go` (`validateNavigationEntries`),
+`app/internal/handler/handler.go` (`resolveDeclaredNav`, dipakai `subNavFor` dan
+`AppMachines`). Studi lengkap (kajian kebutuhan, benchmark 7 platform, dan rencana
+implementasi sebelum dibangun): `benchmarks/009-in-app-navigation-benchmark.md`.
+
+---
+
 ## Urutan INSERT yang Benar
 
 Urutan penting karena foreign key constraints:
@@ -858,6 +922,7 @@ Urutan penting karena foreign key constraints:
 7. constraints       (→ machines)
 8. permissions       (→ machines)
 9. views             (→ machines)
+10. navigation_entries (→ applications, machines, views — opsional, lihat §Navigation)
 ```
 
 Gunakan `ON CONFLICT (id) DO NOTHING` agar seed aman dijalankan ulang.
@@ -919,3 +984,4 @@ bagian dari grammar inti Field/Event/Constraint/Permission/View di atas.
 - `runtime/benchmarks/005-field-modeling-decision-framework.md` — cara memilih tipe field yang tepat (primitif vs `value_list` vs `reference`), termasuk kenapa `money`/`user`/`file` adalah reference sugar
 - `prototype/go/docs/examples/` — contoh lengkap Design Request dan Leave Request
 - `prototype/go/docs/decisions/002-metadata-loading.md` — kapan restart diperlukan
+- `runtime/benchmarks/009-in-app-navigation-benchmark.md` — kajian kebutuhan §Navigation di atas, benchmark 7 platform, dan rencana implementasi Phase 1/Phase 2

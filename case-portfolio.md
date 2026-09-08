@@ -7,7 +7,9 @@
 > is a designed experiment — and surprises (patterns the case reveals that
 > were not targeted) are themselves findings.
 >
-> Status: v0.35 — Case 10 gains a 2026-09-08 extension note (declared navigation, `CAP-O03 Tier 5`
+> Status: v0.36 — Case 10's `CAP-O03 Tier 5` note gets its Phase 1 implementation the same day —
+> built, tested (239/239 conformance), and deployed live, piloted on `app_approval` itself.
+> Previously v0.35 — Case 10 gains a 2026-09-08 extension note (declared navigation, `CAP-O03 Tier 5`
 > admitted ❌ Proposed same day — owner-requested Option B, following Tier 4's own benchmark).
 > Previously v0.34 — Case 3 gains a 2026-09-08 note (curated navigation visibility — owner-observed
 > nav clutter, `CAP-O03 Tier 4` admitted ❌ Proposed same day). Previously v0.33 — Case 3's
@@ -301,7 +303,11 @@ Case 10's cross-application need; the fuller `006`-scoped vocabulary is named fo
 `benchmarks/009-in-app-navigation-benchmark.md`. Recommendation on that same row: build Tier 5's
 Phase 1 directly rather than building Tier 4 first — Tier 5 subsumes Tier 4 entirely (an allow-list
 needs no separate hide flag, the same reason Drupal and Salesforce's own mechanisms need none
-either). Not built — plan only.
+either). **Implemented 2026-09-08, same day, Phase 1** — `capability-registry.md` v0.68's `CAP-O03`
+Tier 5 row has the full account. Piloted on `app_approval` itself (`seeds/045_declared_
+navigation_pilot.sql`): Approval Document, a Dashboard view, and a "Reference" group nesting
+Signature declared; Approval Step left undeclared, absent from the menu, still directly reachable —
+closing this case's own original observed problem for real, on the live application.
 
 ---
 

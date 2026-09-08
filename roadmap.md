@@ -2544,6 +2544,22 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     step, since Tier 5 subsumes it entirely. `case-portfolio.md`'s new Case 10 note (v0.35) and
     `capability-registry.md` v0.67 carry the dated account.
 
+    **Fourth addendum (2026-09-08), same day — Phase 1 built.** Owner: "kerjakan fase 1." Shipped
+    exactly as planned: `migrations/029_navigation_entries.sql`, `model.NavigationEntry`, loader +
+    load-time validation (dangling references, collection-view-type restriction, `url` rejected as
+    Phase 2, cycle detection), `subNavFor`/`AppMachines` declared-first/infer-fallback dispatch,
+    `ui.SubNavLink`/`ui.Card` gain `Href`/`IsGroup`/`IsHeading`. One real bug caught during manual
+    verification before conformance ran — a View-target entry matched "active" by Machine id alone
+    (the coarse rule correct only for a Machine target), lighting up on an unrelated page; fixed to
+    match by exact request path. Verified three ways: isolated-schema manual walkthrough, full
+    conformance suite (239/239, 5 new tests in `conformance/tests/200_declared_navigation.sh`,
+    zero regressions), and a live deploy (`server-manager.sh restart menata-runtime`) with
+    `seeds/045_declared_navigation_pilot.sql` — the real `app_approval` pilot this whole capability
+    was motivated by, confirmed against `menata.app` itself: `Approval Step` gone from both nav
+    surfaces, still directly reachable (200). Tier 4 was not built, per its own row's
+    recommendation. `capability-registry.md` v0.68, `case-portfolio.md` v0.36, `benchmarks/009`
+    v0.5, and `guides/writing-runtime-metadata.md`'s new §Navigation carry the full account.
+
 ---
 
 ## Study 38 — Composed-View UI Component Inventory (2026-09-07)

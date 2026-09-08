@@ -177,6 +177,19 @@ func (i *Interpreter) MachinesForApplication(applicationID string) []*model.Mach
 	return out
 }
 
+// NavigationFor (CAP-O03 Tier 5, Phase 1) returns applicationID's own
+// declared navigation entries, already ordered by Position (loader.go's
+// own ORDER BY) — empty (never nil) when none are declared, the signal
+// subNavFor/AppMachines use to fall back to their existing inferred
+// listing (MachinesForApplication above) unchanged.
+func (i *Interpreter) NavigationFor(applicationID string) []*model.NavigationEntry {
+	app, ok := i.apps[applicationID]
+	if !ok {
+		return nil
+	}
+	return app.NavigationEntries
+}
+
 // AllWorkspaceIDs (CAP-E02/E03) lists every Workspace this Interpreter
 // knows about -- the background scheduler sweeps each one in its own
 // transaction (its own SET LOCAL app.workspace_id), the same per-workspace
