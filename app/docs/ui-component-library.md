@@ -1,9 +1,46 @@
 # UI Component Library
 
-> Status: v1.5 — two cleanups: silent embed-composition failures now log a specific reason instead
-> of just vanishing, and a derivable render parameter (`isPDF`, then `MemberChip`'s own `initials`)
-> stopped being threaded in from the caller when the render layer could compute it itself |
-> Created: 2026-09-07 | Updated: 2026-09-07
+> Status: v1.6 — two of the "Known gaps against real mockups" table's own metadata-only pieces
+> were wired for real onto the persistent `menata_runtime` database (the one actually serving
+> menata.app), not just proven on the throwaway isolated schema the 2026-09-07 assembly proof used
+> | Created: 2026-09-07 | Updated: 2026-09-08
+
+> **Live-wiring pass (2026-09-08).** Owner asked to make the real running app's Detail/Submit/
+> Dashboard pages actually match four `ui-sample` mockups "hanya dengan mengubah metadatanya" (by
+> metadata change alone), as a live test of whether the capability the rest of this document
+> catalogs really is metadata-configurable end to end — not a new capability, a verification pass.
+> Checking the persistent `menata_runtime` DB directly (`psql`, RLS-scoped with `SET LOCAL
+> app.workspace_id`) found the two Detail-page `children` entries (`seeds/042`) and the CAP-F24
+> toggle fields (`seeds/043`) already live — confirms `capability-registry.md`'s own dated proof
+> was against the real database this time, not stale. Two pieces from the gap table below were
+> NOT live despite being described as "already metadata-only (proven live)": `document-submit.
+> html`'s embedded "Approval steps" rows and `approval-dashboard.html`'s "Summary" tiles had only
+> ever been verified on `CREATE SCHEMA verify_ui_components` (dropped after that session), never
+> actually applied to `menata_runtime` itself — a real instance of this repo's own named "shared
+> dev DB drift risk" (isolated-schema proof ≠ live state). Closed by `seeds/
+> 044_document_submit_dashboard_live_wiring.sql`: `child_lines` (CAP-F16, already ✅) added to
+> `vw_ad_form`, embedding Approval Step authoring (including the CAP-F24 User/Group toggle) in the
+> real Document creation form; a new `vw_ad_dashboard` (CAP-V10, already ✅) grouping Approval
+> Document by Status. Both applied directly to `menata_runtime` and picked up via `POST
+> /{ws}/admin/reload` (CAP-X04, no restart) — verified end to end with real HTTP requests as Alice
+> (create) and Bob (decide), not just a config read: the child-rows section renders with real
+> Bob/"Document Approvers" options, the dashboard tile renders a real 2-document status
+> breakdown. Also renamed `vw_ad_progress`/`vw_as_place` (pure `name` column edits, no config
+> change) to `document-approval.html`'s own exact copy ("Approval Progress"/"Your Signature
+> Position") — confirmed matching live on Bob's real Step Detail page.
+>
+> **What this did NOT close, named honestly rather than silently worked around:** CAP-V12 (wizard
+> `steps`) and CAP-F16 (`child_lines`) turned out not to compose in code today — `ui.WizardForm`
+> (`internal/ui/wizard.templ`) takes no `childLines` parameter — so the live form has the mockup's
+> "Approval steps" content but not its 3-step pagination; fixing that is a code change (a new
+> `WizardForm` parameter + `record_crud.go` wiring it through), not a metadata one, and wasn't
+> attempted here. The new dashboard's tile is a real per-Status count, not the mockup's own
+> cross-Machine "Total Pending" / SLA-computed "Overdue"/"Due Today" tiles — this app has no
+> Leave/Corrective Action Machine and no SLA mechanism on Approval Document for those to source
+> from; CAP-V10's Sections config has no way to express either even if the data existed. Every
+> other gap the table below already named (inbox-as-cards, SLA-bucket filter, Choice Card,
+> multi-pin overlay, embedding `pending_documents`/`recent_activity` on the dashboard) is
+> unchanged — still real code work, not metadata, per the same table's own verdict.
 
 > **Cleanup (2026-09-07), two unrelated fixes asked for together.**
 >

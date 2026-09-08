@@ -2528,6 +2528,21 @@ field values (`$current_user` included), `CAP-V17`'s urgency bucket is computed 
 never exposed as a filterable value. Neither has been run through the A1–A5 admission test yet —
 named, not admitted, same posture as `Choice Card`.
 
+**Addendum (2026-09-08) — the "already metadata-only (proven live)" table cells above were true of
+the capability, not of this app's own live database.** Owner asked to actually make the real
+`menata.app` pages match these four mockups by metadata alone, as a direct test. Checking
+`menata_runtime` (the persistent DB behind `menata.app`, not the isolated throwaway schema this
+addendum's own cross-check used) found `document-submit.html`'s embedded "Approval steps" rows and
+`approval-dashboard.html`'s "Summary" tiles had never actually been wired into `vw_ad_form`/a real
+`dashboard` View there — only proven in general, on a schema dropped after that session. Closed via
+`app/seeds/044_document_submit_dashboard_live_wiring.sql` (`child_lines` on `vw_ad_form`, a new
+`vw_ad_dashboard` grouped by Status), applied directly + `POST /admin/reload`, verified with real
+HTTP requests as Alice/Bob — full account on `app/docs/ui-component-library.md`'s own v1.6 status
+note. Surfaced one real code-level gap this same pass: CAP-V12 (`steps`) and CAP-F16
+(`child_lines`) don't compose today (`ui.WizardForm` has no `childLines` param), so the live form
+has the mockup's row content but not its wizard pagination — named, not built, same discipline as
+every other gap this addendum already tracks. Every other row in the table above is unchanged.
+
 ---
 
 ## Study 32 — Document Approval: PDF Signature Placement (2026-08-23)
