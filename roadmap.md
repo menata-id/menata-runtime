@@ -2509,6 +2509,27 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     Tier 4's own row and the "Tracked but Not Yet Studied" Navigation row. No new capability
     admitted, no code built — benchmark only.
 
+    **Second addendum (2026-09-08), same day — Drupal + a read against this runtime's own
+    foundational docs.** Owner's own framing: the six platforms above lean ERP/metadata-based,
+    comparatively limited in their own menu expressiveness, while this runtime wants to be more
+    powerful — read the foundational docs before concluding the simple exception-flag design is
+    the right shape. Added Drupal as a 7th platform (`Menu`/`MenuLinkContent` as first-class
+    Configuration/Content entities, decoupled enough to reference anything, not just a content
+    type — architecturally distinct from the other six's "flag on the thing shown" pattern), then
+    checked directly against `004-runtime-metadata.md`/`006-runtime-model.md`: both already name
+    `Navigation` as a first-class hierarchy peer of Page/View/Service, yet `CAP-O03`'s entire
+    lineage (Tiers 2–4) has kept it 100% inferred from Machine/View structure since 2026-07-12,
+    never a declared artifact — a real, previously-unnamed gap between this runtime's own stated
+    model and what three tiers of real building actually shipped. Stated as a direct trade-off, not
+    a decision: Option A (Tier 4's exception flag, kept exactly as admitted — cheap, fully solves
+    the observed problem) vs. Option B (Navigation as a declared, Drupal-shaped entity — would
+    subsume Tier 4 entirely, truer to `004`/`006`, but no case has ever asked for a menu entry
+    that isn't a Machine, so A1 fails on its own terms). Option B recorded as a 4th surveyed-not-
+    admitted need on `benchmarks/009`'s own table — not speculative "might need it someday" (§6
+    would reject that), a documented gap worth a deliberate look the day a real case asks for it.
+    `capability-registry.md` v0.66 carries the dated account. No new capability admitted, no code
+    built.
+
 ---
 
 ## Study 38 — Composed-View UI Component Inventory (2026-09-07)

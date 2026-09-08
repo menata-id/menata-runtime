@@ -11,7 +11,21 @@
 > from one feature of an app to another *without losing their place* — which is a distinct
 > concept in `006-runtime-model.md`'s own hierarchy (Navigation, sibling to Page/View).
 >
-> Status: v0.2 — gains a 2026-09-08 follow-on finding: a deeper benchmark of HOW six platforms
+> Status: v0.3 — gains Drupal as a 7th benchmarked platform (`Menu`/`MenuLinkContent` as first-
+> class entities, not a flag on the content they link to — architecturally distinct from the
+> other six, per the owner's own observation that this study leaned too heavily on ERP/metadata
+> platforms whose menu is comparatively limited) and a direct read against this runtime's OWN
+> foundational docs: both `004-runtime-metadata.md` and `006-runtime-model.md` already name
+> `Navigation` as a first-class hierarchy peer of Page/View/Service, yet three tiers of real
+> building have kept it 100% inferred, never once a declared artifact — a real, previously-unnamed
+> gap between the stated model and what shipped. States the Option A (Tier 4's exception flag,
+> kept as admitted) vs. Option B (Navigation as a declared Drupal-shaped entity, would subsume
+> Tier 4 entirely, not admitted — no case has asked for it) trade-off directly, as a
+> recommendation for the owner, not a decision made here. **Correction on this file's own line 12
+> below**: "Navigation, sibling to Page/View" is imprecise against `006`'s actual tree — Navigation
+> is a sibling of *Machine* (both direct children of Application); Page/View are children of
+> Machine, one level deeper. Kept as originally written per append-don't-rewrite; this note is the
+> fix. Previously v0.2 — gains a 2026-09-08 follow-on finding: a deeper benchmark of HOW six platforms
 > curate nav visibility (not just whether they have persistent nav), formal UI menu-component
 > standards (Material Design 3's 3–7 destination threshold, Miller's Law with its own honest
 > caveat, NN/G information scent), and a survey of adjacent future needs (nav grouping, per-user
@@ -198,18 +212,77 @@ an admin to keep it from listing every single object/table/model?
 | ServiceNow | Application Navigator module visibility by role — **grant-only, not deny-based**: a module becomes visible once a role is added to it, but there is no native "hide this module even though the role would otherwise see it" — real admins work around this with a query Business Rule on `sys_app_module`, a documented limitation, not a feature | Per-module, role-additive only | [ServiceNow Community — hide modules even if a user has the correct roles](https://www.servicenow.com/community/developer-forum/hide-modules-even-if-a-user-has-the-correct-roles/m-p/1825552) |
 | Jira | Project sidebar → **Customize sidebar** — an admin explicitly shows/hides/reorders items; the change "will affect everyone who has access to the project," i.e. an admin-set shared default, not per-viewer | Per-project, admin-declared, shared | [Atlassian — Navigate projects with the sidebar](https://confluence.atlassian.com/jirasoftware/navigate-projects-with-the-sidebar-1528532974.html) |
 | Notion | **Favorites** — any user stars a page onto their own sidebar shortcut list; independent of whatever the shared Workspace/Shared sections already show. Purely additive and personal, not a hide mechanism at all | Per-viewer, personal, opt-in | [Notion — navigate with the sidebar](https://www.notion.com/help/navigate-with-the-sidebar) |
+| Drupal | **Menu is a first-class entity type, not a flag on the content it links to.** `Menu` itself (e.g. "Main navigation") is a **Configuration Entity** (`@ConfigEntityType`, id `menu`); each individual link is a separate **`MenuLinkContent`** — a real, independently CRUD-able, fieldable, revisionable Content Entity with its own `title`, `menu_name` (which menu it belongs to), `weight` (ordering), `parent` (arbitrary-depth nesting), `link.uri` (an internal route, a specific query/view, or a fully external URL — never required to correspond to one content type), and `enabled` | Per-menu, admin-authored, fully decoupled from the target — a link can point at anything, or nothing (`route:<nolink>`, a pure grouping header) | [Drupal API — class Menu](https://api.drupal.org/api/drupal/core!modules!system!src!Entity!Menu.php/class/Menu/11.x), [Menus are now configuration entities](https://www.drupal.org/node/1888504), [Drupal API — MenuLinkContent](https://api.drupal.org/api/drupal/core!modules!menu_link_content!src!Entity!MenuLinkContent.php/class/MenuLinkContent/11.x), [Drupal.org — Menu links examples](https://www.drupal.org/docs/contributed-modules/yaml-content/examples/menu-links) |
 
-**Reading across all six**: every admin-curation mechanism found (Salesforce Navigation Items,
-Odoo `active=False`, Frappe Workspace membership, Jira Customize sidebar) is an **allow/hide
-default that changes what everyone with access sees** — exactly `CAP-O03` Tier 4's own already-
-admitted shape (a Machine-level exception flag, not a per-viewer setting). Only Notion's Favorites
-and Frappe's *private* Workspaces are genuinely **per-user personalization** — a materially
-different capability (state that varies per person, not a business-declared default) that no case
-in this portfolio has asked for yet (see "Possible future needs" below, ruled out of Tier 4's own
-scope for that reason). ServiceNow's own documented limitation (grant-only visibility, no native
-hide) independently reinforces this study's earlier A4 finding on `CAP-O03` Tier 4's own registry
-row: a plain permission/role mechanism is provably insufficient for "readable but not a menu
-destination" — a real platform hit the exact same wall, not a hypothetical concern.
+**Reading across all seven**: the first six confirm `CAP-O03` Tier 4's own already-admitted shape
+(Salesforce Navigation Items, Odoo `active=False`, Frappe Workspace membership, Jira Customize
+sidebar — an **allow/hide default that changes what everyone with access sees**, a Machine-level
+exception flag, not per-viewer state). Only Notion's Favorites and Frappe's *private* Workspaces
+are genuinely **per-user personalization** — a materially different capability no case has asked
+for yet (see "Possible future needs" below). ServiceNow's own documented limitation (grant-only
+visibility, no native hide) independently reinforces this study's earlier A4 finding: a plain
+permission/role mechanism is provably insufficient for "readable but not a menu destination" — a
+real platform hit the exact same wall, not a hypothetical concern.
+
+**Drupal is architecturally different from all six of the others**, not just a seventh data point
+— worth its own read, per the owner's own framing that this study's first pass leaned too heavily
+on ERP/metadata-based platforms whose own menu is comparatively limited. The other six all express
+curation as a **property on the thing being shown** (a flag, a role grant, a Workspace membership).
+Drupal expresses it as a **freestanding structure that merely references** what it shows — the
+menu link is real data in its own right, decoupled enough to point at a route that isn't tied to
+any single content type at all, be nested to any depth, or exist purely as a grouping header with
+no destination. This is a materially more general shape than "show or hide this Machine."
+
+## Reading against Menata Runtime's own foundational model
+
+Checked directly, not assumed, before treating Drupal's shape as merely "a nice idea from another
+platform": does this runtime's own design already have an opinion here? It does, in two places,
+and they don't fully agree with each other:
+
+- `006-runtime-model.md`'s own Runtime Hierarchy places **`Navigation` as a sibling of `Machine`**,
+  directly under `Application` — the same tier as Machine itself, not a property hanging off it.
+  Its own one-line scope: *"Navigation may include: menus, breadcrumbs, tabs, shortcuts, quick
+  actions"* — explicitly naming more than a Machine-visibility toggle.
+- `004-runtime-metadata.md`'s own Runtime Metadata Hierarchy instead nests **`Navigation` under
+  `Machine`**, alongside Page/View/Service/Workflow/API/Configuration — a Machine-owned concern.
+
+**Not a contradiction once read against what this repo has actually built**: `CAP-O03` Tier 2
+(cross-Machine, Application-scoped sub-nav) and Tier 3 (within-Machine, auxiliary-View switching)
+already map cleanly onto exactly these two positions — 006's Application-level placement is Tier
+2's own axis, 004's Machine-level placement is Tier 3's own axis. Both tiers are real, ✅, and
+conformance-tested. What neither foundational document's promise has ever been given, in three
+tiers of real implementation: **`Navigation` has never once been materialized as its own declared
+metadata** — `subNavFor`/`AppMachines`/`viewNavFor` (Tiers 2–4's whole lineage, this row's own
+proposed Tier 4 included) all *derive* their link lists by scanning `Machine`/`View` structure at
+render time, per `001-design-principles.md` §6 "Infer Before Configure" taken to its fullest
+extent. Both foundational documents list Navigation as a peer of Page/View/Service — real Grammar-
+level artifacts that ARE stored, declared, independently authored — yet Navigation alone has stayed
+100% inferred since CAP-O03's own original 2026-07-12 implementation. This is a real, previously
+unnamed gap between the runtime's own stated model and what three tiers of real building actually
+shipped — named here per "silence is not a decision," not a defect in Tier 2/3 (both are genuinely
+✅ and correctly scoped for the case pressure that justified each), but a ceiling worth being
+honest about before extending the same inference-only lineage a fourth time.
+
+**The trade-off this creates for Tier 4, stated directly:**
+
+| | Option A — exception flag (Tier 4 as already admitted) | Option B — Navigation as a declared entity (Drupal-shaped) |
+|---|---|---|
+| What it is | One new `machines.config` key, read by the two existing inference call sites | A real new metadata artifact — `Menu`/`NavigationLink`-shaped rows, ordered, nestable, referencing a Machine/View OR (later) something else entirely |
+| Consistent with | `001-design-principles.md` §6 "Infer Before Configure" — configuration should describe exceptions, not re-declare what's already inferable | `004`/`006`'s own Runtime Hierarchy — Navigation as a first-class peer of Page/View/Service, finally made real instead of perpetually inferred |
+| Solves the observed problem (Approval Step/Signature cluttering `app_approval`'s strip) | ✅ completely — that problem is pure visibility, nothing more | ✅ also, and more — same outcome via "just don't add a link," Salesforce/Drupal's own allow-list pattern |
+| Can express a menu entry that ISN'T a Machine (external link, a specific pre-filtered View, a grouping header, a "quick action") | ❌ no — inference has nothing to point at | ✅ yes — this is exactly the generality 006's own "menus, breadcrumbs, tabs, shortcuts, quick actions" line already named as in-scope for Navigation |
+| Scope / cost | Small — sketch already in this row's own registry entry, one config key, two call sites | Large — new Grammar-adjacent area, new schema + loader validation + admin authoring surface + its own admission test; genuinely closer to a new capability than a Tier of this one |
+| A4 non-composability if Option B existed first | Tier 4 would be **subsumed**, not merely satisfied — an explicit allow-list needs no separate "hide" flag, matching Drupal/Salesforce's own "don't add the link" pattern directly | N/A — this is the more general mechanism |
+| Real case pressure today | ✅ yes (this row's own Case 3 note) | ❌ no case has ever asked for a non-Machine menu entry, cross-Application grouping, or breadcrumbs/quick-actions as declared metadata |
+
+**Recommendation, not a decision — the owner's call**: keep Tier 4 registered exactly as admitted
+(A1–A5 pass on the narrower shape, real case pressure exists for it specifically) and build it if
+and when implementation is prioritized — it is correct, cheap, and fully solves the problem in
+front of us today. But name Option B honestly as the more architecturally faithful long-term shape
+this runtime's OWN foundational docs already pointed at before Tier 4 was ever proposed, so a
+future session doesn't have to rediscover this tension from scratch. **Not admitted as its own
+capability by this pass** — A1 fails on its own terms (no case has asked for anything Option A
+can't already do); revisit if a real case ever needs a menu entry that isn't a Machine.
 
 ## UI menu-component standards
 
@@ -258,8 +331,14 @@ read against the admission criteria (`capability-lifecycle.md` §2), not built o
 | **Per-user personalization (favorites/pinning)** | Notion Favorites, Frappe private Workspaces, Salesforce "Personalized Navigation" | ❌ none | Different axis entirely from Tier 4 — per-viewer state, not a Runtime Metadata concern (metadata is shared business truth; a favorites list is per-account UI state, architecturally closer to CAP-O05's own per-user notification preferences than to anything in the Grammar). Would need its own admission pass if a case ever asks, not an extension of Tier 4 |
 | **Menu ordering / icon / label override** | Salesforce's own "ordered set of navigation tabs," Jira's "reorder tabs" | ❌ none (already named on `CAP-O03`'s own row, 2026-07-12, and deliberately deferred per "Infer Before Configure" — unchanged by this benchmark) | Stays out of scope; today's alphabetical default is still nobody's named problem |
 | **Hidden-but-still-searchable** (Salesforce's "Tab Hidden" keeps App Launcher search working) | Salesforce Tab Hidden | N/A — not a separate capability, a design constraint ON Tier 4's own eventual implementation | When Tier 4 is actually built: a Machine hidden from `subNavFor`/`AppMachines` should very likely remain findable via `CAP-O04` (workspace search) — the two mechanisms already share no code path today, so this needs zero extra work, only a conscious choice not to accidentally couple them later |
+| **Navigation as a first-class declared entity** (menu links as real, ordered, nestable metadata that can reference a Machine, a specific View, an external URL, or nothing at all) | Drupal `Menu`/`MenuLinkContent` (see above) | ❌ none — no case has ever asked for a menu entry that isn't a Machine, cross-Application grouping, or breadcrumbs/quick-actions as declared metadata, despite both `004-runtime-metadata.md` and `006-runtime-model.md` naming `Navigation` as a first-class hierarchy peer of Page/View/Service since this repo's own foundational design | The architecturally correct long-term shape (see "Reading against Menata Runtime's own foundational model" above) — would subsume Tier 4 entirely, not just satisfy it, the same way Drupal/Salesforce's own allow-list needs no separate "hide" flag. Not admitted: A1 fails on its own terms while Option A (Tier 4) already covers every real need observed |
 
 **Registry impact**: no new row admitted by this benchmark pass — `CAP-O03` Tier 4 (already ❌
-Proposed) is the only need with real case pressure; the other three rows above are recorded as
+Proposed) is the only need with real case pressure; the other four rows above are recorded as
 surveyed-but-not-admitted, the same posture `Choice Card` already holds elsewhere in this registry
-(`roadmap.md` item 25.6) — revisit only if a real case demonstrates one, not on schedule.
+(`roadmap.md` item 25.6) — revisit only if a real case demonstrates one, not on schedule. The
+fourth row (Navigation as a declared entity) is the one worth remembering specifically: not a
+speculative "might need it someday" (§6 would reject that outright) but a documented gap between
+what this runtime's own foundational model already promised and what three tiers of real building
+have actually shipped — worth a deliberate look the day a case finally does ask for it, rather
+than defaulting straight to "add another exception flag."
