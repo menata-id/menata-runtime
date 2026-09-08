@@ -7,7 +7,9 @@
 > is a designed experiment — and surprises (patterns the case reveals that
 > were not targeted) are themselves findings.
 >
-> Status: v0.33 — Case 3's 2026-09-06 note gets its admission-test outcome (2026-09-07): the
+> Status: v0.34 — Case 3 gains a 2026-09-08 note (curated navigation visibility — owner-observed
+> nav clutter, `CAP-O03 Tier 4` admitted ❌ Proposed same day). Previously v0.33 — Case 3's
+> 2026-09-06 note gets its admission-test outcome (2026-09-07): the
 > approver-type toggle and saved-template gaps pass all five criteria (`CAP-F24`, `CAP-V28`, both
 > ❌ Proposed); the step-reorder/authoring gap fails A4 (composes from already-✅ `CAP-F16`, no new
 > row). Previously v0.32 — Case 3 gains a 2026-09-06 note: a new owner request (per-Step user-or-group
@@ -200,6 +202,58 @@ tier too). Any autonomous approval without a human-bound credential is a non-goa
 
 **Status:** target declaration only; `CAP-X16` and `CAP-X07` Tier 2 registered ❌ Proposed in
 `capability-registry.md` v0.56 the same day. Not built.
+
+---
+
+# Case 3 — extension note (2026-09-08): curated navigation visibility
+
+**Business reality:** owner-observed, directly against the live `app_approval` application while
+verifying this case's own metadata-only mockup fidelity (`app/docs/ui-component-library.md`'s
+v1.6/v1.7 status notes): *"aplikasi butuh menu yang spesifik... tidak semua halaman harus ada di
+menu"* — a good application curates its navigation to the user's real flow, not one link per
+Machine regardless of whether that Machine is ever meant to be a direct destination. Concrete,
+observed symptom: `app_approval`'s sub-nav strip (`CAP-O03` Tier 2) lists `Approval Document`,
+`Approval Step`, and `Signature` as three equal-weight links. Only `Approval Document` is a real
+entry point a Submitter or Approver would ever choose from a menu — `Approval Step` is reached
+exclusively through a Document's own flow (embedded authoring via `child_lines`, the Step's own
+Detail page linked from the Decision Progress stepper) and `Signature` only through the signature
+registration flow; neither is a "browse all Signatures" or "browse all Steps" destination for a
+real user. `subNavFor`/`AppMachines` (`app/internal/handler/handler.go`) render every Machine in
+an Application, trimmed only by `Guard.CanRead` (`CAP-P05`) — there is no notion of "this Machine
+exists and is reachable, but isn't a menu destination."
+
+**Prior art within this repo, checked before treating this as new:** `capability-registry.md`'s
+own `CAP-O03` row already named an adjacent gap and deliberately left it unbuilt — "explicit
+menu-ordering/icon/label-override metadata... no case has asked for curated ordering yet; add a
+real Navigation metadata table only if one does, matching this project's own 'Infer Before
+Configure' principle" (`001-design-principles.md` §6). That note is about *ordering/label*, not
+*visibility* — a different question (this app's own Approval Document/Approval Step/Signature are
+already alphabetically fine; the problem is that all three appear at all) — but it is the exact
+trigger condition CAP-O03's own row named: a real case asking for it. This note is that case.
+
+**Declared target:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| Approval Step / Signature reachable via the Document's own flow, but absent from the app's sub-nav strip and app-launcher card list | **`CAP-O03` Tier 4 (new)** — an exception flag on the Machine, read by the already-existing `subNavFor`/`AppMachines` | Salesforce App Manager (Tabs — an Object not assigned a Tab has no nav entry but is fully functional via relationships), Odoo Technical Settings (most line/detail models have no menu item, reached only through their parent), Frappe Desk (many DocTypes ship with no default List sidebar entry), Notion/Airtable (hide-from-sidebar per page/table) |
+
+**Why not composed from an existing mechanism (checked, not assumed):** `Permission.can_read:
+false` removes read access entirely — it would also break the legitimate direct link from a
+Document's own Decision Progress stepper into its Step. Inferring visibility from "is this Machine
+some other View's `child_lines.machine` or `steps_machine` target" was considered and rejected —
+`CAP-F16`'s own row already proves this heuristic is unsound: Journal Entry Line (a `child_lines`
+target) and Item Unit Conversion (also a `child_lines` target) have opposite correct nav answers
+per that row's own "Reporting-independence note" — Journal Entry Line *must* stay independently
+browsable (CAP-V13's Trial Balance groups it across parent documents), Item Unit Conversion never
+is. The same structural shape, two different correct outcomes — a real counter-example, not
+speculation, ruling out silent inference for this specific decision.
+
+**Deliberately out of scope for this note:** menu ordering, icons, and label overrides — CAP-O03's
+own row already named those as deliberately unbuilt pending a real case, and this note's own
+evidence doesn't ask for them; only visibility (show/hide) is in scope.
+
+**Status:** `CAP-O03` Tier 4 registered ❌ Proposed in `capability-registry.md` v0.64 the same day,
+full A1–A5 admission test in that row. Not built.
 
 ---
 

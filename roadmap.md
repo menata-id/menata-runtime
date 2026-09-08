@@ -2467,6 +2467,26 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
        immediately rather than silently patched — recorded here per this repo's own "silence is
        not a decision" discipline, not to bury it in a commit message.
 
+26. **New (2026-09-08) — `CAP-O03` Tier 4, curated navigation visibility.** Owner-observed against
+    the live `app_approval` application: its sub-nav strip lists `Approval Document`, `Approval
+    Step`, and `Signature` as three equal-weight links, but only `Approval Document` is a real menu
+    destination — the other two are reached exclusively through a Document's own flow. Checked
+    first whether this was already named anywhere in this repo (`capability-registry.md`,
+    `case-portfolio.md`, both `CLAUDE.md` files, `docs/decisions/`) — it wasn't; `CAP-O03`'s own row
+    had named an adjacent-but-different gap (menu ordering/labels) and deliberately left it unbuilt
+    pending a real case, per `001-design-principles.md` §6 "Infer Before Configure." This is that
+    case, for the visibility question specifically (not ordering/labels, which stay out of scope).
+    Admission test run the same day (`capability-lifecycle.md` §2): all five criteria pass —
+    registered `CAP-O03` Tier 4 ❌ Proposed. A4 (non-composability) is the criterion worth
+    highlighting: two candidate ways to get this from already-✅ mechanisms were checked and both
+    rejected with a concrete reason, not assumed away — `can_read: false` breaks real access, not
+    just menu visibility; inferring "hide if it's a `child_lines`/`steps_machine` target" is
+    unsound, proven by `CAP-F16`'s own Journal Entry Line vs. Item Unit Conversion counter-example
+    (same structural shape, opposite correct nav answer). Full account: `case-portfolio.md`'s new
+    Case 3 note (2026-09-08), `capability-registry.md` v0.64's `CAP-O03` Tier 4 row. Not built —
+    admission only, per standing discipline (a capability is real only once implemented AND
+    conformance-tested).
+
 ---
 
 ## Study 38 — Composed-View UI Component Inventory (2026-09-07)
