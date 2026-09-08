@@ -862,21 +862,25 @@ navigation:
   - id: nav_ad_dashboard
     label: Dashboard
     target: { type: view, view: vw_ad_dashboard }
-  - id: nav_ad_reference
-    label: Reference
-    target: { type: group }
-    children:
-      - id: nav_ad_signature
-        label: Signature
-        target: { type: machine, machine: mch_signature }
 ```
 
 ```sql
+-- app/seeds/045_declared_navigation_pilot.sql -- persis yang live di app_approval
 INSERT INTO navigation_entries (id, application_id, parent_id, position, label, target_type, target_machine, target_view) VALUES
-    ('nav_ad_document',  'app_approval', NULL,               0, 'Approval Document', 'machine', 'mch_approval_document', NULL),
-    ('nav_ad_dashboard', 'app_approval', NULL,               1, 'Dashboard',         'view',    NULL,                    'vw_ad_dashboard'),
-    ('nav_ad_reference', 'app_approval', NULL,               2, 'Reference',         'group',   NULL,                    NULL),
-    ('nav_ad_signature', 'app_approval', 'nav_ad_reference', 0, 'Signature',         'machine', 'mch_signature',         NULL)
+    ('nav_ad_document',  'app_approval', NULL, 0, 'Approval Document', 'machine', 'mch_approval_document', NULL),
+    ('nav_ad_dashboard', 'app_approval', NULL, 1, 'Dashboard',         'view',    NULL,                    'vw_ad_dashboard')
+ON CONFLICT (id) DO NOTHING;
+```
+
+Sintaks `group`/nesting (`parent_id`) sengaja tidak dipakai di contoh app_approval di atas —
+lihat koreksi di bawah kenapa. Contoh nyatanya, dari fixture khusus `app_nav_lab`:
+
+```sql
+-- app/seeds/046_navigation_group_lab.sql
+INSERT INTO navigation_entries (id, application_id, parent_id, position, label, target_type, target_machine, target_view) VALUES
+    ('nav_lab_primary',   'app_nav_lab', NULL,            0, 'Primary',         'machine', 'mch_nav_primary',   NULL),
+    ('nav_lab_group',     'app_nav_lab', NULL,            1, 'Secondary Group', 'group',   NULL,                NULL),
+    ('nav_lab_secondary', 'app_nav_lab', 'nav_lab_group', 0, 'Secondary',       'machine', 'mch_nav_secondary', NULL)
 ON CONFLICT (id) DO NOTHING;
 ```
 
@@ -905,6 +909,20 @@ Referensi implementasi lengkap: `app/internal/model/model.go` (`NavigationEntry`
 `app/internal/handler/handler.go` (`resolveDeclaredNav`, dipakai `subNavFor` dan
 `AppMachines`). Studi lengkap (kajian kebutuhan, benchmark 7 platform, dan rencana
 implementasi sebelum dibangun): `benchmarks/009-in-app-navigation-benchmark.md`.
+
+**Koreksi nyata (2026-09-08), jangan diulang:** contoh di atas (Approval Document + Dashboard)
+sengaja disederhanakan dari pilot pertama yang sempat dijalankan live di `app_approval` —
+versi pertama itu juga mendeklarasikan grup "Reference" berisi Signature, murni untuk
+memamerkan mekanisme `group` dalam satu pilot yang sama. Ternyata salah dua kali: (1) Signature
+sendiri bukan tujuan menu yang sah — sama seperti Approval Step, cuma dicapai lewat alur
+pendaftaran tanda tangan, tidak pernah dibuka langsung dari menu; (2) label grup (huruf besar +
+letter-spacing) makan cukup lebar sehingga di layar sempit link berikutnya (`Signature`) sampai
+terpotong di tepi layar — ketahuan dari screenshot live yang dikirim owner. **Pelajarannya:**
+jangan deklarasikan `navigation` untuk "sekalian menunjukkan fitur" — deklarasikan persis
+sesuai kebutuhan kurasi menu yang nyata, sesederhana mungkin. Mekanisme `group`/nesting sendiri
+tetap sah dan tetap diuji (`app/seeds/046_navigation_group_lab.sql`, fixture khusus, terpisah
+dari `app_approval`) — yang salah bukan fitur-nya, tapi keputusan memakainya di pilot nyata.
+Detail lengkap: `capability-registry.md`'s `CAP-O03` Tier 5 row, catatan koreksi tertanggal.
 
 ---
 

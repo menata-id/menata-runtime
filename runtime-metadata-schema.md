@@ -25,13 +25,21 @@ The format may evolve in future versions.
 ```text
 Workspace
     └── Application
-            └── Machine
-                    ├── fields
-                    ├── events
-                    ├── constraints
-                    ├── permissions
-                    └── views
+            ├── Machine
+            │       ├── fields
+            │       ├── events
+            │       ├── constraints
+            │       ├── permissions
+            │       └── views
+            └── navigation                     (CAP-O03 Tier 5, Phase 1, optional — see §Navigation)
 ```
+
+`navigation` is Application-level, not Machine-level — as implemented, it resolves the ambiguity
+between `004-runtime-metadata.md`'s own hierarchy (Navigation nested under Machine) and
+`006-runtime-model.md`'s own hierarchy (Navigation a sibling of Machine, under Application): the
+real `navigation_entries` table is keyed by `application_id`, matching `006`. Both documents keep
+their own original text unchanged per this repo's append-don't-rewrite convention — this is the
+one place the ambiguity is resolved against the actual shipped schema, not a correction to either.
 
 ---
 
@@ -1092,6 +1100,46 @@ views:
       <p>Title: {{.fld_ftp_title}}</p>
     </body></html>
 ```
+
+---
+
+## Navigation (CAP-O03 Tier 5, Phase 1, `app/`, 2026-09-08)
+
+By default, an Application's sub-nav strip and app-launcher card list are fully inferred — every
+Machine in the Application becomes one link, no metadata required (CAP-O03 Tier 2). Declare
+`navigation` only when that default isn't enough: a Machine that's real, readable, and reachable
+(via a `reference`, an embedded `children`/`child_lines` section, or a link from another record)
+but isn't itself a menu destination a person would ever pick directly.
+
+```yaml
+navigation:
+  - id: nav_ad_document
+    label: Approval Document
+    target: { type: machine, machine: mch_approval_document }
+  - id: nav_ad_dashboard
+    label: Dashboard
+    target: { type: view, view: vw_ad_dashboard }
+```
+
+### Navigation Entry Targets
+
+| `target.type` | Required field | Notes |
+|------|-------------|-------|
+| `machine` | `machine` (Machine id, same Application) | Most common target |
+| `view` | `view` (View id) | Collection-level View types only — `list`/`form`/`dashboard`/`calendar`/`timeline`/`report`/`board`/`process_map`. A per-record View type (`detail`, `coord_placement`, `decision_stepper`, `document`) is rejected at load time — no destination without a record id |
+| `group` | — (`machine`/`view`/`url` must all be empty) | A grouping label only; its own children (`children` in YAML / `parent_id` in SQL) render immediately after it. Rendering is deliberately flat — a label plus its children in order, not a collapsible dropdown — no new client-side JS |
+| `url` | — | ⚠️ Not yet supported (Phase 2) — rejected explicitly at load time, not silently ignored |
+
+**The one rule that matters:** the moment an Application declares even one `navigation` entry,
+that declaration *entirely replaces* the inferred listing for that Application — never merged.
+A Machine left out is absent from the menu but still 100% reachable directly; this changes
+discoverability only, never `Permission`/access.
+
+Full worked example (all three supported target types together), the load-time validation this
+enforces, and a caution against over-declaring (a real live correction — see the note in
+`guides/writing-runtime-metadata.md`'s own §Navigation): `guides/writing-runtime-metadata.md`.
+Design rationale, a 7-platform benchmark, and the Phase 1/Phase 2 split: `benchmarks/
+009-in-app-navigation-benchmark.md`.
 
 ---
 

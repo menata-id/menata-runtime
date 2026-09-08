@@ -22,15 +22,19 @@ single narrative connecting them.
 | Progress stepper AND signature position, both inline on the Step's own Detail page | `CAP-V20` Tier 2 — `children` on the Step's own `detail` View, two entries | `seeds/042_inline_view_composition.sql` |
 | Approval Step rows (including the User/Group toggle) authored inline on the Document's own create form | `CAP-F16` — `child_lines` on `vw_ad_form` | `seeds/044_document_submit_dashboard_live_wiring.sql` |
 | Document counts broken down by Status, at a glance | `CAP-V10` — a `dashboard` View (`vw_ad_dashboard`) on the Document | `seeds/044_document_submit_dashboard_live_wiring.sql` |
+| A curated menu — only Approval Document + the Dashboard, `Approval Step`/`Signature` absent (still fully reachable directly) | `CAP-O03` Tier 5, Phase 1 — declared `navigation_entries` for `app_approval` | `seeds/045_declared_navigation_pilot.sql` |
 
 The rest of this document walks through each row with the real declaration, not just a pointer to
 the file.
 
-**Known limitation (2026-09-08):** `vw_ad_form` uses `child_lines`, not the `steps` (CAP-V12)
-wizard `document-submit.html`'s own mockup shows — `internal/ui/wizard.templ`'s `WizardForm` has
-no `childLines` parameter, so a View can't declare both and render both today. The live form has
-the mockup's row content, not its 3-step pagination. Tracked in `roadmap.md`'s priority-order list
-(item 25.7) and `capability-registry.md`'s `CAP-V12`/`CAP-F16` rows, not silently worked around.
+**Correction (2026-09-08, later the same day):** the note that used to stand here claimed
+`vw_ad_form`'s `child_lines` couldn't compose with the `steps` (CAP-V12) wizard. That gap was real
+when written, and was closed the same day — `internal/ui/wizard.templ`'s `WizardForm` now takes a
+`childLines` parameter, rendered on the wizard's own final step. Not applied to `vw_ad_form` live,
+though: re-reading `document-submit.html` showed its own "Step 1 of 3" labels a larger BUSINESS
+flow (Document → Signature → confirm), not a technical form wizard — the mockup's own content is
+one page, exactly what `child_lines` alone already produces. Full account:
+`capability-registry.md`'s `CAP-V12`/`CAP-F16` rows, `roadmap.md` item 25.7.
 
 ## 1. The two Machines
 
@@ -266,12 +270,16 @@ In order, against a fresh database (`make migrate-up` first — this now include
 7. `seeds/043_approver_type_toggle.sql` — §3's User/Group toggle and its dynamic Permission gate.
 8. `seeds/044_document_submit_dashboard_live_wiring.sql` — the table's own last two rows above
    (embedded Step authoring, Status dashboard) plus the `document-approval.html`-matching renames.
-9. Through the running app, as a workspace Admin: create the "Document Approvers" Group, add
-   members (§2) — this step has no seed file, on purpose.
+9. `seeds/045_declared_navigation_pilot.sql` — this table's own last row above: `app_approval`'s
+   curated menu (migrate to `migrations/029_navigation_entries.sql` first — a new table, not a
+   column on something existing this time).
+10. Through the running app, as a workspace Admin: create the "Document Approvers" Group, add
+    members (§2) — this step has no seed file, on purpose.
 
-Every metadata-only step (1–8) takes effect on the next server start, or immediately via
+Every metadata-only step (1–9) takes effect on the next server start, or immediately via
 `POST /{ws}/admin/reload` (`CAP-X04`) with no restart at all — verified live, both ways, building
 this exact reference (`capability-registry.md`'s `CAP-V20` and `CAP-F24` rows both have the dated
 proof; `seeds/044`'s own live-wiring pass, `roadmap.md`'s 2026-09-08 addendum, is the same
 verification repeated against the persistent `menata_runtime` database itself, not an isolated
-schema).
+schema; `seeds/045`'s own correction, same row above, is a second real instance of exactly that
+same discipline — a live screenshot, not just an isolated-schema pass, caught the actual bug).
