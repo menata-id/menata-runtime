@@ -2428,19 +2428,44 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
        stays **not admitted** — still exactly one instance after this cross-check, no change to
        Study 38's own verdict. Revisit only if a second, independent mockup or case produces the
        same shape, per that study's own stated condition.
-    7. **New (2026-09-08) — `CAP-V12`/`CAP-F16` composition gap.** Not a capability gap (both are
-       already ✅ individually) — a plumbing gap between two already-shipped mechanisms, surfaced
-       while live-wiring `document-submit.html` (`app/docs/ui-component-library.md`'s own v1.6
-       status note, this file's own addendum above): `ui.WizardForm` (`internal/ui/wizard.templ`)
-       takes no `childLines` parameter, so a `form` View declaring both `steps` (CAP-V12) and
-       `child_lines` (CAP-F16) at once cannot render both — today's live `vw_ad_form` has the
-       "Approval steps" rows but not the mockup's own 3-step pagination as a result. No admission
-       test needed (composing two already-✅ mechanisms is implementation work, not a new
-       capability) — named here so it has a place in this list rather than living only in a
-       narrative note. Suggested priority: **ahead of items 2–6** — it's a small, contained fix
-       (thread `childLines *ChildLinesData` through `WizardForm` + `record_crud.go`'s wizard-step
-       branch, reusing `buildChildLinesData` already used by the non-wizard path) blocking one
-       concrete, already-named mockup gap, not a speculative generalization the way 4–6 are.
+    7. ~~`CAP-V12`/`CAP-F16` composition gap~~ — **✅ done (2026-09-08).** Not a capability gap
+       (both already ✅ individually) — a plumbing gap between two already-shipped mechanisms.
+       `WizardForm` (`internal/ui/wizard.templ`) gained a `childLines *ChildLinesData` param,
+       rendered only on the final step; `record_crud.go`'s three `WizardForm` call sites (initial
+       GET, intermediate-step render, violation re-render) now pass it via `buildChildLinesData`
+       exactly on that step. Verified three ways before deploy: (1) a throwaway isolated schema
+       with `vw_ad_form` given a real 2-step `steps` config alongside its existing `child_lines`
+       — step 1 shows only its own fields, step 2 shows Approval Mode + the 5 embedded Approval
+       Step rows, and a real end-to-end Create (multipart, matching a browser's actual capability —
+       see the correction below) produced both the Document and its child Step row, confirmed by
+       direct query; (2) the full conformance suite, run three times to isolate the change from an
+       unrelated schema-state confound (an ad-hoc `steps` hack on a REUSED test schema produced 16
+       false failures on the first pass, all in capabilities this diff never touches — CAP-F22/
+       CAP-V21/CAP-V20/CAP-F23/CAP-F24 — traced to that hack, not the code): unmodified code on a
+       fresh schema (235/235), this fix on a fresh schema (235/235) — zero regressions, confirmed
+       by controlled comparison, not assumption; (3) `go build`/`go vet` clean. Deployed to the live
+       `menata_runtime`-backed server (`server-manager.sh restart menata-runtime`), verified
+       `/ws_default/mch_approval_document/new` still renders correctly post-restart.
+       **Correction, same pass:** the premise that `document-submit.html` itself needs this was
+       wrong — re-reading that mockup shows "Step 1 of 3" is a label for a larger BUSINESS flow
+       (Document → Signature Placement → confirm), not `CAP-V12`'s own technical form-wizard
+       mechanism; the mockup's Document/Approval-mode/Approval-steps content is all ONE page,
+       exactly what `seeds/044`'s `child_lines`-only config (no `steps`) already produces live. No
+       `steps` config was added to `vw_ad_form` as a result — doing so would misrepresent the
+       mockup, not match it. The code fix ships anyway: it's a real, now-tested capability the
+       runtime honestly lacked, independently worth having for a future case that genuinely needs
+       both a wizard AND embedded child rows together, and was already a named, prioritized item
+       here regardless of this one mockup's actual requirement.
+       **Incident during this pass (2026-09-08):** cleaning up a throwaway isolated-schema test,
+       `rm -rf app/uploads/*` was run against the shared (not schema-scoped) upload directory the
+       live production process reads from — deleted its contents. Impact, checked directly:
+       exactly 2 `file`-type records existed on live `menata_runtime`, both now-broken file
+       references cleared via a plain `UPDATE ... data - 'fld_ad_file'` (no delete, no schema
+       change) — one was this same session's own test document, the other a pre-existing demo
+       record predating this session; no signature images or signed-PDF outputs existed. A real
+       mistake (an imprecise path assumption, not a deliberate risk), disclosed to the owner
+       immediately rather than silently patched — recorded here per this repo's own "silence is
+       not a decision" discipline, not to bury it in a commit message.
 
 ---
 

@@ -473,7 +473,11 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 	// CAP-V12: a FormView declaring Steps renders as a multi-step wizard
 	// instead of the single Form -- step 0, no carried-forward values yet.
 	if fv := h.interp.Get().FormView(machine.ID); fv != nil && len(fv.Config.Steps) > 0 {
-		page := ui.WizardForm(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, 0, len(fv.Config.Steps), h.buildFormFieldsFor(r.Context(), h.workspaceSlug(r), machine, fv.Config.Steps[0], nil), nil, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+		var childLines *ui.ChildLinesData
+		if len(fv.Config.Steps) == 1 { // CAP-F16: step 0 is also the final step
+			childLines = h.buildChildLinesData(r.Context(), machine)
+		}
+		page := ui.WizardForm(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, 0, len(fv.Config.Steps), h.buildFormFieldsFor(r.Context(), h.workspaceSlug(r), machine, fv.Config.Steps[0], nil), nil, childLines, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 		if err := page.Render(r.Context(), w); err != nil {
 			slog.Error("render wizard form", "error", err)
 		}
@@ -535,8 +539,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			a := h.auth(r)
+			var childLines *ui.ChildLinesData
+			if step+2 == len(fv.Config.Steps) { // CAP-F16: step+1 is the final step
+				childLines = h.buildChildLinesData(r.Context(), machine)
+			}
 			page := ui.WizardForm(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, step+1, len(fv.Config.Steps),
-				h.buildFormFieldsFor(r.Context(), h.workspaceSlug(r), machine, fv.Config.Steps[step+1], nil), carried, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+				h.buildFormFieldsFor(r.Context(), h.workspaceSlug(r), machine, fv.Config.Steps[step+1], nil), carried, childLines, nil, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 			if err := page.Render(r.Context(), w); err != nil {
 				slog.Error("render wizard form", "error", err)
 			}
@@ -692,7 +700,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			page := ui.WizardForm(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, last, len(fv.Config.Steps),
-				h.buildFormFieldsFor(r.Context(), h.workspaceSlug(r), machine, fv.Config.Steps[last], data), carried, violations, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+				h.buildFormFieldsFor(r.Context(), h.workspaceSlug(r), machine, fv.Config.Steps[last], data), carried, h.buildChildLinesData(r.Context(), machine), violations, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 			if err := page.Render(r.Context(), w); err != nil {
 				slog.Error("render wizard form (violations)", "error", err)
 			}
