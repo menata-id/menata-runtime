@@ -2428,6 +2428,19 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
        stays **not admitted** — still exactly one instance after this cross-check, no change to
        Study 38's own verdict. Revisit only if a second, independent mockup or case produces the
        same shape, per that study's own stated condition.
+    7. **New (2026-09-08) — `CAP-V12`/`CAP-F16` composition gap.** Not a capability gap (both are
+       already ✅ individually) — a plumbing gap between two already-shipped mechanisms, surfaced
+       while live-wiring `document-submit.html` (`app/docs/ui-component-library.md`'s own v1.6
+       status note, this file's own addendum above): `ui.WizardForm` (`internal/ui/wizard.templ`)
+       takes no `childLines` parameter, so a `form` View declaring both `steps` (CAP-V12) and
+       `child_lines` (CAP-F16) at once cannot render both — today's live `vw_ad_form` has the
+       "Approval steps" rows but not the mockup's own 3-step pagination as a result. No admission
+       test needed (composing two already-✅ mechanisms is implementation work, not a new
+       capability) — named here so it has a place in this list rather than living only in a
+       narrative note. Suggested priority: **ahead of items 2–6** — it's a small, contained fix
+       (thread `childLines *ChildLinesData` through `WizardForm` + `record_crud.go`'s wizard-step
+       branch, reusing `buildChildLinesData` already used by the non-wizard path) blocking one
+       concrete, already-named mockup gap, not a speculative generalization the way 4–6 are.
 
 ---
 
