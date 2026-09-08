@@ -11,7 +11,13 @@
 > from one feature of an app to another *without losing their place* — which is a distinct
 > concept in `006-runtime-model.md`'s own hierarchy (Navigation, sibling to Page/View).
 >
-> Status: v0.1 | Created: 2026-07-12
+> Status: v0.2 — gains a 2026-09-08 follow-on finding: a deeper benchmark of HOW six platforms
+> curate nav visibility (not just whether they have persistent nav), formal UI menu-component
+> standards (Material Design 3's 3–7 destination threshold, Miller's Law with its own honest
+> caveat, NN/G information scent), and a survey of adjacent future needs (nav grouping, per-user
+> favorites, ordering) read against the admission criteria and left un-admitted pending real case
+> pressure. Backs `CAP-O03` Tier 4 (curated navigation visibility, ❌ Proposed, `capability-
+> registry.md` v0.64) | Previously v0.1 | Created: 2026-07-12
 
 ---
 
@@ -166,3 +172,94 @@ Navigation row and its own new `CAP-O03 Tier 3` candidate row for the tracking r
 implementation session, not a task for this one** — the actual design-prototype pass (mockups,
 placement decisions, a component-vocabulary writeup) hasn't been done yet and is explicitly out
 of scope for whichever session picks this up next until that groundwork exists.
+
+---
+
+# Follow-on finding (2026-09-08) — curated navigation visibility (`CAP-O03` Tier 4)
+
+Owner-requested, on top of the same-day admission of `CAP-O03` Tier 4 (`capability-registry.md`
+v0.64, `case-portfolio.md`'s new Case 3 note): *"kajian kemungkinannya apa saja kebutuhan atas
+kapabilitas ini... lakukan benchmark ke aplikasi di use case dan standar tampilan komponen ui
+menu"* — survey what the realistic range of future need looks like around this capability, and
+benchmark against both real applications' use cases and formal UI menu-component standards, not
+just the four platforms the admission row already cited in passing.
+
+## World-class reference — HOW each platform curates, not just whether it has a persistent nav
+
+Tier 2 (above) already established that persistent, cross-page sub-navigation is universal. This
+pass goes one level deeper: once a platform has that persistent nav, what mechanism does it give
+an admin to keep it from listing every single object/table/model?
+
+| Platform | Curation mechanism | Scope | Source |
+|---|---|---|---|
+| Salesforce | Setup → App Manager → Edit App → **Navigation Items** — an app's tab set is an explicit, ordered allow-list; an object left out simply isn't a tab. A **"Tab Hidden"** profile setting is the softer variant: the object still gets an icon and stays reachable via App Launcher search, just not in the persistent tab strip | Per-App (an object can be a tab in one App, not another), admin-declared, workspace-wide default | [Personalized Navigation Considerations](https://help.salesforce.com/s/articleView?id=sf.user_userdisplay_tabs_lex_considerations.htm) — a new tab an admin adds does NOT automatically appear for a user who already personalized their own nav, a real "default vs. override" interaction worth naming; [Show or Hide Tabs for Users](https://help.salesforce.com/s/articleView?id=000385181&type=1) |
+| Odoo | `ir.ui.menu` record's `active` field — set `False` and the menu entry disappears without deleting the underlying model/data; group-based visibility layers on top for role-scoping | Per-menu-record, admin-declared (Technical Settings, dev mode) | [Odoo forum — how to hide menus](https://www.odoo.com/forum/help-1/how-to-hide-menus-59356) |
+| Frappe/ERPNext | A Workspace's own `is_standard` + membership in the **PUBLIC** vs. **MY WORKSPACES** section; a DocType with no Workspace shortcut pointing at it simply has no sidebar entry, reachable only by direct link/search | Per-Workspace (admin-curated shared default) vs. per-user private Workspaces (personal, not shared) — Frappe is the one platform surveyed with BOTH an admin-curated default AND a fully separate per-user personal layer | [Frappe docs — Workspace](https://docs.frappe.io/framework/user/en/desk/workspace) |
+| ServiceNow | Application Navigator module visibility by role — **grant-only, not deny-based**: a module becomes visible once a role is added to it, but there is no native "hide this module even though the role would otherwise see it" — real admins work around this with a query Business Rule on `sys_app_module`, a documented limitation, not a feature | Per-module, role-additive only | [ServiceNow Community — hide modules even if a user has the correct roles](https://www.servicenow.com/community/developer-forum/hide-modules-even-if-a-user-has-the-correct-roles/m-p/1825552) |
+| Jira | Project sidebar → **Customize sidebar** — an admin explicitly shows/hides/reorders items; the change "will affect everyone who has access to the project," i.e. an admin-set shared default, not per-viewer | Per-project, admin-declared, shared | [Atlassian — Navigate projects with the sidebar](https://confluence.atlassian.com/jirasoftware/navigate-projects-with-the-sidebar-1528532974.html) |
+| Notion | **Favorites** — any user stars a page onto their own sidebar shortcut list; independent of whatever the shared Workspace/Shared sections already show. Purely additive and personal, not a hide mechanism at all | Per-viewer, personal, opt-in | [Notion — navigate with the sidebar](https://www.notion.com/help/navigate-with-the-sidebar) |
+
+**Reading across all six**: every admin-curation mechanism found (Salesforce Navigation Items,
+Odoo `active=False`, Frappe Workspace membership, Jira Customize sidebar) is an **allow/hide
+default that changes what everyone with access sees** — exactly `CAP-O03` Tier 4's own already-
+admitted shape (a Machine-level exception flag, not a per-viewer setting). Only Notion's Favorites
+and Frappe's *private* Workspaces are genuinely **per-user personalization** — a materially
+different capability (state that varies per person, not a business-declared default) that no case
+in this portfolio has asked for yet (see "Possible future needs" below, ruled out of Tier 4's own
+scope for that reason). ServiceNow's own documented limitation (grant-only visibility, no native
+hide) independently reinforces this study's earlier A4 finding on `CAP-O03` Tier 4's own registry
+row: a plain permission/role mechanism is provably insufficient for "readable but not a menu
+destination" — a real platform hit the exact same wall, not a hypothetical concern.
+
+## UI menu-component standards
+
+Three established sources, checked directly rather than assumed, since a governance document that
+cites "world-class practice" should be able to say which claims are load-bearing and which are
+popular but weaker than commonly believed:
+
+- **Material Design 3 — Navigation rail**: don't use a (collapsed) navigation rail below 3
+  destinations (use tabs instead) and don't use it above 7 (use the expanded rail/drawer instead)
+  — a concrete, numeric, sourced threshold. [m3.material.io — Navigation rail
+  guidelines](https://m3.material.io/components/navigation-rail/guidelines). Directly relevant
+  beyond Tier 4 itself: `CAP-O03` Tier 2's own `subNavBar` strip renders **every** permission-
+  visible Machine in an Application today, uncapped — an Application with more than ~7 Machines
+  would already exceed this threshold even after Tier 4 hides the genuinely-not-a-destination
+  ones, a possible future fitness-function check (see below), not something to build now.
+- **Miller's Law ("7±2")**: widely cited to justify capping menus around 5–9 items, but the
+  honest caveat matters here — Miller's 1956 research measured short-term-memory chunk capacity,
+  not interface item counts, and applying it directly to menu design is a popularized
+  overextension of the original finding, not itself HCI research
+  ([Stéphanie Walter — "Your navigation menu doesn't need Miller's 7±2
+  rule"](https://stephaniewalter.design/blog/your-menu-doesnt-need-millers-7-plus-minus-2-rule/)).
+  Cited here for completeness since it's the number most often invoked in this exact conversation,
+  not as independent load-bearing evidence — Material Design 3's own guidance above is the
+  sourced number this study actually treats as real.
+- **Nielsen Norman Group — information scent**: the deeper point behind the owner's own framing
+  ("belum tentu semua adalah flow user") — NN/G's guidance is that a navigation label must set
+  clear expectations for what a user finds next, and that progressive disclosure (deferring
+  advanced/secondary paths) measurably speeds initial task completion (30–50% faster in the cited
+  2006 study) while preserving full discoverability
+  ([nngroup.com/articles/progressive-disclosure](https://www.nngroup.com/articles/progressive-disclosure/)).
+  This reframes Tier 4 correctly: the problem this capability solves is not fundamentally "too
+  many pixels," it's that a flat, unfiltered Machine list has **weak information scent** — a link
+  to `Approval Step` promises a destination a Submitter never actually wants, diluting the strip's
+  overall scent even when it technically fits on screen.
+
+## Possible future needs beyond Tier 4 — surveyed, not admitted
+
+Tier 4 (show/hide exception flag, admin-declared, workspace-wide) is the one need with real case
+pressure today. This benchmark's own reading across six platforms surfaces several *adjacent*
+needs no case has asked for yet — named here per "silence is not a decision," each with an honest
+read against the admission criteria (`capability-lifecycle.md` §2), not built or scheduled:
+
+| Possible need | Real-world precedent | A1 (case evidence today) | Preliminary read |
+|---|---|---|---|
+| **Nav grouping/sections** (categorize Machines into named groups rather than one flat strip) | Frappe Workspace sections (PUBLIC/MY WORKSPACES), Notion sidebar sections (Favorites/Workspace/Shared/Private) | ❌ none — no portfolio Application has exceeded ~4 visible Machines even before Tier 4 hides anything | Would only clear A1 once an Application's Tier-4-trimmed Machine count still exceeds Material Design's own 7-destination threshold above; premature now |
+| **Per-user personalization (favorites/pinning)** | Notion Favorites, Frappe private Workspaces, Salesforce "Personalized Navigation" | ❌ none | Different axis entirely from Tier 4 — per-viewer state, not a Runtime Metadata concern (metadata is shared business truth; a favorites list is per-account UI state, architecturally closer to CAP-O05's own per-user notification preferences than to anything in the Grammar). Would need its own admission pass if a case ever asks, not an extension of Tier 4 |
+| **Menu ordering / icon / label override** | Salesforce's own "ordered set of navigation tabs," Jira's "reorder tabs" | ❌ none (already named on `CAP-O03`'s own row, 2026-07-12, and deliberately deferred per "Infer Before Configure" — unchanged by this benchmark) | Stays out of scope; today's alphabetical default is still nobody's named problem |
+| **Hidden-but-still-searchable** (Salesforce's "Tab Hidden" keeps App Launcher search working) | Salesforce Tab Hidden | N/A — not a separate capability, a design constraint ON Tier 4's own eventual implementation | When Tier 4 is actually built: a Machine hidden from `subNavFor`/`AppMachines` should very likely remain findable via `CAP-O04` (workspace search) — the two mechanisms already share no code path today, so this needs zero extra work, only a conscious choice not to accidentally couple them later |
+
+**Registry impact**: no new row admitted by this benchmark pass — `CAP-O03` Tier 4 (already ❌
+Proposed) is the only need with real case pressure; the other three rows above are recorded as
+surveyed-but-not-admitted, the same posture `Choice Card` already holds elsewhere in this registry
+(`roadmap.md` item 25.6) — revisit only if a real case demonstrates one, not on schedule.

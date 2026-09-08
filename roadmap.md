@@ -2487,6 +2487,28 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     admission only, per standing discipline (a capability is real only once implemented AND
     conformance-tested).
 
+    **Addendum (2026-09-08), same day — deeper benchmark.** Owner asked for a fuller study: what
+    the realistic range of future need looks like around this capability, benchmarked against real
+    applications' own curation mechanisms (not just whether they have persistent nav — Tier 2
+    already established that) and formal UI menu-component standards. Done as a second follow-on
+    finding inside `benchmarks/009-in-app-navigation-benchmark.md` (the existing navigation
+    benchmark, not a new file — same pattern its Tier 3 follow-on already used): six platforms'
+    actual curation mechanisms (Salesforce Navigation Items/Tab Hidden, Odoo `ir.ui.menu.active`,
+    Frappe Workspace membership, ServiceNow's own documented grant-only limitation, Jira Customize
+    sidebar, Notion Favorites) all confirm Tier 4's own shape (admin-declared shared default, not
+    per-viewer state) except Notion/Frappe-private, which are genuinely per-user personalization —
+    a different, un-admitted future capability. UI standards checked directly rather than assumed:
+    Material Design 3's navigation-rail guidance (3–7 destinations, sourced) is treated as the real
+    load-bearing number; Miller's "7±2" is cited with its own honest caveat (a popularized
+    overextension of 1956 memory research, not itself menu-design evidence); NN/G's information-
+    scent framing is what actually explains the owner's own original complaint — not merely "too
+    many links," but low-relevance links diluting the strip's scent. Three adjacent needs (nav
+    grouping/sections, per-user favorites, menu ordering) surveyed against the admission criteria
+    and explicitly left un-admitted — no case pressure for any of them yet, same posture `Choice
+    Card` already holds. `capability-registry.md` v0.65 carries the dated account on `CAP-O03`
+    Tier 4's own row and the "Tracked but Not Yet Studied" Navigation row. No new capability
+    admitted, no code built — benchmark only.
+
 ---
 
 ## Study 38 — Composed-View UI Component Inventory (2026-09-07)
