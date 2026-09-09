@@ -8,7 +8,11 @@
 > reconciled an independently-produced second review the same day). Every verdict below was checked
 > against `capability-registry.md` v0.58 rows and `app/` source, not taken from the proposal's own
 > prose.
-> Status: v1.0 | Created: 2026-09-07 | Updated: 2026-09-07
+> Status: v1.1 — §8 added (2026-09-09): an owner Q&A session re-read this document and the
+> proposal's own asks against live code a second time, found two scoping holes in §7's Tier 2
+> wording (recursive nesting depth, composed-page layout) neither §5 nor §7 named, and assessed the
+> §5 context-passing question's actual priority. No row admitted, no code changed | Previously v1.0
+> | Created: 2026-09-07 | Updated: 2026-09-09
 
 ---
 
@@ -175,3 +179,53 @@ polling pattern already proven by `CAP-V15`/`CAP-V16` (`hx-get` + `hx-trigger="e
 small per-child fragment endpoint) — no client-side reactive state, the server still owns the data
 on every refresh. This closes the "how does dynamic data actually flow" question the proposal's own
 §13 render pipeline left at the concept level.
+
+## 8. Follow-up (2026-09-09): two more scoping holes in §7, and a necessity call on §5's open question
+
+An owner Q&A session re-read this document and the original proposal's own §4/§9/§10/§11 against
+`app/` a second time, two days after §5–§7 were written. Two things §7's Tier 2 wording does not
+yet cover, and one priority judgment on the question §5 already named but left open:
+
+**(i) Recursive depth is undesigned, not just unbuilt.** `CAP-V20` Tier 2's own
+`EmbeddableChildViewTypes` (`app/internal/model/model.go:859-862`) lists exactly two Types today,
+`decision_stepper` and `coord_placement` — both leaves, neither itself composable. Nothing in §7's
+wording says whether a Tier 2 page's own `{view: id}` child may itself be a `page` (or any other
+composing Type) with children of its own. The proposal's own ask (§4/§11: "View → Component → View
+→ Component → View," arbitrary depth) is not a smaller version of what §7 scopes — it is a
+different, larger question (cycle detection, a depth limit or none, whether permission-checking
+composes correctly at depth >1) that has not been asked yet, let alone answered. Flag it explicitly
+whenever `CAP-V10` Tier 2 is formally scoped, rather than assume single-level composition
+generalizes for free.
+
+**(ii) Composed-page layout is a real gap in §7's own evidence, not just the pre-existing G22 Form
+gap.** §7 describes `Children` as an *ordered list* — stacked, single-column. But
+`benchmarks/029-composed-view-component-inventory.md`'s "Two-column / Grid Layout" component
+(`app/web/static/ui-sample/component-proof.html` §11) is evidenced twice: once at Detail-page level
+(`document-approval.html`, already tracked as G22 → R19/R20) and once at **composed-page level**
+(`approval-dashboard.html` itself — the same mockup this Tier 2's own §5/Study-38 evidence is
+drawn from). Building Tier 2 exactly as §7 words it today — a flat stacked list — would not
+reproduce the layout of the very mockup used to justify it. This needs folding into §7's wording
+(a layout hint per entry, or a fixed set of composed-page layout shapes, closed-vocabulary the same
+way §7's `{content: {type, properties}}` already is) at scoping time, not discovered again then.
+
+**(iii) Context-passing's priority, assessed rather than left as an open flag.** §5 named
+`$context.document.id`-style parent→child scoping as undeclared; this pass checked what actually
+exists today and what forcing pressure exists now. What exists: exactly one dynamic Filter token,
+`$current_user` (`CAP-V05`; a real literal substitution, `app/internal/expr/expr.go:15,27,91`,
+resolved from the request's own identity) — general-purpose, but answers only "who is logged in,"
+never "what record is this page currently about." `CAP-V06`'s reverse-reference sub-lists cover one
+narrow instance of parent-scoping automatically (child rows whose own `reference` field equals the
+parent's id) but are computed implicitly, not a declarable Filter token usable in an arbitrary
+composition. **Priority: low today** — no forcing case in `case-portfolio.md`, and the one mockup
+that looked like it would need this (`approval-dashboard.html`) already shipped live
+(`app/seeds/044_document_submit_dashboard_live_wiring.sql`) using plain `CAP-V10` Sections, needing
+no context-passing at all. **But mandatory, not deferrable, in the same pass that admits `CAP-V10`
+Tier 2 itself** — without a parent→child context token, a composed page can only embed
+context-free Views (global summaries, exactly what already-✅ `CAP-V10` gives today), never the
+parent-record-scoped child View (e.g., "items related to *this* document") that is the proposal's
+own actual motivating example. Admitting Tier 2 without also closing this would ship a capability
+that cannot serve the case that justified it.
+
+**Disposition, unchanged from §6:** no capability admitted, no row status changed. This section
+only adds detail to the Tier 2 scope-in-waiting so items (i)–(iii) aren't rediscovered from zero
+whenever a real case finally forces `CAP-V10` Tier 2's admission.

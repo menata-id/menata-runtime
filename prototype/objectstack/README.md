@@ -1,6 +1,12 @@
 # Menata Runtime — ObjectStack Comparator Study
 
-> Status: v1.2 — a third external document (an unsolicited "Composable Metadata Runtime"
+> Status: v1.3 — a follow-up owner Q&A (2026-09-09) re-read the same "Composable Metadata Runtime"
+> proposal against live code a second time, appending §8 to
+> `docs/composable-view-proposal-reconciliation.md`: two more scoping holes in `CAP-V10` Tier 2's
+> §7 wording (recursive nesting depth undesigned; composed-page layout not folded in) and a
+> necessity call on the open context-passing question (low today, mandatory co-requisite once
+> Tier 2 is ever admitted). No row admitted, no code changed | Previously v1.2 — a third external
+> document (an unsolicited "Composable Metadata Runtime"
 > architectural-direction proposal) reconciled against this study's own already-settled position on
 > a Page/Component/Slot ontology, in `docs/composable-view-proposal-reconciliation.md`: confirms the
 > earlier rejection of dynamic component dispatch/Canvas as SPA-shaped machinery, refines `CAP-V10`
@@ -12,7 +18,7 @@
 > its "critical" items declined with reasons, updated priority order in that doc's §5 | Previously
 > v1.0 — Study 37, first pass: ObjectStack studied from its own source tree and docs, compared
 > area-by-area against Menata Runtime, gaps and candidate capabilities named (none admitted to the
-> registry yet — owner decision pending) | Created: 2026-09-07 | Updated: 2026-09-07
+> registry yet — owner decision pending) | Created: 2026-09-07 | Updated: 2026-09-09
 
 > **Not a metadata-proof prototype.** Every other folder under `prototype/` (except `go/`) answers
 > "can *this platform* realize `design-request.yaml` from metadata alone?" and carries a 16-feature

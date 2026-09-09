@@ -2395,6 +2395,19 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     question. No new row, no status change, no code — `capability-registry.md` v0.59's `CAP-V10`
     row carries the same note.
 
+    **Second addendum (2026-09-09):** an owner Q&A session re-read the same proposal against live
+    code a second time, appending §8 to `composable-view-proposal-reconciliation.md`. Two more
+    scoping holes found in `CAP-V10` Tier 2's existing wording — recursive nesting depth beyond
+    one level is undesigned (`CAP-V20` Tier 2's `EmbeddableChildViewTypes` has two non-composite
+    Types only), and composed-page layout (`approval-dashboard.html`'s own 2-column shape) isn't
+    folded into the "flat ordered list" wording that mockup is supposed to justify — plus a
+    necessity call on the still-open context-passing question: low priority today (no forcing
+    case; `approval-dashboard.html` already shipped live via plain `CAP-V10` Sections, no
+    context-passing needed), but mandatory in the same admission pass as Tier 2 itself, since
+    without it a composed page could only embed context-free Views, not the parent-scoped child
+    Views the proposal actually wants. No new row, no status change, no code —
+    `capability-registry.md` v0.69's `CAP-V10` row carries the same note.
+
 25. **New (2026-09-07) — priority order for Document Approval's own remaining mockup gaps**, per
     Study 38's live cross-check against the real running app (its own second addendum, below).
     Ordered so already-admitted work goes first, and nothing gets built ahead of its own admission

@@ -37,6 +37,27 @@ decision that it's unnecessary — and now that new work isn't phase-gated, a ne
 in `app/` is exactly the moment to graduate the relevant entries alongside it, per
 `capability-lifecycle.md`'s own loop.
 
+## ui-sample: which mockups are live design references
+
+`app/web/static/ui-sample/` accumulates every mockup ever explored, but `index.html`'s own
+case-coverage table (Study 38) is the single, deliberate entry point — it says so directly ("No
+separate top nav or preview cards — both were dropped as redundant duplicates of what this table
+already covers"). **When asked to use a ui-sample mockup as a visual reference, only the file(s)
+linked from that table's current row for the relevant case are valid** — never glob or `find` the
+directory and treat whatever turns up as current design intent.
+
+A `.html` file that still exists on disk but is **not** linked from the table (e.g., as of
+2026-09-09: `groups.html`, `group-detail.html`, `group-approval.html`,
+`group-approval-detail.html`, `quorum-approval.html`) is a superseded design pass kept only
+because `benchmarks/029-composed-view-component-inventory.md` and/or `capability-registry.md`
+cite specific markup inside it as component-inventory evidence — per this repo's append-don't-
+rewrite convention (root `CLAUDE.md`), that citation stays valid even after the design itself is
+superseded. Don't resurrect it as a design reference; don't delete it either.
+
+For **Document Approval (Case 3)**, the current design references are exactly the four the index
+table links: `document-submit.html`, `document-signature-placement.html`,
+`document-approval.html`, `approval-dashboard.html`.
+
 ## Established pattern so far
 
 Each `internal/<name>/doc.go` states what it's graduated from (or "NEW" for `internal/storage`),
