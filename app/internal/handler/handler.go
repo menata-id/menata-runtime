@@ -349,6 +349,8 @@ func navigationEntryCollectionSlug(t model.ViewType) string {
 		return "/process-map"
 	case model.ViewTypeForm:
 		return "/new"
+	case model.ViewTypePage:
+		return "/page" // CAP-V10 Tier 2, 2026-09-09 -- added alongside navigationCollectionViewTypes (metadata/validate.go)
 	default: // model.ViewTypeList, and any type validate.go should have already rejected
 		return ""
 	}

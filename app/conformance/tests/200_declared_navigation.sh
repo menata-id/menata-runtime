@@ -21,9 +21,20 @@ ALICE_NAV=$(session_for alice@example.com password)
 # this IS mch_approval_document's own page) and the View target (linking
 # to its own collection-level route) -- Approval Step is absent entirely,
 # not merely unlinked.
+#
+# The View target's own href is asserted as /page, not /dashboard --
+# seeds/051_dashboard_nav_supersede.sql (2026-09-09) repointed
+# nav_ad_dashboard's own target_view at vw_ad_page (CAP-V10 Tier 2's real
+# composed screen, the one that actually matches approval-dashboard.html)
+# once that screen existed, superseding vw_ad_dashboard's own standalone
+# route as the declared nav destination -- vw_ad_dashboard itself is
+# unchanged and still real (vw_ad_page's own Children embeds it as that
+# page's own "Summary" section), only which URL the nav link resolves to
+# changed. This assertion was updated the same day as that seed, not left
+# to silently start failing.
 SUBNAV_BODY=$(get_body "$BASE_URL/mch_approval_document" "$ALICE_NAV")
 echo "$SUBNAV_BODY" | grep -q 'bg-white text-blue-700 shadow-sm">[[:space:]]*Approval Document' && \
-    echo "$SUBNAV_BODY" | grep -q 'href="/ws_default/mch_approval_document/dashboard"' && \
+    echo "$SUBNAV_BODY" | grep -q 'href="/ws_default/mch_approval_document/page"' && \
     ! echo "$SUBNAV_BODY" | grep -q '>Approval Step<'
 check T243 "CAP-O03" "declared navigation's sub-nav strip shows exactly the declared entries (machine, view), Approval Step absent" $?
 

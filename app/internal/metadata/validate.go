@@ -758,6 +758,7 @@ var navigationCollectionViewTypes = map[model.ViewType]bool{
 	model.ViewTypeReport:     true,
 	model.ViewTypeBoard:      true,
 	model.ViewTypeProcessMap: true,
+	model.ViewTypePage:       true, // CAP-V10 Tier 2, 2026-09-09 -- GET /{machineID}/page, added alongside this Type itself
 }
 
 // validateNavigationEntries (CAP-O03 Tier 5, Phase 1) enforces the same
