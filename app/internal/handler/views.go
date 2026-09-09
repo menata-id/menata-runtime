@@ -285,6 +285,26 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tiles, err := h.buildDashboardTiles(r, view)
+	if err != nil {
+		http.Error(w, "failed to load dashboard", http.StatusInternalServerError)
+		return
+	}
+
+	a := h.auth(r)
+	page := ui.Dashboard(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), view.Name, tiles, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render dashboard", "error", err)
+	}
+}
+
+// buildDashboardTiles (CAP-V10) computes one tile per declared Section --
+// a record COUNT on that section's own Machine, optionally broken down by
+// GroupField's own distinct values. Shared by Dashboard (the standalone
+// route) and Page's own embedded dashboard sections (CAP-V10 Tier 2) for
+// the same "one computation, not two that could drift" reason
+// applyListFilter/buildListRows already are.
+func (h *Handler) buildDashboardTiles(r *http.Request, view *model.View) ([]ui.DashboardTile, error) {
 	tiles := make([]ui.DashboardTile, 0, len(view.Config.Sections))
 	for _, sec := range view.Config.Sections {
 		secMachine, ok := h.interp.Get().GetMachine(sec.Machine)
@@ -298,8 +318,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 		counts, err := h.records.CountGroupedBy(r.Context(), sec.Machine, sec.GroupField)
 		if err != nil {
-			http.Error(w, "failed to load dashboard", http.StatusInternalServerError)
-			return
+			return nil, err
 		}
 		tile := ui.DashboardTile{Title: sec.Title, MachineID: sec.Machine}
 		for _, c := range counts {
@@ -310,12 +329,7 @@ func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 		tiles = append(tiles, tile)
 	}
-
-	a := h.auth(r)
-	page := ui.Dashboard(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), view.Name, tiles, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
-	if err := page.Render(r.Context(), w); err != nil {
-		slog.Error("render dashboard", "error", err)
-	}
+	return tiles, nil
 }
 
 // Board (CAP-V14 Tier 2) renders a kanban board View -- one lane per

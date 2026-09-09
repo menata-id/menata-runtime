@@ -1046,15 +1046,66 @@ views:
 | `board` | ✅ CAP-V14 Tier 2 — kanban lanes over `group_field`'s own option set; `POST .../board-move` rewrites it on drag |
 | `coord_placement` | ✅ CAP-V21 — a preview (PDF/image) of ANOTHER record's own file, referenced via `reference_field`, with one draggable pin writing `page_field`/`x_field`/`y_field` back to THIS record on drop; requires `coord_placement: {reference_field, preview_field, page_field, x_field, y_field}`. Since 2026-09-09, every other record sharing the same `reference_field` value and already-placed on the same page renders alongside as a small read-only sibling pin, automatically — no extra config |
 | `decision_stepper` | ✅ CAP-V20 — a done/current/pending progress indicator over a parent record's own child rows (found via `Machine.config.steps_machine`/`steps_parent_field`, not a View config key), with a real Approve/Reject on whichever step is `current`; requires `decision_stepper: {sequence_field, decision_field}` |
+| `page` | ✅ CAP-V10 Tier 2, 2026-09-09 — a collection-level View with NO host record, composed entirely from `children` (the same key `decision_stepper`/`coord_placement` embedding uses, extended — see below); resolved at `GET /{machine}/page` |
 
 **Note (2026-09-09):** `board`/`coord_placement`/`decision_stepper` were previously undocumented in
 this file (real ✅ capabilities since 2026-08-22/29, only ever written up in `guides/writing-
 runtime-metadata.md`) — a pre-existing documentation gap, not introduced by this session, closed
 here alongside this session's own three new additions below (`display`, `child_lines_template`,
-`$sla_urgency`). `Children` (View composition, CAP-V20 Tier 2) is also still undocumented in this
-file — see `guides/writing-runtime-metadata.md`'s own "Komposisi View" section for the full
-grammar in the meantime; migrating it here is unfinished, named per this file's own "silence is
-not a decision" posture, not done in this pass.
+`$sla_urgency`), and again alongside `page`/`children` (extended) further down.
+
+### View composition — `children`
+
+Any View may declare `children`: an ordered list of entries, each naming either another View
+(`view: <id>`) or, on a `page` View only, static content (`content: {...}`). Two levels, two
+different Type allow-lists:
+
+- **Record-level** (any View except `page` — e.g. a `detail` View embedding a child's own progress
+  inline): `children: [{view: <id>}]` only — no `content`, `title`, or `layout`. The referenced
+  View must be `decision_stepper` or `coord_placement` (CAP-V20 Tier 2's own allow-list,
+  `EmbeddableChildViewTypes`) — resolved and rendered relative to the HOST record being shown.
+- **Page-level** (a `page` View only, CAP-V10 Tier 2): entries may set `view` (must be `list` or
+  `dashboard` — `PageEmbeddableViewTypes`, a DIFFERENT allow-list, since there's no host record to
+  scope a `decision_stepper`/`coord_placement` to) OR `content` (exactly one of the two, never
+  both/neither) plus an optional `title` (overrides the referenced View's own name) and `layout`
+  (`""` full width | `"main"`/`"aside"`, two consecutive entries pairing into one 2/3+1/3 grid row).
+
+```yaml
+- id: vw_step_detail
+  type: detail
+  children:                                  # record-level -- CAP-V20 Tier 2
+    - view: vw_document_progress             # decision_stepper, a DIFFERENT Machine's own View
+    - view: vw_step_signature                # coord_placement, THIS Machine's own View
+
+- id: vw_ops_page
+  name: Ops Dashboard
+  type: page                                 # page-level -- CAP-V10 Tier 2
+  children:
+    - view: vw_ops_summary                   # dashboard
+      title: Summary
+    - view: vw_ops_pending                   # list, filtered/cards as that View's own config says
+      title: Pending Items
+      layout: main
+    - content:                               # closed vocabulary: heading | text | button | image
+        type: text
+        text: "Activity feed not built yet."
+      title: Recent Activity
+      layout: aside
+```
+
+An embedded `list` section shows only its first several rows (a summary, not the full list — no
+search/pagination/New button inside it) with an automatic "View all →" link to the real View.
+Resolving a `view` entry is always by id directly (`Interpreter.GetView`), never through
+`DefaultListView`'s own "first `list`-type View by position" lookup that governs `GET /{machine}`
+— this is what makes a Machine's SECOND `list` View (otherwise unreachable, see the gotcha above)
+a real, useful section rather than dead metadata, as long as some `page`'s own `children`
+references it by id.
+
+Full grammar and worked reasoning: `guides/writing-runtime-metadata.md`'s own "Komposisi View" and
+"View tipe `page`" sections (Indonesian). Implementation: `app/internal/model/model.go`
+(`ChildViewRef`, `PageContent`, `EmbeddableChildViewTypes`, `PageEmbeddableViewTypes`),
+`app/internal/handler/embed.go` (record-level dispatch) and `page.go` (page-level dispatch),
+`app/internal/metadata/validate.go` (both levels' own load-time checks).
 
 ### View `config` per type
 

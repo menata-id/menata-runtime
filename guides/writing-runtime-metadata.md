@@ -915,6 +915,72 @@ Referensi implementasi lengkap: `app/internal/model/model.go` (`ViewConfig.Child
 Approval + Group (termasuk `children` ini dalam konteks satu aplikasi utuh):
 `app/docs/examples/document-approval.md`.
 
+#### View tipe `page` — komposisi tingkat halaman (CAP-V10 Tier 2, `app/`, 2026-09-09)
+
+Bedanya dengan `children` di atas: `children` di atas menempel pada View APAPUN (Detail, dst.) dan
+selalu butuh SATU record host untuk konteksnya (embed di halaman record tertentu). View bertipe
+`page` sendiri TIDAK punya host record — dia komposisi tingkat KOLEKSI, dan isinya (`children`,
+key yang sama, dipakai ulang) boleh berupa View lain ATAU konten statis:
+
+```yaml
+views:
+  - id: vw_ad_page
+    name: Approval Dashboard
+    type: page
+    children:
+      - view: vw_ad_dashboard
+        title: Summary
+      - view: vw_ad_pending          # list/dashboard saja yang boleh -- lihat di bawah
+        title: Pending Documents
+        layout: main                 # dipasangkan dengan entry "aside" berikutnya jadi 1 baris grid 2/3+1/3
+      - content:                     # bukan View sama sekali -- kosakata statis tertutup
+          type: text
+          text: "Recent Activity requires CAP-R04, not built yet."
+        title: Recent Activity
+        layout: aside
+```
+
+```sql
+INSERT INTO views (id, machine_id, name, type, position, config) VALUES
+    ('vw_ad_page', 'mch_approval_document', 'Approval Dashboard', 'page', 6,
+     '{"children":[
+        {"view":"vw_ad_dashboard","title":"Summary"},
+        {"view":"vw_ad_pending","title":"Pending Documents","layout":"main"},
+        {"content":{"type":"text","text":"Recent Activity requires CAP-R04, not built yet."},"title":"Recent Activity","layout":"aside"}
+     ]}');
+```
+
+Diakses lewat `GET /{machine}/page` (rute baru, sama pola dengan `/dashboard`/`/board`/`/report`).
+
+- **Setiap entry `children` di sini wajib set TEPAT SATU** dari `view` atau `content` (gagal load
+  kalau dua-duanya atau tidak ada sama sekali).
+- **`view`** — hanya boleh menunjuk View bertipe `list` atau `dashboard`
+  (`model.PageEmbeddableViewTypes`, **beda** dari daftar tipe yang boleh di-`children`-kan di
+  bagian sebelumnya di atas — level halaman ini punya daftar sendiri). Di-resolve lewat ID
+  langsung (`Interpreter.GetView`), **bukan** lewat `GET /{machine}` biasa — inilah yang bikin View
+  `list` KEDUA pada satu Machine (yang lewat rute biasa tidak pernah terjangkau, lihat koreksi di
+  atas dan `runtime-metadata-gotchas.md`) tetap berguna: dia terjangkau lewat komposisi `page` ini,
+  walau tidak terjangkau lewat `GET /{machine}`nya sendiri.
+- **`content`** — `{type, text?, href?, src?}`. `type` salah satu dari `heading`/`text` (butuh
+  `text`), `button` (butuh `text` DAN `href`), `image` (butuh `src`). Dicek saat load.
+- **`title`** — opsional, menimpa nama View yang direferensikan sebagai judul section. Kalau
+  kosong, pakai nama View itu sendiri (tidak berlaku untuk `content`, yang wajib punya `title`
+  sendiri kalau mau ada judul).
+- **`layout`** — `""` (default, selebar penuh) atau `"main"`/`"aside"`. Dua entry BERURUTAN yang
+  masing-masing `"main"` lalu `"aside"` dirender jadi satu baris grid 2/3+1/3, bukan ditumpuk —
+  bentuk layout yang dibutuhkan `approval-dashboard.html`'s sendiri (Pending Documents + Recent
+  Activity berdampingan). Selain pola itu, semua section ditumpuk penuh lebar berurutan.
+- **Section `list` yang di-embed dibatasi ke beberapa baris pertama saja** (bukan seluruh list,
+  tidak ada search/pagination/tombol New di dalam section) — link "View all →" ke View aslinya
+  selalu ditambahkan otomatis.
+- **Belum didukung:** `page` yang meng-compose `page` lain (nested/recursive) — dicek saat load,
+  gagal dengan pesan jelas kalau dicoba, bukan didiamkan.
+
+Referensi implementasi: `app/internal/model/model.go` (`ViewTypePage`, `PageEmbeddableViewTypes`,
+`PageContent`, `ChildViewRef`'s tambahan `Content`/`Title`/`Layout`), `app/internal/handler/
+page.go` (`Page`, `renderPageChild`, `buildPageRows`), `app/internal/metadata/validate.go`
+(validasi). Contoh nyata: `app/seeds/050_composed_dashboard.sql`.
+
 ---
 
 ### Navigation (CAP-O03 Tier 5, Phase 1, `app/`, 2026-09-08)

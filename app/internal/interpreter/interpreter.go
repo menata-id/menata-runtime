@@ -403,6 +403,11 @@ func (i *Interpreter) DecisionStepperView(machineID string) *model.View {
 	return i.viewOfType(machineID, model.ViewTypeDecisionStepper)
 }
 
+// PageView (CAP-V10 Tier 2) -- same "first View of this Type" lookup.
+func (i *Interpreter) PageView(machineID string) *model.View {
+	return i.viewOfType(machineID, model.ViewTypePage)
+}
+
 func (i *Interpreter) viewOfType(machineID string, t model.ViewType) *model.View {
 	m, ok := i.machines[machineID]
 	if !ok {

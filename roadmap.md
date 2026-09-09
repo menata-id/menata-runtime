@@ -2474,11 +2474,16 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
        copy. 247/247 conformance, verified live. Full account, `capability-registry.md`'s own
        `CAP-V21` row. This was the last Document-Approval-specific item on this list — 5/6 stay
        deliberately deferred/declined (not Document Approval work per se, see each item's own note).
-    5. **`CAP-V10` Tier 2** stays where item 24 above already put it (§8, "as their cases arrive")
+    5. ~~`CAP-V10` Tier 2 stays where item 24 above already put it~~ (§8, "as their cases arrive")
        — `approval-dashboard.html` is exploratory evidence the study built specifically to test
        the concept, not a business-declared need on its own; Study 38's own case-to-mockup
        coverage pass named Case 13 (Blog landing) and Case 10 (Organization Composite) as the
-       mockups that would actually move this one, not another Case 3 extension.
+       mockups that would actually move this one, not another Case 3 extension. **Overridden by
+       direct owner request, ✅ done (2026-09-09)** — asked explicitly to verify Document
+       Approval's own composability "hingga ke View" (all the way to the View/presentation layer)
+       rather than wait for Case 13/10; a direct owner request is the same evidentiary class this
+       registry already accepted for `CAP-F24`/`CAP-V28`. Full account, `capability-registry.md`'s
+       own `CAP-V10` Tier 2 row.
     6. **`Choice Card`** (the bordered-radio picker, `document-submit.html`'s Approval Mode)
        stays **not admitted** — still exactly one instance after this cross-check, no change to
        Study 38's own verdict. Revisit only if a second, independent mockup or case produces the

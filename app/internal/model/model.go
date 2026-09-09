@@ -760,7 +760,49 @@ const (
 	// Purely presentational, same "computed at render time, no new
 	// metadata concept" precedent as CAP-V13/CAP-W05.
 	ViewTypeDecisionStepper ViewType = "decision_stepper"
+	// ViewTypePage (CAP-V10 Tier 2, 2026-09-09) is a collection-level View
+	// whose ENTIRE body is composed from other Views/static content, via
+	// the SAME Config.Children field CAP-V20 Tier 2 already uses for
+	// record-level embedding -- named as the intended convergence point
+	// when this admission landed (embed.go's own renderEmbeddedViews doc
+	// comment). No host record here (unlike CAP-V20 Tier 2): each Children
+	// entry is either {view: <id>} (an existing collection-level View,
+	// resolved and dispatched by ITS OWN Type, same "look at the View's
+	// own declared type" principle every dispatch in this runtime already
+	// follows) or {content: {...}} (PageContent, a small closed static-
+	// content vocabulary for section framing text that isn't backed by any
+	// View). PageEmbeddableViewTypes is this level's own allow-list --
+	// deliberately separate from EmbeddableChildViewTypes (record-level):
+	// the two lists don't have to agree, and don't today (list/dashboard
+	// here vs decision_stepper/coord_placement there).
+	ViewTypePage ViewType = "page"
 )
+
+// PageEmbeddableViewTypes (CAP-V10 Tier 2) is every View Type a `page`
+// View's own Children may reference -- the load-time half of this contract
+// (metadata/validate.go) and the render-time half (internal/handler/page.go's
+// renderPageChild, a type switch) must stay in sync, same discipline
+// EmbeddableChildViewTypes already established for CAP-V20 Tier 2's own
+// record-level Children.
+var PageEmbeddableViewTypes = map[ViewType]bool{
+	ViewTypeList:      true,
+	ViewTypeDashboard: true,
+}
+
+// PageContent (CAP-V10 Tier 2) is one static-content Children entry --
+// closed vocabulary (Type: "heading" | "text" | "button" | "image"), named
+// in this capability's own admission scope as the thing a composed page
+// needs alongside real embedded Views to frame/caption a section, or to
+// honestly stand in for a section with no real data source yet (e.g. an
+// activity feed with no View to back it). Required sub-fields depend on
+// Type, checked at load time: heading/text need Text; button needs Text
+// and Href; image needs Src.
+type PageContent struct {
+	Type string `json:"type"`
+	Text string `json:"text,omitempty"`
+	Href string `json:"href,omitempty"`
+	Src  string `json:"src,omitempty"`
+}
 
 // ViewConfig holds view-specific presentation configuration.
 type ViewConfig struct {
@@ -844,12 +886,24 @@ type ViewConfig struct {
 	ChildLinesTemplate *ChildLinesTemplateConfig `json:"child_lines_template,omitempty"`
 }
 
-// ChildViewRef (CAP-V20 Tier 2) is one entry in a View's own
-// Config.Children -- see that field's own doc comment for the full
-// reasoning. Deliberately just an id: the HOST view names WHICH View it
-// wants, never how to interpret it.
+// ChildViewRef (CAP-V20 Tier 2, extended by CAP-V10 Tier 2, 2026-09-09) is
+// one entry in a View's own Config.Children -- see that field's own doc
+// comment for the full reasoning. View names WHICH View the host wants,
+// never how to interpret it -- CAP-V20 Tier 2's own record-level use only
+// ever sets this. Content/Title/Layout are CAP-V10 Tier 2's own additions,
+// meaningful only on a `page` View's own Children (record-level embedding
+// ignores them): Content is set INSTEAD of View for a static-content entry
+// (exactly one of the two is set, checked at load time); Title optionally
+// overrides the referenced View's own Name as this section's header; Layout
+// is "" (full width, the default) or "main"/"aside" -- two consecutive
+// entries declaring "main" then "aside" render as one 2/3+1/3 grid row
+// instead of stacking, the composed-page layout shape
+// composable-view-proposal-reconciliation.md §8(ii) named as needed.
 type ChildViewRef struct {
-	View string `json:"view"`
+	View    string       `json:"view,omitempty"`
+	Content *PageContent `json:"content,omitempty"`
+	Title   string       `json:"title,omitempty"`
+	Layout  string       `json:"layout,omitempty"`
 }
 
 // EmbeddableChildViewTypes is every View Type a View's own Config.Children

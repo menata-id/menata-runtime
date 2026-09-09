@@ -1,0 +1,89 @@
+package ui
+
+import "menata.id/app/internal/model"
+
+// PageSection (CAP-V10 Tier 2) is one resolved Children entry of a `page`
+// View, ready to render -- internal/handler/page.go's own renderPageChild
+// is what turns a model.ChildViewRef into one of these, dispatching by the
+// referenced View's own Type (or building a static-content block directly)
+// exactly the same "look at the thing's own declared type, not what the
+// host expected" principle embed.go's renderChildView already established
+// for CAP-V20 Tier 2's record-level Children.
+type PageSection struct {
+	Title       string
+	ViewBadge   string
+	ActionLabel string
+	ActionHref  string
+	Layout      string // "" (full width) | "main" | "aside" -- see ComposedPage's own doc comment
+	Content     templ.Component
+}
+
+// PageRow (CAP-V10 Tier 2) is one rendered row of a composed page --
+// either one full-width section (Aside nil) or a paired main+aside row
+// (the 2/3+1/3 grid shape composable-view-proposal-reconciliation.md
+// §8(ii) named as needed). internal/handler/page.go's own buildPageRows
+// does the pairing (two consecutive Children entries declaring Layout
+// "main" then "aside") -- kept out of the template on purpose, so the
+// template itself never needs index arithmetic to skip an already-
+// consumed next entry, the same "handler computes shape, template just
+// renders it" split every other View type in this codebase already uses.
+type PageRow struct {
+	Main  PageSection
+	Aside *PageSection
+}
+
+// ComposedPage (CAP-V10 Tier 2) renders a `page` View's entire body from
+// its own resolved Rows -- the actual point of this View Type versus
+// every other one, which each render exactly one thing.
+templ ComposedPage(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, viewName string, rows []PageRow, unreadCount int, subNav []SubNavLink) {
+	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
+		<div class="mb-4">
+			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
+		</div>
+		<div class="space-y-6">
+			for _, row := range rows {
+				if row.Aside != nil {
+					<div class="grid gap-6 lg:grid-cols-3">
+						<div class="lg:col-span-2">
+							@pageSectionCard(row.Main)
+						</div>
+						<div>
+							@pageSectionCard(*row.Aside)
+						</div>
+					</div>
+				} else {
+					@pageSectionCard(row.Main)
+				}
+			}
+		</div>
+	}
+}
+
+templ pageSectionCard(sec PageSection) {
+	@SectionWrapper(sec.Title, sec.ViewBadge, sec.ActionLabel, sec.ActionHref) {
+		@sec.Content
+	}
+}
+
+// StaticContent (CAP-V10 Tier 2) renders one PageContent entry -- the
+// closed static-content vocabulary a `page` View's Children may use
+// instead of an embedded View, e.g. to honestly stand in for a section
+// with no real data source yet. Four types only, checked at load time
+// (metadata/validate.go): heading/text differ only in emphasis, button is
+// a plain link styled as a button, image is a plain <img>.
+templ StaticContent(pc *model.PageContent) {
+	if pc == nil {
+		<div class="text-sm text-slate-400">—</div>
+	} else {
+		switch pc.Type {
+		case "heading":
+			<h4 class="text-base font-semibold text-slate-900">{ pc.Text }</h4>
+		case "text":
+			<p class="text-sm leading-6 text-slate-600">{ pc.Text }</p>
+		case "button":
+			<a href={ templ.SafeURL(pc.Href) } class="inline-flex items-center rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700">{ pc.Text }</a>
+		case "image":
+			<img src={ pc.Src } class="w-full rounded-md"/>
+		}
+	}
+}

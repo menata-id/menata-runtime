@@ -92,45 +92,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// CAP-V05/V09: a list View's declarative filter, AND-combined, reusing
-	// constraint.Eval's own expression grammar. $current_user (CAP-V05) is
-	// resolved to the acting identity's id here, request-time, before Eval
-	// ever sees it -- Eval itself has no notion of "who's asking."
-	if view != nil && len(view.Config.Filter) > 0 {
-		identityID := h.identityID(r)
-		kept := records[:0]
-		for _, rec := range records {
-			match := true
-			for _, fc := range view.Config.Filter {
-				// CAP-V09 Tier 2: $sla_urgency is a second sentinel, same
-				// precedent as $current_user below -- resolved here, before
-				// Eval ever sees it, since Eval only ever reads real stored
-				// rec.Data values and this is computed at render/filter time
-				// (CAP-V17's own slaUrgency) from the View's own declared
-				// SlaField, never written back to storage.
-				if fc.Field == "$sla_urgency" {
-					_, urgency, ok := slaUrgency(fmt.Sprintf("%v", rec.Data[view.Config.SlaField]), view.Config.SlaWarningDays)
-					if !ok || urgency != fc.Value {
-						match = false
-						break
-					}
-					continue
-				}
-				val := fc.Value
-				if val == "$current_user" {
-					val = identityID
-				}
-				if !constraint.Eval(model.ConstraintExpression{Field: fc.Field, Operator: fc.Operator, Value: val, Expression: fc.Expression}, rec.Data, constraint.EvalContext{CurrentUser: identityID}) {
-					match = false
-					break
-				}
-			}
-			if match {
-				kept = append(kept, rec)
-			}
-		}
-		records = kept
-	}
+	// CAP-V05/V09/V09-Tier-2: a list View's declarative filter -- see
+	// applyListFilter's own doc comment.
+	records = h.applyListFilter(r, view, records)
 
 	// CAP-V08: free-text search across this View's visible columns, ?q=.
 	// Substring, case-insensitive, HTTP black-box (a plain GET query param,
@@ -183,6 +147,77 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	records = records[start:end]
 
+	rows := h.buildListRows(r, cols, colIDs, fieldByID, view, records)
+
+	opts := ui.ListViewOptions{
+		SearchQuery: searchQuery,
+		ManualOrder: view != nil && view.Config.ManualOrder,
+		Archived:    archived,
+		CanDelete:   h.guard.CanDelete(machine, role),
+		Page:        pageNum,
+		TotalPages:  totalPages,
+		Cards:       view != nil && view.Config.Display == "cards", // CAP-V02 Tier 2
+	}
+	a := h.auth(r)
+	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, model.ViewTypeList))
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render list", "error", err)
+	}
+}
+
+// applyListFilter (CAP-V05/V09, extended by CAP-V09 Tier 2) applies a list
+// View's own declarative Filter, AND-combined, reusing constraint.Eval's
+// own expression grammar for every ordinary condition. Two sentinels are
+// resolved HERE, before Eval ever sees them, since Eval only ever reads
+// real stored rec.Data values and neither of these is one: $current_user
+// (CAP-V05) resolves to the acting identity's id; $sla_urgency (CAP-V09
+// Tier 2) resolves to CAP-V17's own render-time urgency bucket for the
+// View's declared SlaField, computed fresh, never written back to storage.
+// Shared by List (the standalone route) and Page's own embedded list
+// sections (CAP-V10 Tier 2) -- identical filtering either way, no reason
+// for a composed page to see a different result than visiting the same
+// View directly would show.
+func (h *Handler) applyListFilter(r *http.Request, view *model.View, records []*store.Record) []*store.Record {
+	if view == nil || len(view.Config.Filter) == 0 {
+		return records
+	}
+	identityID := h.identityID(r)
+	kept := records[:0]
+	for _, rec := range records {
+		match := true
+		for _, fc := range view.Config.Filter {
+			if fc.Field == "$sla_urgency" {
+				_, urgency, ok := slaUrgency(fmt.Sprintf("%v", rec.Data[view.Config.SlaField]), view.Config.SlaWarningDays)
+				if !ok || urgency != fc.Value {
+					match = false
+					break
+				}
+				continue
+			}
+			val := fc.Value
+			if val == "$current_user" {
+				val = identityID
+			}
+			if !constraint.Eval(model.ConstraintExpression{Field: fc.Field, Operator: fc.Operator, Value: val, Expression: fc.Expression}, rec.Data, constraint.EvalContext{CurrentUser: identityID}) {
+				match = false
+				break
+			}
+		}
+		if match {
+			kept = append(kept, rec)
+		}
+	}
+	return kept
+}
+
+// buildListRows (CAP-V02/V17, extended by CAP-V02 Tier 2) resolves each
+// record's own configured columns into ready-to-render Cells -- reference/
+// user/group fields to their own display label (plus a detail link for
+// reference), money/boolean/computed fields formatted, an SlaField cell
+// swapped for its own countdown badge. Shared by List and Page's own
+// embedded list sections (CAP-V10 Tier 2) for the exact same reason
+// applyListFilter is: one formatting result, not two that could drift.
+func (h *Handler) buildListRows(r *http.Request, cols []ui.ColumnDef, colIDs []string, fieldByID map[string]*model.Field, view *model.View, records []*store.Record) []ui.ListRow {
 	rows := make([]ui.ListRow, 0, len(records))
 	for _, rec := range records {
 		cells := make([]ui.ListCell, len(colIDs))
@@ -232,21 +267,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		}
 		rows = append(rows, ui.ListRow{ID: rec.ID, Cells: cells})
 	}
-
-	opts := ui.ListViewOptions{
-		SearchQuery: searchQuery,
-		ManualOrder: view != nil && view.Config.ManualOrder,
-		Archived:    archived,
-		CanDelete:   h.guard.CanDelete(machine, role),
-		Page:        pageNum,
-		TotalPages:  totalPages,
-		Cards:       view != nil && view.Config.Display == "cards", // CAP-V02 Tier 2
-	}
-	a := h.auth(r)
-	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, model.ViewTypeList))
-	if err := page.Render(r.Context(), w); err != nil {
-		slog.Error("render list", "error", err)
-	}
+	return rows
 }
 
 // Archive/Restore (CAP-R03) soft-delete/undelete a record. CanDelete-gated

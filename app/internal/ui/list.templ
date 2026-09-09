@@ -166,6 +166,61 @@ func pageLink(wsSlug, machineID string, opts ListViewOptions, page int) string {
 	return link
 }
 
+// ListContent (CAP-V10 Tier 2) is a `list` View's own rows, embedded --
+// used when a `page` View composes an existing `list` View as one of its
+// own sections (internal/handler/page.go). Deliberately NOT List itself:
+// List's own toolbar (search/export/import/New) and per-row Archive/
+// Move controls are for VISITING that Machine directly, not for a summary
+// sitting inside someone else's page -- reusing List verbatim here would
+// mean CSRF-bearing forms and a page-own-`New` action sitting inside a
+// SectionWrapper that has no business owning either. Same underlying
+// ColumnDef/ListRow/Cards data record_crud.go's buildListRows/
+// applyListFilter already produce -- only the wrapping chrome differs.
+templ ListContent(wsSlug, machineID string, columns []ColumnDef, rows []ListRow, cards bool) {
+	if cards {
+		@listCards(wsSlug, machineID, rows, false)
+	} else if len(rows) == 0 {
+		<div class="py-10 text-center text-sm text-slate-400">No records yet.</div>
+	} else {
+		<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+			<table class="w-full text-sm">
+				<thead class="border-b border-slate-200 bg-slate-50">
+					<tr>
+						for _, col := range columns {
+							<th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">{ col.Name }</th>
+						}
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-slate-100">
+					for _, row := range rows {
+						<tr class="transition-colors hover:bg-slate-50">
+							for i, cell := range row.Cells {
+								if i == 0 {
+									<td class="px-4 py-2.5 font-medium text-slate-900">
+										<a href={ templ.SafeURL("/" + wsSlug + "/" + machineID + "/" + row.ID) } class="hover:text-blue-600 hover:underline">{ cell.Value }</a>
+									</td>
+								} else {
+									<td class="px-4 py-2.5 text-slate-700">
+										if cell.SlaUrgency != "" {
+											@SlaBadge(cell.Value, cell.SlaUrgency)
+										} else if cell.IsStatusBadge && cell.Value != "" {
+											@StatusBadge(cell.Value)
+										} else if cell.Value != "" {
+											{ cell.Value }
+										} else {
+											<span class="text-slate-300">—</span>
+										}
+									</td>
+								}
+							}
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
 // cardFields (CAP-V02 Tier 2) is one ListRow's own Cells collapsed onto
 // RecordSummaryCard's shape -- a pure display transform of data record_crud.
 // go's List already built, no new query. First Cell is the title; every

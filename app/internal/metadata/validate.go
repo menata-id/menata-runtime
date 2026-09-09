@@ -574,6 +574,60 @@ func validateReferences(workspaces []*model.Workspace) error {
 					// embeddable View id fails at load time, not as a
 					// silently-empty card at request time.
 					for _, child := range v.Config.Children {
+						// CAP-V10 Tier 2: a `page` View's own Children entries
+						// use a wider grammar (Content instead of View, plus
+						// Title/Layout) and a DIFFERENT Type allow-list
+						// (PageEmbeddableViewTypes, not EmbeddableChildViewTypes
+						// -- collection-level composition, no host record) than
+						// CAP-V20 Tier 2's own record-level Children below.
+						if v.Type == model.ViewTypePage {
+							if (child.View == "") == (child.Content == nil) {
+								return fmt.Errorf("view %s on machine %s: children entry must set exactly one of view or content", v.ID, m.ID)
+							}
+							if child.Layout != "" && child.Layout != "main" && child.Layout != "aside" {
+								return fmt.Errorf("view %s on machine %s: children entry layout %q must be \"main\" or \"aside\" (empty = full width)", v.ID, m.ID, child.Layout)
+							}
+							if child.Content != nil {
+								pc := child.Content
+								switch pc.Type {
+								case "heading", "text":
+									if pc.Text == "" {
+										return fmt.Errorf("view %s on machine %s: content type %q requires text", v.ID, m.ID, pc.Type)
+									}
+								case "button":
+									if pc.Text == "" || pc.Href == "" {
+										return fmt.Errorf("view %s on machine %s: content type \"button\" requires text and href", v.ID, m.ID)
+									}
+								case "image":
+									if pc.Src == "" {
+										return fmt.Errorf("view %s on machine %s: content type \"image\" requires src", v.ID, m.ID)
+									}
+								default:
+									return fmt.Errorf("view %s on machine %s: content type %q is not one of heading, text, button, image", v.ID, m.ID, pc.Type)
+								}
+								continue
+							}
+							target, ok := viewByID[child.View]
+							if !ok {
+								return fmt.Errorf("view %s on machine %s: children names %q, which does not name a View that exists", v.ID, m.ID, child.View)
+							}
+							if !model.PageEmbeddableViewTypes[target.Type] {
+								return fmt.Errorf("view %s on machine %s: children names %q (type %q) -- not a Type a page View can compose", v.ID, m.ID, child.View, target.Type)
+							}
+							continue
+						}
+
+						// CAP-V20 Tier 2: every Children entry must name a real
+						// View, of a Type this runtime currently knows how to
+						// embed (internal/handler/embed.go's renderChildView
+						// switch -- embeddableChildTypes here must stay in
+						// sync with that switch's own case list, same
+						// discipline ActionType/FieldType exhaustiveness
+						// checks already rely on `go build` catching
+						// elsewhere). Same "Unknown = explicit" posture as
+						// coord_placement above -- a typo'd or not-yet-
+						// embeddable View id fails at load time, not as a
+						// silently-empty card at request time.
 						target, ok := viewByID[child.View]
 						if !ok {
 							return fmt.Errorf("view %s on machine %s: children names %q, which does not name a View that exists", v.ID, m.ID, child.View)
