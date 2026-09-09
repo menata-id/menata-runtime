@@ -2452,12 +2452,15 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
        and live against `menata_runtime` (real end-to-end smoke test). Full account, including an
        unrelated pre-existing live-DB drift finding surfaced while verifying it, on
        `capability-registry.md`'s own `CAP-V28` row.
-    3. **Run the A1–A5 admission test** (not build yet) on the two gaps this session's own live
+    3. ~~Run the A1–A5 admission test~~ (not build yet) on the two gaps this session's own live
        cross-check newly named: a card-per-record list rendering (`CAP-V02`'s own new note) and a
        computed-SLA-bucket list filter (`CAP-V09`/`CAP-V17`'s own new note). Both have real case
        pressure now (`document-approval.html`'s own inbox) where they didn't before — worth an
        honest admission pass rather than staying silently unnamed, per `guides/breaking-down-ui-
-       components-for-metadata.md`'s own Langkah 9.
+       components-for-metadata.md`'s own Langkah 9. **✅ done (2026-09-09)** — both pass all five
+       criteria, registered as `CAP-V02` Tier 2 and `CAP-V09` Tier 2 (`❌ Proposed`, not yet built —
+       this step was the admission test only, per its own scope). Full reasoning on each row,
+       `capability-registry.md`.
     4. **`CAP-V21`'s "multiple sibling pins on one shared preview" generalization**
        (`document-signature-placement.html`'s own shape) — lower priority than 1–3: it's a
        generalization of an already-✅ capability, not a blocker for anything else in this list,
