@@ -107,6 +107,18 @@ type ReferenceOption struct {
 	Label string
 }
 
+// SiblingPin (CAP-V21 generalization, "multiple sibling pins on one shared
+// preview" -- document-signature-placement.html's own shape, previously
+// deferred, named explicitly on that row) is one OTHER record's own
+// already-placed (X%, Y%) shown for context on the SAME shared preview and
+// page as the record actually being viewed/edited -- read-only by
+// construction (no id/href here), never a second draggable pin. Label is
+// that other record's own displayLabel.
+type SiblingPin struct {
+	Label string
+	X, Y  float64
+}
+
 // FormField pairs a Field definition with its current value for form rendering.
 // Options is only populated for `reference` fields (the picker's choices).
 type FormField struct {

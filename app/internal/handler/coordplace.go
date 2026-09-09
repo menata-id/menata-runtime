@@ -78,8 +78,9 @@ func (h *Handler) CoordPlace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	editable := h.guard.CanEdit(machine, role) && coordPlaceOwnerOK(machine, role, h.identityID(r), rec.Data)
+	siblings := h.coordPlaceSiblings(r, machineID, cp, rec, page)
 	a := h.auth(r)
-	pageComp := ui.CoordPlace(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, view.Name, previewKey, page, pageCount, x, y, editable, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
+	pageComp := ui.CoordPlace(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, view.Name, previewKey, page, pageCount, x, y, editable, siblings, h.unreadCount(r.Context(), a), h.subNavFor(r, machine))
 	if err := pageComp.Render(r.Context(), w); err != nil {
 		slog.Error("render coord place", "error", err)
 	}
@@ -202,10 +203,11 @@ func (h *Handler) renderCoordPlacementChild(r *http.Request, hostRec *store.Reco
 	_, appID := h.interp.Get().ScopeFor(hostMachine.ID)
 	role := h.roleForApp(r, appID)
 	editable := h.guard.CanEdit(hostMachine, role) && coordPlaceOwnerOK(hostMachine, role, h.identityID(r), hostRec.Data)
+	siblings := h.coordPlaceSiblings(r, hostMachine.ID, cp, hostRec, page)
 
 	sec := &ui.EmbeddedSection{
 		Title:   view.Name,
-		Content: ui.CoordPlacePreview(h.workspaceSlug(r), h.auth(r).CSRFToken, hostMachine.ID, hostRec.ID, previewKey, page, pageCount, x, y, editable),
+		Content: ui.CoordPlacePreview(h.workspaceSlug(r), h.auth(r).CSRFToken, hostMachine.ID, hostRec.ID, previewKey, page, pageCount, x, y, editable, siblings),
 	}
 	if pageCount > 1 {
 		// Page-switching only works on the standalone /place route (its own
@@ -215,6 +217,52 @@ func (h *Handler) renderCoordPlacementChild(r *http.Request, hostRec *store.Reco
 		sec.ActionHref = "/" + h.workspaceSlug(r) + "/" + hostMachine.ID + "/" + hostRec.ID + "/place"
 	}
 	return sec
+}
+
+// coordPlaceSiblings (CAP-V21's own "multiple sibling pins on one shared
+// preview" generalization, document-signature-placement.html's own shape
+// -- previously deferred, named explicitly on this row: "no case has
+// asked for the latter") finds every OTHER record on machineID that
+// shares rec's own cp.ReferenceField value (the same parent whose file
+// this preview is), already has a real position set (an unset pin -- x
+// and y both zero -- has nothing real to show, same "unset = center"
+// convention CoordPlace's own default already treats as not-yet-placed),
+// and sits on the SAME page currently being viewed -- a pin on a
+// different page of the same multi-page file would be meaningless
+// overlaid here. Same "filter every record of a Machine in Go, then keep
+// the ones pointing back at this same parent" shape decisionstepper.go's
+// computeStepperSteps and childlinestemplate.go's templateChildValues
+// already use for the equivalent reverse lookup. Read-only by
+// construction (ui.SiblingPin carries no id/href) -- CanEdit/
+// coordPlaceOwnerOK still govern only rec's own pin, unchanged.
+func (h *Handler) coordPlaceSiblings(r *http.Request, machineID string, cp *model.CoordPlacementConfig, rec *store.Record, page int) []ui.SiblingPin {
+	parentID := fmt.Sprintf("%v", rec.Data[cp.ReferenceField])
+	if parentID == "" {
+		return nil
+	}
+	all, err := h.records.List(r.Context(), machineID, "", "")
+	if err != nil {
+		return nil
+	}
+	machine, ok := h.interp.Get().GetMachine(machineID)
+	if !ok {
+		return nil
+	}
+	var siblings []ui.SiblingPin
+	for _, c := range all {
+		if c.ID == rec.ID || fmt.Sprintf("%v", c.Data[cp.ReferenceField]) != parentID {
+			continue
+		}
+		x, y := toFloat(c.Data[cp.XField]), toFloat(c.Data[cp.YField])
+		if x == 0 && y == 0 {
+			continue // never actually placed -- nothing real to show
+		}
+		if int(toFloat(c.Data[cp.PageField])) != page {
+			continue // a different page of the same file
+		}
+		siblings = append(siblings, ui.SiblingPin{Label: displayLabel(machine, c.ID, c.Data), X: x, Y: y})
+	}
+	return siblings
 }
 
 // coordPlacePreview resolves the referenced record's own preview file,

@@ -2465,10 +2465,15 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
        a new dedicated fixture, `seeds/048_v02t2_v09t2_realization.sql` (Approval Document itself
        still has no due-date Field to source SLA from). 244/244 conformance on a fresh isolated
        schema, deployed live.
-    4. **`CAP-V21`'s "multiple sibling pins on one shared preview" generalization**
+    4. ~~`CAP-V21`'s "multiple sibling pins on one shared preview" generalization~~
        (`document-signature-placement.html`'s own shape) — lower priority than 1–3: it's a
        generalization of an already-✅ capability, not a blocker for anything else in this list,
-       and its own row already named the deferral deliberately, not as an oversight.
+       and its own row already named the deferral deliberately, not as an oversight. **✅ done
+       (2026-09-09)** — `coordPlaceSiblings` shows every other sibling record's own already-placed
+       pin as a read-only dot, on both the standalone `/place` route and the embedded Detail-page
+       copy. 247/247 conformance, verified live. Full account, `capability-registry.md`'s own
+       `CAP-V21` row. This was the last Document-Approval-specific item on this list — 5/6 stay
+       deliberately deferred/declined (not Document Approval work per se, see each item's own note).
     5. **`CAP-V10` Tier 2** stays where item 24 above already put it (§8, "as their cases arrive")
        — `approval-dashboard.html` is exploratory evidence the study built specifically to test
        the concept, not a business-declared need on its own; Study 38's own case-to-mockup

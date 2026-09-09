@@ -48,7 +48,7 @@ func isPDFPreview(previewKey string) bool {
 // .coordplace-preview div instead -- read-only mode leaves it interactive
 // (a viewer might reasonably want to scroll a multi-page-looking PDF
 // object), since nothing there needs to catch drag events anyway.
-func CoordPlace(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, viewName, previewKey string, page, pageCount int, x, y float64, editable bool, unreadCount int, subNav []SubNavLink) templ.Component {
+func CoordPlace(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, viewName, previewKey string, page, pageCount int, x, y float64, editable bool, siblings []SiblingPin, unreadCount int, subNav []SubNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -167,7 +167,7 @@ func CoordPlace(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = CoordPlacePreview(wsSlug, csrfToken, machine.ID, record.ID, previewKey, page, pageCount, x, y, editable).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = CoordPlacePreview(wsSlug, csrfToken, machine.ID, record.ID, previewKey, page, pageCount, x, y, editable, siblings).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -200,7 +200,15 @@ func CoordPlace(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 // EmbeddedSection.ActionHref already links to when pageCount > 1 (reusing
 // SectionWrapper's existing action-link slot rather than inventing a
 // second one here).
-func CoordPlacePreview(wsSlug, csrfToken, machineID, recordID, previewKey string, page, pageCount int, x, y float64, editable bool) templ.Component {
+// siblings (CAP-V21's own "multiple sibling pins on one shared preview"
+// generalization, document-signature-placement.html's own shape) renders
+// as small read-only dots alongside the record's own pin -- context from
+// every OTHER record sharing this same preview and page, never a second
+// draggable target. Rendered identically in both the editable and
+// read-only branches below, since whether THIS record's own pin can be
+// dragged has no bearing on whether siblings' already-placed pins are
+// worth showing for context.
+func CoordPlacePreview(wsSlug, csrfToken, machineID, recordID, previewKey string, page, pageCount int, x, y float64, editable bool, siblings []SiblingPin) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -234,7 +242,7 @@ func CoordPlacePreview(wsSlug, csrfToken, machineID, recordID, previewKey string
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(wsSlug)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 91, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 99, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
@@ -247,7 +255,7 @@ func CoordPlacePreview(wsSlug, csrfToken, machineID, recordID, previewKey string
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(machineID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 92, Col: 38}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 100, Col: 38}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 			if templ_7745c5c3_Err != nil {
@@ -260,7 +268,7 @@ func CoordPlacePreview(wsSlug, csrfToken, machineID, recordID, previewKey string
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(recordID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 93, Col: 36}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 101, Col: 36}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 			if templ_7745c5c3_Err != nil {
@@ -273,7 +281,7 @@ func CoordPlacePreview(wsSlug, csrfToken, machineID, recordID, previewKey string
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfToken)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 94, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 102, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 			if templ_7745c5c3_Err != nil {
@@ -286,7 +294,7 @@ func CoordPlacePreview(wsSlug, csrfToken, machineID, recordID, previewKey string
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(page))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 95, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 103, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 			if templ_7745c5c3_Err != nil {
@@ -304,7 +312,7 @@ func CoordPlacePreview(wsSlug, csrfToken, machineID, recordID, previewKey string
 				var templ_7745c5c3_Var13 templ.SafeURL
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/files/" + previewKey + "#page=" + strconv.Itoa(page)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 117, Col: 111}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 125, Col: 111}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {
@@ -322,7 +330,7 @@ func CoordPlacePreview(wsSlug, csrfToken, machineID, recordID, previewKey string
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("/files/" + previewKey)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 119, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 127, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 				if templ_7745c5c3_Err != nil {
@@ -340,72 +348,166 @@ func CoordPlacePreview(wsSlug, csrfToken, machineID, recordID, previewKey string
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("left:" + formatPct(x) + "%; top:" + formatPct(y) + "%;")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 123, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 131, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\" draggable=\"true\" _=\"on dragstart\n\t\t\t\t\tjs(event) event.dataTransfer.setData('text/plain', 'pin') end\n\t\t\t\tend\"></div></div><p class=\"mt-2 text-xs text-slate-400\">Drag the pin to reposition — saved automatically on drop.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\" draggable=\"true\" _=\"on dragstart\n\t\t\t\t\tjs(event) event.dataTransfer.setData('text/plain', 'pin') end\n\t\t\t\tend\"></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = siblingPins(siblings).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div><p class=\"mt-2 text-xs text-slate-400\">Drag the pin to reposition — saved automatically on drop.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"coordplace-preview relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100\" style=\"height: 70vh;\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<div class=\"coordplace-preview relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100\" style=\"height: 70vh;\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if isPDFPreview(previewKey) {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<object type=\"application/pdf\" data=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<object type=\"application/pdf\" data=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var16 templ.SafeURL
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/files/" + previewKey + "#page=" + strconv.Itoa(page)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 134, Col: 111}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 143, Col: 111}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" class=\"absolute inset-0 h-full w-full\"></object>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\" class=\"absolute inset-0 h-full w-full\"></object>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<img src=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<img src=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue("/files/" + previewKey)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 136, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 145, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\" class=\"absolute inset-0 h-full w-full object-contain\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\" class=\"absolute inset-0 h-full w-full object-contain\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<div class=\"coordplace-pin absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow\" style=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div class=\"coordplace-pin absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow\" style=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("left:" + formatPct(x) + "%; top:" + formatPct(y) + "%;")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 140, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 149, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\"></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\"></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = siblingPins(siblings).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		return nil
+	})
+}
+
+// siblingPins (CAP-V21's own "multiple sibling pins" generalization) draws
+// one small, read-only, non-draggable dot per SiblingPin -- deliberately
+// no `draggable`, no data-coordplace-* attributes, no Hyperscript at all,
+// so it can never be mistaken for the record's own editable pin. `title`
+// carries the full label as a native tooltip; the dot itself shows just
+// the label's own initials (same `initials` helper AvatarStack/MemberChip
+// already use), matching document-signature-placement.html's own numbered-
+// circle shape closely enough without inventing a second numbering scheme.
+func siblingPins(siblings []SiblingPin) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var19 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var19 == nil {
+			templ_7745c5c3_Var19 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		for _, s := range siblings {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<div class=\"absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-slate-400 text-[9px] font-semibold text-white shadow\" style=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var20 string
+			templ_7745c5c3_Var20, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("left:" + formatPct(s.X) + "%; top:" + formatPct(s.Y) + "%;")
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 168, Col: 71}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\" title=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var21 string
+			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(s.Label)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 169, Col: 18}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var22 string
+			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(initials(s.Label))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/coordplace.templ`, Line: 170, Col: 22}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
