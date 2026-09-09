@@ -102,6 +102,20 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		for _, rec := range records {
 			match := true
 			for _, fc := range view.Config.Filter {
+				// CAP-V09 Tier 2: $sla_urgency is a second sentinel, same
+				// precedent as $current_user below -- resolved here, before
+				// Eval ever sees it, since Eval only ever reads real stored
+				// rec.Data values and this is computed at render/filter time
+				// (CAP-V17's own slaUrgency) from the View's own declared
+				// SlaField, never written back to storage.
+				if fc.Field == "$sla_urgency" {
+					_, urgency, ok := slaUrgency(fmt.Sprintf("%v", rec.Data[view.Config.SlaField]), view.Config.SlaWarningDays)
+					if !ok || urgency != fc.Value {
+						match = false
+						break
+					}
+					continue
+				}
 				val := fc.Value
 				if val == "$current_user" {
 					val = identityID
@@ -226,6 +240,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		CanDelete:   h.guard.CanDelete(machine, role),
 		Page:        pageNum,
 		TotalPages:  totalPages,
+		Cards:       view != nil && view.Config.Display == "cards", // CAP-V02 Tier 2
 	}
 	a := h.auth(r)
 	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, model.ViewTypeList))

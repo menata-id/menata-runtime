@@ -766,6 +766,7 @@ const (
 type ViewConfig struct {
 	Fields      []string           `json:"fields,omitempty"`       // form: ordered field ids
 	Columns     []string           `json:"columns,omitempty"`      // list/calendar/timeline: visible column field ids
+	Display     string             `json:"display,omitempty"`      // list: CAP-V02 Tier 2 -- "" (table, default) | "cards" (RecordSummaryCard-shaped rows, same Columns underneath)
 	DefaultSort *SortConfig        `json:"default_sort,omitempty"` // list: initial sort
 	ChildLines  *ChildLinesConfig  `json:"child_lines,omitempty"`  // form: CAP-F16 embedded child rows
 	Filter      []FilterCondition  `json:"filter,omitempty"`       // list: CAP-V09 declarative row filter, CAP-V05 "my records" via $current_user

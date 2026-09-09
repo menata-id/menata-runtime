@@ -381,6 +381,13 @@ type ListViewOptions struct {
 	CanDelete   bool // CAP-R03: render Archive/Restore controls at all
 	Page        int  // CAP-R05, 1-indexed
 	TotalPages  int  // CAP-R05
+
+	// Cards (CAP-V02 Tier 2) renders each row as a RecordSummaryCard-shaped
+	// card instead of a `<table>` row -- config.ViewConfig.Display ==
+	// "cards", a rendering-mode toggle on the same `list` View, same
+	// rows/columns underneath. False (table) is the default, unchanged
+	// behavior for every other list.
+	Cards bool
 }
 
 // ImportRowResult (CAP-R06) is one CSV row's outcome -- Message is either

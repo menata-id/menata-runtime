@@ -2,6 +2,7 @@ package ui
 
 import "fmt"
 import "net/url"
+import "strings"
 import "menata.id/app/internal/model"
 
 templ List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink, viewNav []ViewNavLink) {
@@ -44,6 +45,9 @@ templ List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, mach
 				</a>
 			}
 		</div>
+		if opts.Cards {
+			@listCards(wsSlug, machine.ID, rows, opts.Archived)
+		} else {
 		<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
 			<table class="w-full text-sm">
 				<thead class="border-b border-slate-200 bg-slate-50">
@@ -132,6 +136,7 @@ templ List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, mach
 				}
 			</table>
 		</div>
+		}
 		if opts.TotalPages > 1 {
 			<div class="mt-4 flex items-center justify-center gap-4 text-sm text-slate-500">
 				if opts.Page > 1 {
@@ -159,4 +164,89 @@ func pageLink(wsSlug, machineID string, opts ListViewOptions, page int) string {
 		link += "&archived=1"
 	}
 	return link
+}
+
+// cardFields (CAP-V02 Tier 2) is one ListRow's own Cells collapsed onto
+// RecordSummaryCard's shape -- a pure display transform of data record_crud.
+// go's List already built, no new query. First Cell is the title; every
+// other Cell joins into the subtitle (" · "-separated), except the first
+// badge-flagged Cell among them (IsStatusBadge or SlaUrgency set), which
+// becomes the card's own badge instead of subtitle text -- mirrors
+// list.templ's own table rendering, which already special-cases exactly
+// those two Cell flags per-cell.
+type cardFields struct {
+	Title         string
+	Subtitle      string
+	Badge         string
+	IsStatusBadge bool
+	SlaUrgency    string
+}
+
+func cardSummary(row ListRow) cardFields {
+	if len(row.Cells) == 0 {
+		return cardFields{}
+	}
+	cf := cardFields{Title: row.Cells[0].Value}
+	badgeTaken := false
+	var subtitleParts []string
+	for _, c := range row.Cells[1:] {
+		if !badgeTaken && (c.IsStatusBadge || c.SlaUrgency != "") && c.Value != "" {
+			cf.Badge, cf.IsStatusBadge, cf.SlaUrgency = c.Value, c.IsStatusBadge, c.SlaUrgency
+			badgeTaken = true
+			continue
+		}
+		if c.Value != "" {
+			subtitleParts = append(subtitleParts, c.Value)
+		}
+	}
+	cf.Subtitle = strings.Join(subtitleParts, " · ")
+	return cf
+}
+
+// listCards (CAP-V02 Tier 2) is `List`'s own "cards" display mode --
+// RecordSummaryCard-shaped rows instead of a `<table>`, same rows/columns
+// underneath (opts.Cards, wired from ViewConfig.Display == "cards").
+templ listCards(wsSlug, machineID string, rows []ListRow, archived bool) {
+	if len(rows) == 0 {
+		<div class="rounded-lg border border-slate-200 bg-white py-16 text-center text-sm text-slate-400">
+			if archived {
+				Nothing archived.
+			} else {
+				No records yet. Create the first one.
+			}
+		</div>
+	} else {
+		<div class="space-y-3">
+			for _, row := range rows {
+				if cs := cardSummary(row); row.ID != "" {
+					<a
+						href={ templ.SafeURL("/" + wsSlug + "/" + machineID + "/" + row.ID) }
+						class="block transition-opacity hover:opacity-80"
+					>
+						@RecordSummaryCard(initials(cs.Title), cs.Title, cs.Subtitle, cardBadge(cs))
+					</a>
+				}
+			}
+		</div>
+	}
+}
+
+// cardBadge (CAP-V02 Tier 2) resolves cardSummary's own plain-data badge
+// fields into the right templ.Component for RecordSummaryCard's own badge
+// slot -- SlaBadge when the source Cell carried an SlaUrgency, StatusBadge
+// when it was a value_list column, nil (no badge rendered) otherwise. A
+// plain Go function, not a templ block, since templ blocks don't support a
+// bare variable-declaration statement -- the same reason cardSummary
+// itself is a plain function.
+func cardBadge(cs cardFields) templ.Component {
+	switch {
+	case cs.Badge == "":
+		return nil
+	case cs.SlaUrgency != "":
+		return SlaBadge(cs.Badge, cs.SlaUrgency)
+	case cs.IsStatusBadge:
+		return StatusBadge(cs.Badge)
+	default:
+		return nil
+	}
 }

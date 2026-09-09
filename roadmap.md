@@ -2460,7 +2460,11 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
        components-for-metadata.md`'s own Langkah 9. **✅ done (2026-09-09)** — both pass all five
        criteria, registered as `CAP-V02` Tier 2 and `CAP-V09` Tier 2 (`❌ Proposed`, not yet built —
        this step was the admission test only, per its own scope). Full reasoning on each row,
-       `capability-registry.md`.
+       `capability-registry.md`. **Both then built the same day, ❌→✅** — `ViewConfig.Display`
+       (card list) wired onto Case 3's own `vw_ad_all`; the `$sla_urgency` filter sentinel proven on
+       a new dedicated fixture, `seeds/048_v02t2_v09t2_realization.sql` (Approval Document itself
+       still has no due-date Field to source SLA from). 244/244 conformance on a fresh isolated
+       schema, deployed live.
     4. **`CAP-V21`'s "multiple sibling pins on one shared preview" generalization**
        (`document-signature-placement.html`'s own shape) — lower priority than 1–3: it's a
        generalization of an already-✅ capability, not a blocker for anything else in this list,

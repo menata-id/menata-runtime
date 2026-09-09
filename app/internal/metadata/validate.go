@@ -471,6 +471,20 @@ func validateReferences(workspaces []*model.Workspace) error {
 						if fc.Operator == "expression" {
 							continue // CAP-C13: Expression replaces Field entirely, see FilterCondition's own doc comment
 						}
+						if fc.Field == "$sla_urgency" {
+							// CAP-V09 Tier 2: a virtual field (CAP-V17's own
+							// computed bucket), not a real Field -- exempt
+							// from the fieldByID lookup below, same class of
+							// exemption "expression" already gets, but it
+							// DOES require the View to actually declare
+							// what it's computed from, so a Filter naming
+							// it on a View with no SlaField fails loudly
+							// instead of silently never matching.
+							if v.Config.SlaField == "" {
+								return fmt.Errorf("view %s on machine %s: filter field \"$sla_urgency\" requires sla_field to also be set on this view", v.ID, m.ID)
+							}
+							continue
+						}
 						if _, ok := fieldByID[fc.Field]; !ok {
 							return fmt.Errorf("view %s on machine %s: filter field %q does not name a Field on this machine", v.ID, m.ID, fc.Field)
 						}
