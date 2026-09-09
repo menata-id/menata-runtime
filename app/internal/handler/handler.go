@@ -427,8 +427,26 @@ func (h *Handler) resolveDeclaredNav(wsSlug string, entries []*model.NavigationE
 // MachineID alone would incorrectly mark it active from every OTHER page
 // of the same Machine too (caught live: the Dashboard entry lit up on the
 // Document's own Detail page before this fix).
+//
+// hasExactViewMatch (added 2026-09-09, caught live re-verifying CAP-V10
+// Tier 2's own nav): the coarse Machine-target match above is too coarse
+// whenever some OTHER entry's own View-target href is an EXACT match for
+// currentPath -- both "Approval Document" (coarse, matches by machine)
+// and "Dashboard" (exact, matches by path) lit up simultaneously on
+// /mch_approval_document/page, two active tabs at once, confusing rather
+// than merely imprecise. The Machine-target's own coarse match is only
+// the right fallback for pages no View target could ever describe
+// exactly (Detail/Edit/a record's own sub-pages) -- once some View target
+// DOES match exactly, it alone should win.
 func (h *Handler) declaredNavLinks(wsSlug string, entries []*model.NavigationEntry, role []string, activeMachineID, currentPath string) []ui.SubNavLink {
 	resolved := h.resolveDeclaredNav(wsSlug, entries, role)
+	hasExactViewMatch := false
+	for _, e := range resolved {
+		if !e.IsGroup && !e.IsMachineTarget && e.Href == currentPath {
+			hasExactViewMatch = true
+			break
+		}
+	}
 	out := make([]ui.SubNavLink, 0, len(resolved))
 	for _, e := range resolved {
 		active := false
@@ -436,7 +454,7 @@ func (h *Handler) declaredNavLinks(wsSlug string, entries []*model.NavigationEnt
 		case e.IsGroup:
 			active = false
 		case e.IsMachineTarget:
-			active = e.MachineID == activeMachineID
+			active = !hasExactViewMatch && e.MachineID == activeMachineID
 		default: // view target
 			active = e.Href == currentPath
 		}

@@ -55,4 +55,20 @@ CP_DENIED_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$ALICE" "$BASE_URL_A
 [ "$CP_DENIED_CODE" = "404" ]
 check T256 "CAP-V10" "a Machine from another Workspace 404s on the composed page route too (got $CP_DENIED_CODE)" $?
 
+# T257 -- the Pending Documents section has NO "View all ->" link: vw_ad_
+# pending isn't the Machine's own DefaultListView, so a link to the bare
+# Machine URL would silently show a DIFFERENT, unfiltered View instead
+# (caught live re-verifying this same page) -- omitted rather than
+# misleading, not just present-but-wrong.
+! echo "$CP_BODY" | grep -q 'href="/ws_default/mch_approval_document"[^>]*>View all'
+check T257 "CAP-V10" "the Pending Documents section has no misleading 'View all' link to a different, unfiltered View" $?
+
+# T258 -- the sub-nav strip highlights EXACTLY ONE entry on the composed
+# page (Dashboard, an exact path match), not two at once -- caught live:
+# "Approval Document" (coarse Machine-target match) and "Dashboard" (exact
+# View-target match) both lit up simultaneously before this fix.
+CP_ACTIVE_COUNT=$(echo "$CP_BODY" | grep -o 'bg-white text-blue-700 shadow-sm">[[:space:]]*\(Approval Document\|Dashboard\)' | wc -l)
+[ "$CP_ACTIVE_COUNT" -eq 1 ]
+check T258 "CAP-O03" "the composed page's own sub-nav strip highlights exactly one entry, not two at once (got $CP_ACTIVE_COUNT)" $?
+
 rm -f "$CP_PDF"

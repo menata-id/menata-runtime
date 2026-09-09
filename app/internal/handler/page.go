@@ -168,13 +168,26 @@ func (h *Handler) renderPageListChild(r *http.Request, view *model.View, title, 
 	}
 	rows := h.buildListRows(r, cols, colIDs, fieldByID, view, records)
 
-	return &ui.PageSection{
-		Title:       title,
-		Layout:      layout,
-		ActionLabel: "View all →",
-		ActionHref:  "/" + h.workspaceSlug(r) + "/" + view.MachineID,
-		Content:     ui.ListContent(h.workspaceSlug(r), view.MachineID, cols, rows, view.Config.Display == "cards"),
+	sec := &ui.PageSection{
+		Title:   title,
+		Layout:  layout,
+		Content: ui.ListContent(h.workspaceSlug(r), view.MachineID, cols, rows, view.Config.Display == "cards"),
 	}
+	// "View all →" only makes sense when THIS View is actually what GET
+	// /{machine} shows -- i.e. it's genuinely the Machine's own
+	// DefaultListView (position 0). An embedded View that ISN'T (like
+	// vw_ad_pending, seeds/050 -- reachable only via this page's own
+	// Children, per the "one reachable list View per Machine" gotcha) has
+	// no standalone page a "View all" could honestly point to: linking to
+	// the base Machine URL anyway would silently show a DIFFERENT,
+	// unfiltered View instead (caught live: it showed every Document, not
+	// just the pending ones this section itself was summarizing) --
+	// omitted rather than left misleading.
+	if dv := h.interp.Get().DefaultListView(view.MachineID); dv != nil && dv.ID == view.ID {
+		sec.ActionLabel = "View all →"
+		sec.ActionHref = "/" + h.workspaceSlug(r) + "/" + view.MachineID
+	}
+	return sec
 }
 
 // renderPageDashboardChild (CAP-V10 Tier 2) builds an embedded `dashboard`
