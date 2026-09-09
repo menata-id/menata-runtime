@@ -94,6 +94,24 @@ menegakkan bahwa *ada* file dalam grup itu yang mendeklarasikannya penuh — kal
 sama sekali, Application-nya tidak pernah benar-benar dibuat dan setiap Machine yang
 mereferensikannya lewat string jadi dangling.
 
+**Hanya View `list` PERTAMA (per `position`) milik satu Machine yang pernah bisa diakses —
+View `list` kedua di Machine yang sama adalah metadata mati.** Ditemukan langsung (2026-09-09)
+saat mencoba mengomposisi ulang aplikasi Document Approval memakai `writing-runtime-metadata.md`
+sebagai satu-satunya acuan: contoh "Pending Approvals" di file itu sendiri (dua View `list` pada
+`mch_leave_request`) ternyata tidak pernah bisa dijangkau — `Interpreter.DefaultListView`
+(`app/internal/interpreter/interpreter.go`) cuma pernah mengambil View `list` pertama, dan tidak
+ada `?view=` atau rute lain untuk memilih yang lain. Metadata-nya lolos load-time check (valid),
+loader tidak mengeluh — persis kelas masalah "diam-diam tidak jalan" yang jadi tema file ini,
+bukan "loader gagal." Berlaku sama untuk `form`/`detail`/`dashboard`/`calendar`/`timeline`/
+`report`/`coord_placement`/`decision_stepper` — `Interpreter.<Type>View` (`FormView`,
+`DetailView`, dst.) semuanya mengambil "View pertama dari tipe ini," bukan cuma `list`. Kalau
+butuh dua View `list` (atau `form`, dst.) yang sama-sama harus bisa diakses, satu-satunya cara
+hari ini adalah memisahkannya ke Machine yang berbeda — lihat `writing-runtime-metadata.md`'s
+sendiri koreksi 2026-09-09 di bagian Views untuk contoh polanya (`app/seeds/
+048_v02t2_v09t2_realization.sql`, Machine baru khusus dibuat justru karena alasan ini). Belum
+diadmisi sebagai gap kapabilitas resmi (`capability-registry.md`) — dicatat di sini dulu sesuai
+disiplin "silence is not a decision" file ini sendiri.
+
 ---
 
 ## Checklist Sebelum Menjalankan Seed

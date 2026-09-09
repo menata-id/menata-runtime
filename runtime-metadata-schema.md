@@ -1043,6 +1043,18 @@ views:
 | `timeline` | ✅ CAP-V07 — records ordered chronologically by `date_field` |
 | `report` | ✅ CAP-V13 (metadata type name is `report`, not `aggregate_report`) — group-by/rollup over ANOTHER Machine's records (Trial Balance, Leaderboard-shaped), computed at render time, nothing stored; requires `report: { machine, group_field, sum_fields }` |
 | `document` | ⚠️ CAP-F21, HTML output only — renders `template` (an `html/template` source, `{{.fld_x}}` merge fields, auto-escaped) against one record's own data at `GET /{machine}/{record}/document`; computed at render time, nothing stored |
+| `board` | ✅ CAP-V14 Tier 2 — kanban lanes over `group_field`'s own option set; `POST .../board-move` rewrites it on drag |
+| `coord_placement` | ✅ CAP-V21 — a preview (PDF/image) of ANOTHER record's own file, referenced via `reference_field`, with one draggable pin writing `page_field`/`x_field`/`y_field` back to THIS record on drop; requires `coord_placement: {reference_field, preview_field, page_field, x_field, y_field}`. Since 2026-09-09, every other record sharing the same `reference_field` value and already-placed on the same page renders alongside as a small read-only sibling pin, automatically — no extra config |
+| `decision_stepper` | ✅ CAP-V20 — a done/current/pending progress indicator over a parent record's own child rows (found via `Machine.config.steps_machine`/`steps_parent_field`, not a View config key), with a real Approve/Reject on whichever step is `current`; requires `decision_stepper: {sequence_field, decision_field}` |
+
+**Note (2026-09-09):** `board`/`coord_placement`/`decision_stepper` were previously undocumented in
+this file (real ✅ capabilities since 2026-08-22/29, only ever written up in `guides/writing-
+runtime-metadata.md`) — a pre-existing documentation gap, not introduced by this session, closed
+here alongside this session's own three new additions below (`display`, `child_lines_template`,
+`$sla_urgency`). `Children` (View composition, CAP-V20 Tier 2) is also still undocumented in this
+file — see `guides/writing-runtime-metadata.md`'s own "Komposisi View" section for the full
+grammar in the meantime; migrating it here is unfinished, named per this file's own "silence is
+not a decision" posture, not done in this pass.
 
 ### View `config` per type
 
@@ -1099,6 +1111,57 @@ views:
       <p>SKU: {{.fld_ftp_sku}}</p>
       <p>Title: {{.fld_ftp_title}}</p>
     </body></html>
+
+- id: vw_list_cards
+  name: All Documents
+  type: list
+  columns: [ fld_title, fld_type, fld_status ]
+  display: cards                             # CAP-V02 Tier 2, 2026-09-09 -- renders each row as
+                                              # a RecordSummaryCard (avatar + title + subtitle +
+                                              # badge) instead of a <table>. Title = first column;
+                                              # remaining columns join as the subtitle, except the
+                                              # first value_list/SLA-badged column among them,
+                                              # which becomes the card's own badge. Only takes
+                                              # effect on the list View actually reachable at
+                                              # GET /{machine} (the first list-type View by
+                                              # position) -- see the "one reachable list View per
+                                              # Machine" gotcha, runtime-metadata-gotchas.md
+
+- id: vw_list_sla_filter
+  name: Overdue Tickets
+  type: list
+  columns: [ fld_title, fld_due ]
+  sla_field: fld_due                         # required whenever the $sla_urgency filter below is used
+  sla_warning_days: 3
+  filter:
+    - { field: "$sla_urgency", operator: equals, value: overdue }   # CAP-V09 Tier 2, 2026-09-09
+                                              # -- a second sentinel alongside $current_user (CAP-V05);
+                                              # resolves to CAP-V17's own render-time urgency bucket
+                                              # ("overdue" | "warning" | "ok") for sla_field, never
+                                              # a stored value
+
+- id: vw_form_with_template
+  name: Submission Form
+  type: form
+  fields: [ fld_title, fld_category ]
+  child_lines:
+    machine: mch_step
+    parent_field: fld_step_parent
+    fields: [ fld_step_approver, fld_step_sequence ]
+    max_rows: 5
+  child_lines_template:                      # CAP-V28, 2026-09-09 -- "category -> saved config ->
+                                              # prefilled instance": picking fld_category prefills
+                                              # child_lines above from a matching saved template
+                                              # record, still fully editable, never enforced
+    trigger_field: fld_category              # a Field on THIS form -- fires the lookup on change
+    template_machine: mch_flow_template
+    match_field: fld_template_category       # compared against trigger_field's new value
+    child_machine: mch_flow_template_step
+    child_parent_field: fld_template_step_parent
+    child_sequence_field: fld_template_step_sequence
+    child_field_map:                         # child_lines field id -> template child field id
+      fld_step_approver: fld_template_step_approver
+      fld_step_sequence: fld_template_step_sequence
 ```
 
 ---
