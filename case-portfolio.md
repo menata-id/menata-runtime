@@ -7,7 +7,11 @@
 > is a designed experiment — and surprises (patterns the case reveals that
 > were not targeted) are themselves findings.
 >
-> Status: v0.36 — Case 10's `CAP-O03 Tier 5` note gets its Phase 1 implementation the same day —
+> Status: v0.37 — Case 3 gains a 2026-09-09 extension note: owner confirms `approval-dashboard.
+> html`'s full composed-page need, `CAP-V10` Tier 2 admitted ❌ Proposed the same day
+> (`capability-registry.md` v0.70). Same day, `CAP-F03` Tier 2 (multi-select `value_list`) also
+> admitted from already-standing Case 11/13/17 evidence — no new case declaration needed there.
+> Previously v0.36 — Case 10's `CAP-O03 Tier 5` note gets its Phase 1 implementation the same day —
 > built, tested (239/239 conformance), and deployed live, piloted on `app_approval` itself.
 > Previously v0.35 — Case 10 gains a 2026-09-08 extension note (declared navigation, `CAP-O03 Tier 5`
 > admitted ❌ Proposed same day — owner-requested Option B, following Tier 4's own benchmark).
@@ -308,6 +312,57 @@ Tier 5 row has the full account. Piloted on `app_approval` itself (`seeds/045_de
 navigation_pilot.sql`): Approval Document, a Dashboard view, and a "Reference" group nesting
 Signature declared; Approval Step left undeclared, absent from the menu, still directly reachable —
 closing this case's own original observed problem for real, on the live application.
+
+---
+
+# Case 3 — extension note (2026-09-09): composed approval dashboard (`CAP-V10` Tier 2)
+
+**Business reality:** direct owner decision, in an owner Q&A session re-examining the
+"Composable Metadata Runtime" proposal against `CAP-V10` Tier 2's own standing HOLD verdict
+(`capability-registry.md` v0.61's admission-test re-run, "no real case terrain, only this
+session's own exploratory mockup"). Asked directly whether `approval-dashboard.html`'s full
+mockup — Summary tiles, a pending-documents list, and an activity feed on one page, three
+independently-sourced pieces of content, not just the per-Status count tiles `seeds/
+044_document_submit_dashboard_live_wiring.sql` actually shipped — is a real, current need: owner
+chose admission over continued HOLD. Same evidentiary class already accepted for `CAP-F24`/
+`CAP-V28` (a direct owner request stands as terrain, the same as a written case scenario).
+
+**Prior art within this repo, checked before treating this as sufficient on its own:**
+`benchmarks/029-composed-view-component-inventory.md` (Study 38) already found the rendering
+mechanism this needs — a "Section wrapper" (title + source-View badge + optional action link) —
+evidenced 3× inside `approval-dashboard.html` itself, independent map-side confirmation that this
+isn't a one-off ask but a real, already-recurring shape in this repo's own design work.
+
+**Declared target:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| A `page` `ViewType` whose body is composed entirely from other Views (a full `list`/`report`/`dashboard`, not just a count tile), stitched into one server-rendered response | **`CAP-V10` Tier 2 (new)** — `Config.Children`, an ordered list of `{view: <id>}` and closed-vocabulary `{content: {type, properties}}` entries | The honest form of ObjectStack's Page ontology without a client-side Component/Slot vocabulary (`second-opinion-reconciliation.md` §2); `prototype/objectstack/docs/composable-view-proposal-reconciliation.md` §7's own already-written scoping |
+
+**Why not composed from an existing mechanism (checked, not assumed):** `CAP-V10`'s own base
+Sections give a record COUNT per Machine, never a full rendered View — no row lists, no filtered
+lists, no form. `CAP-V20` Tier 2's `Children[]` lets one View embed another inline, but only
+alongside a HOST record's own primary content (`decision_stepper`/`coord_placement`, both
+record-scoped) — a dashboard has no single host record to attach to. Neither mechanism can put an
+independent `list` View ("pending documents") and an independent narrative feed on one page with
+no host record. Genuinely new terrain, not a restatement.
+
+**In scope for this admission (per the reconciliation doc's own §7/§8, folded in now rather than
+deferred a second time):** the closed static-content vocabulary (`heading`/`text`/`button`/
+`image`) alongside `{view: id}` entries; parent→child context passing (a token a child View's own
+`Filter` can read to scope itself to this page's context — exact syntax is implementation, not
+admission, but the mechanism itself is IN scope, not deferrable again per §8(iii)); a layout hint
+per entry or a small closed set of composed-page layout shapes (§8(ii)'s own finding that
+`approval-dashboard.html` needs 2-column/grid, not just a stacked list).
+
+**Explicitly out of scope, named not silently dropped:** recursive nesting beyond one level (a
+`{view: id}` child that is itself a further composing `page`) — §8(i)'s own finding that this is
+undesigned, not just unbuilt (cycle detection, depth limits, and permission-composition-at-depth
+are a different, larger question). This Tier 2 admission is single-level composition only: a page
+composing existing Views, none of which themselves further compose.
+
+**Status:** `CAP-V10` Tier 2 registered ❌ Proposed in `capability-registry.md` v0.70 the same
+day — full A1–A5 admission test on that row. Not built.
 
 ---
 

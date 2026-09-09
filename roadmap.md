@@ -2003,7 +2003,11 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 ### Track F — Parked (HOLD), do not schedule without new case evidence
 
 - CAP-V11 (channel-independent rendering) — evidence-thin, single source
-- CAP-W08 (Compound Sentry) — evidence-thin, single source
+- ~~CAP-W08 (Compound Sentry) — evidence-thin, single source~~ — **reclassified 2026-09-09,
+  Declined, not merely parked** (`capability-registry.md` v0.70's own row): already checked
+  against all 21 portfolio cases, none need it — an active negative finding, not a lack-of-evidence
+  gap. No longer belongs on this "might still happen" track; moved here per append-don't-rewrite,
+  not removed
 - CAP-W02 — superseded by CAP-W07, dead, kept only per ratchet (no future work against this row)
 
 ### Track G — Blocked on a design-prototype pass, not on case evidence (owner-held)
@@ -2379,9 +2383,16 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
        2026-09-07) as its proof case.
     7. `CAP-W03`/`W04` Tier 2 + `CAP-W09` approval enrichments; `CAP-A16` outbound webhook
        (design the encrypted-credential option once, here); `CAP-X17` metadata snapshots.
-    8. `CAP-C14`, `CAP-F03` T2, `CAP-V12` T2, `CAP-V10` T2, `CAP-O04` T2, `CAP-P04` T2,
-       `CAP-V24`–`V27` as their cases arrive; the "silent no-ops become load errors" ratchet
-       (gap doc §6) whenever `internal/metadata/validate.go` is next touched.
+    8. **Moved out of the old "as their cases arrive" bucket, 2026-09-09 — now admitted with real
+       case evidence, ready to schedule like any other queued row:** `CAP-F03` T2 (multi-select,
+       Cases 11/13/17) and `CAP-V10` T2 (composed dashboard page, owner-confirmed
+       `case-portfolio.md` note, 2026-09-09) — `capability-registry.md` v0.70. `CAP-V10` T2's own
+       admitted scope already folds in context-passing and composed-page layout per
+       `composable-view-proposal-reconciliation.md` §8 — don't build a narrower version.
+    9. `CAP-C14`, `CAP-V12` T2, `CAP-O04` T2, `CAP-P04` T2, `CAP-V24`–`V27` as their cases arrive
+       (still no forcing case for any of these, reviewed 2026-09-09, no change); the "silent
+       no-ops become load errors" ratchet (gap doc §6) whenever `internal/metadata/validate.go` is
+       next touched.
 
     **Addendum (2026-09-07, same day):** a third external document, an unsolicited "Composable
     Metadata Runtime" architectural-direction proposal, was brought and reconciled against this
@@ -2407,6 +2418,22 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     without it a composed page could only embed context-free Views, not the parent-scoped child
     Views the proposal actually wants. No new row, no status change, no code —
     `capability-registry.md` v0.69's `CAP-V10` row carries the same note.
+
+    **Third addendum (2026-09-09), owner review batch — two admissions, one decline.** Reviewing
+    the full list of not-yet-admitted proposals surfaced by this whole Study 37 thread, the owner
+    decided per-item: **`CAP-V10` Tier 2 admitted** — confirmed the `approval-dashboard.html` full
+    composed-page need is real (a new `case-portfolio.md` extension note records it as terrain),
+    closing the A1 gap the standing HOLD verdict named; admitted with the Second addendum's own
+    §8 scope (context-passing + composed-page layout in scope, recursive depth explicitly out) —
+    own row in `capability-registry.md` v0.70. **`CAP-F03` Tier 2 admitted** the same pass, from
+    evidence that was already standing (Cases 11/13/17), no new case needed — own row, same
+    version. **`CAP-W08` (Compound Sentry) reclassified HOLD → Declined**: unlike the other HOLD
+    items, its own note already reports an active negative check (all 21 cases examined, none need
+    it), not merely thin evidence — this repo's language now distinguishes "no evidence yet" from
+    "checked and rejected." `CAP-V11`, `CAP-V12` Tier 2, `CAP-O04` Tier 2, `CAP-P04` Tier 2
+    reviewed the same pass and correctly stay as they were — no forcing case for any of them yet,
+    no change made. `CAP-W02` reviewed, already correctly dead/superseded, no change. Track F
+    (Parked/HOLD) and item 24 step 8 above both updated to match.
 
 25. **New (2026-09-07) — priority order for Document Approval's own remaining mockup gaps**, per
     Study 38's live cross-check against the real running app (its own second addendum, below).
