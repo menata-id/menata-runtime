@@ -129,7 +129,8 @@ func Mount(r chi.Router, h *handler.Handler) {
 		r.Get("/{machineID}/dashboard", h.Dashboard)        // CAP-V10
 		r.Get("/{machineID}/process-map", h.ProcessMap)     // CAP-W05
 		r.Get("/{machineID}/process-lift", h.LiftProcess)   // CAP-W05 backward direction (B6), Admin-only
-		r.Get("/{machineID}/field-options", h.FieldOptions) // CAP-V16 typeahead search fragment
+		r.Get("/{machineID}/field-options", h.FieldOptions)           // CAP-V16 typeahead search fragment
+		r.Get("/{machineID}/child-lines-template", h.ChildLinesTemplate) // CAP-V28 saved-template prefill fragment
 		r.Get("/{machineID}/board", h.Board)                // CAP-V14 Tier 2 kanban board
 		r.Get("/{machineID}/{recordID}", h.Detail)
 		r.Get("/{machineID}/{recordID}/edit", h.EditForm)

@@ -830,6 +830,17 @@ type ViewConfig struct {
 	// must name a real View, of a Type this runtime currently knows how
 	// to embed.
 	Children []ChildViewRef `json:"children,omitempty"`
+
+	// ChildLinesTemplate (CAP-V28) configures a form view's own ChildLines
+	// section to pre-fill from a matching record of a small companion
+	// "template" Machine the instant TriggerField's value is picked on
+	// Create -- e.g. Document Type = Contract pre-fills the saved Contract
+	// approval flow. Still fully editable per record afterward, never
+	// enforced -- see ChildLinesTemplateConfig's own doc comment. Requires
+	// ChildLines to also be set on this same View (validated at load
+	// time): a template has nothing to pre-fill without a ChildLines
+	// section already declaring the row shape.
+	ChildLinesTemplate *ChildLinesTemplateConfig `json:"child_lines_template,omitempty"`
 }
 
 // ChildViewRef (CAP-V20 Tier 2) is one entry in a View's own
@@ -949,6 +960,35 @@ type ChildLinesConfig struct {
 	ParentField string   `json:"parent_field"` // the child's own `reference` field pointing back at this parent
 	Fields      []string `json:"fields"`       // child fields exposed per row, in order
 	MaxRows     int      `json:"max_rows"`     // fixed number of row slots rendered; 0 defaults to 10
+}
+
+// ChildLinesTemplateConfig (CAP-V28) is a "category → saved config →
+// prefilled instance" mechanism, the same three-layer shape DocuSign/Adobe
+// Sign reusable envelope Templates and Salesforce Approval Process
+// definitions (keyed by Record Type) converge on independently.
+// TriggerField names a Field on THIS (host) Machine -- when its value
+// changes on the Create form, a lookup fires. TemplateMachine is where
+// saved templates live; MatchField names the Field on TemplateMachine
+// compared against TriggerField's new value (one matching template
+// assumed per value, not enforced -- the first match found wins, same
+// "named not silently dropped" scope cut CAP-F16's own doc comment uses
+// elsewhere). ChildMachine/ChildParentField locate that matched template's
+// own saved rows (a `reference` Field on ChildMachine pointing back at the
+// template record) -- the same shape ChildLinesConfig itself already uses
+// for the host's OWN child rows, one layer up. ChildSequenceField (a Field
+// on ChildMachine) orders those saved rows before they're mapped onto the
+// host's row slots 0..N. ChildFieldMap maps each host ChildLines.Fields id
+// to the ChildMachine Field id supplying its prefill value -- a name-keyed
+// map rather than parallel-ordered slices, so entries stay legible on
+// their own regardless of either side's own field ordering.
+type ChildLinesTemplateConfig struct {
+	TriggerField       string            `json:"trigger_field"`
+	TemplateMachine    string            `json:"template_machine"`
+	MatchField         string            `json:"match_field"`
+	ChildMachine       string            `json:"child_machine"`
+	ChildParentField   string            `json:"child_parent_field"`
+	ChildSequenceField string            `json:"child_sequence_field"`
+	ChildFieldMap      map[string]string `json:"child_field_map"`
 }
 
 // SortConfig defines the default sort order for a list view.

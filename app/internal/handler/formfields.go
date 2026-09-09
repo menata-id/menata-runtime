@@ -55,11 +55,29 @@ func (h *Handler) hiddenFields(machine *model.Machine, roles []string) map[strin
 }
 
 func (h *Handler) buildFormFields(ctx context.Context, wsSlug string, machine *model.Machine, vals map[string]any) []ui.FormField {
+	view := h.interp.Get().FormView(machine.ID)
 	var fieldIDs []string
-	if view := h.interp.Get().FormView(machine.ID); view != nil {
+	if view != nil {
 		fieldIDs = view.Config.Fields
 	}
-	return h.buildFormFieldsFor(ctx, wsSlug, machine, fieldIDs, vals)
+	fields := h.buildFormFieldsFor(ctx, wsSlug, machine, fieldIDs, vals)
+
+	// CAP-V28: wire the trigger field's own <select> to fetch a prefilled
+	// child_lines fragment on change. Harmless when this same View config
+	// is reused for the Edit form (Edit never renders a child_lines
+	// container, per ChildLinesConfig's own CREATE-time-only scope) --
+	// htmx simply has no target element to swap, the same as any other
+	// no-op hx-get with a missing target.
+	if view != nil && view.Config.ChildLinesTemplate != nil {
+		clt := view.Config.ChildLinesTemplate
+		for i := range fields {
+			if fields[i].Name == clt.TriggerField {
+				fields[i].TemplateLookupURL = "/" + wsSlug + "/" + machine.ID + "/child-lines-template"
+				break
+			}
+		}
+	}
+	return fields
 }
 
 // buildFormFieldsFor is buildFormFields narrowed to an explicit fieldIDs
@@ -159,32 +177,7 @@ func (h *Handler) buildChildLinesData(ctx context.Context, machine *model.Machin
 		return nil
 	}
 	fieldByID := fieldIndex(childMachine)
-	maxRows := cl.MaxRows
-	if maxRows <= 0 {
-		maxRows = 10
-	}
-
-	rows := make([][]ui.FormField, maxRows)
-	for i := 0; i < maxRows; i++ {
-		row := make([]ui.FormField, 0, len(cl.Fields))
-		for _, fid := range cl.Fields {
-			f, ok := fieldByID[fid]
-			if !ok || fid == cl.ParentField {
-				continue
-			}
-			var opts []ui.ReferenceOption
-			switch f.Type {
-			case model.FieldTypeReference:
-				opts = h.referenceOptions(ctx, f.Options.TargetMachine)
-			case model.FieldTypeUser:
-				opts = h.userFieldOptions(ctx, childMachine.ID, childMachine.ApplicationID, f.Options.RestrictToGroup)
-			case model.FieldTypeGroup:
-				opts = h.groupFieldOptions(ctx, childMachine.ID)
-			}
-			row = append(row, ui.FormField{Field: f, Name: childRowName(i, fid), Options: opts})
-		}
-		rows[i] = row
-	}
+	rows := h.childLinesRows(ctx, childMachine, cl, nil)
 	data := &ui.ChildLinesData{Title: childMachine.Name, Rows: rows}
 
 	// CAP-V15: if this parent declares an aggregate cross-record check
@@ -211,6 +204,46 @@ func (h *Handler) buildChildLinesData(ctx context.Context, machine *model.Machin
 		break
 	}
 	return data
+}
+
+// childLinesRows (CAP-F16, extended by CAP-V28) builds MaxRows row slots of
+// FormFields for a child_lines section. prefill, when non-nil, supplies
+// each row's starting values keyed by row index then Field id -- CAP-V28's
+// own template lookup; nil for the ordinary blank-slate Create form (the
+// only caller before CAP-V28 existed, buildChildLinesData above).
+func (h *Handler) childLinesRows(ctx context.Context, childMachine *model.Machine, cl *model.ChildLinesConfig, prefill map[int]map[string]string) [][]ui.FormField {
+	fieldByID := fieldIndex(childMachine)
+	maxRows := cl.MaxRows
+	if maxRows <= 0 {
+		maxRows = 10
+	}
+
+	rows := make([][]ui.FormField, maxRows)
+	for i := 0; i < maxRows; i++ {
+		row := make([]ui.FormField, 0, len(cl.Fields))
+		for _, fid := range cl.Fields {
+			f, ok := fieldByID[fid]
+			if !ok || fid == cl.ParentField {
+				continue
+			}
+			var opts []ui.ReferenceOption
+			switch f.Type {
+			case model.FieldTypeReference:
+				opts = h.referenceOptions(ctx, f.Options.TargetMachine)
+			case model.FieldTypeUser:
+				opts = h.userFieldOptions(ctx, childMachine.ID, childMachine.ApplicationID, f.Options.RestrictToGroup)
+			case model.FieldTypeGroup:
+				opts = h.groupFieldOptions(ctx, childMachine.ID)
+			}
+			val := ""
+			if prefill != nil {
+				val = prefill[i][fid]
+			}
+			row = append(row, ui.FormField{Field: f, Name: childRowName(i, fid), Value: val, Options: opts})
+		}
+		rows[i] = row
+	}
+	return rows
 }
 
 // validateChildRows (CAP-F16) reads every non-empty row the fixed-slot

@@ -221,7 +221,7 @@ func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 				}
 			}
 			for _, ff := range fields {
-				templ_7745c5c3_Err = FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel, ff.LivePreviewURL, ff.LivePreviewField, ff.LivePreviewLabel).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel, ff.LivePreviewURL, ff.LivePreviewField, ff.LivePreviewLabel, ff.TemplateLookupURL).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

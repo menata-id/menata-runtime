@@ -60,7 +60,7 @@ templ Detail(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, ma
 						>
 							@CSRFField(csrfToken)
 							for _, inp := range trig.Inputs {
-								@FieldInput(inp.Field, inp.Name, inp.Value, inp.Options, inp.Typeahead, inp.TypeaheadURL, inp.TypeaheadLabel, inp.LivePreviewURL, inp.LivePreviewField, inp.LivePreviewLabel)
+								@FieldInput(inp.Field, inp.Name, inp.Value, inp.Options, inp.Typeahead, inp.TypeaheadURL, inp.TypeaheadLabel, inp.LivePreviewURL, inp.LivePreviewField, inp.LivePreviewLabel, inp.TemplateLookupURL)
 							}
 							<button
 								type="submit"

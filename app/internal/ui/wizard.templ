@@ -52,7 +52,7 @@ templ WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool
 						<input type="hidden" name={ h.Name } value={ h.Value }/>
 					}
 					for _, ff := range fields {
-						@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel, ff.LivePreviewURL, ff.LivePreviewField, ff.LivePreviewLabel)
+						@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel, ff.LivePreviewURL, ff.LivePreviewField, ff.LivePreviewLabel, ff.TemplateLookupURL)
 					}
 					if childLines != nil {
 						@ChildLinesSection(childLines.Title, childLines.Rows, childLines.SumFieldA, childLines.SumFieldALabel, childLines.SumFieldB, childLines.SumFieldBLabel)

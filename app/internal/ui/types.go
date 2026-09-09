@@ -135,6 +135,14 @@ type FormField struct {
 	LivePreviewURL   string // "/api/<target_machine>/" -- the record id is appended client-side
 	LivePreviewField string
 	LivePreviewLabel string
+
+	// TemplateLookupURL (CAP-V28) is set only on the one Field a form's own
+	// ChildLinesTemplateConfig.TriggerField names -- when set, the input
+	// fetches this URL on change and swaps the child_lines container with
+	// the response, htmx including this element's own name=value pair
+	// automatically (the trigger element is always included, no hx-include
+	// needed). Empty for every other field.
+	TemplateLookupURL string
 }
 
 // ChildLinesData (CAP-F16) is a form's embedded child-Machine row editor --

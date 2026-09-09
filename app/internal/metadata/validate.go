@@ -384,6 +384,75 @@ func validateReferences(workspaces []*model.Workspace) error {
 					}
 				}
 
+				// CAP-V28: a form view's child_lines_template must name a
+				// real TriggerField on THIS machine, a real TemplateMachine
+				// with a real MatchField, a real ChildMachine whose
+				// ChildParentField is a reference field targeting
+				// TemplateMachine, a real ChildSequenceField on ChildMachine,
+				// and a ChildFieldMap whose keys are all names in this same
+				// View's own child_lines.fields and whose values all name
+				// real Fields on ChildMachine -- same "Unknown = explicit"
+				// discipline as CAP-F16 above. Requires child_lines to also
+				// be declared on this View (a template with nothing to
+				// pre-fill is a config error, not a silently-ignored no-op).
+				for _, v := range m.Views {
+					clt := v.Config.ChildLinesTemplate
+					if clt == nil {
+						continue
+					}
+					if v.Config.ChildLines == nil {
+						return fmt.Errorf("view %s on machine %s: child_lines_template requires child_lines to also be set on this view", v.ID, m.ID)
+					}
+					if _, ok := fieldByID[clt.TriggerField]; !ok {
+						return fmt.Errorf("view %s on machine %s: child_lines_template.trigger_field %q does not name a Field on this machine", v.ID, m.ID, clt.TriggerField)
+					}
+					tmplMachine, ok := machineByID[clt.TemplateMachine]
+					if !ok {
+						return fmt.Errorf("view %s on machine %s: child_lines_template.template_machine %q does not exist", v.ID, m.ID, clt.TemplateMachine)
+					}
+					var matchField *model.Field
+					for _, tf := range tmplMachine.Fields {
+						if tf.ID == clt.MatchField {
+							matchField = tf
+							break
+						}
+					}
+					if matchField == nil {
+						return fmt.Errorf("view %s on machine %s: child_lines_template.match_field %q does not name a Field on machine %s", v.ID, m.ID, clt.MatchField, clt.TemplateMachine)
+					}
+					childMachine, ok := machineByID[clt.ChildMachine]
+					if !ok {
+						return fmt.Errorf("view %s on machine %s: child_lines_template.child_machine %q does not exist", v.ID, m.ID, clt.ChildMachine)
+					}
+					childFieldByID := map[string]*model.Field{}
+					for _, cf := range childMachine.Fields {
+						childFieldByID[cf.ID] = cf
+					}
+					childParentField, ok := childFieldByID[clt.ChildParentField]
+					if !ok {
+						return fmt.Errorf("view %s on machine %s: child_lines_template.child_parent_field %q does not name a Field on machine %s", v.ID, m.ID, clt.ChildParentField, clt.ChildMachine)
+					}
+					if childParentField.Type != model.FieldTypeReference || childParentField.Options.TargetMachine != clt.TemplateMachine {
+						return fmt.Errorf("view %s on machine %s: child_lines_template.child_parent_field %q must be a reference field targeting %s, got type %q targeting %q",
+							v.ID, m.ID, clt.ChildParentField, clt.TemplateMachine, childParentField.Type, childParentField.Options.TargetMachine)
+					}
+					if _, ok := childFieldByID[clt.ChildSequenceField]; !ok {
+						return fmt.Errorf("view %s on machine %s: child_lines_template.child_sequence_field %q does not name a Field on machine %s", v.ID, m.ID, clt.ChildSequenceField, clt.ChildMachine)
+					}
+					hostChildFields := map[string]bool{}
+					for _, fid := range v.Config.ChildLines.Fields {
+						hostChildFields[fid] = true
+					}
+					for hostField, tmplField := range clt.ChildFieldMap {
+						if !hostChildFields[hostField] {
+							return fmt.Errorf("view %s on machine %s: child_lines_template.child_field_map key %q does not name a Field in this view's own child_lines.fields", v.ID, m.ID, hostField)
+						}
+						if _, ok := childFieldByID[tmplField]; !ok {
+							return fmt.Errorf("view %s on machine %s: child_lines_template.child_field_map[%q] %q does not name a Field on machine %s", v.ID, m.ID, hostField, tmplField, clt.ChildMachine)
+						}
+					}
+				}
+
 				// CAP-V04/V05/V09: a list view's default_sort.field and every
 				// filter condition's field must name a real Field on this
 				// machine -- same "Unknown = explicit" discipline as

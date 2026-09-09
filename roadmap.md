@@ -2446,9 +2446,12 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
        including two real bugs this same build caught and fixed (a double-Approver-picker
        regression, and a `MemberChip`-vs-conformance-scraper mismatch from an earlier session's
        own UI work) — on `capability-registry.md`'s own `CAP-F24` row.
-    2. **`CAP-V28`** (category-keyed saved approval-flow template) — already `❌ Proposed`,
-       explicitly depends on `CAP-F24`'s field pair existing first (its own row's own dependency
-       note) — build second, not in parallel.
+    2. ~~`CAP-V28`~~ (category-keyed saved approval-flow template) — **✅ done (2026-09-09)**.
+       New `ViewConfig.ChildLinesTemplate` mechanism, `seeds/047_approval_flow_template.sql`
+       (two new companion Machines). Verified on an isolated schema (241/241 conformance clean)
+       and live against `menata_runtime` (real end-to-end smoke test). Full account, including an
+       unrelated pre-existing live-DB drift finding surfaced while verifying it, on
+       `capability-registry.md`'s own `CAP-V28` row.
     3. **Run the A1–A5 admission test** (not build yet) on the two gaps this session's own live
        cross-check newly named: a card-per-record list rendering (`CAP-V02`'s own new note) and a
        computed-SLA-bucket list filter (`CAP-V09`/`CAP-V17`'s own new note). Both have real case
