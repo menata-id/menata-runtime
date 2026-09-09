@@ -1,9 +1,12 @@
 # UI Component Library
 
-> Status: v1.6 — two of the "Known gaps against real mockups" table's own metadata-only pieces
+> Status: v1.7 — `CAP-V28` (category-keyed saved approval-flow template) implemented and verified
+> live, closing a second row of the "Known gaps against real mockups" table (`CAP-F24` already
+> closed as of v1.6) | Created: 2026-09-07 | Updated: 2026-09-09
+
+> Status v1.6 — two of the "Known gaps against real mockups" table's own metadata-only pieces
 > were wired for real onto the persistent `menata_runtime` database (the one actually serving
 > menata.app), not just proven on the throwaway isolated schema the 2026-09-07 assembly proof used
-> | Created: 2026-09-07 | Updated: 2026-09-08
 
 > **Live-wiring pass (2026-09-08).** Owner asked to make the real running app's Detail/Submit/
 > Dashboard pages actually match four `ui-sample` mockups "hanya dengan mengubah metadatanya" (by
@@ -338,6 +341,15 @@ admitted, one instance), `CAP-V21`'s own "multiple pins on one preview" deferral
 as cards (`RecordSummaryCard` above has no consumer — `capability-registry.md`'s `CAP-V02` row),
 and no mechanism filters a list by a computed SLA-urgency bucket (`CAP-V09`/`CAP-V17` rows).
 `roadmap.md`'s own item 25 has the priority order for closing these.
+
+> **Status update (2026-09-09): two of this table's own gaps are closed.** `CAP-F24` (done
+> 2026-09-07, already noted elsewhere in this document's own live-wiring pass above) and `CAP-V28`
+> (done 2026-09-09) are both ✅ now, not ❌ Proposed — `vw_ad_form` pre-fills its embedded Approval
+> Step rows from a saved "Approval Flow Template" record the instant Document Type is picked,
+> verified end to end against `menata_runtime` (`capability-registry.md`'s own `CAP-V28` row has
+> the full account). Still open, unchanged by this pass: `Choice Card`, `CAP-V21`'s multi-pin
+> deferral, `CAP-V10` Tier 2 (admitted to the registry 2026-09-09, still not built), the
+> card-per-record list rendering gap, and the SLA-bucket list filter gap.
 
 The general method used to reach this verdict — how to tell a real metadata gap from something
 that just needs a `templ` primitive, and how to avoid the two architecture mistakes this document's
