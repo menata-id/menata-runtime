@@ -1087,6 +1087,21 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	if v := h.interp.Get().DecisionStepperView(machineID); v != nil && !childEmbeds(detailView, v.ID) { // CAP-V20
 		extraLinks = append(extraLinks, ui.DetailLink{Label: "View Progress", URL: "/" + h.workspaceSlug(r) + "/" + machineID + "/" + recordID + "/progress"})
 	}
+	// Edit (2026-09-10): used to be a separate, unconditional <a> in
+	// detail.templ -- rendered for every viewer regardless of role, so a
+	// read-only Approver saw a clickable "Edit" that only 403'd once
+	// clicked (EditForm, above, already CanEdit-gates the actual page --
+	// this was purely a dangling affordance, never a real access gap).
+	// Folded into the same extraLinks mechanism as every other
+	// capability-gated action link, appended last so it stays the
+	// rightmost link exactly where it already rendered. Also honors
+	// CAP-R07 immutability here for the first time -- EditForm's own
+	// comment ("an immutable record's edit form isn't even offered")
+	// named this as the intent already; the link itself just never
+	// actually matched it.
+	if h.guard.CanEdit(machine, role) && h.immutabilityViolation(machine, rec.Data) == "" {
+		extraLinks = append(extraLinks, ui.DetailLink{Label: "Edit", URL: "/" + h.workspaceSlug(r) + "/" + machineID + "/" + recordID + "/edit"})
+	}
 	// CAP-V20 Tier 2: this View's own declared Config.Children (empty on
 	// every View that doesn't declare any, i.e. everywhere except Approval
 	// Step's own vw_as_detail today) -- see model.go's own doc comment on
