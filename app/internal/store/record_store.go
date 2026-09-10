@@ -46,12 +46,16 @@ func (s *RecordStore) db(ctx context.Context) querier {
 // values coerce to 0 via Postgres's own numeric cast within the query
 // (rows that don't parse are simply excluded, not an error -- the same
 // "don't let one bad row break the whole aggregate" posture COALESCE
-// already gives the empty-set case).
+// already gives the empty-set case). deleted_at IS NULL (2026-09-10, same
+// gap CountGroupedBy/SumFieldsGroupedBy below had): List already excludes
+// soft-deleted rows, this aggregate hadn't -- caught live when a batch of
+// old conformance-fixture Approval Documents got cleaned up (soft-deleted)
+// but a dashboard tile's own total didn't move, still counting them.
 func (s *RecordStore) SumField(ctx context.Context, machineID, aggregateField, scopeField, scopeValue string) (float64, error) {
 	var sum float64
 	err := s.db(ctx).QueryRow(ctx,
 		`SELECT COALESCE(SUM((data->>$1)::numeric), 0) FROM records
-		 WHERE machine_id = $2 AND data->>$3 = $4 AND data->>$1 ~ '^-?[0-9]+(\.[0-9]+)?$'`,
+		 WHERE machine_id = $2 AND data->>$3 = $4 AND data->>$1 ~ '^-?[0-9]+(\.[0-9]+)?$' AND deleted_at IS NULL`,
 		aggregateField, machineID, scopeField, scopeValue).Scan(&sum)
 	if err != nil {
 		return 0, fmt.Errorf("sum field: %w", err)
@@ -434,7 +438,8 @@ type GroupSum struct {
 // every record on machineID by groupField's own value, summing each of
 // sumFields (numeric fields; non-numeric/missing values coerce to 0, same
 // COALESCE posture as SumField). Computed at render time from existing
-// records -- nothing about a report is itself stored.
+// records -- nothing about a report is itself stored. deleted_at IS NULL
+// (2026-09-10) -- see SumField's own note above for the gap this closes.
 func (s *RecordStore) SumFieldsGroupedBy(ctx context.Context, machineID, groupField string, sumFields []string) ([]GroupSum, error) {
 	selects := []string{"data->>$2 AS grp"}
 	args := []any{machineID, groupField}
@@ -444,7 +449,7 @@ func (s *RecordStore) SumFieldsGroupedBy(ctx context.Context, machineID, groupFi
 			`COALESCE(SUM((data->>$%d)::numeric) FILTER (WHERE data->>$%d ~ '^-?[0-9]+(\.[0-9]+)?$'), 0)`,
 			len(args), len(args)))
 	}
-	query := fmt.Sprintf(`SELECT %s FROM records WHERE machine_id = $1 GROUP BY grp ORDER BY grp`, strings.Join(selects, ", "))
+	query := fmt.Sprintf(`SELECT %s FROM records WHERE machine_id = $1 AND deleted_at IS NULL GROUP BY grp ORDER BY grp`, strings.Join(selects, ", "))
 
 	rows, err := s.db(ctx).Query(ctx, query, args...)
 	if err != nil {
@@ -486,14 +491,18 @@ type GroupCount struct {
 
 // CountGroupedBy (CAP-V10) counts machineID's records, grouped by
 // groupField's value ("" groupField counts everything as one group -- a
-// dashboard section with no breakdown, just a total).
+// dashboard section with no breakdown, just a total). deleted_at IS NULL
+// (2026-09-10) -- see SumField's own note for the gap this closes; this is
+// the one an owner actually spotted live (a dashboard's own status
+// breakdown still totaling 55 well after 91 fixture Documents/Steps had
+// been soft-deleted down to the one real record).
 func (s *RecordStore) CountGroupedBy(ctx context.Context, machineID, groupField string) ([]GroupCount, error) {
 	var query string
 	args := []any{machineID}
 	if groupField == "" {
-		query = `SELECT '' AS grp, COUNT(*) FROM records WHERE machine_id = $1 GROUP BY grp`
+		query = `SELECT '' AS grp, COUNT(*) FROM records WHERE machine_id = $1 AND deleted_at IS NULL GROUP BY grp`
 	} else {
-		query = `SELECT COALESCE(data->>$2, '') AS grp, COUNT(*) FROM records WHERE machine_id = $1 GROUP BY grp ORDER BY grp`
+		query = `SELECT COALESCE(data->>$2, '') AS grp, COUNT(*) FROM records WHERE machine_id = $1 AND deleted_at IS NULL GROUP BY grp ORDER BY grp`
 		args = append(args, groupField)
 	}
 	rows, err := s.db(ctx).Query(ctx, query, args...)
