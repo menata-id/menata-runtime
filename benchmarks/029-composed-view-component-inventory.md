@@ -259,3 +259,21 @@ evidence — not redundant with Clusters 1–11 above):
 
 No mockup has been built for 1–4 yet — this is a plan, not a claim of coverage. Owner's call on
 which (if any) to build next, per this repo's own "declare targets first" discipline.
+
+---
+
+# Update (2026-09-10) — Case 19 mockups built anyway; continuation study
+
+This document's own recommendation above (item 5, "skip new mockups" for Cases 19/20) was
+overridden by direct owner instruction the same day — 9 Case 19 (Project Management) mockups were
+built regardless, for a flagship clickable-tour purpose this document's own evidence-maximization
+framing didn't weigh. Recorded, not silently absorbed, per this repo's append convention: the
+recommendation was correct given the goal it was optimizing for; the goal changed.
+
+`benchmarks/030-ui-subcomponent-decomposition-criteria.md` (Study 40) is the direct continuation —
+it re-runs this document's own cluster method against the new Case 19 evidence, adds external
+non-metadata design-system criteria for the admit/reject decision (this document's own recurrence
+rule was never grounded in a cited external benchmark), and maps each cluster onto whether Runtime
+Metadata can actually invoke it today. Three of this document's own clusters (5 Stat Tile/KPI, 6
+Activity Feed, 11 Two-column layout) gained cross-domain confirming evidence from Case 19; none of
+this document's 11 verdicts were overturned.
