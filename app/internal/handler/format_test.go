@@ -47,16 +47,36 @@ func TestDisplayLabel_FirstTextFieldWhenNoNameField(t *testing.T) {
 	}
 }
 
-func TestDisplayLabel_FallsBackToIDWithNoTextField(t *testing.T) {
+func TestDisplayLabel_FallsBackToMachineNamePlusSequenceWithNoTextField(t *testing.T) {
 	// The exact shape of Approval Step (CAP-V20's Decision Stepper) that
-	// surfaced the dead data["id"] fallback bug: no text field at all,
-	// only reference/user/number/value_list/rich_text.
+	// surfaced the dead data["id"] fallback bug originally: no text field
+	// at all, only reference/user/number/value_list/rich_text. Since
+	// 2026-09-10 (caught live: a Document's own "Approval Step (via
+	// Document)" reverse-reference sub-list showed raw UUIDs), this tier
+	// falls back to "Machine Name <sequence value>" instead of the bare
+	// id -- still generic (any Machine shaped this way benefits, not a
+	// Approval-Step-specific special case).
+	machine := &model.Machine{ID: "mch_test", Name: "Approval Step", Fields: []*model.Field{
+		{ID: "fld_document", Name: "Document", Type: model.FieldTypeReference},
+		{ID: "fld_approver", Name: "Approver", Type: model.FieldTypeUser},
+		{ID: "fld_sequence", Name: "Sequence", Type: model.FieldTypeNumber},
+	}}
+	data := map[string]any{"fld_sequence": float64(1)}
+
+	got := displayLabel(machine, "step-id-123", data)
+	if got != "Approval Step 1" {
+		t.Fatalf("displayLabel() = %q, want %q", got, "Approval Step 1")
+	}
+}
+
+func TestDisplayLabel_FallsBackToIDWithNoTextOrNumberField(t *testing.T) {
+	// The true last resort: no text field, no number field either --
+	// nothing left to build even "Machine Name <value>" from.
 	machine := fieldsMachine(
 		&model.Field{ID: "fld_document", Name: "Document", Type: model.FieldTypeReference},
 		&model.Field{ID: "fld_approver", Name: "Approver", Type: model.FieldTypeUser},
-		&model.Field{ID: "fld_sequence", Name: "Sequence", Type: model.FieldTypeNumber},
 	)
-	data := map[string]any{"fld_sequence": float64(1)}
+	data := map[string]any{"fld_approver": "user-id-456"}
 
 	got := displayLabel(machine, "step-id-123", data)
 	if got != "step-id-123" {

@@ -37,18 +37,26 @@ SIB_AS2_ID="${SIB_AS2_URL##*/}"
 # T250 -- before Carol has placed anything, Bob's own /place page shows no
 # sibling pin at all (nothing real to show yet -- an unset pin isn't faked
 # as a sibling either, same "unset = not yet placed" convention the
-# record's own pin already uses).
+# record's own pin already uses). Checked by the sibling-dot class itself,
+# not by the sibling's own id string -- displayLabel's title text is no
+# longer that raw id (see T251's own updated comment below), so absence of
+# the id string alone would no longer prove anything either way.
 BOB_BEFORE=$(get_body "$BASE_URL/mch_approval_step/$SIB_AS1_ID/place" "$BOB")
-echo "$BOB_BEFORE" | grep -qv "$SIB_AS2_ID"
+BOB_BEFORE_SIBLINGS=$(echo "$BOB_BEFORE" | grep -c 'bg-slate-400')
+[ "$BOB_BEFORE_SIBLINGS" -eq 0 ]
 check T250 "CAP-V21" "before a sibling Step has placed a pin, none is shown for it yet" $?
 
 # T251 -- Carol places her own Step's pin; Bob's page (a DIFFERENT record)
 # now shows it as a read-only sibling dot at Carol's own saved position,
-# titled with her Step's own id (displayLabel's fallback -- Approval Step
-# has no plain-text Field of its own to prefer).
+# titled with displayLabel's own "Machine Name <sequence>" fallback
+# (Approval Step has no plain-text Field of its own to prefer -- since
+# 2026-09-10 this reads "Approval Step 2" instead of the bare record id,
+# a separate, later fix to the SAME fallback this row's own comment names;
+# T251 itself was updated the same day, not left to silently start
+# failing).
 post_status "$BASE_URL/mch_approval_step/$SIB_AS2_ID/place" "page=1&x=61.00&y=82.00" "$CAROL" >/dev/null
 BOB_AFTER=$(get_body "$BASE_URL/mch_approval_step/$SIB_AS1_ID/place" "$BOB")
-echo "$BOB_AFTER" | grep -q "title=\"$SIB_AS2_ID\"" && echo "$BOB_AFTER" | grep -q 'left:61.00%; top:82.00%'
+echo "$BOB_AFTER" | grep -q 'title="Approval Step 2"' && echo "$BOB_AFTER" | grep -q 'left:61.00%; top:82.00%'
 check T251 "CAP-V21" "a sibling Step's own already-placed pin appears read-only, at its own real position" $?
 
 # T252 -- the sibling dot is genuinely read-only: no data-coordplace-*

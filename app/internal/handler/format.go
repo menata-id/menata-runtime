@@ -169,6 +169,38 @@ func displayLabel(machine *model.Machine, id string, data map[string]any) string
 				}
 			}
 		}
+
+		// No plain-text Field at all (Approval Step's own exact shape:
+		// reference/user/number/value_list/rich_text only) -- "Machine
+		// Name value" from the first `number` Field (preferring one
+		// literally named "sequence") is still meaningfully better than
+		// the bare id for a human reading a reverse-reference list
+		// (CAP-V06, caught live: a Document's own "Approval Step (via
+		// Document)" sub-list showed raw UUIDs) scoped to one specific
+		// parent record, where "Approval Step 3" is unambiguous even
+		// though the same label recurs across different parents' own
+		// child sets. Same priority pattern as the text-field tier above,
+		// one field type down -- not a Machine-specific special case.
+		var firstNumber *model.Field
+		for _, f := range machine.Fields {
+			if f.Type != model.FieldTypeNumber {
+				continue
+			}
+			if firstNumber == nil {
+				firstNumber = f
+			}
+			if strings.EqualFold(f.Name, "sequence") {
+				firstNumber = f
+				break
+			}
+		}
+		if firstNumber != nil {
+			if v, ok := data[firstNumber.ID]; ok {
+				if s := fmt.Sprintf("%v", v); s != "" {
+					return machine.Name + " " + s
+				}
+			}
+		}
 	}
 	return id
 }
