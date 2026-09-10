@@ -232,3 +232,40 @@ assumed passed.
   forward to this study, recording that its own "skip Case 19 mockups" recommendation was
   overridden by direct owner instruction (§1 above) — not rewritten, per this repo's append
   convention.
+
+---
+
+# Correction (2026-09-10, same day) — two authoritative documents this study missed
+
+Found only after this study was written and published, on a direct follow-up question asking for a
+consolidated component list for roadmap planning: **`app/docs/ui-component-library.md`** (the real,
+already-existing living catalog of every Study 38 primitive as actual `internal/ui/components.templ`
+code, v1.7 as of 2026-09-09) and **`guides/breaking-down-ui-components-for-metadata.md`** (the
+already-existing step-by-step methodology guide for exactly §2's own question — "how to write
+metadata that invokes a decomposed component" — written 2026-09-07, the same day Study 38 landed).
+Neither was checked before this study was written; both should have been, per this repo's own
+"cite the concrete evidence" discipline. Two corrections follow from what they show:
+
+1. **§4's table understates how much is already built.** `app/docs/ui-component-library.md`'s own
+   catalog shows **7 of Study 38's 9 presentation primitives are already real `templ` code**
+   (`Avatar`, `AvatarStack`, `StickyActionBar`, `SectionWrapper`, `StatTile`, `MemberChip` — wired to
+   a real call site; `RecordSummaryCard`, `ActivityFeedItem`, `DividedList` — implemented but **not
+   yet wired**, for named reasons). §4's "❌ No — genuine gap" verdict on Cluster 6 (Activity Feed)
+   was too coarse: the **component** (`ActivityFeedItem` + `DividedList`) already exists as real
+   code and was already proven against multiple sources by Study 38's own `component-proof.html` —
+   the actual, narrower gap is only the **data source**: no `ViewType` yet resolves `record_events`
+   into a feed for that component to render. Restated precisely: presentation layer done, metadata/
+   View-type layer still missing — a `page` of "already built, wired" progress this study's original
+   table didn't show.
+2. **§5's "guide doesn't exist yet, write it once R28 ships" framing was wrong on the premise.** A
+   methodology guide for exactly this question already existed (`guides/breaking-down-ui-components-
+   for-metadata.md`, general method — 9 steps, not tied to any one capability) three days before this
+   study was written. What's correctly still missing is not the *method* guide but a `writing-
+   runtime-metadata.md` **translation-guide row** for the specific schema keys once R28 ships — that
+   part of §5 stands.
+
+`app/docs/ui-component-library.md` is updated in the same pass as this correction (Case 19's own new
+named-not-admitted candidates — Checklist widget, Settings navigation rail — added to its own
+"Not built" list, matching how it already carries `Choice Card`). This study's own §3/§4 content is
+left as originally written per the append convention — read this correction alongside it, not as a
+silent replacement.

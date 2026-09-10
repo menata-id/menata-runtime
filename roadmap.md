@@ -1906,6 +1906,20 @@ Downstream, now that these land: CAP-V15 (live aggregate preview, follows CAP-C1
 - CAP-I04 SLO half, Prio 10
 - ~~CAP-O07 (Groups/Teams), Prio 14~~ — **✅ done 2026-08-23**, per direct owner request (see dated status update below) — was "cheap to retrofit whenever needed"; retrofitted
 - CAP-F17 real Currency Machine, CAP-F21 binary PDF/image render — both deferred, no case forcing either yet
+- **R28 (Activity Feed / `record_events` timeline View), added 2026-09-10 (Study 40)** — the one
+  concrete, planning-ready item that study's UI component inventory produced. Three independent
+  sources now (Study 37 origin, `approval-dashboard.html`, `project-card.html`), and the live
+  `/mch_approval_document/page` route is already faking this section with a static placeholder —
+  not just a mockup gap, a real one on a shipped page. Presentation layer is DONE (`ActivityFeedItem`/
+  `DividedList`, `internal/ui/components.templ`, proven by `component-proof.html`) — the only
+  missing piece is a `ViewType` (or `page`-content type) resolving `record_events` into that shape.
+  Real next step: run `capability-lifecycle.md` §2's A1–A5 admission test (A1 already clearly
+  satisfied; A3–A5 not yet checked) before building either candidate shape named in
+  `benchmarks/030-ui-subcomponent-decomposition-criteria.md` §4.1.
+- Checklist/progress-fraction widget, Settings navigation rail (Study 40, Case 19) — both named,
+  not admitted, single mockup instance each. Not planning-ready; revisit only if a second
+  independent case/mockup produces the same shape (same bar Choice Card has been held to since
+  Study 38).
 
 > **Status update (2026-08-23) — CAP-X09 closed by design review, never built.** Picked up as
 > "the next priority" per this section's own Prio-6 ordering; the design-pass conversation the
@@ -3091,6 +3105,54 @@ whenever a case exercises `CAP-P07` under real anonymous traffic. One scoping no
 builds `CAP-P08`/`CAP-P09`: confirm `CAP-C13` expressions are usable inside Permission conditions
 specifically — its own row doesn't yet name Permission as a consuming surface, and the essay's
 Voter-style example is exactly that use.
+
+---
+
+## Study 40 — UI Sub-Component Decomposition Criteria, Case 3 + Case 19 Inventory Update (2026-09-10)
+
+Owner-requested continuation of Study 38 once both Document Approval (Case 3, 4 mockups) and
+Project Management (Case 19, 9 mockups) reached "mockup UI complete" — the owner asked, in three
+parts, for the recurring sub-components to be catalogued, for the *criteria* behind that
+decomposition to be grounded in real (non-metadata) design-system benchmarks rather than house
+opinion, and for a mapping showing which components a Runtime Metadata author can already invoke
+today versus which remain a real gap. Full study: `benchmarks/030-ui-subcomponent-decomposition-
+criteria.md`.
+
+**Method:** re-ran Study 38's own cluster method against Case 19's evidence (deliberately built
+despite Study 38's own "skip new Case 19 mockups" recommendation — overridden by direct owner
+instruction, recorded honestly as a goal change, not a silent reversal). Three of Study 38's 11
+clusters gained cross-domain confirming evidence — Stat Tile/KPI, Activity Feed, and two-column
+layout all now have independent Project Management instances, not just Document Approval ones.
+One automatic mechanism (a Board/Timeline/Calendar/Dashboard view-switcher) turned out to already
+be designed and built (ADR-008/`CAP-O03` Tier 3) — the mockups had simply drifted out of sync with
+it, fixed the same session. Two new single-instance candidates named, not admitted (a checklist/
+progress-fraction widget, a settings navigation rail).
+
+**Decomposition criteria, the owner's second ask:** synthesized from five real design systems —
+Atomic Design's vocabulary, Shopify Polaris's "Rule of Three," GitHub Primer's cross-*product*
+graduation bar, the Atlassian Design System's Foundations-vs-product-specific split (using Trello's
+own card-cover-color picker as the concrete "stays specific" precedent, directly relevant since
+Case 19 is Trello-shaped), and Material Design 3's cross-*surface* bar — into a five-criterion test
+(P1–P5) that is a presentation-layer analogue of `capability-lifecycle.md` §2's own A1–A5. One
+criterion (P4, metadata-invocation reachability) has no external analogue — no comparator studied is
+metadata-driven — and is named as this study's own addition, not imported.
+
+**Correction, same day, before this entry was even written:** two already-existing documents
+(`app/docs/ui-component-library.md`, the real living catalog of Study 38's primitives as actual
+`internal/ui/components.templ` code; `guides/breaking-down-ui-components-for-metadata.md`, an
+already-written step-by-step methodology guide for exactly the metadata-invocation question) were
+not checked before Study 40 was written, and should have been. Corrected in Study 40's own body:
+**7 of Study 38's 9 presentation primitives are already real, wired code**; the two unwired ones
+(`RecordSummaryCard`, `ActivityFeedItem`+`DividedList`) are implemented, just missing a data source
+to render, not missing the component itself. `app/docs/ui-component-library.md` (now v1.8) carries
+Case 19's two new named candidates and a third independent source for Activity Feed.
+
+**Registry impact:** no capability admitted. `CAP-R04`'s row (`capability-registry.md`, now v0.81)
+gains a note: Activity Feed / `record_events` timeline View (R28) now has three independent sources
+(Study 37's origin, Study 38's `approval-dashboard.html`, this study's `project-card.html`) and the
+live `/mch_approval_document/page` route is confirmed already faking that section with a static
+placeholder pending it — **the best-evidenced actionable item this study produced**, ready for
+`capability-lifecycle.md` §2's admission test whenever picked up (see Track E below).
 
 ---
 

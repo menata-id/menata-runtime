@@ -1,8 +1,14 @@
 # UI Component Library
 
-> Status: v1.7 — `CAP-V28` (category-keyed saved approval-flow template) implemented and verified
+> Status: v1.8 — `benchmarks/030-ui-subcomponent-decomposition-criteria.md` (Study 40, Case 19
+> mockups) reinforces `ActivityFeedItem`/`DividedList` (Cluster 6) with a third independent source
+> and names two new not-yet-admitted candidates (Checklist widget, Settings navigation rail) — added
+> to the "Not built" list below. No primitive's wired status changed. | Created: 2026-09-07 |
+> Updated: 2026-09-10
+>
+> Previously v1.7 — `CAP-V28` (category-keyed saved approval-flow template) implemented and verified
 > live, closing a second row of the "Known gaps against real mockups" table (`CAP-F24` already
-> closed as of v1.6) | Created: 2026-09-07 | Updated: 2026-09-09
+> closed as of v1.6) | Updated: 2026-09-09
 
 > Status v1.6 — two of the "Known gaps against real mockups" table's own metadata-only pieces
 > were wired for real onto the persistent `menata_runtime` database (the one actually serving
@@ -256,6 +262,19 @@ shape. **Grid 2/3+1/3 layout** (Cluster 11) is a Tailwind class convention
 sites Study 38 named (`detail.templ`'s aside-based layouts, `approval-dashboard.html`'s mockup);
 no `templ` wrapper needed for two CSS classes.
 
+**Added 2026-09-10** (`benchmarks/030-ui-subcomponent-decomposition-criteria.md`, Study 40, Case 19
+Project Management mockups), same "not built" reasoning — single occurrence each, no pattern yet:
+
+- **Checklist / progress-fraction widget** — `project-card.html`'s checkbox list + progress bar
+  ("6/8 complete"), and the compact "☑ 6/8" summary on `project-board.html`'s own kanban cards.
+  Would need a `display: checklist` value on `child_lines` embeds, analogous to `display: cards` on
+  `list` (CAP-V02 Tier 2) — not proposed as a capability yet, just named.
+- **Settings navigation rail** — `project-settings.html`'s `200px fixed nav + content` two-column
+  shape (General / Lists & statuses / Labels / Custom fields / Permissions). Visually adjacent to
+  the Grid 2/3+1/3 layout above but a different ratio and purpose (in-page section switcher, not a
+  content+metadata split) — Study 40 flagged it as worth a consolidation-proof check against that
+  layout later, not proven either way yet.
+
 ## Why 4 primitives aren't wired to a real page yet
 
 Each one's own doc comment in `components.templ` states this too; repeated here so the catalog is
@@ -273,7 +292,13 @@ readable without opening the source file.
   is nothing yet for THAT use to mark.
 - **`ActivityFeedItem`** — no capability in this runtime resolves a cross-record "who did what
   when" feed today (`CAP-R04` is scoped to one record's own field-diff history). Available the
-  moment that feed exists.
+  moment that feed exists. **Added 2026-09-10 (Study 40):** now a THIRD independent source
+  (`project-card.html`, Case 19 — a genuinely different domain from Document Approval), and the
+  live, shipped `/mch_approval_document/page` route's own "Recent Activity" section is confirmed
+  already faking this exact content with a static placeholder pending it — the component is not
+  the blocker, only the missing `ViewType`/data source is. This is the single most-evidenced
+  not-yet-wired primitive in this catalog; see `capability-registry.md`'s `CAP-R04` row (R28) for
+  the admission-test next step.
 - **`DividedList`** — has no unwired use on its own; it's the wrapper `ActivityFeedItem` would sit
   inside once that has a real data source, and is available to any future "row: avatar + content +
   trailing status" list that isn't already `list.templ`'s own table.
