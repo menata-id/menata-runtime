@@ -51,6 +51,24 @@ func (h *Handler) renderEmbeddedViews(r *http.Request, hostRec *store.Record, ch
 // model.EmbeddableChildViewTypes is the load-time half of the same
 // contract (metadata/validate.go) -- keep both in sync, per that var's own
 // doc comment.
+// childEmbeds reports whether view already declares childViewID among its
+// own Config.Children -- used to suppress a redundant top-of-page
+// ui.DetailLink (record_crud.go's own "Set Position"/"View Progress" slots)
+// pointing at the exact same content a Children entry already renders
+// inline on this same page. view may be nil (no detail View declared at
+// all); childViewID empty never matches a real Children entry.
+func childEmbeds(view *model.View, childViewID string) bool {
+	if view == nil {
+		return false
+	}
+	for _, c := range view.Config.Children {
+		if c.View == childViewID {
+			return true
+		}
+	}
+	return false
+}
+
 func (h *Handler) renderChildView(r *http.Request, hostRec *store.Record, childViewID string) *ui.EmbeddedSection {
 	view, ok := h.interp.Get().GetView(childViewID)
 	if !ok {

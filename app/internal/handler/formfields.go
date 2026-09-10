@@ -339,12 +339,22 @@ func (h *Handler) insertChildRows(ctx context.Context, cl *model.ChildLinesConfi
 // childLists finds every Machine with a `reference` field pointing at
 // machine, and lists the records where that field equals recordID (CAP-V06).
 // Generic by construction — it doesn't special-case Employee/Manager, so any
-// future reference relationship gets a sub-list automatically.
-func (h *Handler) childLists(ctx context.Context, wsSlug string, machine *model.Machine, recordID string) []ui.ChildList {
+// future reference relationship gets a sub-list automatically. skip, when
+// non-nil, drops a (childMachineID, fieldID) pair before it's even queried —
+// record_crud.go's own Detail handler uses this (2026-09-10) to suppress a
+// reverse-reference section that would just duplicate an embedded
+// decision_stepper card showing the exact same child records already (e.g.
+// "Approval Step (via Document)" next to an Approval Progress card listing
+// the same two Steps). The CAP-O02 archive-guard caller passes nil — it
+// wants every reference, not a UI-deduplicated subset.
+func (h *Handler) childLists(ctx context.Context, wsSlug string, machine *model.Machine, recordID string, skip func(childMachineID, fieldID string) bool) []ui.ChildList {
 	var out []ui.ChildList
 	for _, m := range h.interp.Get().AllMachines() {
 		for _, f := range m.Fields {
 			if f.Type != model.FieldTypeReference || f.Options.TargetMachine != machine.ID {
+				continue
+			}
+			if skip != nil && skip(m.ID, f.ID) {
 				continue
 			}
 			records, err := h.records.List(ctx, m.ID, "", "")

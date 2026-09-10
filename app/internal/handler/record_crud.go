@@ -318,7 +318,7 @@ func (h *Handler) setDeleted(w http.ResponseWriter, r *http.Request, deleted boo
 			// fields targeting this one) rather than a second
 			// implementation of "who points at me."
 			if machine.Config["master_data"] == "true" {
-				if refs := h.childLists(r.Context(), h.workspaceSlug(r), machine, recordID); len(refs) > 0 {
+				if refs := h.childLists(r.Context(), h.workspaceSlug(r), machine, recordID, nil); len(refs) > 0 {
 					http.Error(w, fmt.Sprintf("cannot archive: still referenced by %s", refs[0].Title), http.StatusConflict)
 					return
 				}
@@ -1039,7 +1039,26 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		fields = append(fields, ui.DetailField{Name: f.Name, Value: val, Link: link, SlaUrgency: urgency})
 	}
 
-	childLists := h.childLists(r.Context(), h.workspaceSlug(r), machine, recordID)
+	// Suppress the reverse-reference section CAP-V06 would otherwise build
+	// for exactly the (child machine, field) pair an embedded
+	// decision_stepper (CAP-V20 Tier 2 self-host) already renders richly --
+	// only when THIS record's own Machine is the one hosting the embedded
+	// stepper (self-host): a Step's own Detail page embedding its PARENT
+	// Document's stepper says nothing about the Step's own reverse
+	// references, so that case is left alone.
+	var skipChildList func(childMachineID, fieldID string) bool
+	if detailView != nil {
+		for _, c := range detailView.Config.Children {
+			v, ok := h.interp.Get().GetView(c.View)
+			if !ok || v.Type != model.ViewTypeDecisionStepper || v.MachineID != machine.ID {
+				continue
+			}
+			stepsMachine, stepsField := machine.Config["steps_machine"], machine.Config["steps_parent_field"]
+			skipChildList = func(cm, f string) bool { return cm == stepsMachine && f == stepsField }
+			break
+		}
+	}
+	childLists := h.childLists(r.Context(), h.workspaceSlug(r), machine, recordID, skipChildList)
 	events := h.interp.Get().PermittedEventsForRecord(machineID, role, h.identityID(r), rec.Data, h.groupMembersFunc(r.Context()))
 	// CAP-P04: an event declaring InputFields (e.g. "delegate to") renders
 	// an inline picker alongside its trigger button, same field/options
@@ -1054,12 +1073,18 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	}
 	// Extra action links, each gated on this Machine declaring the
 	// relevant record-scoped View -- a generic slot (ui.DetailLink) rather
-	// than a new single-purpose parameter per capability.
+	// than a new single-purpose parameter per capability. Suppressed
+	// (2026-09-10) whenever THIS View's own Config.Children already embeds
+	// the same View inline -- e.g. vw_ad_detail declaring
+	// children:[{view:"vw_ad_progress"}] means the full stepper already
+	// renders on this exact page, so a top-of-page link to the standalone
+	// full-page version of the SAME content is a dead duplicate, not a
+	// shortcut to something otherwise unreachable from here.
 	var extraLinks []ui.DetailLink
-	if h.interp.Get().CoordPlacementView(machineID) != nil { // CAP-V21
+	if v := h.interp.Get().CoordPlacementView(machineID); v != nil && !childEmbeds(detailView, v.ID) { // CAP-V21
 		extraLinks = append(extraLinks, ui.DetailLink{Label: "Set Position", URL: "/" + h.workspaceSlug(r) + "/" + machineID + "/" + recordID + "/place"})
 	}
-	if h.interp.Get().DecisionStepperView(machineID) != nil { // CAP-V20
+	if v := h.interp.Get().DecisionStepperView(machineID); v != nil && !childEmbeds(detailView, v.ID) { // CAP-V20
 		extraLinks = append(extraLinks, ui.DetailLink{Label: "View Progress", URL: "/" + h.workspaceSlug(r) + "/" + machineID + "/" + recordID + "/progress"})
 	}
 	// CAP-V20 Tier 2: this View's own declared Config.Children (empty on

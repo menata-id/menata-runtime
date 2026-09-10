@@ -7,7 +7,11 @@
 > is a designed experiment — and surprises (patterns the case reveals that
 > were not targeted) are themselves findings.
 >
-> Status: v0.38 — Case 3 gains a 2026-09-10 extension note: `CAP-V20` Tier 2's `children` embed
+> Status: v0.39 — Case 3 gains a second 2026-09-10 extension note: the self-host embed above made
+> two pre-existing `ui.DetailLink`s ("View Progress"/"Set Position") and CAP-V06's own
+> reverse-reference section genuinely redundant on the same page — both suppressed via new
+> `childEmbeds`/`childLists` `skip` checks, implemented and deployed live same day. Previously
+> v0.38 — Case 3 gains a 2026-09-10 extension note: `CAP-V20` Tier 2's `children` embed
 > fixed to also support a stepper's own target record embedding its own stepper (not just a child
 > embedding its parent's), closing the exact gap between Approval Step's own already-complete
 > detail page and Approval Document's own plain reverse-reference list — implemented and deployed
@@ -427,6 +431,48 @@ machinery this note is about, not because it's part of the self-host fix itself.
 
 **Status:** implemented and deployed live 2026-09-10. No new `CAP-V20` row/tier — same capability,
 closing a reachability gap in its own Tier 2, not proposing new scope.
+
+---
+
+# Case 3 — extension note (2026-09-10): redundant navigation left behind by the self-host embed
+
+**Business reality:** direct follow-up from the self-host embed note above, same session. Two
+separate owner observations against the same live Document page: (1) "the 'View Progress' link —
+if the display already looks like this, isn't it unnecessary now?"; (2) "what is this 'Approval
+Step (via Document)' card for?", pointing at a plain reverse-reference list sitting directly below
+the new Approval Progress card, both listing the exact same two Steps.
+
+**Diagnosis:** the self-host embed (previous note) made these genuinely redundant for the first
+time — before it, Approval Document's own detail page had no inline stepper at all, so the
+top-of-page "View Progress" link and the plain CAP-V06 reverse-reference list were the ONLY way to
+reach step information from that page. Now that `children` renders the full stepper inline, both
+are dead duplicates of content already on the same page, not alternate paths to something otherwise
+unreachable. Checking the same logic elsewhere found this wasn't entirely new: Approval Step's own
+"Set Position" link had been redundant with its own embedded `coord_placement` pin ever since
+CAP-V21/CAP-V20 Tier 2's own generalization (2026-09-07) — the self-host fix didn't create that one,
+it just made the general check worth writing, which then caught it too.
+
+**Fix (2026-09-10, same session):** two small, independent, additive suppressions, both scoped to
+"this exact View already embeds the exact same content inline," never a blanket rule:
+
+- `childEmbeds(view, childViewID)` (`internal/handler/embed.go`) — `record_crud.go`'s Detail
+  handler now skips adding the `coord_placement`/`decision_stepper` `extraLinks` entry whenever
+  that View id already appears in `detailView.Config.Children`.
+- `childLists` (`internal/handler/formfields.go`, CAP-V06) gained an optional
+  `skip(childMachineID, fieldID string) bool` parameter — the Detail handler builds one whenever
+  this record's own Machine hosts an embedded `decision_stepper` (self-host only; a Step embedding
+  its parent Document's stepper says nothing about the Step's own reverse references, left alone),
+  matching it against `Machine.Config["steps_machine"]`/`["steps_parent_field"]`. The CAP-O02
+  archive-guard's own call to `childLists` (a different job — "is this master-data record still
+  referenced by anything before archiving") passes `nil`, unaffected — it needs every reference,
+  not a UI-deduplicated subset.
+
+Verified live: both links and the reverse-reference section are gone from Document and Step detail
+pages; Approval Progress/Signature Position cards, Edit, and Approve/Reject all still render
+normally for both Bob and Carol.
+
+**Status:** implemented and deployed live 2026-09-10. Dedup only — no data, permission, or
+capability-scope change.
 
 ---
 
