@@ -7,7 +7,11 @@
 > is a designed experiment — and surprises (patterns the case reveals that
 > were not targeted) are themselves findings.
 >
-> Status: v0.37 — Case 3 gains a 2026-09-09 extension note: owner confirms `approval-dashboard.
+> Status: v0.38 — Case 3 gains a 2026-09-10 extension note: `CAP-V20` Tier 2's `children` embed
+> fixed to also support a stepper's own target record embedding its own stepper (not just a child
+> embedding its parent's), closing the exact gap between Approval Step's own already-complete
+> detail page and Approval Document's own plain reverse-reference list — implemented and deployed
+> live same day, no new capability row. Previously v0.37 — Case 3 gains a 2026-09-09 extension note: owner confirms `approval-dashboard.
 > html`'s full composed-page need, `CAP-V10` Tier 2 admitted ❌ Proposed the same day
 > (`capability-registry.md` v0.70). Same day, `CAP-F03` Tier 2 (multi-select `value_list`) also
 > admitted from already-standing Case 11/13/17 evidence — no new case declaration needed there.
@@ -29,7 +33,7 @@
 > CAP-F22 registered. Previously v0.3 — full 21-case portfolio documented (Cases 1–10 original +
 > Cases 11–21 Extended Portfolio); Cases 1–2 ✅ done, the remaining 19 ⚠️ documented with
 > targets/gaps registered against `capability-registry.md` | Created: 2026-07-04 |
-> Updated: 2026-09-06
+> Updated: 2026-09-10
 
 ---
 
@@ -363,6 +367,66 @@ composing existing Views, none of which themselves further compose.
 
 **Status:** `CAP-V10` Tier 2 registered ❌ Proposed in `capability-registry.md` v0.70 the same
 day — full A1–A5 admission test on that row. Not built.
+
+---
+
+# Case 3 — extension note (2026-09-10): self-host `decision_stepper` embed on the Document's own detail page
+
+**Business reality:** owner observation against the live `app_approval` application
+(`https://menata.app/ws_default/mch_approval_document/f4253e62-13b8-4ec1-97d5-8bf542b3c475`) —
+Approval Step's own detail page already renders the full `document-approval.html`-matching
+experience (fields → progress → signature position → sticky Approve/Reject, `CAP-V20` Tier 2's
+own `children` embed), but Approval Document's own detail page still only rendered its child Steps
+as a plain reverse-reference list ("Approval Step (via Document)", CAP-V06 — two bare links).
+Owner's own framing: the components that exist are genuinely complete, but the flow that makes it
+obvious what a specific user needs to DO at this stage isn't surfaced where they land first — the
+Document, not the Step, is what most inbox/navigation paths actually point at.
+
+**Not a new capability — a documentation/reachability gap in an already-✅ mechanism.** `CAP-V20`
+Tier 2's `Config.Children` (any View may embed a `decision_stepper`/`coord_placement` View inline,
+`runtime-metadata-schema.md`'s own "View composition — `children`" section) is already the general,
+metadata-driven answer to "what component, at what stage, for which user": `Machine.Config`
+(CAP-X03) declares the workflow shape once; a View's `children` entry says which other View to
+render inline; done/current/pending state and permission-filtered Approve/Reject are computed
+fresh per request (`PermittedEventsForRecord`), never hand-authored per role. `vw_as_detail`
+(Approval Step) had already been given `children: [{view:"vw_ad_progress"}]` (`seeds/042`);
+`vw_ad_detail` (Approval Document) simply never had — an authoring gap, not a missing mechanism.
+
+**Real code gap found while closing it:** `renderDecisionStepperChild`
+(`internal/handler/decisionstepper.go`) only ever handled "a CHILD record embeds its PARENT's
+stepper" — it resolved the parent by reading `hostRec.Data[steps_parent_field]`, meaningful only
+when hostRec is a *different* Machine's record (a Step) referencing the stepper's own target (a
+Document). Declaring `children` on `vw_ad_detail` — the stepper's own target Machine embedding its
+own stepper — would have silently rendered nothing: `hostRec.Data["document"]` (or whatever the
+parent field is named) doesn't exist on a Document record itself. No load-time error, no runtime
+error — just an absent section, the exact "silent, not loud" failure class this codebase's own
+`slog.Warn` discipline (CAP-V20 Tier 2's own generalization note) exists to catch, and did not
+catch here because the gap was in what `children` could point to being embedded FROM, not what it
+resolves TO.
+
+**Fix (2026-09-10, same session):** `renderDecisionStepperChild` now branches on
+`hostRec.MachineID == view.MachineID` — self-host: use `hostRec` directly as the parent record, no
+`steps_parent_field` indirection — versus the pre-existing child-embeds-parent path, unchanged.
+Purely additive; the new branch is unreachable against any metadata declared before this session.
+Build + `go vet` clean. `vw_ad_detail` then declared `children: [{view:"vw_ad_progress"}]`, same
+shape `seeds/042` already used for `vw_as_detail` (`POST /admin/reload`, no further code deploy).
+Verified live against the exact Document/Steps in the owner's own screenshots: Bob (this step's
+real approver) now sees "Approval Progress" with live Approve/Reject inline on the Document's own
+detail page; Carol (a later, still-Pending step) sees the same progress section with no action
+buttons (correctly permission-gated); the original reverse-reference Step list stays, additive not
+replaced.
+
+**Process note, folded into `runtime-metadata-schema.md`'s own View Types table the same session
+(see that file's 2026-09-10 note, `capability-registry.md`'s `CAP-W05` row):** a separate, unrelated
+owner question ("is `decision_stepper` really a `views` schema property, or just a UI component
+name?") prompted auditing every `ViewType` constant in `internal/model/model.go` against that
+table — caught `process_map` (CAP-W05) had the same "implemented, undocumented" gap the table's
+own 2026-09-09 note had already closed for `board`/`coord_placement`/`decision_stepper`. Doc-only,
+no behavior change; recorded here because it surfaced from checking the same `children`/`ViewType`
+machinery this note is about, not because it's part of the self-host fix itself.
+
+**Status:** implemented and deployed live 2026-09-10. No new `CAP-V20` row/tier — same capability,
+closing a reachability gap in its own Tier 2, not proposing new scope.
 
 ---
 

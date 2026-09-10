@@ -163,16 +163,20 @@ func (h *Handler) computeStepperSteps(r *http.Request, role []string, machine *m
 // View to embed at all, and confirming it's actually this Type, is
 // renderChildView's own job, not this function's.
 //
-// This finds the PARENT record (hostRec's own value for whatever Field the
-// stepper View's owning Machine declares as Config["steps_parent_field"]),
-// checks the acting role can read it, and reuses computeStepperSteps
-// verbatim -- the exact same computation the full-page /progress route
-// (DecisionStepper above) already runs. Returns nil whenever there's
-// genuinely nothing to show (hostRec doesn't actually reference a parent,
-// the role can't read it, or the parent record can't be loaded) --
-// deliberately no error return, since embedding a child is a purely
-// additive extra on a page whose real job (show the host record's own
-// fields) must still render even when this fails.
+// Two cases, both reusing computeStepperSteps verbatim -- the exact same
+// computation the full-page /progress route (DecisionStepper above)
+// already runs. (1) Self-host: hostRec's own Machine IS the stepper's
+// target Machine (e.g. Approval Document's own detail View embedding its
+// own vw_ad_progress) -- hostRec needs no further resolution. (2)
+// Child-embeds-parent: hostRec is a DIFFERENT Machine's record (e.g. one
+// Approval Step) that names its parent via whatever Field the stepper's
+// owning Machine declares as Config["steps_parent_field"] -- that parent
+// is looked up and used instead. Returns nil whenever there's genuinely
+// nothing to show (a child hostRec doesn't actually reference a parent,
+// the role can't read the target Machine, or a referenced parent record
+// can't be loaded) -- deliberately no error return, since embedding a
+// child is a purely additive extra on a page whose real job (show the
+// host record's own fields) must still render even when this fails.
 func (h *Handler) renderDecisionStepperChild(r *http.Request, hostRec *store.Record, view *model.View) *ui.EmbeddedSection {
 	parent, ok := h.interp.Get().GetMachine(view.MachineID)
 	if !ok {
@@ -184,6 +188,33 @@ func (h *Handler) renderDecisionStepperChild(r *http.Request, hostRec *store.Rec
 			"view", view.ID, "machine_id", view.MachineID)
 		return nil
 	}
+	// Self-host case (2026-09-10, Case 3 extension note): the page showing
+	// its OWN stepper -- e.g. Approval Document's own vw_ad_detail
+	// embedding vw_ad_progress -- hostRec already IS the stepper's target
+	// record, so there is no steps_parent_field indirection to follow.
+	// Distinct from the branch below (a Step embedding its parent
+	// Document's stepper), where hostRec is a DIFFERENT Machine's record
+	// and steps_parent_field names which field on IT points back to the
+	// parent this stepper is actually about.
+	if hostRec.MachineID == parent.ID {
+		_, appID := h.interp.Get().ScopeFor(parent.ID)
+		role := h.roleForApp(r, appID)
+		if !h.guard.CanRead(parent, role) {
+			return nil
+		}
+		steps, err := h.computeStepperSteps(r, role, parent, view, hostRec)
+		if err != nil {
+			slog.Warn("decision_stepper child embed: failed to compute steps", "view", view.ID, "parent_record", hostRec.ID, "error", err)
+			return nil
+		}
+		if steps == nil {
+			slog.Warn("decision_stepper child embed: parent machine has no steps_machine/steps_parent_field configured",
+				"view", view.ID, "parent_machine", parent.ID)
+			return nil
+		}
+		return &ui.EmbeddedSection{Title: view.Name, Content: ui.StepperList(h.workspaceSlug(r), h.auth(r).CSRFToken, steps)}
+	}
+
 	stepsParentField := parent.Config["steps_parent_field"]
 	parentID := fmt.Sprintf("%v", hostRec.Data[stepsParentField])
 	if parentID == "" || parentID == "<nil>" {

@@ -1044,6 +1044,7 @@ views:
 | `report` | ✅ CAP-V13 (metadata type name is `report`, not `aggregate_report`) — group-by/rollup over ANOTHER Machine's records (Trial Balance, Leaderboard-shaped), computed at render time, nothing stored; requires `report: { machine, group_field, sum_fields }` |
 | `document` | ⚠️ CAP-F21, HTML output only — renders `template` (an `html/template` source, `{{.fld_x}}` merge fields, auto-escaped) against one record's own data at `GET /{machine}/{record}/document`; computed at render time, nothing stored |
 | `board` | ✅ CAP-V14 Tier 2 — kanban lanes over `group_field`'s own option set; `POST .../board-move` rewrites it on drag |
+| `process_map` | ✅ CAP-W05 — a read-only state/transition diagram, purely derived from this Machine's own `value_list` Status Field + its Events' CAP-E06 guards; no `ViewConfig` fields of its own — opt-in (404 if no `process_map` View is declared), same posture as every other auxiliary View type |
 | `coord_placement` | ✅ CAP-V21 — a preview (PDF/image) of ANOTHER record's own file, referenced via `reference_field`, with one draggable pin writing `page_field`/`x_field`/`y_field` back to THIS record on drop; requires `coord_placement: {reference_field, preview_field, page_field, x_field, y_field}`. Since 2026-09-09, every other record sharing the same `reference_field` value and already-placed on the same page renders alongside as a small read-only sibling pin, automatically — no extra config |
 | `decision_stepper` | ✅ CAP-V20 — a done/current/pending progress indicator over a parent record's own child rows (found via `Machine.config.steps_machine`/`steps_parent_field`, not a View config key), with a real Approve/Reject on whichever step is `current`; requires `decision_stepper: {sequence_field, decision_field}` |
 | `page` | ✅ CAP-V10 Tier 2, 2026-09-09 — a collection-level View with NO host record, composed entirely from `children` (the same key `decision_stepper`/`coord_placement` embedding uses, extended — see below); resolved at `GET /{machine}/page` |
@@ -1053,6 +1054,21 @@ this file (real ✅ capabilities since 2026-08-22/29, only ever written up in `g
 runtime-metadata.md`) — a pre-existing documentation gap, not introduced by this session, closed
 here alongside this session's own three new additions below (`display`, `child_lines_template`,
 `$sla_urgency`), and again alongside `page`/`children` (extended) further down.
+
+**Note (2026-09-10):** same gap, one more instance — `process_map` (✅ CAP-W05, implemented since
+Study 19) was a real `ViewType` in `internal/model/model.go` with zero row in this table, caught
+by an owner question about whether `decision_stepper` was really a `views` schema property or just
+a UI component name (it is the former — every `ViewType` constant in `model.go` names one, closed-
+vocabulary), which prompted auditing every `ViewType` constant against this table for the same
+drift. Everything else (`form`/`list`/`detail`/`dashboard`/`calendar`/`timeline`/`report`/
+`document`/`board`/`coord_placement`/`decision_stepper`/`page`) already had a row; `process_map`
+was the only miss. `EmbeddableChildViewTypes`/`PageEmbeddableViewTypes` (the two `children`
+allow-lists documented below) were also checked against `model.go` the same pass — both already
+match exactly, no further drift found. **Going forward:** a new `ViewType` constant and its row
+here are one change, not two follow-up commits apart — `capability-lifecycle.md`'s own "Definition
+of done" table already names Layer 2 (metadata schema doc) as required, not optional, for exactly
+this reason; this note is the evidence for why that layer needs checking at the same time the Go
+constant lands, not trusted to happen separately.
 
 ### View composition — `children`
 
