@@ -782,12 +782,29 @@ func cardSummary(row ListRow) cardFields {
 		return cardFields{}
 	}
 	cf := cardFields{Title: row.Cells[0].Value}
-	badgeTaken := false
+
+	// Which cell becomes the badge: the LAST badge-eligible one, not the
+	// first -- caught live (2026-09-10) on vw_ad_all's own real cards:
+	// Document Type (value_list, column 1) and Status (value_list, the
+	// LAST column) are both badge-eligible, and picking the first found
+	// Document Type as "the" badge instead of Status. By this app's own
+	// column-ordering convention (every current cards-mode View puts
+	// Status last -- vw_ad_all, vw_ad_pending), the rightmost eligible
+	// column is the one actually worth highlighting as a badge; earlier
+	// value_list columns are just descriptive category text, same as any
+	// other subtitle field.
+	badgeIdx := -1
+	for i := 1; i < len(row.Cells); i++ {
+		c := row.Cells[i]
+		if (c.IsStatusBadge || c.SlaUrgency != "") && c.Value != "" {
+			badgeIdx = i
+		}
+	}
 	var subtitleParts []string
-	for _, c := range row.Cells[1:] {
-		if !badgeTaken && (c.IsStatusBadge || c.SlaUrgency != "") && c.Value != "" {
+	for i := 1; i < len(row.Cells); i++ {
+		c := row.Cells[i]
+		if i == badgeIdx {
 			cf.Badge, cf.IsStatusBadge, cf.SlaUrgency = c.Value, c.IsStatusBadge, c.SlaUrgency
-			badgeTaken = true
 			continue
 		}
 		if c.Value != "" {
@@ -856,7 +873,7 @@ func listCards(wsSlug, machineID string, rows []ListRow, archived bool) templ.Co
 					var templ_7745c5c3_Var31 templ.SafeURL
 					templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machineID + "/" + row.ID))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/list.templ`, Line: 278, Col: 73}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/list.templ`, Line: 295, Col: 73}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 					if templ_7745c5c3_Err != nil {

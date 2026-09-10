@@ -242,12 +242,29 @@ func cardSummary(row ListRow) cardFields {
 		return cardFields{}
 	}
 	cf := cardFields{Title: row.Cells[0].Value}
-	badgeTaken := false
+
+	// Which cell becomes the badge: the LAST badge-eligible one, not the
+	// first -- caught live (2026-09-10) on vw_ad_all's own real cards:
+	// Document Type (value_list, column 1) and Status (value_list, the
+	// LAST column) are both badge-eligible, and picking the first found
+	// Document Type as "the" badge instead of Status. By this app's own
+	// column-ordering convention (every current cards-mode View puts
+	// Status last -- vw_ad_all, vw_ad_pending), the rightmost eligible
+	// column is the one actually worth highlighting as a badge; earlier
+	// value_list columns are just descriptive category text, same as any
+	// other subtitle field.
+	badgeIdx := -1
+	for i := 1; i < len(row.Cells); i++ {
+		c := row.Cells[i]
+		if (c.IsStatusBadge || c.SlaUrgency != "") && c.Value != "" {
+			badgeIdx = i
+		}
+	}
 	var subtitleParts []string
-	for _, c := range row.Cells[1:] {
-		if !badgeTaken && (c.IsStatusBadge || c.SlaUrgency != "") && c.Value != "" {
+	for i := 1; i < len(row.Cells); i++ {
+		c := row.Cells[i]
+		if i == badgeIdx {
 			cf.Badge, cf.IsStatusBadge, cf.SlaUrgency = c.Value, c.IsStatusBadge, c.SlaUrgency
-			badgeTaken = true
 			continue
 		}
 		if c.Value != "" {
