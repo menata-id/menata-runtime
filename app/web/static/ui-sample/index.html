@@ -16,9 +16,8 @@
 <main class="mx-auto max-w-6xl px-6 py-10">
   <h1 class="text-2xl font-semibold text-slate-900">UI Sample — index</h1>
   <p class="mt-2 max-w-3xl text-sm text-slate-600">
-    Two tables are the single way into every mockup in this folder, and into the live pages that
-    have superseded a mockup: Workspace &amp; Access screens below (platform-level, not tied to a
-    case), then Case coverage — one row per
+    Two tables are the single way into every mockup in this folder: Workspace &amp; Access screens
+    below (platform-level, not tied to a case), then Case coverage — one row per
     <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">case-portfolio.md</code> case,
     cross-referencing every mockup and every component it's built from. No separate top nav or
     preview cards — both were dropped as redundant duplicates of what these tables already cover.
@@ -28,9 +27,10 @@
   <p class="mt-1 max-w-3xl text-sm text-slate-600">
     Platform-level screens (identity, workspace membership, approval authority) — not tied to any
     single <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">case-portfolio.md</code> case, so
-    they don't belong in the table below. Four of these already have real, live code (per this
-    folder's own rule: don't re-mock what's already built — link to the live render instead); the
-    other two are new static mockups, added because no live page fills that shape yet.
+    they don't belong in the table below. Kept as static mockups on purpose, even where a live page
+    already exists (CAP-O11/O03/O01 for #2–4) — this table is the design-intent baseline the real
+    implementation gets diffed against, not a redirect to it. "Drift" is the column that answers
+    "is the live page still doing what the mockup says."
   </p>
   <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
     <table class="w-full text-sm">
@@ -38,20 +38,29 @@
         <tr>
           <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">#</th>
           <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Screen</th>
-          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
-          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Access</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Mockup</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Live counterpart</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Drift</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100">
-        <tr class="bg-blue-50/30 hover:bg-blue-50"><td class="px-4 py-2.5 text-slate-400">1</td><td class="px-4 py-2.5 font-medium text-slate-800">Login</td><td class="px-4 py-2.5"><span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">real code, not mocked</span></td><td class="px-4 py-2.5"><a href="/login" class="text-sm font-medium text-blue-600 hover:underline">Open /login →</a></td></tr>
-        <tr class="bg-blue-50/30 hover:bg-blue-50"><td class="px-4 py-2.5 text-slate-400">2</td><td class="px-4 py-2.5 font-medium text-slate-800">Choose Workspace</td><td class="px-4 py-2.5"><span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">real code, not mocked (CAP-O11)</span></td><td class="px-4 py-2.5"><a href="/choose-workspace" class="text-sm font-medium text-blue-600 hover:underline">Open /choose-workspace →</a></td></tr>
-        <tr class="bg-blue-50/30 hover:bg-blue-50"><td class="px-4 py-2.5 text-slate-400">3</td><td class="px-4 py-2.5 font-medium text-slate-800">Workspace Home</td><td class="px-4 py-2.5"><span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">real code, not mocked (CAP-O03)</span></td><td class="px-4 py-2.5"><a href="/" class="text-sm font-medium text-blue-600 hover:underline">Open / →</a></td></tr>
-        <tr class="bg-blue-50/30 hover:bg-blue-50"><td class="px-4 py-2.5 text-slate-400">4</td><td class="px-4 py-2.5 font-medium text-slate-800">Workspace Members</td><td class="px-4 py-2.5"><span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">real code, not mocked (CAP-O01)</span></td><td class="px-4 py-2.5"><a href="/ws_default/admin/users" class="text-sm font-medium text-blue-600 hover:underline">Open /ws_default/admin/users →</a></td></tr>
-        <tr class="bg-emerald-50/40 hover:bg-emerald-50"><td class="px-4 py-2.5 text-slate-400">5</td><td class="px-4 py-2.5 font-medium text-slate-800">Member Access Detail</td><td class="px-4 py-2.5"><span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ mocked</span></td><td class="px-4 py-2.5"><a href="/ui-sample/member-access-detail.html" class="text-sm font-medium text-blue-600 hover:underline">member-access-detail.html →</a></td></tr>
-        <tr class="bg-emerald-50/40 hover:bg-emerald-50"><td class="px-4 py-2.5 text-slate-400">6</td><td class="px-4 py-2.5 font-medium text-slate-800">Approval Role Matrix</td><td class="px-4 py-2.5"><span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ mocked</span></td><td class="px-4 py-2.5"><a href="/ui-sample/approval-role-matrix.html" class="text-sm font-medium text-blue-600 hover:underline">approval-role-matrix.html →</a></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">1</td><td class="px-4 py-2.5 font-medium text-slate-800">Login</td><td class="px-4 py-2.5"><a href="/ui-sample/login.html" class="text-sm font-medium text-blue-600 hover:underline">login.html →</a></td><td class="px-4 py-2.5 text-xs text-slate-500">CAP-X02 · <code class="rounded bg-slate-100 px-1 py-0.5">/login</code></td><td class="px-4 py-2.5"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">not yet checked</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">2</td><td class="px-4 py-2.5 font-medium text-slate-800">Choose Workspace</td><td class="px-4 py-2.5"><a href="/ui-sample/choose-workspace.html" class="text-sm font-medium text-blue-600 hover:underline">choose-workspace.html →</a></td><td class="px-4 py-2.5 text-xs text-slate-500">CAP-O11 · <code class="rounded bg-slate-100 px-1 py-0.5">/choose-workspace</code></td><td class="px-4 py-2.5"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">not yet checked</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">3</td><td class="px-4 py-2.5 font-medium text-slate-800">Workspace Home</td><td class="px-4 py-2.5"><a href="/ui-sample/workspace-home.html" class="text-sm font-medium text-blue-600 hover:underline">workspace-home.html →</a></td><td class="px-4 py-2.5 text-xs text-slate-500">CAP-O03 · <code class="rounded bg-slate-100 px-1 py-0.5">/{wsSlug}/</code></td><td class="px-4 py-2.5"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">not yet checked</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">4</td><td class="px-4 py-2.5 font-medium text-slate-800">Workspace Members</td><td class="px-4 py-2.5"><a href="/ui-sample/workspace-members.html" class="text-sm font-medium text-blue-600 hover:underline">workspace-members.html →</a></td><td class="px-4 py-2.5 text-xs text-slate-500">CAP-O01 · <code class="rounded bg-slate-100 px-1 py-0.5">/{wsSlug}/admin/users</code></td><td class="px-4 py-2.5"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">not yet checked</span></td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">5</td><td class="px-4 py-2.5 font-medium text-slate-800">Member Access Detail</td><td class="px-4 py-2.5"><a href="/ui-sample/member-role-detail.html" class="text-sm font-medium text-blue-600 hover:underline">member-role-detail.html →</a></td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">no live page yet</span></td><td class="px-4 py-2.5 text-slate-300 text-xs">—</td></tr>
+        <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 text-slate-400">6</td><td class="px-4 py-2.5 font-medium text-slate-800">Approval Role Matrix</td><td class="px-4 py-2.5"><a href="/ui-sample/approval-role-matrix.html" class="text-sm font-medium text-blue-600 hover:underline">approval-role-matrix.html →</a></td><td class="px-4 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">no live page yet</span></td><td class="px-4 py-2.5 text-slate-300 text-xs">—</td></tr>
       </tbody>
     </table>
   </div>
+  <p class="mt-3 max-w-3xl text-xs text-slate-500">
+    "Drift" isn't scored yet — set the first time someone actually walks each live page next to its
+    mockup row and writes down what differs (a benchmark note or a dated entry here, per this
+    repo's append-don't-rewrite convention). Owner-flagged (2026-09-10, conversation, not yet
+    written up as evidence anywhere): Document Approval's own mockup and its shipped pages have
+    already drifted apart — the reason this column exists, so the next gap gets caught instead of
+    accumulating silently.
+  </p>
 
   <h2 class="mt-12 text-lg font-semibold text-slate-900">Case coverage (Study 38)</h2>
   <p class="mt-1 max-w-3xl text-sm text-slate-600">

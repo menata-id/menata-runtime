@@ -61,11 +61,20 @@ table links: `document-submit.html`, `document-signature-placement.html`,
 **Status update (2026-09-10):** `index.html` now has a second table above the case-coverage one,
 "Workspace & Access screens" — platform-level screens (login, workspace membership, approval
 authority) that aren't tied to any single `case-portfolio.md` case, so they don't belong in the
-case table. Same "don't re-mock what's already live" rule applies there: it links straight to the
-real running routes for Login (`/login`), Choose Workspace (`/choose-workspace`, CAP-O11),
-Workspace Home (`/`, CAP-O03) and Workspace Members (`/{wsSlug}/admin/users`, CAP-O01) instead of
-static mockups. Only `member-access-detail.html` and `approval-role-matrix.html` are real static
-mockups in this second table — added because no live page fills either shape yet.
+case table.
+
+**Correction, same day:** this table does **not** follow the "don't re-mock what's already live"
+rule the case-coverage table follows. Owner decision (2026-09-10, conversation): all six rows —
+Login, Choose Workspace, Workspace Home, Workspace Members, Member Access Detail, Approval Role
+Matrix — stay static mockups (`login.html`, `choose-workspace.html`, `workspace-home.html`,
+`workspace-members.html`, `member-role-detail.html`, `approval-role-matrix.html`) even for the
+four that already have live code (CAP-X02/O11/O03/O01). Reason given: the mockup is meant to stay
+the design-intent baseline the live implementation gets diffed against — linking straight to the
+live page would collapse that baseline into "whatever shipped," making drift unmeasurable. The
+table's own "Drift" column names each mockup's live counterpart without linking to it as a
+replacement. Document Approval (Case 3, case-coverage table) is the owner-cited concrete example
+of this exact gap already having gone unmeasured — flagged in conversation 2026-09-10, not yet
+written up with a citation anywhere.
 
 ## Established pattern so far
 
