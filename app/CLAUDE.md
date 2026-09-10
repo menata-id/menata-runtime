@@ -58,6 +58,15 @@ For **Document Approval (Case 3)**, the current design references are exactly th
 table links: `document-submit.html`, `document-signature-placement.html`,
 `document-approval.html`, `approval-dashboard.html`.
 
+**Status update (2026-09-10):** `index.html` now has a second table above the case-coverage one,
+"Workspace & Access screens" — platform-level screens (login, workspace membership, approval
+authority) that aren't tied to any single `case-portfolio.md` case, so they don't belong in the
+case table. Same "don't re-mock what's already live" rule applies there: it links straight to the
+real running routes for Login (`/login`), Choose Workspace (`/choose-workspace`, CAP-O11),
+Workspace Home (`/`, CAP-O03) and Workspace Members (`/{wsSlug}/admin/users`, CAP-O01) instead of
+static mockups. Only `member-access-detail.html` and `approval-role-matrix.html` are real static
+mockups in this second table — added because no live page fills either shape yet.
+
 ## Established pattern so far
 
 Each `internal/<name>/doc.go` states what it's graduated from (or "NEW" for `internal/storage`),

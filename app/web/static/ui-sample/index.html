@@ -16,11 +16,42 @@
 <main class="mx-auto max-w-6xl px-6 py-10">
   <h1 class="text-2xl font-semibold text-slate-900">UI Sample — index</h1>
   <p class="mt-2 max-w-3xl text-sm text-slate-600">
-    The table below is the single way into every mockup in this folder — one row per
+    Two tables are the single way into every mockup in this folder, and into the live pages that
+    have superseded a mockup: Workspace &amp; Access screens below (platform-level, not tied to a
+    case), then Case coverage — one row per
     <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">case-portfolio.md</code> case,
     cross-referencing every mockup and every component it's built from. No separate top nav or
-    preview cards — both were dropped as redundant duplicates of what this table already covers.
+    preview cards — both were dropped as redundant duplicates of what these tables already cover.
   </p>
+
+  <h2 class="mt-12 text-lg font-semibold text-slate-900">Workspace &amp; Access screens</h2>
+  <p class="mt-1 max-w-3xl text-sm text-slate-600">
+    Platform-level screens (identity, workspace membership, approval authority) — not tied to any
+    single <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">case-portfolio.md</code> case, so
+    they don't belong in the table below. Four of these already have real, live code (per this
+    folder's own rule: don't re-mock what's already built — link to the live render instead); the
+    other two are new static mockups, added because no live page fills that shape yet.
+  </p>
+  <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+    <table class="w-full text-sm">
+      <thead class="border-b border-slate-200 bg-slate-50">
+        <tr>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">#</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Screen</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Access</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <tr class="bg-blue-50/30 hover:bg-blue-50"><td class="px-4 py-2.5 text-slate-400">1</td><td class="px-4 py-2.5 font-medium text-slate-800">Login</td><td class="px-4 py-2.5"><span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">real code, not mocked</span></td><td class="px-4 py-2.5"><a href="/login" class="text-sm font-medium text-blue-600 hover:underline">Open /login →</a></td></tr>
+        <tr class="bg-blue-50/30 hover:bg-blue-50"><td class="px-4 py-2.5 text-slate-400">2</td><td class="px-4 py-2.5 font-medium text-slate-800">Choose Workspace</td><td class="px-4 py-2.5"><span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">real code, not mocked (CAP-O11)</span></td><td class="px-4 py-2.5"><a href="/choose-workspace" class="text-sm font-medium text-blue-600 hover:underline">Open /choose-workspace →</a></td></tr>
+        <tr class="bg-blue-50/30 hover:bg-blue-50"><td class="px-4 py-2.5 text-slate-400">3</td><td class="px-4 py-2.5 font-medium text-slate-800">Workspace Home</td><td class="px-4 py-2.5"><span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">real code, not mocked (CAP-O03)</span></td><td class="px-4 py-2.5"><a href="/" class="text-sm font-medium text-blue-600 hover:underline">Open / →</a></td></tr>
+        <tr class="bg-blue-50/30 hover:bg-blue-50"><td class="px-4 py-2.5 text-slate-400">4</td><td class="px-4 py-2.5 font-medium text-slate-800">Workspace Members</td><td class="px-4 py-2.5"><span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">real code, not mocked (CAP-O01)</span></td><td class="px-4 py-2.5"><a href="/ws_default/admin/users" class="text-sm font-medium text-blue-600 hover:underline">Open /ws_default/admin/users →</a></td></tr>
+        <tr class="bg-emerald-50/40 hover:bg-emerald-50"><td class="px-4 py-2.5 text-slate-400">5</td><td class="px-4 py-2.5 font-medium text-slate-800">Member Access Detail</td><td class="px-4 py-2.5"><span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ mocked</span></td><td class="px-4 py-2.5"><a href="/ui-sample/member-access-detail.html" class="text-sm font-medium text-blue-600 hover:underline">member-access-detail.html →</a></td></tr>
+        <tr class="bg-emerald-50/40 hover:bg-emerald-50"><td class="px-4 py-2.5 text-slate-400">6</td><td class="px-4 py-2.5 font-medium text-slate-800">Approval Role Matrix</td><td class="px-4 py-2.5"><span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">✓ mocked</span></td><td class="px-4 py-2.5"><a href="/ui-sample/approval-role-matrix.html" class="text-sm font-medium text-blue-600 hover:underline">approval-role-matrix.html →</a></td></tr>
+      </tbody>
+    </table>
+  </div>
 
   <h2 class="mt-12 text-lg font-semibold text-slate-900">Case coverage (Study 38)</h2>
   <p class="mt-1 max-w-3xl text-sm text-slate-600">
