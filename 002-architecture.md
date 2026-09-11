@@ -16,11 +16,9 @@ Business Knowledge itself is not executable.
 
 Runtime Metadata bridges Business Knowledge and executable applications.
 
-The runtime continuously interprets Runtime Metadata into running applications.
+The runtime continuously realizes Runtime Metadata into running applications.
 
-Applications are interpreted.
-
-Applications are not generated.
+Applications are not source-code generated from metadata. They are runtime realizations of metadata through internal compilation, planning, execution, and rendering stages.
 
 ---
 
@@ -41,31 +39,40 @@ Authoring Layer
 ──────────────────────────────
 
 Menata Apps Builder
-
 Visual Builder
-
 CLI
-
 Manual Editor
-
 Compatible Tools
 
         │
         ▼
 
 Runtime Metadata
-
+        │
+        ▼
 ──────────────────────────────
-Runtime Layer
+Runtime Realization
 ──────────────────────────────
 
-Menata Runtime
+Parse / Validate
+        ↓
+Normalize / Resolve
+        ↓
+Domain + Data + Experience IR
+        ↓
+Dependency Graph
+        ↓
+Execution Planning
+        ↓
+Physical Execution + Rendering
 
         │
         ▼
 
 Applications
 ```
+
+The internal realization pipeline is an implementation concern of the Runtime Layer. Its purpose is to keep metadata declarative while allowing the runtime to optimize physical execution.
 
 ---
 
@@ -125,8 +132,7 @@ Runtime Metadata may be produced by:
 
 The runtime never depends on how Runtime Metadata is created.
 
-See `benchmarks/018-menata-apps-builder-concept.md` for an early page-concept exploration of what
-a Menata Apps Builder could contain — exploratory only, no runtime dependency implied.
+See `benchmarks/018-menata-apps-builder-concept.md` for an early page-concept exploration of what a Menata Apps Builder could contain — exploratory only, no runtime dependency implied.
 
 ---
 
@@ -142,9 +148,13 @@ It contains application realization rather than Business Knowledge.
 
 ## Menata Runtime
 
-Menata Runtime interprets Runtime Metadata.
+Menata Runtime owns application realization.
 
-Its responsibility is to realize executable applications.
+Its internal realization may include parsing, validation, reference resolution, normalization, compilation to logical intermediate representations, dependency planning, physical execution, and rendering.
+
+These stages do not create application source code. They create runtime-internal representations and execution plans.
+
+The target composable architecture is defined in `007-composable-runtime-architecture.md`; the cross-document contract is maintained in `composable-runtime-architecture-map.md`.
 
 The runtime owns:
 
@@ -158,11 +168,6 @@ The runtime owns:
 - constraint enforcement,
 - platform services.
 
-Interpretation may involve internal stages — for example, loading Runtime Metadata and
-compiling a higher-level declarative construct into lower-level primitives the runtime already
-executes. Such stages remain internal to this layer. They do not introduce a new layer in the
-architecture above; they are how this layer realizes Runtime Metadata.
-
 ---
 
 ## Applications
@@ -173,7 +178,7 @@ Applications exist because Runtime Metadata exists.
 
 Applications continuously evolve as Runtime Metadata evolves.
 
-Applications remain isolated from each other through metadata.
+Applications remain isolated from each other through metadata and workspace boundaries.
 
 ---
 
@@ -206,7 +211,30 @@ The runtime does not own:
 - Menata Language,
 - metadata authoring.
 
-The runtime only interprets Runtime Metadata.
+The runtime realizes Runtime Metadata through internal stages; those stages must not leak physical implementation choices back into metadata.
+
+---
+
+# Composable Runtime Boundary
+
+The composable architecture introduces three logical realization domains:
+
+```text
+Domain Plane
+    Machine / Field / Event / Constraint / Permission
+
+Data Plane
+    DataSource / Dataset / Relation / Projection / Query / Expression
+
+Experience Plane
+    Page / Layout / Component / View / Slot / Binding
+```
+
+Behavioral constructs connect these domains but do not make presentation elements responsible for business authorization or business execution.
+
+The composition tree belongs to Experience. Data and behavior dependencies form separate semantic graphs. They are combined for planning only after security and reference resolution are known.
+
+`View` remains a supported convenience abstraction and compatibility boundary, not the universal composition primitive.
 
 ---
 
@@ -227,7 +255,13 @@ Menata Language changes
 Runtime Metadata changes
         │
         ▼
-Runtime interprets changes
+Parse / Validate / Normalize
+        │
+        ▼
+Logical IR + Dependency Graph
+        │
+        ▼
+Execution Plan + Render Plan
         │
         ▼
 Applications evolve
@@ -247,7 +281,7 @@ The runtime should remain independent from:
 - infrastructure,
 - deployment environments.
 
-Only Runtime Metadata should determine application behavior.
+Only Runtime Metadata should determine application behavior; physical strategies remain runtime-owned.
 
 ---
 
@@ -260,7 +294,7 @@ A single runtime may host:
 - hundreds of applications,
 - thousands of applications.
 
-Applications remain independent through Runtime Metadata.
+Applications remain independent through Runtime Metadata and workspace isolation.
 
 The runtime remains a single execution environment.
 
@@ -279,6 +313,8 @@ Each workspace owns:
 - deployment configuration.
 
 Cross-workspace interaction should always be explicit.
+
+Security scope enters the logical data plan before query sharing, caching, batching, or other physical optimization.
 
 ---
 
@@ -302,6 +338,8 @@ Business Knowledge remains the long-term organizational asset.
 
 The layered architecture above was informed by studying architecture patterns from other world-class systems — browser engines, Kubernetes, Terraform, React, VS Code, and others. See [architecture-benchmark.md](architecture-benchmark.md) for the full comparison and the design implications drawn from each.
 
+For the composable architecture specifically, see `007-composable-runtime-architecture.md`, `composable-runtime-architecture-map.md`, and `composable-runtime-roadmap.md`.
+
 ---
 
 # Summary
@@ -310,8 +348,8 @@ Menata Runtime follows a simple architectural philosophy.
 
 Business Knowledge explains organizations.
 
-Runtime Metadata explains applications.
+Runtime Metadata explains application realization.
 
-Menata Runtime realizes Runtime Metadata.
+Menata Runtime compiles, plans, executes, and renders Runtime Metadata without generating application source code.
 
 Applications become living representations of Business Knowledge.
