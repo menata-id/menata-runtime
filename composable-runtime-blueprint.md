@@ -1,36 +1,10 @@
 # Composable Runtime Architecture — Transformation Blueprint
 
-> Status: v1.1 — cross-linked to `007-composable-runtime-architecture.md` (2026-09-11, owner
-> decision: 007 stays Tier 1 as the normative target architecture, this document stays Tier 3 as
-> the evolving how-we-get-there plan — the two are complementary, not competing) | Previously
-> v1.0 — first pass. Assembles `prototype/objectstack/docs/composable-view-proposal-
-> reconciliation.md` §1–§10 (four external/owner passes on a "Composable Metadata Runtime"
-> direction, 2026-09-07 → 2026-09-11), `capability-registry.md` (`CAP-V10`, `CAP-V22`, `CAP-C13`,
-> `CAP-X10`), and `benchmarks/004-scale-architecture-study.md` (Study 8) into one target
-> architecture and a phased, evidence-gated evolution plan | Created: 2026-09-11 |
-> Updated: 2026-09-11
+> Status: v1.2 — adds the **Composable Execution Planner** as a first-class transformation phase and performance proof boundary, cross-linked to `007-composable-runtime-architecture.md` v0.4. 007 defines *what the architecture must be*; this document defines *how the runtime gets there and proves it*. Previously v1.1 — cross-linked to 007, three composability planes, current-state inventory, and evidence-gated phased plan. Created: 2026-09-11.
 
-> **What this document is.** The Tier 3 companion to **[`007-composable-runtime-architecture.md`]
-> (007-composable-runtime-architecture.md)** (Tier 1). 007 defines *what the architecture must be*
-> — the model, contracts, and invariants (Data/UI/Behavior planes, Dataset, UI IR, the Static
-> Component Registry seam, admission/review gates). This document defines *how the runtime gets
-> there and proves it* — a synthesis and sequencing plan, requested directly by the owner after
-> five rounds of external/owner review converged on the same underlying question: today's
-> composition unit is `View`, and the runtime should evolve toward composing Data, UI, and
-> Behavior independently. It organizes gaps already found and evidenced elsewhere in this repo
-> into a current-state inventory and phased plan, so a future session doesn't have to re-derive
-> the relationships between `CAP-V10`, `CAP-V22`, `CAP-C13`, `CAP-X10`, and Study 8 from scratch —
-> and so 007's own PROPOSED rows (§40) have a concrete "not yet, here's the forcing condition"
-> answer rather than staying open-ended.
->
-> **What this document is not.** A capability admission, and not itself the normative spec — where
-> this document and 007 describe the same concept, 007's wording governs. Nothing here is built by
-> this document, and nothing here skips `capability-lifecycle.md` §2's A1–A5 test or this repo's
-> own "declare targets first" discipline (`roadmap.md`, `capability-registry.md` passim). Every
-> phase below names its own forcing condition — a real case, or a direct owner decision of the
-> same evidentiary class already accepted for `CAP-V10 Tier 2`/`CAP-F24`/`CAP-V28`. Where no such
-> condition exists yet, the phase is recorded as sequencing information only, not a green light to
-> build ahead of need.
+> **What this document is.** The Tier 3 companion to **`007-composable-runtime-architecture.md`** (Tier 1). 007 defines the model, contracts, and invariants. This document defines the current-state gaps, sequencing, forcing conditions, and benchmark program needed to reach that target.
+
+> **What this document is not.** A capability admission, and not itself the normative spec. Nothing here is built by this document, and nothing here skips `capability-lifecycle.md` §2's A1–A5 test or the repository's "declare targets first" discipline. Every phase names its own forcing condition; where no forcing condition exists yet, the phase is sequencing information only.
 
 ---
 
@@ -38,22 +12,21 @@
 
 | Source | What it contributed |
 |---|---|
-| `prototype/objectstack/docs/composable-view-proposal-reconciliation.md` §1–§4 | Settled that a dynamic client-side Component Registry/Canvas is SPA-shaped machinery this server-rendered runtime has no structural need for — confirmed again in every later pass, not re-litigated here |
-| Same doc, §5, §7, §8 | `CAP-V10 Tier 2` (page composing Views + closed static content + one layout shape) scoped, then implemented and shipped 2026-09-09; recursive nesting depth and parent→child context named as real, deliberately deferred gaps |
-| Same doc, §9 | A fourth, broader restatement checked against the shipped `CAP-V10 Tier 2` — confirmed most claims already closed, named three genuinely new framings: a Query/Projection layer independent of any one View, a UI Intermediate Representation, and composability-measuring benchmark KPIs |
-| Same doc, §10 | The owner's own synthesis: their earlier verbal Dataset/Query-first framing merged with §9's UI-first framing into three composability planes (Data/UI/Behavior), `View` reframed as a composition preset rather than a primitive, and a request for this document |
-| `capability-registry.md` `CAP-V22` | Semantic dataset (named aggregate reused by name across `report`/`dashboard`/chart Views) — already registered ❌ Proposed, Study 37 R2, "metric drift" the exact problem a Data plane exists to solve |
-| `capability-registry.md` `CAP-C13` | Expression operator (CEL) — already ✅, the general compute/transform primitive a Projection layer would reuse rather than duplicate |
-| `capability-registry.md` `CAP-X10` | Metadata-driven index management — already ❌, deliberately deferred (no measured scale pressure yet), per "Infer Before Configure" |
-| `benchmarks/004-scale-architecture-study.md` (Study 8) | The existing scale/performance architecture study — index strategy, cache strategy, P95 targets — the Data-plane framing's own performance argument connects directly to this, not a new concern |
-| `internal/metadata/compile.go` (Study 21, `CAP-W01` Process Overlay) | Proof that "declarative metadata compiles at load time into lower-level runtime primitives" already works in this codebase — the precedent a UI IR would extend, not invent |
-| `capability-lifecycle.md` §2 | The existing A1–A5 admission gate, which every phase below still has to pass |
+| `007-composable-runtime-architecture.md` | Normative three-plane architecture, Data/UI/Behavior separation, UI IR, Static Component Registry seam, physical execution boundary, and now the **Composable Execution Planner** plus performance invariants |
+| `prototype/objectstack/docs/composable-view-proposal-reconciliation.md` §1–§10 | Settled that the target is composable metadata without a dynamic client-side plugin/canvas architecture; identified Query/Projection, UI IR, and composability benchmark gaps |
+| `capability-registry.md` `CAP-V10` | Shipped page composition precedent; shows the experience composition substrate already exists in bounded form |
+| `capability-registry.md` `CAP-V22` | Proposed semantic dataset; the primary candidate for reusable Data-plane semantics |
+| `capability-registry.md` `CAP-C13` | Existing CEL expression primitive reusable by Projection, Query, constraints, and bindings |
+| `capability-registry.md` `CAP-X10` | Proposed metadata-driven index management; physical optimization input for the planner |
+| `benchmarks/004-scale-architecture-study.md` (Study 8) | Existing scale/performance evidence: lazy metadata loading, cache, singleflight, RLS, index strategy, pool fairness, pagination, analytics isolation, and P95 targets |
+| `internal/metadata/compile.go` (`CAP-W01`) | Existing proof that declarative metadata can compile into lower-level runtime primitives at load time |
+| `capability-lifecycle.md` §2 | Existing A1–A5 admission/evidence discipline |
 
 ---
 
 ## 2. Target architecture
 
-Three composability planes, meeting in one compiler discipline:
+Three composability planes meet in one compiler discipline, with the execution planner as the physical-economy boundary:
 
 ```text
                          MENATA RUNTIME
@@ -61,145 +34,377 @@ Three composability planes, meeting in one compiler discipline:
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
    DOMAIN PLANE           DATA PLANE           EXPERIENCE PLANE
-   (built, stable)        (partial)            (partial)
         │                     │                     │
      Machine               Dataset                Page
      Field                 Query                   Layout
      Event                 Projection              Component
-     Constraint            Expression (CAP-C13 ✅)  Binding
-     Permission            Relation                Context
+     Constraint            Expression              Binding
+     Permission            Relation                 Context
         │                     │                     │
         └─────────────────────┼─────────────────────┘
                               ▼
-                    RUNTIME COMPILER / NORMALIZER
+                   RUNTIME COMPILER / NORMALIZER
                               │
-                   ┌──────────┴──────────┐
-                   ▼                     ▼
-             EXECUTION PLAN            UI IR
-             (Query Planner /     (compile-time dispatch
-              Cost Model,          today; no formal IR)
-              → Postgres)                │
-                   │                     ▼
-                   ▼                 RENDERER
-               POSTGRES            (Templ/HTMX, one
-                                    target by design)
+                  Logical Composition / Data IR
+                              │
+                              ▼
+                COMPOSABLE EXECUTION PLANNER
+                              │
+                ┌─────────────┼─────────────┐
+                ▼             ▼             ▼
+             shared        batched       bounded
+             work           work           work
+                └─────────────┼─────────────┘
+                              ▼
+                       Costed Execution Plan
+                              │
+                 ┌────────────┴────────────┐
+                 ▼                         ▼
+            Physical Data              Render Plan
+             Operations                    │
+                 │                        ▼
+                 ▼                     Renderer
+              Postgres
 ```
 
-A transversal layer applies to all three planes: **Compiler / Validation / Security / Lifecycle**
-— this already exists (`internal/metadata`, `capability-lifecycle.md`, the conformance ratchet) and
-needs no new concept, only for new plane concepts to plug into it the same way Fields/Events do
-today.
+The target invariant is:
 
-**Reframing `View`, not removing it.** `View` stops being the runtime's only composition unit and
-becomes a **named preset** — a fixed, useful combination of Data-plane and Experience-plane pieces,
-the same way a `list` View today is really "a Dataset (implicit: the Machine's own records) + a
-Projection (implicit: `Columns`) + a Collection component + a table renderer," just not spelled out
-as four separable things. This is evolution, not replacement: every existing `ViewType` stays valid
-metadata; the planes describe what a `ViewType` is *made of* underneath, which is what stops new
-UX needs from defaulting to a new `ViewType`.
+> **Many logical components, as few physical operations as semantics and correctness permit.**
 
 ---
 
 ## 3. Current-state inventory
 
-One row per concept in the target architecture — what exists today, what's missing, and the
-evidence behind each cell. This is the load-bearing table: every phase in §5 traces back to one row
-here.
-
 | Concept | Plane | Status | Evidence | Gap |
 |---|---|---|---|---|
-| Machine/Field/Event/Constraint/Permission | Domain | ✅ Built | `runtime-metadata-schema.md`, `app/internal/model/model.go` | None — this plane is the stable core, untouched by this blueprint |
-| `View`/`ViewConfig` (query + presentation unified per-View) | Data + Experience | ✅ Built, but the *only* composition unit | `app/internal/model/model.go:621-786` | Reuse only happens by referencing a whole View by id, never a bare data shape (see Dataset row) |
-| `page` composition (`Children`: `{view: id}` + closed static content) | Experience | ✅ Built (`CAP-V10 Tier 2`, 2026-09-09) | `capability-registry.md` `CAP-V10 Tier 2` row | Single-level only — a child cannot itself be a composing `page` (deliberately out of scope) |
-| Layout (one shape: `main`/`aside` 2/3+1/3 grid pairing) | Experience | 🟡 Partial | `CAP-V10 Tier 2` row (`Layout` field); `gap-analysis-and-recommendations.md` G22/R19/R20 (form sections/columns, low priority) | No closed vocabulary yet (stack/grid/split/tabs) — one instance shipped, not a general primitive |
-| Static content vocabulary (`heading`/`text`/`button`/`image`) | Experience | ✅ Built | `CAP-V10 Tier 2` row (`PageContent`) | Closed set by design — extending it is a Go change + registry-seam entry, never a declared arbitrary `type` |
-| Compute/transform expression (CEL) | Data | ✅ Built | `capability-registry.md` `CAP-C13` | None — already general-purpose, usable in filters, computed Fields, constraints |
-| Semantic dataset (named, reusable aggregate) | Data | ❌ Proposed | `capability-registry.md` `CAP-V22`, Study 37 R2 | No forcing case yet in `case-portfolio.md`; `roadmap.md` item 24 step 4 ("Analytics trio") already names Cases 9/15 as the candidate proof cases |
-| Bare, reusable row-level Query/Projection (independent of any one View) | Data | ❌ Not designed | `composable-view-proposal-reconciliation.md` §9.2(a) | Genuinely new framing — narrower than a full "Dataset," would need its own admission pass, no case names it yet |
-| Parent→child context/scope propagation | Experience | ❌ Not designed, but scoped | §5, §8(iii) above | Named mandatory the moment `CAP-V10 Tier 2`'s recursion or any parent-scoped child View is asked for; today's only dynamic token is `$current_user` (`CAP-V05`) |
-| Dynamic Component Registry / Canvas | Experience | ⛔ Rejected, structurally | §4 above | Not a gap — the problem it solves (client-side runtime dispatch of arbitrary metadata) doesn't exist in a server-rendered, compile-time-dispatched runtime |
-| UI Intermediate Representation / compile step | Experience | ❌ Not designed | §9.2(b) above; precedent exists for the *pattern* in `CAP-W01` (Process Overlay) | No forcing case — the concrete problem a UI IR solves (one representation, many renderers) doesn't apply while `app/ARCHITECTURE.md` commits to exactly one renderer |
-| Query Planner / Cost Model / physical plan | Data | 🟡 Partial | Study 8 (index strategy, cache strategy, P95 targets); `CAP-X10` (❌, deliberately deferred, no scale pressure yet) | Study 8 already covers this ground for the Domain/Data plane generally — a Dataset-aware projection pushdown (§6 below) is additive to it, not a competing mechanism |
-| Recursive `page`-composing-`page` | Experience | ⛔ Explicitly out of scope | `CAP-V10 Tier 2` row, "Explicitly still out of scope" | Deliberate deferral, not an oversight — revisit only with a real forcing case |
+| Machine/Field/Event/Constraint/Permission | Domain | ✅ Built | `runtime-metadata-schema.md`, model/runtime code | Stable core |
+| `View`/`ViewConfig` | Data + Experience | ✅ Built, but only composition unit historically | `app/internal/model/model.go` | Reuse remains View-centric |
+| `page` composition | Experience | ✅ Built (`CAP-V10 Tier 2`) | registry/conformance | Single-level today |
+| Layout | Experience | 🟡 Partial | CAP-V10 | Closed vocabulary still limited |
+| Static content | Experience | ✅ Built | CAP-V10 | Closed by design |
+| CEL expression | Data/Behavior | ✅ Built (`CAP-C13`) | capability registry | Reusable substrate already exists |
+| Semantic Dataset | Data | ❌ Proposed | `CAP-V22` | Needs forcing case |
+| Bare Query/Projection reuse | Data | ❌ Not designed | reconciliation §9.2 | Needs forcing case |
+| UI IR | Experience | ❌ Not designed | 007 target | One renderer means no immediate forcing case |
+| Query Planner / Cost Model | Data | 🟡 Partial | Study 8 + CAP-X10 | Existing scale ideas not unified around composed dependency graph |
+| **Composable Execution Planner** | Cross-plane | ❌ Not implemented as a first-class boundary | 007 v0.4; Study 8 provides pieces | Need dependency DAG, coalescing, batching, bounded concurrency, costing, and proof harness |
+| Recursive composition | Experience | ⛔ Explicitly out of scope | CAP-V10 Tier 2 | Revisit only with real case |
 
 ---
 
-## 4. Component/primitive admission — one gate, not two
+## 4. Composition-performance problem statement
 
-The owner's synthesis (§10 above) proposed a three-step gate: *can an existing primitive compose
-it → can a new generic primitive compose it → only then is it a genuinely new capability.* Checked
-against what already governs this registry:
+A composable application naturally produces an experience tree:
 
-| Synthesis's step | Already covered by |
-|---|---|
-| 1. Can an existing primitive compose it? | `capability-lifecycle.md` A4 — **Non-composability**: "Cannot be built by composing existing supported capabilities" (Study 5's own ADR-0012 Pattern A/B precedent) |
-| 2. Can a new *generic* primitive compose it, rather than a business-specific one? | A3 (**Single responsibility within Grammar**) + A5 (**Business language exists**) together already push toward generic, reusable shapes — this is the same discipline `guides/breaking-down-ui-components-for-metadata.md` already applies at the presentation-primitive level (`RecordSummaryCard`, not `ApprovalListCard`) |
-| 3. Is it truly semantically unique? | A1 (**Dual evidence**) + A2 (**Universality or declared verticality**) |
+```text
+Page
+ ├── KPI Revenue
+ ├── KPI Orders
+ ├── Customer Summary
+ ├── Recent Orders
+ └── Approval Queue
+```
 
-**Conclusion: no new gate is needed.** `capability-lifecycle.md` §2's existing A1–A5 test already
-enforces exactly what the synthesis asks for. What *is* new, and worth naming explicitly: Data-
-plane concepts (Dataset, Query, Projection) don't yet have a settled Grammar-area home. A3 currently
-lists `Field/Event/Action/Constraint/Permission/View` as the Grammar areas a capability must map to
-one of. Before `CAP-V22` (or any Data-plane candidate) is scoped past its current one-line registry
-entry, an explicit owner decision is needed: does "Dataset" become a new Grammar area (a `D`
-prefix, alongside `F/E/A/C/P/V/R/X/I/O`), or does it fold under `View` the way `ViewConfig` already
-holds query fields today? This decision has no forcing case of its own — it only matters once
-`CAP-V22` or a Query/Projection candidate is actually scoped for admission (Phase 1 below) — so it
-is named here as a prerequisite, not resolved.
+A naive implementation may turn that into:
+
+```text
+5 logical components
+→ 5 metadata resolutions
+→ 5 query plans
+→ 5 database round trips
+```
+
+The runtime must instead derive a dependency graph and optimize physical work:
+
+```text
+Composition Tree
+      ↓
+Dependency DAG
+      ↓
+shared / compatible dependencies
+      ↓
+coalescing + batching + bounded parallelism
+      ↓
+costed physical plan
+      ↓
+minimum reasonable physical work
+```
+
+This is the core reason the Composable Execution Planner is a first-class boundary rather than an implementation detail of the Query Planner.
 
 ---
 
 ## 5. Phased evolution plan
 
-Sequenced by dependency and risk, not by top-down architectural preference. **Every phase's own
-"Forcing condition" column is the actual gate** — a phase does not start building until its
-condition is met, exactly the discipline that already governed `CAP-V10 Tier 2`, `CAP-F24`, and
-`CAP-V28`.
-
 | Phase | What it does | Depends on | Forcing condition | If met today? |
 |---|---|---|---|---|
-| **0. Grammar-area decision** | Owner decides whether Dataset is a new Grammar area or folds under View (§4) | Nothing | A direct owner decision — no case needed, this is a taxonomy question | Open, not yet asked |
-| **1. Semantic dataset** | Admit and build `CAP-V22` — named aggregate reused by `report`/`dashboard`/chart Views | Phase 0 | A real case needing the same aggregate shown two ways (candidates already named: Cases 9/15, `roadmap.md` item 24 step 4 "Analytics trio") | Not yet — no case has forced it |
-| **2. Bare Query/Projection reuse** | A row-level data shape addressable independently of any View (§9.2(a)) — narrower than Phase 1, would extend it once real | Phase 1 | A case needing the *same rows*, not just the same aggregate, rendered by two different presentations (e.g. a Customer list as both Table and Kanban) | Not yet — no case names this |
-| **3. Layout vocabulary** | Extend the one shipped shape (`main`/`aside`) into the closed set already tracked as G22/R19/R20 (stack/grid/columns) | Nothing (independent of Data-plane phases) | `gap-analysis-and-recommendations.md`'s own R20 recommendation: "bundle into a design pass" — next time a Form/composed-page mockup needs multi-column, do it as one pass, not per-case | Low priority, unforced, but already queued in `roadmap.md` |
-| **4. Context/scope propagation** | Parent→child token(s) (`$context.*`-shaped) so a composed page's child View can scope itself to the page's current record/filter | `CAP-V10 Tier 2` (built) | Already named **mandatory, not deferrable**, the moment a real case needs a parent-scoped child View (§8(iii)) — not before | Not yet — `approval-dashboard.html` shipped without needing it |
-| **5. Recursive composition depth** | A `page`'s own `{view: id}` child may itself be a composing `page` | `CAP-V10 Tier 2`, Phase 4 | A real case needing genuine multi-level nesting — explicitly out of scope until then (`CAP-V10 Tier 2` row) | Not yet, deliberately |
-| **6. Query Planner / projection pushdown** | Dataset-aware column selection (only fetch the JSONB keys a bound Component actually needs) and index/cache hints derived from declared Filter/Sort/dimension usage | Phase 1/2 | Measured query cost pressure at real data volumes — the same trigger already governing `CAP-X10`'s own deferral; do together, not as two separate scale passes | Not yet — Study 8's own scale target (100 workspaces × 50 machines × 1M records) isn't reached |
-| **7. UI Intermediate Representation** | A formal compile step for UI metadata (`Normalize → Resolve → Compile → Render Plan`), generalizing the Process Overlay's own compile-at-load-time pattern to UI | Phases 3–5 (needs real layout/composition variety to be worth formalizing) | A second rendering target (mobile, a visual builder) actually being pursued — `app/ARCHITECTURE.md`'s current one-renderer policy means this has no forcing condition today | Not met — explicitly against current architecture policy |
-| **8. Composability benchmark** | A new study measuring Application Construction Ratio, Composition Reuse Ratio, View/Data Independence, Runtime Extension Cost, Query Reuse Ratio, Query Efficiency, Composition Execution Cost (synthesis of §9.2(c) above and the owner's own additions) | Enough of Phases 1–4 built to have something to measure | Scheduled the normal way, via `roadmap.md`'s "Recommended order for upcoming sessions", once Phases 1 and 3 have real code to benchmark | Not yet — nothing to measure until Phase 1/3 land |
+| **0. Grammar-area decision** | Decide whether Dataset is a new Grammar area or folds under View | Nothing | Owner taxonomy decision | Open |
+| **1. Semantic dataset** | Admit/build `CAP-V22` for reusable semantic aggregates | Phase 0 | Case needs same aggregate in multiple presentations | Not yet |
+| **2. Bare Query/Projection reuse** | Make row-level data shape addressable independently of View | Phase 1 | Case needs same rows across different presentations | Not yet |
+| **3. Layout vocabulary** | Extend stack/grid/columns/split/tabs where real composed-page work forces it | Nothing | Existing queued design trigger | Low priority |
+| **4. Context/scope propagation** | Parent→child context for real parent-scoped composition | CAP-V10 | Real case requires scope propagation | Not yet |
+| **5. Recursive composition depth** | Allow nested page composition if a real case requires it | Phase 4 | Real multi-level nesting case | Not yet |
+| **6. Composable Execution Planner foundation** | Derive Dependency DAG from composition + Data/UI IR; define canonical dependency identity; add plan objects and execution budgets | Phases 1/2 | A composed case produces repeated logical dependencies or measurable fan-out | **Design now; implementation when forced by case/benchmark** |
+| **7. Planner optimization** | Add dependency deduplication, query coalescing, batching, bounded concurrency, and cost-based strategy selection | Phase 6 | Benchmark shows meaningful physical-work reduction opportunity | Not yet |
+| **8. Query/index pushdown** | Dataset-aware projection/filter pushdown and metadata-driven index hints | Phase 1/2/6 | Measured DB cost pressure at target scale | Not yet |
+| **9. UI Intermediate Representation** | Formalize normalized UI compile step | Phases 3–5 | Second renderer/builder or other explicit forcing case | Not yet |
+| **10. Composability benchmark** | Compare naive vs planner-enabled execution across shared and independent dependency patterns | Phases 6–8 | Enough implementation exists to measure | Design now; execute with planner prototype |
 
-**Reading order, if the owner wants to start now:** Phase 0 (a decision, not work) can happen
-immediately since it blocks nothing else from being *designed*. Phases 1 and 3 are independent of
-each other and can proceed whenever their own forcing conditions are met — Phase 3 already has a
-queued trigger (`roadmap.md` R20), Phase 1 needs Cases 9/15 to actually need shared aggregates.
-Phases 2, 4–8 are each gated by an earlier phase's completion plus their own real case, in the order
-listed.
+The planner is deliberately split into **foundation** and **optimization** so the execution boundary can be established without prematurely building an elaborate optimizer. The first useful milestone is a correct dependency DAG and hard execution budgets; optimization follows measured evidence.
 
 ---
 
-## 6. What does *not* change
+## 6. Composable Execution Planner — implementation target
 
-Consistent with `composable-view-proposal-reconciliation.md` §4's own structural argument, reaffirmed by every subsequent pass (§9.1, §10):
+### 6.1 Planner input
 
-- **No dynamic Component Registry, no Canvas.** The problem they solve (client-side runtime
-  dispatch of arbitrary metadata) does not exist in this server-rendered, compile-time-dispatched
-  runtime. Extension stays "add Go code + a registry-seam entry + recompile," per
-  `capability-lifecycle.md` §4 — the same mechanism that already rejected ObjectStack's plugin
-  kernel (`second-opinion-reconciliation.md` §2).
-- **`View`, `Machine`, `Page`, and the capability registry are not removed or restructured.** The
-  three-plane model in §2 describes what these concepts are made of, not a replacement ontology.
-- **No phase here overrides `capability-lifecycle.md`'s admission gate or this repo's "declare
-  targets first" discipline.** A phase's own forcing condition is the same kind of evidence
-  (`case-portfolio.md` terrain, or a direct owner decision of the class already accepted for
-  `CAP-V10 Tier 2`/`CAP-F24`/`CAP-V28`) this registry has always required.
+The planner should consume the normalized result of composition and data binding:
+
+```text
+UI IR / Composition Tree
+          +
+Data IR / logical query requirements
+          +
+Context + permission scope
+          ↓
+Composable Execution Planner
+```
+
+### 6.2 Planner stages
+
+```text
+1. Collect declared dependencies
+2. Resolve stable identities
+3. Canonicalize equivalent requests
+4. Build dependency DAG
+5. Detect shared/coalescible work
+6. Group compatible operations
+7. Estimate cost
+8. Apply execution budgets
+9. Select physical strategies
+10. Emit executable plan
+```
+
+### 6.3 Physical strategies
+
+The planner may choose among:
+
+```text
+single live SQL
+shared query execution
+batched query
+indexed SQL
+cache hit
+materialized representation
+bounded parallel execution
+in-process evaluation
+async job
+explicit rejection/degradation
+```
+
+The physical strategy must remain invisible to metadata authors.
+
+### 6.4 Stable dependency identity
+
+A planner dependency identity should be derived from canonical logical semantics, not renderer implementation. At minimum, the identity should account for:
+
+```text
+source
+security scope
+normalized filter
+parameters
+projection
+sort/pagination
+grouping/measures
+metadata/interpreter version
+```
+
+This makes safe deduplication and plan reuse possible without conflating semantically different requests.
+
+### 6.5 Coalescing rule
+
+The planner should coalesce requests when one physical operation can satisfy all consumers without violating:
+
+- projection requirements;
+- row/cardinality semantics;
+- sort/pagination semantics;
+- security scope;
+- freshness requirements;
+- latency budgets.
+
+A broader projection is not automatically cheaper than two narrow queries. The planner must decide using measured or bounded cost rather than a blanket "fewer queries is always better" rule.
+
+### 6.6 Batching rule
+
+Batch compatible operations when round-trip reduction dominates the additional complexity. Batch boundaries must preserve transaction, permission, parameter, and failure semantics.
+
+### 6.7 Bounded concurrency
+
+Independent nodes may execute concurrently, but concurrency is budgeted by request, workspace, and database capacity. The planner should work with the scale architecture's per-workspace semaphore and analytics/OLTP resource separation rather than bypassing them.
+
+### 6.8 Interactive budget rule
+
+A plan classified as interactive must have explicit budgets for at least:
+
+```text
+physical operations
+estimated rows
+estimated DB work
+estimated memory
+parallelism width
+```
+
+If the budget cannot be met, the planner must choose an explicit fallback such as cache, batching, lazy loading, async work, or clear rejection/diagnostic.
 
 ---
 
-## 7. Disposition
+## 7. Relation to existing Scale Study
 
-**No capability admitted, no registry row status changed, no code changed by this document.** This
-is a planning artifact — each phase in §5 still needs its own A1–A5 pass (`capability-
-lifecycle.md`) or direct owner decision before anything is built. What changed procedurally:
-this document created; `roadmap.md`'s Study 37 log gets a dated addendum pointing here;
-`capability-registry.md`'s status header gets a pointer; `README.md`'s Tier 3 table gets a row for
-this document.
+The planner is not a competing performance subsystem. It is the common boundary that lets existing performance mechanisms participate in composable execution.
+
+| Existing mechanism | Planner responsibility |
+|---|---|
+| lazy per-workspace metadata loading | consume compiled immutable interpreter rather than reload metadata per component |
+| singleflight | prevent duplicate cold compilation |
+| batch metadata loading | avoid metadata N+1 while constructing the dependency graph |
+| RLS/workspace scope | include security scope before deduplication/caching |
+| expression indexes / CAP-X10 | choose indexed physical query when cost-effective |
+| pagination | bound row retrieval and render work |
+| workspace semaphore | bound execution concurrency |
+| analytics pool | isolate heavy Dataset/report operations |
+| cache | reuse results only when security/freshness semantics match |
+
+The Scale Study's current target is 100 workspaces × 50 machines × 1M records on a modest server first; it also proposes p95 list < 200 ms, lazy boot under 5 s, and explicit cross-workspace RLS probes. The composability benchmark should extend those scale tests rather than replace them.
+
+---
+
+## 8. Benchmark program
+
+The key experiment is not simply "does a component render faster?" It is:
+
+> **As logical composition increases, does physical server work grow sublinearly through dependency reuse, batching, and bounded execution?**
+
+### 8.1 Core scenarios
+
+| Scenario | Logical shape | What it proves |
+|---|---|---|
+| A | 1 component → 1 dataset | baseline overhead |
+| B | 10 components → 10 independent datasets | fan-out cost |
+| C | 10 components → 3 shared datasets | dependency sharing |
+| D | 5 components → same dataset, compatible projections | projection/query coalescing |
+| E | dashboard with mixed OLTP + analytics | resource isolation |
+| F | 100 concurrent workspaces, cold start | metadata/cache behavior |
+| G | identical logical request, incompatible security scopes | safe non-coalescing |
+| H | 30+ components with bounded budgets | admission/degradation behavior |
+
+### 8.2 Compare two execution modes
+
+```text
+Mode 1: naive
+component → independent physical operation
+
+Mode 2: planner
+composition → dependency DAG → shared/batched/bounded plan
+```
+
+The planner is only considered successful where it preserves semantics/security and improves or maintains relevant SLOs.
+
+### 8.3 Metrics
+
+```text
+p50 / p95 / p99 latency
+physical operations / request
+queries / request
+rows scanned / request
+rows returned / request
+CPU / request
+memory / request
+DB connection utilization
+cache hit ratio
+metadata/plan cache hit ratio
+planner compile time
+execution DAG width
+estimated vs actual cost error
+```
+
+### 8.4 New composability KPIs
+
+The existing benchmark direction can be extended with:
+
+```text
+Query Reuse Ratio
+= logical data requests / physical executions
+
+Physical Fan-out Ratio
+= physical operations / top-level request
+
+Composition Execution Cost
+= normalized physical work / composed experience
+
+Planner Benefit
+= (baseline physical work - planner physical work)
+  / baseline physical work
+```
+
+These are measurement definitions, not guarantees; normalization must be documented per benchmark.
+
+---
+
+## 9. Failure modes the planner must prevent
+
+| Failure mode | Required control |
+|---|---|
+| one-query-per-component explosion | dependency DAG + deduplication |
+| metadata N+1 | pre-resolved immutable graph + batch loading |
+| unlimited goroutines | bounded concurrency budget |
+| shared cache leaks | security scope in dependency/cache identity |
+| huge projection | projection minimization |
+| huge list retrieval | pagination/row budget |
+| analytical query starving OLTP | workload class + separate resource pool |
+| expensive composition accepted blindly | composition/execution cost budget |
+| cache/reuse after metadata change | versioned identity + invalidation |
+| broad query chosen merely to reduce query count | cost-based coalescing |
+
+---
+
+## 10. What does not change
+
+- No dynamic Component Registry or client-side Canvas is introduced.
+- `View`, `Machine`, `Page`, and the capability registry remain valid existing abstractions.
+- Existing admission gates remain authoritative.
+- Physical plans remain runtime-internal; business metadata does not encode PostgreSQL-specific plans.
+- Server-side authorization, filtering, and aggregation remain authoritative.
+
+The Composable Execution Planner changes the **execution boundary**, not the semantic ownership model.
+
+---
+
+## 11. Open questions
+
+The following need benchmark evidence:
+
+- when query coalescing becomes more expensive than multiple narrow queries;
+- how to estimate JSONB/expression-index cost accurately enough for planning;
+- how far batching should go before PostgreSQL planning overhead dominates;
+- when a cache hit is preferable to a fresh shared execution;
+- how much planner compilation cost is worth paying for a request;
+- what execution budgets provide useful protection without rejecting legitimate complex applications;
+- whether physical plan fragments should be cached persistently or only in-process.
+
+---
+
+## 12. Disposition
+
+**The Composable Execution Planner is a PROPOSED architectural boundary.** It is not claimed as implemented by this document. The immediate architectural decision is to make the boundary explicit so that future composable capabilities cannot bypass performance governance.
+
+The correct implementation order is:
+
+```text
+first: correct dependency graph
+second: hard budgets / isolation
+third: measured deduplication + batching
+fourth: cost-based physical selection
+fifth: benchmark at representative scale
+```
+
+This keeps performance as a property of the composable runtime architecture itself rather than a collection of after-the-fact optimizations.
