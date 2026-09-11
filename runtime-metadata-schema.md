@@ -1457,3 +1457,74 @@ version: "0.1"
 ```
 
 This allows the runtime to apply appropriate interpretation rules per version.
+
+---
+
+## Composable Schema Extensions (proposed, CAP-D*, 2026-09-11)
+
+**Status: PROPOSED shape, not implemented.** No capability is admitted by this section —
+`capability-lifecycle.md` §2's A1–A5 test still governs when any of this actually ships. Nothing
+above this line is affected; the Machine/Field/Event/Constraint/Permission/View shapes documented
+throughout this file remain the concrete, implemented format.
+
+**Why this section exists.** `004-runtime-metadata.md` and `006-runtime-model.md` now describe a
+logical Domain/Data/Experience composition model — Data-plane concepts (`DataSource`, `Dataset`,
+`Relation`, `Projection`, `Dimension`, `Measure`, `Query`, Grammar area `D` per `CR-27`) that have
+no representation anywhere above in this file. This section makes explicit what
+`composable-runtime-roadmap-phase0-documentation-alignment.md`'s `DOC-02` asks for: this document
+is the **concrete, current-implementation schema representation** — it is not, and must not be
+read as, the complete logical Runtime Model. `004`/`006` are the logical model; this file is one
+serialization of whatever subset of it is actually built. The two are expected to diverge in
+coverage, and that is not an error.
+
+**Logical model vs. concrete schema:**
+
+```text
+Logical Runtime Metadata Model (004, 006)
+        ↓
+Serialization / storage representation (this file)
+        ↓
+Current legacy-compatible schema — Machine/Field/Event/Constraint/Permission/View, fully covered above
+        ↓
+Future composable schema extensions — sketched below, not yet built
+```
+
+**Proposed shape, Data plane only** (Experience-plane concepts — `Layout`/`Component`/`Slot`/
+`Binding` — are intentionally not sketched here; they depend on Phase 4/5 of
+`composable-runtime-roadmap.md`, UI IR and the Component Contract, neither of which exists yet):
+
+```yaml
+# PROPOSED — not implemented. Illustrative shape only.
+datasets:
+  - id: ds_revenue_by_region
+    base: mch_invoice            # base Machine
+    relations:                   # CAP-D* Relation — joins via existing reference/back-reference fields
+      - id: rel_customer
+        via: fld_invoice_customer
+    dimensions:
+      - id: dim_region
+        field: fld_customer_region
+    measures:
+      - id: mea_total
+        aggregate: sum
+        field: fld_invoice_amount
+
+queries:
+  - id: qry_top_regions
+    dataset: ds_revenue_by_region
+    projection: [dim_region, mea_total]   # CAP-D* Projection — shape, independent of any View
+    filter: { field: fld_invoice_status, op: eq, value: paid }
+    sort: { field: mea_total, direction: desc }
+```
+
+This sketch must not contradict the primitive definitions in `007-composable-runtime-
+architecture.md` §7–§8 or `composable-runtime-architecture-map.md`; if a future implementation
+needs a shape that diverges from this sketch, update this section rather than the logical model
+documents, since this file is the concrete-representation layer, not the source of truth for the
+concept itself.
+
+Migration path: existing `View` metadata (`## Views` above) is unaffected and remains fully
+supported — `Dataset`/`Query` are additive, not a replacement for View-inline aggregation. A View
+may eventually bind to a named `Dataset` instead of declaring its own aggregate inline (the
+`CAP-V22` capability this displaces, reclassified to Grammar area `D` per `CR-27` —
+`capability-registry.md`'s `## Data` section), but no such binding exists yet.
