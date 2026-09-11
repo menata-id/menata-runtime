@@ -469,3 +469,42 @@ Menata Runtime does not intend to replicate any existing project.
 Instead, it learns from proven architectural patterns across multiple domains.
 
 The resulting architecture should remain uniquely suited to metadata-driven application realization.
+
+---
+
+# Second-Generation Conclusion (2026-09-11)
+
+The "Design Implications" list above stops at a first-generation lesson: declarative systems are
+interpreted by a runtime rather than compiled to generated source. That conclusion is still true,
+but it is not sufficient on its own — it does not say anything about what happens as the number of
+*composed* declarative elements on one page grows.
+
+The lesson this repo's own composable-runtime work (`007-composable-runtime-architecture.md`,
+`composable-runtime-blueprint.md`) adds on top of the original ten bullets:
+
+```text
+Declarative Representation
+        ↓
+Semantic Normalization
+        ↓
+Dependency Graph
+        ↓
+Execution Planning
+        ↓
+Physical Realization
+```
+
+"Runtime interpretation" (bullet 4 above) and "Internal Application Model" (bullet 2) were
+recorded as two separate, unconnected ideas in the original study. The concrete case that connects
+them: a composed page with 5 logical components naively becoming 5 independent metadata
+resolutions, 5 query plans, and 5 database round-trips (`composable-runtime-blueprint.md` §4).
+Nothing in the original ten bullets prevents that outcome — an internal model and runtime
+interpretation are both satisfied by the naive version. What's missing is an explicit planning
+boundary: normalize the declarative representation into a semantic model, derive a dependency
+graph from composition, and plan physical execution against that graph *before* touching the
+database — the Composable Execution Planner (`007` §18, PROPOSED, not yet built).
+
+This is why `007` treats the planner as a first-class architectural boundary rather than an
+implementation detail folded into "Runtime interpretation." The original ten-bullet list remains
+accurate as far as it goes; it is preserved above as the first-generation evidence record, not
+rewritten, per this repo's append-don't-rewrite convention.
