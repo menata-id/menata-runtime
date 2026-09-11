@@ -84,6 +84,39 @@ Rule: a synchronous request path may not contain a P4 operation — slow work is
 
 ---
 
+# 1a. Composition-level budgets (proposed, `DOC-07`, 2026-09-11)
+
+**Status: PROPOSED measurement dimensions, not yet enforced by code.** These are not a sixth
+P-class. A composed request (multiple logical components on one page) still carries one of the
+P1–P5 classes above by its own latency profile; the dimensions below are an additional,
+cross-cutting constraint that applies *within* whichever class the request already falls into,
+specifically to prevent logical composability from becoming unbounded physical fan-out
+(`composable-runtime-blueprint.md` §4's problem statement: 5 logical components naively becoming 5
+DB round-trips). They exist to give the Composable Execution Planner (`007` §18, PROPOSED) and its
+benchmark program (`007` §32, `composable-runtime-blueprint.md` §8) explicit targets to validate
+against, per `007` §33's Capability Admission Gate.
+
+| Dimension | What it bounds | Notes |
+|---|---|---|
+| Logical nodes / request | declared dependencies before dedup | the composition tree's raw size |
+| DAG nodes / request | after dependency-identity dedup | must be ≤ logical nodes; the planner's core claim is that this is usually much smaller |
+| Physical operations / request | actual DB/cache/service calls | the number that matters for DB load, not the logical count |
+| Execution width | max bounded parallelism | budgeted per request, workspace, and DB capacity — works with the existing workspace semaphore, not around it |
+| Estimated rows | rows scanned/returned across the plan | protects against a broad coalesced query being cheaper in query-count but expensive in row volume |
+| Planner compile time | time spent building/costing the plan itself | a planner that costs more than it saves is a regression |
+| Resource budget | CPU / memory / DB connections for the request | ties into the existing per-pool resource separation (OLTP vs. analytics) |
+
+Governing rule, restated from `composable-runtime-blueprint.md` §6.8: if a plan classified
+interactive (P1/P2) cannot meet its budget on these dimensions, the planner must choose an
+explicit fallback — cache, batching, lazy loading, async (P4) work, or a clear rejection/
+diagnostic. Silently degrading latency instead of choosing a fallback is not acceptable.
+
+These dimensions become a real gate only once `007`'s Composable Execution Planner exists to
+measure against — see `## 2.11 Data (CAP-D*)` above for the current area profile, and `007` §40
+for what's PROVEN vs. PROPOSED today.
+
+---
+
 # 2. NFR profiles per capability area
 
 > **Correction (2026-08-29, Study 33, `benchmarks/025-architecture-worldclass-audit.md`):** the
@@ -165,7 +198,7 @@ Rule: a synchronous request path may not contain a P4 operation — slow work is
 **New area, added 2026-09-11 (`CR-27`) — profile written ahead of first implementation per §4 Maintenance's own rule.** No `CAP-D*` capability is currently ✅ or under active implementation; this profile exists so one exists *before* the first one lands, not retrofitted after.
 
 - **Security** — security/permission scope must be part of a Data-plane dependency's identity *before* any coalescing/caching/reuse decision (`007-composable-runtime-architecture.md` §18.10, §20) — two logically-identical Dataset/Query requests under different permission scopes are never shared or cached together. RLS remains the enforcement boundary; a Dataset/Projection is a *shape* over already-scoped data, never a bypass of it.
-- **Performance** — governed by the composition-level budgets in §1a below, not a fixed P-class of its own — a Data-plane request inherits whichever P1–P5 class its consuming View/Component falls into (typically P1 list/detail or P3 report/dashboard), with the composition-level dimensions as an additional, cross-cutting constraint on top.
+- **Performance** — governed by the composition-level budgets in §1a above, not a fixed P-class of its own — a Data-plane request inherits whichever P1–P5 class its consuming View/Component falls into (typically P1 list/detail or P3 report/dashboard), with the composition-level dimensions as an additional, cross-cutting constraint on top.
 - **Architecture** — `D` capabilities are consumed by `V` (View/Component) but do not themselves render; a Dataset/Relation/Projection/Query must remain addressable and reusable independent of any one View, per `007` §7–§8 — a Data-plane capability that can only be expressed inline on one View is not yet a real `D` capability (fails A4 non-composability against the existing View-inline pattern).
 
 ---
