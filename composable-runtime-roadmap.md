@@ -89,18 +89,18 @@ The following are the important implementation gaps that must be explicitly trac
 - [x] `002`, `003`, and `006` aligned with the composable model;
 - [x] `004-runtime-metadata.md` aligned with the composable model (Domain/Data/Experience metadata, compilation boundary);
 - [x] `005-runtime-lifecycle.md` aligned with compilation/normalization/dependency-analysis/planning terminology;
-- [ ] add cross-links from any remaining composable-related benchmark/guide that still describes the old View-only model.
+- [x] cross-links added from `guides/writing-runtime-metadata.md` and `architecture-benchmark.md` to the composable direction docs.
 
 **Detailed backlog:** the deliverables above are the short checklist; the full item-by-item
-backlog — including work not yet started, such as `runtime-metadata-schema.md` alignment,
-capability-governance taxonomy, composition-level NFRs, and README/agent-guidance wording — is
-tracked in `composable-runtime-roadmap-phase0-documentation-alignment.md` (DOC-01–DOC-10). That
-addendum's own §4 Exit Criteria is the authoritative Phase 0 gate; the exit criteria line below is
-a summary, not a substitute for it.
+backlog — `runtime-metadata-schema.md` alignment, capability-governance taxonomy, composition-level
+NFRs, README/agent-guidance wording, and benchmark/guide cross-links — is tracked in
+`composable-runtime-roadmap-phase0-documentation-alignment.md` (`DOC-01`–`DOC-10`). **All ten items
+resolved 2026-09-11**, same session as `CR-27`/`CR-28` above. That addendum's own §4 Exit Criteria
+is the authoritative Phase 0 gate, and it is now fully checked.
 
 ### Exit criteria
 
-No Tier 1 document uses “interpreted” to imply “no internal compilation,” and no document presents View as the universal composition primitive. See `composable-runtime-roadmap-phase0-documentation-alignment.md` §4 for the complete, itemized gate — Phase 0 is not done until every item there is checked, not merely once `001`–`007` look consistent.
+No Tier 1 document uses “interpreted” to imply “no internal compilation,” and no document presents View as the universal composition primitive. **Met, 2026-09-11** — see `composable-runtime-roadmap-phase0-documentation-alignment.md` §4 for the complete, itemized gate, now fully checked. **Phase 0 is closed.** The next primary implementation step, `CR-01` (Canonical Semantic Model in code), is subject to its own forcing condition — closing Phase 0 does not itself trigger it.
 
 ---
 

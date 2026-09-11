@@ -4,7 +4,9 @@
 >
 > It records documentation and conceptual-contract work that must be completed before the composable runtime implementation advances beyond the semantic foundation. These are not cosmetic documentation tasks: they close architectural seams between the normative specification, concrete metadata schema, lifecycle, governance, NFRs, benchmarks, and implementation guidance.
 >
-> **Status:** Active
+> **Status:** All ten DOC items resolved 2026-09-11 (same day, one session) — see each item's own
+> Status line below for what closed it. `CR-27`/`CR-28` (found by this session's own audit, not
+> originally in this backlog) also resolved — see `composable-runtime-roadmap.md`.
 > **Created:** 2026-09-11
 
 ---
@@ -29,6 +31,11 @@ These items belong to **Phase 0 of the composable runtime transformation** and m
 # 2. Documentation Alignment Backlog
 
 ## DOC-01 — Canonical Runtime Language → Runtime Metadata relationship
+
+**Status:** Resolved 2026-09-11 — `003-runtime-language.md`'s own diagram contradicted its prose
+(Metadata before Language vs. "Language is expressed through Metadata"); diagram and the
+repo-boundary sentence corrected. `composable-runtime-architecture-map.md` already agreed with the
+corrected direction.
 
 **Priority:** P0
 
@@ -62,6 +69,10 @@ If Runtime Language is treated as the semantic language represented by Runtime M
 ---
 
 ## DOC-02 — Logical Runtime Model vs Concrete Metadata Schema
+
+**Status:** Resolved 2026-09-11 — `runtime-metadata-schema.md` gained a "Composable Schema
+Extensions" section explicitly framed as PROPOSED/concrete-representation, distinguishing itself
+from the logical model in `004`/`006`, with a Data-plane YAML sketch.
 
 **Priority:** P0
 
@@ -104,6 +115,10 @@ without forcing them into unrelated View or Machine fields.
 
 ## DOC-03 — Runtime Lifecycle terminology audit
 
+**Status:** Resolved — `005-runtime-lifecycle.md` already matches the canonical Parse→Validate→
+Normalize→IR→Dependency DAG→Planning→Execution/Rendering sequence, confirmed by a full-document
+audit 2026-09-11. No edit needed.
+
 **Priority:** P0
 
 Audit `005-runtime-lifecycle.md` for language implying direct interpretation only.
@@ -130,6 +145,10 @@ Compilation here means runtime-internal compilation only. It does not mean appli
 ---
 
 ## DOC-04 — README architecture terminology
+
+**Status:** Resolved 2026-09-11 — clarifying sentences added at both "interpreted" passages, the
+Runtime Layer diagram box expanded with an internal-stage summary, Tier 3 index and inline links
+to the three `composable-runtime-*.md` docs added.
 
 **Priority:** P0
 
@@ -173,6 +192,11 @@ README terminology does not conflict with Tier 1 architecture documents.
 
 ## DOC-05 — Agent/developer guidance terminology
 
+**Status:** Resolved 2026-09-11 — root `CLAUDE.md` (loaded by every agent session) gained a
+pointer to `003`/`007`'s target pipeline. `app/CLAUDE.md` needed no change (no execution-model
+content to correct). `prototype/go/CLAUDE.md` deliberately left untouched — frozen historical
+record per root `CLAUDE.md`'s own "discovery phase is done" paragraph, not a live gap.
+
 **Priority:** P0
 
 Audit `CLAUDE.md` and other agent/developer onboarding documents.
@@ -204,6 +228,11 @@ No active developer/agent guidance describes the runtime as a direct View-orient
 ---
 
 ## DOC-06 — Capability governance taxonomy
+
+**Status:** Resolved 2026-09-11 — new Grammar area `D` (Data) added to `capability-registry.md`,
+`capability-lifecycle.md` A3 and its proposal template, per `CR-27`. `CAP-V22`/`CAP-V23`
+reclassified via pointer rows, IDs retained for stability. Relation/Projection/Query remain
+correctly unadmitted (no forcing case yet) rather than forced into the old taxonomy.
 
 **Priority:** P1
 
@@ -249,6 +278,10 @@ Composable implementation work can be tracked without forcing Dataset/Projection
 
 ## DOC-07 — Composition-level NFR profile
 
+**Status:** Resolved 2026-09-11 — `nfr-standards.md` gained "§1a. Composition-level budgets"
+(logical/DAG nodes, physical operations, execution width, estimated rows, planner time, resource
+budget per request), plus `### 2.11 Data (CAP-D*)` for the new Grammar area.
+
 **Priority:** P0
 
 Extend `nfr-standards.md` with a composition-level performance/resource profile.
@@ -283,6 +316,11 @@ CEP and composability benchmarks have explicit NFR targets to validate against.
 
 ## DOC-08 — Architecture benchmark second-generation conclusion
 
+**Status:** Resolved 2026-09-11 — `architecture-benchmark.md` gained a "Second-Generation
+Conclusion" section connecting semantic normalization, dependency graphs, and execution planning
+into one lesson, appended after the original ten-bullet list (preserved as first-generation
+evidence, not rewritten).
+
 **Priority:** P1
 
 Update `architecture-benchmark.md` with a post-benchmark synthesis.
@@ -313,6 +351,11 @@ The architecture benchmark supports the rationale for Data IR, UI IR, Dependency
 
 ## DOC-09 — Practical guides and benchmark cross-links
 
+**Status:** Resolved 2026-09-11 — `guides/writing-runtime-metadata.md` gained a note at its View
+section pointing to `composable-runtime-architecture-map.md`. `guides/runtime-metadata-gotchas.md`
+and `guides/writing-process-overlays.md` needed no change (narrow/incidental View mentions only,
+confirmed by audit).
+
 **Priority:** P1
 
 Search all active guides and benchmark documents for View-only composition assumptions.
@@ -328,6 +371,14 @@ No active implementation guide accidentally teaches View as the universal compos
 ---
 
 ## DOC-10 — Tier 1 / Tier 3 status boundary
+
+**Status:** Resolved 2026-09-11 — this item was previously unverifiable because `007`'s own §40
+citation matrix (its mechanism for the PROVEN/PROPOSED distinction) didn't exist (`CR-28`). §40
+now exists. Verification pass against `composable-runtime-blueprint.md`, `composable-runtime-
+roadmap.md`, `capability-registry.md`, `nfr-standards.md`, and `architecture-benchmark.md`: every
+edit made across `DOC-01`–`DOC-09` above was written PROPOSED-not-admitted by construction (each
+new section says so explicitly), so no new confusion between target and implementation was
+introduced.
 
 **Priority:** P1
 
@@ -387,16 +438,20 @@ DOC-01 through DOC-05 establish the conceptual contract first. DOC-06 through DO
 
 Phase 0 documentation alignment is complete only when all of the following are true:
 
-- [ ] `001`–`007` use one coherent terminology for runtime compilation and composability;
-- [ ] Runtime Language and Runtime Metadata have one unambiguous relationship;
-- [ ] logical Runtime Model is clearly separated from concrete metadata/storage schema;
-- [ ] `005` describes normalization/compilation/planning consistently;
-- [ ] README and agent guidance teach the composable realization pipeline;
-- [ ] capability governance can classify Domain/Data/Experience primitives;
-- [ ] NFRs define composition-level budgets;
-- [ ] architecture benchmark explains why explicit planning is required;
-- [ ] active guides no longer imply View is the universal composition primitive;
-- [ ] proposed vs proven vs implemented status remains explicit.
+- [x] `001`–`007` use one coherent terminology for runtime compilation and composability;
+- [x] Runtime Language and Runtime Metadata have one unambiguous relationship (`DOC-01`);
+- [x] logical Runtime Model is clearly separated from concrete metadata/storage schema (`DOC-02`);
+- [x] `005` describes normalization/compilation/planning consistently (`DOC-03`);
+- [x] README and agent guidance teach the composable realization pipeline (`DOC-04`/`DOC-05`);
+- [x] capability governance can classify Domain/Data/Experience primitives (`DOC-06`, `CR-27`);
+- [x] NFRs define composition-level budgets (`DOC-07`);
+- [x] architecture benchmark explains why explicit planning is required (`DOC-08`);
+- [x] active guides no longer imply View is the universal composition primitive (`DOC-09`);
+- [x] proposed vs proven vs implemented status remains explicit (`DOC-10`, `CR-28`).
+
+**All ten criteria met as of 2026-09-11.** Per §5 below, the roadmap may now treat `CR-01`
+(Canonical Semantic Model in code) as the next primary implementation step — subject to that
+step's own forcing condition still being satisfied, which this addendum does not itself assert.
 
 Only after this gate should the roadmap treat **CR-01 Canonical Semantic Model in code** as the next primary implementation step.
 
