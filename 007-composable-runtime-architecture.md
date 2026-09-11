@@ -5,26 +5,27 @@
 >
 > It is an architectural specification, not a rewrite plan. Existing Runtime Model concepts,
 > capability registry entries, conformance discipline, Process Overlay compilation, and the
-> current server-rendered implementation remain valid. New mechanisms should extend and unify
-> them rather than replace them.
+> current server-rendered implementation remain valid. New mechanisms should extend and unify them
+> rather than replace them.
 >
-> Status: Draft v0.3 — evidence chain and terminology reconciliation (2026-09-11): §14 renamed to
+> Status: Draft v0.4 — adds **Composable Execution Planner** as a first-class execution boundary to
+> make composition cost, dependency sharing, batching, and bounded physical work explicit.
+> Previously v0.3 — evidence chain and terminology reconciliation (2026-09-11): §14 renamed to
 > Static Component Registry with an explicit non-dynamic-dispatch statement; §40 replaced with a
 > claim-by-claim citation matrix distinguishing PROVEN (implemented, conformance-cited) from
 > PROPOSED (an architectural target, not yet built); a Tier-1-semantics note added below;
-> cross-linked to `composable-runtime-blueprint.md` | Previously v0.2 — bounded-component rule,
-> composition-cycle rejection, composition cost budget, two admission-gate questions added |
-> Previously v0.1 | Created: 2026-09-11 | Updated: 2026-09-11
-
-> **What Tier 1 status means for this document.** Tier 1 in this repository means *normative
-> architectural direction and constraint*, not a certification that every mechanism described here
-> is built or proven — §41 (Open Research Questions) and §42 (Recommended Next Studies) already
-> concede that much of this is still a hypothesis. Every substantive claim in §40 below is marked
-> **PROVEN** (implemented and conformance-cited — a `CAP-` row, test ID, or file/line) or
-> **PROPOSED** (an architectural target awaiting the study or case that would validate it). A
-> PROPOSED claim carries no conformance backing and must still pass `capability-lifecycle.md` §2's
-> A1–A5 admission gate before it becomes a capability — this document does not admit anything by
-> itself.
+> cross-linked to `composable-runtime-blueprint.md`. Previously v0.2 — bounded-component rule,
+> composition-cycle rejection, composition cost budget, two admission-gate questions added.
+>
+> > **What Tier 1 status means for this document.** Tier 1 in this repository means *normative
+> > architectural direction and constraint*, not a certification that every mechanism described
+> > here is built or proven — §41 (Open Research Questions) and §42 (Recommended Next Studies)
+> > already concede that much of this is still a hypothesis. Every substantive claim in §40 below
+> > is marked **PROVEN** (implemented and conformance-cited — a `CAP-` row, test ID, or file/line)
+> > or **PROPOSED** (an architectural target awaiting the study or case that would validate it).
+> > A PROPOSED claim carries no conformance backing and must still pass `capability-lifecycle.md`'
+> > §2's A1–A5 admission gate before it becomes a capability — this document does not admit anything
+> > by itself.
 >
 > **Relationship to `composable-runtime-blueprint.md`.** This document (Tier 1) answers *what the
 > architecture must be* — the model, contracts, invariants, and boundaries. `composable-runtime-
@@ -51,6 +52,7 @@ Data
   → Composition
   → Component / Layout / View
   → UI IR
+  → Execution Planning
   → Renderer
 ```
 
@@ -83,6 +85,7 @@ This document governs the architecture of:
 - context and binding;
 - intermediate representations (IR);
 - query and render planning;
+- **composable execution planning, cost governance, dependency sharing, batching, and bounded physical work**;
 - caching and physical execution choices;
 - renderer independence;
 - capability-admission rules for new UI/data constructs.
@@ -128,14 +131,24 @@ toward:
              │                  │                  │
              └──────────────────┼──────────────────┘
                                 ▼
-                         Context / Scope
+                        Execution Compiler
                                 │
                 ┌───────────────┴───────────────┐
                 ▼                               ▼
-          Execution Plan                    Render Plan
-                │                               │
-                ▼                               ▼
-            Database                         Renderer
+       Composable Execution               Render Plan
+            Planner                            │
+                │                             ▼
+        ┌───────┼────────┐                Renderer
+        ▼       ▼        ▼
+    shared   batched   bounded
+    work      work     work
+        │       │        │
+        └───────┼────────┘
+                ▼
+        Physical Execution
+                │
+                ▼
+             Database
 ```
 
 The key architectural principle is:
@@ -223,7 +236,8 @@ Metadata defines logical intent. The runtime chooses:
 - materialization strategy;
 - batching;
 - parallelism;
-- renderer implementation.
+- renderer implementation;
+- **dependency sharing and physical operation boundaries**.
 
 ## 4.6 Determinism
 
@@ -252,6 +266,24 @@ projection, caching, and rendering. A cache must never widen the scope of a resu
 The composable architecture must remain compatible with Menata's single-binary, modest-server,
 server-rendered operating model. Flexibility must not imply an always-on client framework or a
 large mandatory dependency graph.
+
+## 4.11 Logical Composition, Physical Economy
+
+Logical composability MUST NOT imply one physical operation per logical node.
+
+The runtime SHOULD minimize physical work by:
+
+- sharing compatible dependencies;
+- deduplicating equivalent requests;
+- batching compatible operations;
+- pushing work down to the database when cheaper and safe;
+- bounding concurrent work;
+- reusing compiled and immutable execution plans;
+- selecting asynchronous execution for work that exceeds interactive budgets.
+
+The desired invariant is:
+
+> **Many logical components, as few physical operations as the semantics permit.**
 
 ---
 
@@ -817,7 +849,7 @@ A component may declare:
 - accessibility semantics;
 - renderer implementation.
 
-A component MUST NOT silently acquire additional business data that is not represented by its
+A Component MUST NOT silently acquire additional business data that is not represented by its
 contract.
 
 Generic composition is achieved by combining bounded components, not by creating an unbounded
@@ -1087,7 +1119,221 @@ Physical plans are runtime-internal artifacts. They MUST NOT become portable Run
 
 ---
 
-# 18. Query and UI Plan Relationship
+# 18. Composable Execution Planner
+
+The **Composable Execution Planner (CEP)** is a first-class runtime boundary between logical
+composition and physical execution. Its purpose is to ensure that increasing application
+composability does not cause proportional growth in server-side work.
+
+The planner operates on the combined semantic dependencies of the experience rather than treating
+each component as an isolated request.
+
+## 18.1 Canonical pipeline
+
+The normative planning pipeline is:
+
+```text
+Composition Tree
+      ↓
+Dependency DAG
+      ↓
+Logical Execution Groups
+      ↓
+Cost / Capability Analysis
+      ↓
+Costed Execution Plan
+      ↓
+Shared / Batched / Bounded Physical Operations
+      ↓
+Execution
+      ↓
+View Models / Render Inputs
+```
+
+The execution planner therefore sits **after semantic composition is known and before physical
+work begins**.
+
+## 18.2 Composition Tree → Dependency DAG
+
+The composition tree describes experience structure and ownership. The planner must derive a
+separate dependency DAG containing data, expression, relation, security, cache, and render-input
+dependencies.
+
+Example:
+
+```text
+UI tree                         dependency DAG
+-------                         -------------
+Dashboard                       KPI Revenue ───────┐
+ ├─ KPI Revenue                                  │
+ ├─ KPI Orders   ─────────────→ Dataset Sales ───┼→ Query A
+ └─ Orders Table                                 │
+                                                 └→ Projection P
+```
+
+Multiple logical consumers MAY point to the same dependency node. The planner MUST use that fact to
+avoid redundant physical work where semantics permit.
+
+## 18.3 Dependency identity and equivalence
+
+The planner SHOULD canonicalize dependencies so that equivalent requests have stable identities.
+Equivalence SHOULD account for at least:
+
+- source identity;
+- security scope;
+- normalized filter;
+- normalized parameters;
+- projection requirements;
+- grouping and measures;
+- sort/pagination semantics;
+- interpreter/metadata version.
+
+Equivalent or safely coalescible dependencies SHOULD be deduplicated before physical execution.
+
+## 18.4 Shared execution
+
+The planner SHOULD detect shared dependencies such as:
+
+```text
+Component A ─┐
+Component B ─┼→ same Dataset / compatible Query
+Component C ─┘
+```
+
+and prefer a shared execution result over one request per component when the resulting physical
+shape remains within the projection and cardinality constraints.
+
+## 18.5 Batching
+
+Independent or compatible operations SHOULD be batched when batching reduces database round trips,
+network overhead, or serialization work without materially worsening latency for interactive work.
+
+Batching MUST respect security scope, transaction semantics, parameter isolation, and database
+planner behavior.
+
+## 18.6 Bounded concurrency
+
+The planner MUST treat parallelism as a budgeted resource. It MUST NOT equate "independent" with
+"unlimited goroutines or unlimited database queries".
+
+At minimum, planning SHOULD account for:
+
+```text
+request concurrency
+workspace concurrency
+query concurrency
+connection-pool capacity
+CPU budget
+memory budget
+```
+
+A plan MAY serialize, batch, or defer work when the cost model predicts that parallel execution
+would exceed those budgets.
+
+## 18.7 Costed execution plan
+
+A Costed Execution Plan should expose runtime-estimated cost dimensions such as:
+
+```text
+estimated physical queries
+estimated rows read
+estimated rows returned
+estimated bytes materialized
+estimated DB time
+estimated CPU work
+estimated memory
+parallelism width
+cache opportunities
+```
+
+Exact units are implementation-specific. What matters is that physical execution is selected using
+a bounded cost model rather than component count alone.
+
+## 18.8 Interactive budget enforcement
+
+The planner MUST distinguish at least the existing execution classes:
+
+```text
+P1 interactive read
+P2 interactive write
+P3 heavy read
+P4 asynchronous
+P5 boot/reload
+```
+
+When a composed operation exceeds an interactive budget, the planner SHOULD choose an explicit
+fallback such as:
+
+```text
+shared execution
+batching
+cache
+materialization
+partial/lazy loading
+asynchronous job
+clear rejection with diagnostic
+```
+
+It MUST NOT silently execute unbounded work merely because the metadata is structurally valid.
+
+## 18.9 Query reuse versus result reuse
+
+The planner should distinguish:
+
+```text
+query-plan reuse
+execution reuse
+result-cache reuse
+```
+
+These are different optimization levels. A query may be planned once but still executed multiple
+times; multiple consumers may share one execution; a result may additionally be reused from cache.
+
+The planner SHOULD select the cheapest level that remains semantically correct.
+
+## 18.10 Security ordering
+
+Security filtering is part of the logical DAG and MUST precede optimization that could widen data
+visibility.
+
+```text
+Component
+  ↓
+Declared data requirement
+  ↓
+Permission scope / RLS context
+  ↓
+Logical DAG
+  ↓
+Costing + optimization
+  ↓
+Physical execution
+```
+
+No deduplication, batch, cache, or shared execution optimization may merge work across incompatible
+security scopes.
+
+## 18.11 Failure isolation
+
+A composed plan SHOULD preserve failure boundaries where practical. A non-critical component that
+fails or times out SHOULD not necessarily consume the entire request's remaining execution budget
+or invalidate unrelated successful work unless the composition contract requires atomic behavior.
+
+## 18.12 Plan immutability and reuse
+
+Once compiled for a particular metadata/interpreter version and stable security-independent logical
+shape, plan fragments SHOULD be immutable and safely reusable across requests. Request-specific
+context, parameters, and security scope remain runtime inputs.
+
+## 18.13 Planner output is not metadata
+
+Execution plans are physical runtime artifacts. They MUST NOT become user-authored metadata,
+because doing so would couple business declarations to current storage, database, or capacity
+characteristics.
+
+---
+
+# 19. Query and UI Plan Relationship
 
 UI composition and query execution are different concerns but should be compiled together enough
 to eliminate unnecessary work.
@@ -1110,12 +1356,13 @@ UI IR
  └── Feed   → Dataset C
 ```
 
-The runtime may then detect reusable sources, compatible filters, or opportunities for batching,
-without changing the UI metadata.
+The **Composable Execution Planner** then derives a dependency DAG from those requirements and may
+detect reusable sources, compatible filters, shared projections, or opportunities for batching.
+The UI metadata remains unchanged.
 
 ---
 
-# 19. Security Integration
+# 20. Security Integration
 
 Security must enter the logical data plan before physical optimization.
 
@@ -1129,6 +1376,8 @@ Dataset
 Permission scope
       ↓
 Logical Data Plan
+      ↓
+Composable Execution Planner
       ↓
 Optimization
       ↓
@@ -1162,31 +1411,31 @@ dataset
 
 ---
 
-# 20. Performance Architecture
+# 21. Performance Architecture
 
 Composable UI must not imply unbounded data retrieval or client-side processing.
 
-## 20.1 Projection Pushdown
+## 21.1 Projection Pushdown
 
 Only requested fields should be retrieved.
 
-## 20.2 Filter Pushdown
+## 21.2 Filter Pushdown
 
 Filters should execute in PostgreSQL whenever safe and beneficial.
 
-## 20.3 Aggregate Pushdown
+## 21.3 Aggregate Pushdown
 
 Measures should execute in SQL rather than materializing raw records whenever the aggregation is
 supported.
 
-## 20.4 Index Awareness
+## 21.4 Index Awareness
 
 Metadata that declares frequently filtered, sorted, grouped, or joined fields should be available
 to index management.
 
 This aligns with the existing metadata-driven index direction.
 
-## 20.5 Cache Awareness
+## 21.5 Cache Awareness
 
 Reusable Dataset results may be cached when:
 
@@ -1195,24 +1444,24 @@ Reusable Dataset results may be cached when:
 - permission scope is part of cache identity;
 - invalidation is deterministic enough.
 
-## 20.6 Materialization
+## 21.6 Materialization
 
 Large, expensive, stable semantic datasets may eventually use materialized representations.
 
 Materialization is a runtime optimization, not a new semantic data model.
 
-## 20.7 Batch and Deduplicate
+## 21.7 Batch and Deduplicate
 
 The planner should recognize multiple components that request compatible datasets and avoid
 redundant queries.
 
-## 20.8 No Mandatory Browser Data Engine
+## 21.8 No Mandatory Browser Data Engine
 
 Server-side data filtering, grouping, and authorization remain the default. Browser virtualization
 may be added later for rendering efficiency, but it is not a substitute for server-side query
 planning.
 
-## 20.9 Composition Cost Budget
+## 21.9 Composition Cost Budget
 
 The runtime should measure or bound at least:
 
@@ -1221,14 +1470,15 @@ The runtime should measure or bound at least:
 - number of distinct Dataset requests;
 - number of physical queries;
 - estimated render work;
-- metadata/IR size.
+- metadata/IR size;
+- **estimated execution DAG width and total physical work**.
 
 A composed experience that exceeds configured budgets should fail clearly or degrade through an
 explicit runtime policy. It must not silently produce unbounded work.
 
 ---
 
-# 21. Physical Storage Strategy
+# 22. Physical Storage Strategy
 
 Logical metadata must remain independent from physical storage.
 
@@ -1249,7 +1499,7 @@ database performance.
 
 ---
 
-# 22. Renderer Architecture
+# 23. Renderer Architecture
 
 A renderer consumes UI IR and resolved View Models rather than raw Runtime Metadata whenever
 possible.
@@ -1279,7 +1529,7 @@ The current server-rendered HTML/Templ renderer remains the reference implementa
 
 ---
 
-# 23. View Types and the Specialization Rule
+# 24. View Types and the Specialization Rule
 
 Existing View types are not deprecated.
 
@@ -1308,6 +1558,7 @@ board
 card list
 = collection
 + card renderer
++ projection
 ```
 
 ```text
@@ -1322,7 +1573,7 @@ simplicity. The runtime should progressively lower them to generic primitives wh
 
 ---
 
-# 24. Convenience Abstractions
+# 25. Convenience Abstractions
 
 Menata should support **semantic presets**.
 
@@ -1344,7 +1595,7 @@ process declaration compiles into Fields, Events, Permissions, Constraints, and 
 
 ---
 
-# 25. Compilation and Lowering
+# 26. Compilation and Lowering
 
 Composable Runtime should use a consistent lowering model:
 
@@ -1382,9 +1633,12 @@ Card List
 Collection + Card Renderer + Projection
 ```
 
+The execution-specific lowering continues through the Composable Execution Planner before physical
+operations are selected.
+
 ---
 
-# 26. Capability Admission Gate
+# 27. Capability Admission Gate
 
 Before adding a new capability, the architecture review must ask:
 
@@ -1396,1047 +1650,156 @@ Before adding a new capability, the architecture review must ask:
 6. What conformance proof will demonstrate it?
 7. What existing abstraction should the new capability lower into?
 8. Will the capability introduce a new business-specific UI primitive or query mini-language?
+9. **How does the capability lower into the Composable Execution Planner, and what physical work can it generate?**
 
 A capability should normally be admitted at the lowest useful abstraction level.
 
+---
+
+# 28. Performance Invariants
+
+The following invariants are architectural constraints for the composable runtime:
+
+1. **No logical-node proportionality requirement.** Adding a component MUST NOT imply a one-to-one increase in physical queries or other physical operations when dependencies are compatible and shareable.
+2. **No unbounded fan-out.** A composition MUST have bounded execution width and physical work under configured budgets.
+3. **No security-unsafe coalescing.** Optimization MUST NOT merge requests across incompatible security scopes.
+4. **No full-record-by-default rule.** Data retrieval SHOULD be projection-driven.
+5. **No planner bypass for composable data.** Composed data requirements MUST pass through the execution planning boundary before physical execution.
+6. **No arbitrary client-side escape.** Server-side authorization, filtering, grouping, and cost controls remain authoritative.
+7. **Deterministic planning.** Equivalent logical inputs MUST produce equivalent plan semantics, subject only to explicitly versioned physical strategy changes.
+8. **Bounded interactive latency.** Plans classified as interactive MUST remain inside their configured budgets or use an explicit fallback policy.
+
+These invariants are intended to preserve server performance as composition capability grows.
+
+---
+
+# 29. Compatibility and Migration
+
+The introduction of the Composable Execution Planner does not require the immediate replacement of
+existing handlers.
+
+A migration path may be:
+
 ```text
-composition
+existing View
    ↓
-new generic primitive
+lower to implicit logical data requirements
    ↓
-new specialized capability
-```
-
-not:
-
-```text
-business case
+Composable Execution Planner
    ↓
-new ViewType
+existing SQL / repository functions
 ```
 
-A proposal that bypasses composition review must be explicitly justified in the capability
-registry.
+This permits performance planning to become a shared runtime concern before all metadata surfaces
+become fully composable.
+
+The planner may initially support a narrow closed set of operations and expand only when real cases
+and benchmark evidence justify it.
 
 ---
 
-# 26A. Capability Boundary
+# 30. Reference to the Scale Study
 
-The composable runtime must define a clear boundary between **declarative composition** and
-**general-purpose programming**. The purpose of this boundary is not to limit composition to a
-small number of UI levels. Atomic components are valid and useful. The boundary is about
-computational power and ownership of implementation.
+The planner operationalizes performance concerns already identified in
+`benchmarks/004-scale-architecture-study.md`, including:
 
-## 26A.1 Atomic Components
+- lazy per-workspace metadata loading and cache;
+- singleflight cold-load protection;
+- batch loading rather than nested metadata queries;
+- metadata-driven index awareness;
+- per-workspace concurrency limits;
+- separate analytics/report execution capacity;
+- pagination and bounded result retrieval.
 
-Atomic Components are the terminal, reusable vocabulary of the Experience Plane. They represent a
-small, closed semantic capability whose implementation belongs to the runtime.
-
-Examples:
-
-```text
-Text
-Image
-Icon
-Badge
-Avatar
-Money
-Date
-Button
-Link
-```
-
-An Atomic Component may accept bounded inputs, bindings, accessibility attributes, visibility
-conditions, and other explicitly declared properties. It does not contain arbitrary executable
-logic supplied by Runtime Metadata.
-
-Conceptually:
-
-```text
-Metadata
-   ↓
-select component capability
-   ↓
-bind declared inputs
-   ↓
-runtime-owned implementation
-```
-
-An Atomic Component is therefore **not** a mini program. It is a registered runtime capability.
-
-## 26A.2 Composite Components
-
-Composite Components combine bounded components into a reusable semantic or structural unit.
-
-Examples:
-
-```text
-RecordSummaryCard
-ActionBar
-FormSection
-ActivityFeed
-Collection
-```
-
-A Composite Component may expose controlled Slots and child contracts, but its children remain
-bounded capabilities. A composite must not become an unbounded container that can execute arbitrary
-metadata-defined code.
-
-The preferred rule is:
-
-> **Compose capabilities; do not implement capabilities inside metadata.**
-
-## 26A.3 Experience Components
-
-Experience Components assemble reusable components into application-facing surfaces.
-
-Examples:
-
-```text
-Page
-Dashboard
-Detail Experience
-Approval Experience
-```
-
-Experience Components may contain Layouts, Components, Views, Static Content, Datasets, Bindings,
-and Actions, but they remain declarative composition structures. Business behavior remains owned by
-Events, Actions, Constraints, Permissions, and Process primitives.
-
-An Experience Component should not become a second programming runtime.
-
-## 26A.4 Bounded Expressions
-
-Expressions are permitted where the system needs limited computation for semantic decisions or
-value derivation.
-
-Examples:
-
-```text
-status == "Approved"
-amount * quantity
- due_date < today()
-```
-
-Expressions MAY provide:
-
-- predicates;
-- calculated values;
-- conditional visibility;
-- derived measures;
-- data transformation;
-- routing decisions within an explicitly bounded domain.
-
-Expressions MUST NOT provide:
-
-- arbitrary loops;
-- recursion;
-- arbitrary function invocation;
-- I/O;
-- database access outside declared runtime planning;
-- filesystem access;
-- network calls;
-- process execution;
-- dynamic code loading;
-- mutation of unrelated runtime state.
-
-The expression layer is therefore a **bounded declarative language**, not a general-purpose
-programming language.
-
-## 26A.5 What Metadata May Express
-
-Runtime Metadata MAY:
-
-```text
-select registered capabilities
-configure bounded inputs
-bind data to declared component inputs
-compose components and layouts
-compose datasets and queries
-filter / sort / group / aggregate through supported semantics
-express bounded conditions and formulas
-select actions and events that already exist
-reference stable runtime identities
-provide static content through approved content nodes
-```
-
-In particular, metadata may express **intent and composition**, while the runtime retains ownership
-of implementation.
-
-## 26A.6 What Metadata Must Never Express
-
-Portable Runtime Metadata MUST NOT become an arbitrary implementation language.
-
-It must not express:
-
-```text
-arbitrary source code
-arbitrary HTML execution
-arbitrary JavaScript execution
-SQL strings as a general data-access escape hatch
-filesystem/network/process operations
-unbounded loops or recursion
-runtime reflection over unspecified capabilities
-hidden database queries
-hidden cross-workspace access
-arbitrary mutation outside declared Actions
-```
-
-A proposed feature that requires one of these mechanisms is not automatically impossible, but it is
-**outside the Composable Runtime metadata boundary**. It must instead be implemented as a runtime
-capability with an explicit contract, security model, performance budget, and conformance proof.
-
-## 26A.7 Capability Admission Gate
-
-The capability-admission process MUST distinguish three outcomes:
-
-```text
-1. Existing composition is sufficient
-       ↓
-   use composition
-
-2. Existing composition is insufficient, but one bounded generic primitive is missing
-       ↓
-   add the smallest reusable primitive
-
-3. The requirement has a genuinely distinct semantic / behavioral identity
-       ↓
-   admit a new runtime capability
-```
-
-Before admitting a new primitive, reviewers should answer:
-
-1. Is it expressible using existing components, layouts, datasets, bindings, actions, and expressions?
-2. If not, is there a smaller generic primitive that enables this and other use cases?
-3. Does the proposal add computational freedom rather than semantic capability?
-4. Does it introduce a new mini-language, arbitrary property bag, or hidden data access path?
-5. Can its contract be finite, documented, validated, versioned, and benchmarked?
-6. What existing runtime substrate will implement or lower it?
-7. What security and permission boundaries apply?
-8. What is its worst-case composition/execution cost?
-9. What conformance test proves the behavior?
-10. What evidence justifies its promotion from application composition to platform capability?
-
-A proposal that cannot answer these questions should remain application-specific configuration or be
-rejected rather than silently becoming a new generic capability.
-
-## 26A.8 When a Composition Becomes a New Capability
-
-Composition becomes a new runtime capability when at least one of the following is true:
-
-- it has a distinct semantic contract used by multiple independent applications or domains;
-- the behavior cannot be expressed clearly as a composition of existing capabilities;
-- keeping it as raw composition would create repeated, error-prone or ambiguous declarations;
-- runtime-owned optimization or security enforcement is materially different from ordinary
-  composition;
-- the capability provides a stable abstraction that prevents multiple ViewType/component-specific
-  implementations from diverging.
-
-The following are **not**, by themselves, sufficient reasons for a new capability:
-
-```text
-"the mockup looks different"
-"the page needs another arrangement"
-"a developer wants custom HTML"
-"one case needs one special property"
-"the existing composition syntax is inconvenient"
-```
-
-These should first trigger decomposition and composition review.
-
-The architectural litmus test is:
-
-> **Does the new abstraction contribute a reusable semantic capability, or merely encode one
-> implementation's preferred arrangement?**
-
-Only the former should normally become a runtime capability.
+The Composable Execution Planner does not replace those mechanisms. It provides the common planning
+boundary through which composable UI/data requirements can consume them without creating a second
+performance architecture.
 
 ---
 
-# 27. Backward Compatibility
+# 31. Open Research Questions
 
-The architecture must permit incremental adoption.
+The following remain implementation/research questions rather than settled mechanisms:
 
-Existing metadata such as:
+- how much query coalescing is beneficial before query complexity hurts the database optimizer;
+- how to estimate cost accurately for JSONB/expression-index workloads;
+- when to batch versus parallelize;
+- when to share a broad projection versus execute narrower projections independently;
+- how to expose execution diagnostics without coupling metadata to physical plans;
+- whether a persistent plan cache is beneficial beyond immutable in-process plans;
+- what workload-dependent thresholds should govern interactive-to-async promotion.
 
-```yaml
-view:
-  type: list
-  config:
-    fields: [...]
-    filter: [...]
-    default_sort: ...
-```
-
-remains valid.
-
-The compiler may internally lower it to:
-
-```text
-Page / Visit Surface
-       ↓
-Collection Component
-       ↓
-Dataset / Query
-       ↓
-Projection
-       ↓
-Table Renderer
-```
-
-No application author should need to rewrite existing metadata merely because the runtime gained a
-more composable internal model.
-
-The lowering result must preserve existing observable behavior within an explicitly defined
-compatibility budget.
+These questions should be answered with representative case benchmarks rather than assumptions.
 
 ---
 
-# 28. Current Menata Features and Target Mapping
+# 32. Recommended Next Studies
 
-| Existing concept | Composable target |
-|---|---|
-| Machine | Domain source / capability |
-| Field | Data attribute / semantic field |
-| Reference | Relation source |
-| View | Convenience experience/data preset |
-| ViewConfig.filter | Expression-backed Query filter |
-| ViewConfig.default_sort | Query sort |
-| Report | Dataset + aggregation + presentation |
-| Dashboard | Page + Layout + Components + Datasets |
-| Child View composition | Component/Page composition |
-| Process Overlay | High-level behavior preset lowered to primitives |
-| Computed Field | Expression-backed projection value |
-| UI components in `templ` | Renderer implementations |
-| Capability Registry | Admission + evidence mechanism |
-| Conformance suite | Proof of behavioral compatibility |
+The next evidence-gathering work should include a **Composable Execution Planner benchmark** with at
+least:
+
+1. one component → one dataset;
+2. ten components → ten independent datasets;
+3. ten components → three shared datasets;
+4. one dataset → multiple compatible projections;
+5. mixed OLTP + analytics composition;
+6. 100 concurrent workspaces with cold and warm metadata caches;
+7. security scopes that prevent otherwise-similar requests from being coalesced.
+
+Measure at least:
+
+```text
+p50 / p95 / p99 latency
+queries / request
+physical operations / request
+rows scanned / request
+rows returned / request
+CPU / request
+memory / request
+DB pool utilization
+cache hit ratio
+planner/compile time
+execution DAG width
+```
+
+A benchmark should compare a **naive component-per-query baseline** against planner-enabled
+shared/batched/bounded execution. A planner optimization is only accepted when it improves or
+preserves the relevant SLOs without changing semantics or security.
 
 ---
 
-# 29. Known Gaps
+# 33. Capability Admission Gate (Performance Extension)
 
-The following gaps are architectural targets rather than claims of current implementation.
-
-## 29.1 Data
-
-- first-class Dataset runtime model;
-- reusable dimensions and measures;
-- generalized Projection;
-- generic Query AST/Data IR;
-- relation-aware data plans;
-- common expression AST;
-- query cost model.
-
-## 29.2 UI
-
-- generic Layout runtime model;
-- generic Component composition;
-- Slot model;
-- first-class Static Content nodes;
-- unified binding/context model;
-- component registry seam;
-- UI IR;
-- generic render plan.
-
-## 29.3 Performance
-
-- metadata-driven expression indexes as a reconciled system;
-- Dataset-level cache policy;
-- query deduplication/batching;
-- adaptive materialization;
-- explicit query-plan benchmarks.
-
-## 29.4 Governance
-
-- composition architecture gate in capability admission;
-- conformance tests for generic composition;
-- complexity limits on nested composition;
-- diagnostics for expensive or ambiguous plans.
-
----
-
-# 30. Non-Goals
-
-This architecture does not require:
-
-- a React-like client framework;
-- a general-purpose browser-side query engine;
-- arbitrary JavaScript execution from metadata;
-- arbitrary HTML injection;
-- a DAG engine for UI;
-- table-per-Machine storage;
-- rewriting all existing View types;
-- replacing Machine with Dataset;
-- replacing the capability registry.
-
-Composable Runtime is a runtime abstraction strategy, not a frontend framework replacement.
-
----
-
-# 31. Validation and Conformance
-
-Every generic composition mechanism must be backed by executable proof.
-
-At minimum, tests should prove:
-
-## 31.1 Data Reuse
-
-The same Dataset can feed multiple consumers without redefining its semantics.
-
-## 31.2 Projection Reuse
-
-A Projection can feed multiple renderers.
-
-## 31.3 UI Reuse
-
-A generic Component can be embedded by multiple Pages or Views.
-
-## 31.4 Layout Reuse
-
-A Layout can host multiple compatible child types.
-
-## 31.5 Context Safety
-
-Nested bindings resolve only within declared scope.
-
-## 31.6 Permission Safety
-
-Composed views cannot widen the permission scope of the underlying data.
-
-## 31.7 Query Efficiency
-
-Composed UI does not create N+1 queries for a shared Dataset or repeated reference lookup.
-
-## 31.8 Backward Compatibility
-
-Existing View metadata renders identically or within a defined compatibility budget after lowering.
-
-## 31.9 Performance
-
-Composition depth and Dataset reuse must be benchmarked against the established NFR budgets.
-
-## 31.10 Composition-cycle Safety
-
-Experience-tree cycles, invalid slot recursion, and reference patterns capable of causing unbounded
-resolution must be rejected or bounded before execution.
-
-## 31.11 Component Contract Safety
-
-A component must consume only declared inputs, bindings, and data requirements. Hidden business
-queries are a conformance failure.
-
----
-
-# 32. Recommended Benchmark Program
-
-A dedicated benchmark family should measure composability rather than only feature correctness.
-
-## 32.1 Application Construction Ratio
+For any new composable capability, its admission evidence should include an answer to:
 
 ```text
-ACR = business-specific runtime code / total application realization
-```
-
-Lower is better.
-
-## 32.2 Composition Reuse Ratio
-
-```text
-CRR = reused generic components / total rendered components
-```
-
-Higher is better.
-
-## 32.3 View Independence
-
-Measure how many presentation changes can occur without changing the Dataset or logical Query.
-
-## 32.4 Data Independence
-
-Measure how many changes in Projection or Dataset shape can occur without changing renderer code.
-
-## 32.5 Runtime Extension Cost
-
-Measure the number of runtime files/packages/handlers that must change to introduce a new
-composable experience.
-
-## 32.6 Query Reuse Ratio
-
-Measure how many UI consumers use the same Dataset or normalized logical query.
-
-## 32.7 Physical Query Efficiency
-
-Compare:
-
-```text
-components
-vs
-logical datasets
-vs
-physical SQL queries
-```
-
-The goal is to detect query duplication introduced by composition.
-
-## 32.8 Composition Depth Cost
-
-Measure latency and memory against nesting depth.
-
-Example matrix:
-
-```text
-1 level
-2 levels
-4 levels
-8 levels
-```
-
-## 32.9 Storage Strategy Benchmark
-
-Compare at representative scale:
-
-```text
-JSONB scan
-GIN
-expression index
-generated column
-stored hot column
-materialized dataset
-```
-
-with p50/p95/p99 latency, CPU, IO, memory, and write amplification.
-
-## 32.10 Component Contract Cost
-
-Measure the resolution and render overhead of registry-based generic components versus the current
-statically dispatched `templ` implementation. The registry must not add material latency merely to
-provide composability.
-
-## 32.11 Composition Budget Enforcement
-
-Measure behavior at and beyond configured limits for:
-
-- node count;
-- nesting depth;
-- Dataset count;
-- physical query count;
-- metadata size.
-
-The benchmark must prove that over-budget compositions fail predictably rather than degrading into
-unbounded work.
-
----
-
-# 33. Reference Test Matrix
-
-A future benchmark suite should combine:
-
-```text
-Data Shapes
- ├── single Machine
- ├── reference join
- ├── aggregate
- ├── time series
- └── multi-source composition
-
-Presentation Shapes
- ├── table
- ├── cards
- ├── detail
- ├── metric
- ├── chart
- ├── timeline
- └── mixed page
-
-Composition Shapes
- ├── flat
- ├── nested
- ├── repeated dataset
- ├── shared dataset
- └── mixed static + structured
-```
-
-Each test records:
-
-- metadata size;
-- compiled IR size;
-- query count;
-- query planning cost;
-- database execution cost;
-- render cost;
-- response size;
-- memory;
-- cache hit rate.
-
----
-
-# 34. Implementation Strategy
-
-The architecture should be introduced incrementally.
-
-## Phase 1 — Normalize the Existing View System
-
-Create an internal normalized representation without changing public metadata.
-
-```text
-existing View metadata
-      ↓
-normalizer
-      ↓
-internal View/Data model
-```
-
-Goal: prove that current Views can lower into a generic substrate.
-
-## Phase 2 — Introduce Expression IR
-
-Unify field/operator predicates, computed values, and conditional logic behind one bounded
-expression model.
-
-## Phase 3 — Introduce Dataset + Projection
-
-Implement a reusable semantic Dataset and Projection layer for the existing list, report, and
-dashboard paths.
-
-## Phase 4 — Introduce DataPlan
-
-Compile Dataset + filter + projection + sorting into a common query plan and integrate permission
-scope before physical execution.
-
-## Phase 5 — Introduce Generic Layout + Component Tree
-
-Move composed Pages from View-only children to generic composition nodes while preserving existing
-`children` behavior.
-
-## Phase 6 — Introduce UI IR
-
-Compile generic composition to a renderer-independent IR.
-
-## Phase 7 — Component Registry
-
-Move new component resolution behind a registry seam. Existing templ functions can remain the
-implementation behind registered components during transition.
-
-## Phase 8 — Query Optimization
-
-Add metadata-driven indexes, query deduplication, cache, batching, and cost-aware physical plans.
-
-## Phase 9 — Adaptive Execution
-
-Only after benchmarks justify it, introduce materialized datasets and other heavier physical
-strategies.
-
----
-
-# 35. Migration Rule
-
-At no point should the migration require a big-bang replacement.
-
-The preferred sequence is:
-
-```text
-Current implementation
+What logical dependency does it add?
         ↓
-Adapter
+What DAG nodes does it generate?
         ↓
-Normalized model
+Can those nodes be shared or batched?
         ↓
-Generic IR
+What is the worst-case physical fan-out?
         ↓
-New execution path
+What budget controls prevent unbounded work?
+        ↓
+What benchmark proves the chosen strategy is acceptable?
 ```
 
-Old and new paths should be compared under conformance and benchmark workloads before replacing
-default execution.
+A capability that is semantically valid but causes uncontrolled physical fan-out is not complete as
+an architectural capability until its execution behavior is bounded.
 
 ---
 
-# 36. Architectural Contracts
+# 34. Status of the Planner
 
-The following rules are **normative architectural invariants**. They apply to new implementation
-work even before the target abstraction is fully implemented. When current code does not yet satisfy
-an invariant, the gap belongs in the roadmap rather than being treated as permission to introduce a
-second incompatible pattern.
+The **Composable Execution Planner is PROPOSED architectural infrastructure**, not a claim that the
+full planner already exists in the current implementation.
 
-### AC-01 — Machine remains the business capability boundary
+The current runtime already contains pieces of the required foundation: compiled metadata,
+execution classes, query normalization concepts, pagination, cache/index direction, and scale
+controls. The planner is the architectural boundary that unifies those mechanisms for composable
+execution.
 
-Machine remains the primary business-capability boundary. Composition must not turn Machine into a
-mere storage table or make Page/View the owner of business semantics.
-
-### AC-02 — Dataset is presentation-independent
-
-A Dataset MUST NOT contain renderer-specific behavior. It may describe source, relations,
-projection, filtering, grouping, measures, parameters, and other semantic data requirements.
-
-### AC-03 — Component data access is explicit
-
-A Component MUST NOT perform undeclared business data access. Required data must enter through a
-Dataset, Projection, Binding, or another explicitly declared runtime contract.
-
-### AC-04 — Layout is semantically neutral
-
-Layout MUST NOT own business rules, business queries, authorization decisions, or domain-specific
-state transitions.
-
-### AC-05 — View is not the universal composition primitive
-
-A View MUST NOT be required solely because the runtime currently dispatches rendering by ViewType.
-New composition should prefer generic Page/Layout/Component/View/Binding primitives.
-
-### AC-06 — UI composition is a tree
-
-The experience hierarchy MUST be acyclic and tree-shaped. Reusable semantic artifacts are linked by
-references rather than recursively duplicated into the tree.
-
-### AC-07 — Semantic dependencies form explicit references
-
-Datasets, projections, actions, components, and other reusable artifacts MAY be shared by multiple
-nodes through stable references. Reference resolution MUST remain explicit and bounded.
-
-### AC-08 — Metadata is logical, not physical
-
-Portable Runtime Metadata MUST NOT encode PostgreSQL-specific indexes, join algorithms, cache
-internals, file paths, generated SQL, renderer markup, or equivalent physical implementation
-choices.
-
-### AC-09 — Physical plans are runtime-internal
-
-Logical plans and physical execution plans MUST remain separate. Physical plans MUST NOT become the
-portable contract between authoring tools and the runtime.
-
-### AC-10 — Component contracts are bounded
-
-A generic Component MUST have a finite, documented contract. Arbitrary property bags, hidden data
-loads, and code-execution escape hatches are not valid substitutes for composability.
-
-### AC-11 — Slots are controlled extension points
-
-A Slot MUST declare what class of children it accepts. Composition through Slots must not bypass
-permission checks, data requirements, or component contracts.
-
-### AC-12 — Bindings respect scope
-
-Bindings MUST resolve only against explicitly permitted context/scope. A child must not implicitly
-read unrelated parent state merely because it is reachable in the object graph.
-
-### AC-13 — Security precedes data optimization
-
-Authorization scope MUST be part of the logical Data Plan before aggregation, caching, materialization,
-or result exposure.
-
-### AC-14 — Expressions are side-effect free
-
-Expressions MUST remain deterministic, bounded, side-effect free, and incapable of I/O or arbitrary
-code execution.
-
-### AC-15 — Generic first, specialized second
-
-A new specialized ViewType, Component, or Query language MUST NOT be the first solution when existing
-primitives or one new generic primitive can express the requirement cleanly.
-
-### AC-16 — Convenience abstractions lower to common substrate
-
-High-level presets such as List, Detail, Dashboard, Approval Page, or Process overlays SHOULD lower
-to shared intermediate/runtime primitives instead of creating separate execution models.
-
-### AC-17 — New capabilities require composition review
-
-Every new capability MUST record whether it was expressible through composition, why a new primitive
-was necessary, and what reusable substrate it uses.
-
-### AC-18 — Generic capabilities require executable proof
-
-A capability MUST have conformance tests and, where relevant, benchmark evidence before being treated
-as a stable generic primitive.
-
-### AC-19 — Composition complexity is bounded
-
-The runtime MUST define enforceable limits or cost policies for composition depth, node count, data
-requirements, and physical query generation. "Composable" MUST NOT mean "unbounded."
-
-### AC-20 — Backward compatibility is a first-class constraint
-
-Existing Runtime Metadata remains valid unless an explicit compatibility decision is recorded.
-New generic infrastructure must be introduced through adapters/lowering where practical.
-
----
-
-# 37. Architectural Review Gate
-
-Before merging a change that adds or materially changes a composable runtime capability, reviewers
-should answer the following questions:
-
-```text
-1. What semantic capability is being added?
-2. Can existing primitives compose it?
-3. If not, what is the smallest generic primitive that unlocks it?
-4. Does the proposal create a new business-specific component or ViewType?
-5. What are the input/data/slot/binding contracts?
-6. Can the requirement be represented in the common Data IR or UI IR?
-7. Where does authorization enter the data plan?
-8. What does the capability lower into?
-9. What is the bounded worst-case composition cost?
-10. What conformance and benchmark evidence proves the design?
-```
-
-A "yes" to business-specific specialization is not automatically rejected, but it requires an
-explicit architectural justification and must not silently establish a new pattern for future work.
-
----
-
-# 38. Architectural Invariants
-
-The following invariants should remain true as the architecture evolves.
-
-1. **Machine remains the business capability boundary.**
-2. **Dataset does not own presentation.**
-3. **Component does not own arbitrary data access.**
-4. **View does not own authorization.**
-5. **Layout does not own business logic.**
-6. **Permissions are resolved before result exposure.**
-7. **Expressions cannot perform I/O.**
-8. **Physical storage remains implementation detail.**
-9. **Renderer does not redefine semantic data.**
-10. **New specialization requires a composition review.**
-11. **Every admitted capability needs executable proof.**
-12. **Performance budgets apply to composed experiences, not only isolated endpoints.**
-13. **Experience trees are acyclic.**
-14. **Reusable data and behavior are referenced, not silently duplicated.**
-15. **Physical plans remain runtime-internal.**
-16. **Component contracts are bounded and explicit.**
-
----
-
-# 39. Architectural Decision Summary
-
-The preferred Menata direction is:
-
-```text
-                    COMPOSABLE APPLICATION RUNTIME
-                               │
-          ┌────────────────────┼────────────────────┐
-          ▼                    ▼                    ▼
-        DOMAIN                DATA                   UI
-          │                    │                    │
-      Machine              Dataset                Page
-      Field                Query                  Layout
-      Event                Projection             Component
-      Constraint           Expression              View
-      Permission           Relation                Binding
-                             │                     Context
-          │                 │                    │
-          └─────────────────┼────────────────────┘
-                            ▼
-                      Runtime Compiler
-                            │
-                ┌───────────┴───────────┐
-                ▼                       ▼
-             Data IR                  UI IR
-                │                       │
-                ▼                       ▼
-          Execution Plan             Render Plan
-                │                       │
-                ▼                       ▼
-             Database               Renderer
-```
-
-The intended architectural outcome is not a larger collection of View types.
-
-It is a **small, composable substrate** from which richer application experiences can be built.
-
----
-
-# 40. Relationship to Existing Menata Research
-
-This document consolidates directions already discovered by the repository rather than replacing
-those studies. Per the Tier-1-semantics note at the top of this document, every claim below is
-marked **PROVEN** (implemented, conformance-cited) or **PROPOSED** (an architectural target, not
-yet built) — Tier 1 status is not a claim that the proposed rows are already true.
-
-| §007 claim | Evidence | Status |
-|---|---|---|
-| Composition over specialization; a new requirement should compose before it becomes a new `ViewType` | `capability-lifecycle.md` §2 A4 (non-composability test, Study 5's ADR-0012 Pattern A/B precedent) | **PROVEN** — the discipline already governs every admission |
-| High-level metadata can compile into lower-level runtime primitives at load time | Process Overlay, Study 21, `CAP-W01`, `internal/metadata/compile.go`, conformance T136–T139 | **PROVEN** — the concrete precedent §15's UI IR pipeline generalizes from |
-| A page can compose multiple Views plus a small closed static-content vocabulary and one layout shape | `CAP-V10 Tier 2`, implemented 2026-09-09, conformance T253–T258 (`conformance/tests/230_composed_page.sh`) | **PROVEN** — this is the only shipped instance of the Experience-plane composition tree §12 describes; recursive nesting (§12.4) is still explicitly out of scope |
-| A compile-time expression layer (CEL-shaped) is usable in filters/computed Fields/constraints | `CAP-C13`, ✅ implemented, Study 37 R1 | **PROVEN** |
-| A named, reusable semantic Dataset (§7.2) prevents metric drift across report/dashboard/chart consumers | `CAP-V22`, ❌ Proposed, Study 37 R2 (`prototype/objectstack/`, ObjectStack ADR-0021's own "revenue defined three times" lesson) | **PROPOSED** — no forcing case yet in `case-portfolio.md`; candidate proof cases already named (Cases 9/15, `roadmap.md` item 24 step 4) |
-| Metadata-driven index management / query cost awareness (§8, §20) | `CAP-X10`, ❌, Study 8 (`benchmarks/004-scale-architecture-study.md`), deliberately deferred per "Infer Before Configure" | **PROPOSED** — no measured scale pressure yet at this prototype's data volumes |
-| Generic, semantically-named presentation primitives (`RecordSummaryCard`, not `ApprovalListCard`) reduce ViewType/business-specific proliferation | Study 38 (`benchmarks/029-composed-view-component-inventory.md`) and Study 40 (`benchmarks/030-ui-subcomponent-decomposition-criteria.md`); 7 of 9 primitives already real `templ` code (`app/docs/ui-component-library.md`) | **PROVEN** at the presentation-primitive level; **PROPOSED** as a formal, registry-dispatched Component contract (§13–§14) — the generalization from "primitives exist" to "a Component Registry governs them" hasn't been built |
-| A static/compile-time Component Registry seam is the right dispatch shape; a dynamic client-side/plugin registry is not | `capability-lifecycle.md` §4 (existing compile-time registry-seam pattern for field/action/view types) proves the static half; `composable-view-proposal-reconciliation.md` §4, reaffirmed §9.1/§10, proves the dynamic half is structurally rejected, not merely deferred | **PROVEN** (both halves — one is already-existing practice, the other is a settled negative verdict) |
-| Parent→child context/scope propagation is undesigned but will be mandatory once composed pages need parent-scoped children | `composable-view-proposal-reconciliation.md` §5, §8(iii) | **PROPOSED** — named, prioritized low today (no forcing case), mandatory the moment `CAP-V10 Tier 2` recursion or an equivalent case arrives |
-| A UI Intermediate Representation (§15) is a useful compile target | No prior study — new to this document and to `composable-view-proposal-reconciliation.md` §9.2(b) | **PROPOSED / research question** — §41 Q13–Q14, §42 Study 44; the concrete problem an IR solves (one representation, many renderers) has no forcing case while `app/ARCHITECTURE.md` commits to exactly one renderer |
-| Composability-measuring benchmarks (Application Construction Ratio et al., §32) | `composable-view-proposal-reconciliation.md` §9.2(c), §10 | **PROPOSED** — a candidate future study, not run yet |
-
-The architectural purpose of this document is to establish the common model connecting those
-findings — proven and proposed alike — not to claim the proposed rows are already realized.
-
----
-
-# 41. Open Research Questions
-
-The following questions remain intentionally open and should be answered by executable studies:
-
-1. What is the minimum Dataset model that covers CRUD, dashboard, report, and analytics cases?
-2. How should Dataset inheritance or composition work without creating hidden semantic coupling?
-3. Which expressions can always be pushed down safely to PostgreSQL?
-4. What cost model is sufficient for a modest single-server deployment?
-5. At what workload should Dataset caching become beneficial?
-6. When does materialization outperform live queries under Menata's expected write/read mix?
-7. What is the minimum generic Layout vocabulary that covers enterprise application patterns?
-8. How should slots and bindings interact with authorization and conditional visibility?
-9. How should client-side interactivity evolve without turning the runtime into a mandatory SPA?
-10. How much composition depth is practical before metadata and runtime complexity dominate?
-11. What generic component contracts can replace multiple specialized ViewTypes without losing
-    domain expressiveness?
-12. Which capabilities should be compile-time lowered versus runtime-resolved?
-13. What is the minimal component registry contract that provides generic resolution without imposing
-    a dynamic plugin system?
-14. What is the minimal Data IR that can unify existing list/report/dashboard query paths without
-    over-generalizing the data model?
-
-These questions should be answered through benchmarked prototypes and conformance tests rather
-than architecture-by-assertion.
-
----
-
-# 42. Recommended Next Studies
-
-## Study 41 — Semantic Data Runtime
-
-Prototype:
-
-```text
-Dataset
-Dimension
-Measure
-Projection
-Expression
-Relation
-```
-
-and implement it for one existing list, one dashboard, and one report.
-
-## Study 42 — DataPlan / Query Compiler
-
-Build a common Data IR and compare it with the current handler/store query paths.
-
-Measure correctness and planning overhead.
-
-## Study 43 — Generic Composition Runtime
-
-Prototype:
-
-```text
-Page
-Stack
-Grid
-Split
-Section
-Collection
-Record
-Metric
-Static Content
-```
-
-Use existing application cases and measure how many specialized View types become unnecessary.
-
-## Study 44 — UI IR
-
-Build the smallest renderer-independent UI IR capable of representing the current HTML/Templ
-surface.
-
-## Study 45 — Composition Performance
-
-Measure query count, latency, memory, and render cost as composition depth and Dataset reuse grow.
-
-## Study 46 — Adaptive Physical Execution
-
-Compare live SQL, cached Dataset results, indexed JSONB access, generated columns, and materialized
-representations at the established Study 8 scale.
-
-## Study 47 — Architectural Contract Conformance
-
-Build a machine-checkable or test-backed suite for AC-01 through AC-20, prioritizing:
-
-- View-independent composition;
-- Dataset/presentation separation;
-- explicit component data requirements;
-- bounded context/binding;
-- permission-before-optimization;
-- acyclic experience trees;
-- backward-compatible lowering.
-
----
-
-# 43. Final Position
-
-Menata Runtime should not abandon its current architecture in favor of a new frontend-oriented
-composition framework.
-
-The preferred evolution is:
-
-```text
-Metadata-driven Runtime
-        ↓
-Composable Metadata
-        ↓
-Composable Data
-        ↓
-Composable UI
-        ↓
-Composable Behavior
-        ↓
-Common Intermediate Representations
-        ↓
-Cost-aware Runtime Execution
-```
-
-The central architectural shift is:
-
-```text
-Machine → View → specialized renderer
-```
-
-toward:
-
-```text
-Data
- → Query
- → Projection
- → Context
- → Composition
- → Component / Layout / View
- → UI IR
- → Renderer
-```
-
-with behavior remaining independently composable:
-
-```text
-Event
- + Action
- + Constraint
- + Permission
- + Process
-```
-
-and with physical execution remaining runtime-owned:
-
-```text
-logical intent
-      ↓
-compiler / optimizer
-      ↓
-physical realization
-```
-
-The objective is therefore not "more metadata" or "more ViewTypes".
-
-The objective is:
-
-> **A small, deterministic, reusable runtime substrate capable of expressing many applications
-> through composition while allowing the runtime to continuously choose efficient physical
-> execution.**
-
-That is the architectural direction for Menata Runtime's transition from a metadata-driven
-application runtime into a general-purpose **Composable Application Runtime**.
+Its implementation must follow the repository's existing evidence and admission discipline. No new
+capability is implicitly admitted merely by naming this boundary.
