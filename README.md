@@ -377,7 +377,7 @@ Realizes Runtime Metadata into applications.
 
 This directory mixes documents that change on different rhythms. To read the numbering correctly:
 
-- **Numbered `001`–`006`** — the core specification. Stable, read in sequence, changes rarely (mirrors `specification/000`–`006` at the repo root — same convention, one level down).
+- **Numbered `001`–`006`** — the core specification. Stable, read in sequence, changes rarely (mirrors `specification/000`–`006` at the repo root — same convention, one level down). **`007` is a deliberate exception** (added 2026-09-11): a Tier 1 *target* architecture, still `Draft`, carrying its own status header and per-claim PROVEN/PROPOSED marking — see "How should a document be written?" below for what that pattern is and when it applies instead of the stable-Tier-1 default.
 - **Unnumbered, at this level** — supporting reference or governance documents. Two different kinds, distinguished below.
 - **`benchmarks/` — numbered `000`–`028`** — evidence studies, numbered by production order (Study 1 → `000`, Study 2 → `001`, …), not a required reading sequence. Grows as new studies land; check `ls benchmarks/` for the current top of the range rather than trusting this exact number to stay current.
 
@@ -443,7 +443,10 @@ The runtime's capability is being built and verified through a deliberate discov
 | [capability-lifecycle.md](capability-lifecycle.md) | How a new capability is proposed, admitted, and completed |
 | [nfr-standards.md](nfr-standards.md) | Architecture / performance / security standards per capability area |
 | [brd-menata-runtime-v2.md](brd-menata-runtime-v2.md) | Concept BRD for v2 — the Process Overlay ("declared process, emergent execution"), Study 20's Concept C written as a business requirements document, incl. a metadata-only test against all 21 cases (in Bahasa Indonesia, deliberately matching the comparator BRD's genre) |
-| [composable-runtime-blueprint.md](composable-runtime-blueprint.md) | The Tier 3 "how we get there" companion to `007-composable-runtime-architecture.md`'s Tier 1 "what it must be": current-state gap inventory + an 8-phase evolution plan, synthesizing the whole "Composable Metadata Runtime" thread (`prototype/objectstack/docs/composable-view-proposal-reconciliation.md` §1–§10, `CAP-V10`/`CAP-V22`/`CAP-C13`/`CAP-X10`, Study 8) — no capability admitted, each phase gated by its own forcing condition |
+| [composable-runtime-blueprint.md](composable-runtime-blueprint.md) | The Tier 3 "how we get there" companion to `007-composable-runtime-architecture.md`'s Tier 1 "what it must be": current-state gap inventory + an 8-phase evolution plan, synthesizing the whole "Composable Metadata Runtime" thread (`prototype/objectstack/docs/composable-view-proposal-reconciliation.md` §1–§10, `CAP-V10`/`CAP-V22`/`CAP-C13`/`CAP-X10`, Study 8) — no capability admitted, each phase gated by its own forcing condition. Its own Phase 0 is the **Grammar-area decision** (whether `Dataset` becomes a new Grammar area or folds under `View`) — the cheapest, highest-priority gate in the whole composable direction, since it costs nothing to resolve and blocks every Data-plane candidate. **As of 2026-09-11 this decision is still undecided anywhere in writing**, yet `004`/`006` already use `Dataset`/`Relation`/`Projection`/`Dimension`/`Measure` as settled concepts — tracked as `CR-27` in `composable-runtime-roadmap.md` below |
+| [composable-runtime-architecture-map.md](composable-runtime-architecture-map.md) | Canonical terminology/contract map for the composable runtime direction — cross-document vocabulary and source-of-truth hierarchy referenced by `001`–`007` and the roadmap below |
+| [composable-runtime-roadmap.md](composable-runtime-roadmap.md) | A 15-phase (Phase 0–14) implementation sequence for the composable runtime transformation, added 2026-09-11. Its own Phase 0 is **Contract Freeze and Documentation Alignment** (DOC-01–10) — a different milestone from `composable-runtime-blueprint.md`'s Phase 0 above; both documents number their own phases from 0 independently, so "Phase 0" means something different depending on which document is being read |
+| [composable-runtime-roadmap-phase0-documentation-alignment.md](composable-runtime-roadmap-phase0-documentation-alignment.md) | The detailed DOC-01–DOC-10 backlog and itemized exit gate for `composable-runtime-roadmap.md`'s Phase 0 — most items (`runtime-metadata-schema.md` alignment, capability-governance taxonomy, composition-level NFRs, README/agent-guidance wording, benchmark cross-links) are still open |
 | [benchmarks/](benchmarks/) | Tier 4 — external evidence studies (see below) |
 
 ## Tier 4 — Evidence Studies (`benchmarks/`, numbered by production order)
@@ -517,8 +520,20 @@ agent session) to drift from it by accident.
   own governance/evidence artifacts — not Tier 1's stable spec) opens with a blockquote status
   line: `> Status: vX.Y — <one-line summary of the latest change> | Created: YYYY-MM-DD |
   Updated: YYYY-MM-DD` (see `roadmap.md`, `capability-registry.md`, `nfr-standards.md`'s own
-  opening blockquotes for the exact shape). Tier 1/2 documents don't carry one — they're stable by
-  design, and a version-status header would misrepresent that.
+  opening blockquotes for the exact shape). Tier 1/2 documents normally don't carry one — they're
+  stable by design, and a version-status header would misrepresent that. **Exception: a Tier 1
+  document explicitly marked `Draft`** (currently only `007-composable-runtime-architecture.md`) —
+  a *target* architecture is not yet stable by definition, so it carries the same dated status
+  header as a Tier 3/4 document until it graduates out of Draft. This is a Tier-1-specific escape
+  hatch, not a loosening of the stable-spec rule for `001`–`006`.
+- **A PROVEN/PROPOSED marker on every claim in a Draft Tier 1 (or any forward-looking) document.**
+  `007`'s §40 is the pattern: a table, one row per claim, each marked **PROVEN** (implemented,
+  cited to a `CAP-` row/conformance test/file-line) or **PROPOSED** (an architectural target, cited
+  to the study/case that would validate it, with its forcing condition named). This is the
+  evidence-citation rule above applied specifically to a document that mixes what's already true
+  with what's only hypothesized — without the marker, a reader can't tell a shipped mechanism from
+  an aspiration, which is exactly the failure this pattern was added to fix (`roadmap.md`'s Study
+  37 log, "Sixth addendum," 2026-09-11).
 - **Append, don't rewrite, when something goes stale.** The full rule and its rationale already
   live one section up and in `CLAUDE.md`'s own "Established convention" section — follow it, don't
   restate it in a new document.

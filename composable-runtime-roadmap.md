@@ -53,6 +53,8 @@ The following are the important implementation gaps that must be explicitly trac
 | CR-24 | failure isolation / partial rendering policy | architectural rule; no common composed-request implementation | P2 |
 | CR-25 | renderer-neutral View Model / Render Input | proposed | P1 |
 | CR-26 | migration compatibility for existing View handlers | planned | P0 |
+| CR-27 | Grammar-area decision for `Dataset` (new Grammar area `D`, alongside `F/E/A/C/P/V/R/X/I/O`, vs. folding under `View`) | **undecided anywhere in writing** — `composable-runtime-blueprint.md` §5 names this its own Phase 0, highest priority, cost-free to resolve; `004`/`006` already use `Dataset`/`Relation`/`Projection`/`Dimension`/`Measure` as if this were settled, without the decision itself ever being recorded | P0 |
+| CR-28 | `007-composable-runtime-architecture.md` §40 (claim-by-claim PROVEN/PROPOSED citation matrix) does not exist | **missing, pre-dates today's rewrite** — 007's own changelog (lines 13-16, 20-28) and `README.md`'s Tier 1 table both cite "§40" as the mechanism distinguishing implemented claims from architectural targets; the file's section numbering stops at "§34. Status of the Planner" (~line 1794) and ends ~line 1805 with no §40 present. Until this exists, no reader can verify which of 007's claims are safe to build against — blocks Phase 0 exit and makes Phase 1 (Canonical Semantic Model in code) premature | P0 |
 
 ---
 
@@ -85,13 +87,20 @@ The following are the important implementation gaps that must be explicitly trac
 - [x] current implementation gaps explicitly recorded;
 - [x] inference-inspectability principle added to `001-design-principles.md`;
 - [x] `002`, `003`, and `006` aligned with the composable model;
-- [ ] add cross-links from any remaining composable-related benchmark/guide that still describes the old View-only model;
-- [ ] audit `004-runtime-metadata.md` for the same terminology and add only the minimum schema-facing references needed;
-- [ ] audit `005-runtime-lifecycle.md` for compilation/normalization/reload terminology.
+- [x] `004-runtime-metadata.md` aligned with the composable model (Domain/Data/Experience metadata, compilation boundary);
+- [x] `005-runtime-lifecycle.md` aligned with compilation/normalization/dependency-analysis/planning terminology;
+- [ ] add cross-links from any remaining composable-related benchmark/guide that still describes the old View-only model.
+
+**Detailed backlog:** the deliverables above are the short checklist; the full item-by-item
+backlog — including work not yet started, such as `runtime-metadata-schema.md` alignment,
+capability-governance taxonomy, composition-level NFRs, and README/agent-guidance wording — is
+tracked in `composable-runtime-roadmap-phase0-documentation-alignment.md` (DOC-01–DOC-10). That
+addendum's own §4 Exit Criteria is the authoritative Phase 0 gate; the exit criteria line below is
+a summary, not a substitute for it.
 
 ### Exit criteria
 
-No Tier 1 document uses “interpreted” to imply “no internal compilation,” and no document presents View as the universal composition primitive.
+No Tier 1 document uses “interpreted” to imply “no internal compilation,” and no document presents View as the universal composition primitive. See `composable-runtime-roadmap-phase0-documentation-alignment.md` §4 for the complete, itemized gate — Phase 0 is not done until every item there is checked, not merely once `001`–`007` look consistent.
 
 ---
 

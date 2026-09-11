@@ -2681,6 +2681,61 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     recommendation. `capability-registry.md` v0.68, `case-portfolio.md` v0.36, `benchmarks/009`
     v0.5, and `guides/writing-runtime-metadata.md`'s new §Navigation carry the full account.
 
+27. **New (2026-09-11) — priority order for the Composable Application Runtime direction**
+    (`007-composable-runtime-architecture.md` + `composable-runtime-blueprint.md`), per the
+    blueprint's own 8-phase plan (§5), reordered here by actual priority rather than by phase
+    number. **Nothing below is admitted or built.** Every step stays gated by its own forcing
+    condition — a real case in `case-portfolio.md`, or a direct owner decision of the class
+    already accepted for `CAP-V10 Tier 2`/`CAP-F24`/`CAP-V28` — per this file's own "declare
+    targets first" discipline; this list orders *readiness to pick up*, not a build queue to run
+    through unconditionally. Exists so a future session works down one ordered list rather than
+    re-deriving priority from `007`'s 42 sections or the blueprint's dependency table each time.
+
+    1. **Grammar-area decision (blueprint Phase 0)** — owner decides whether "Dataset" becomes a
+       new Grammar area (a `D` prefix, alongside `F/E/A/C/P/V/R/X/I/O`) or folds under `View`, per
+       `capability-lifecycle.md` §2 A3. Highest priority precisely because it costs nothing to
+       resolve now — a taxonomy call, no case needed — and blocks `CAP-V22`/any Data-plane
+       candidate from being scoped past its current one-line registry entry until it's made.
+    2. **Layout vocabulary (Phase 3)** — extend the one shipped shape (`CAP-V10 Tier 2`'s
+       `main`/`aside` pairing) into the closed set already queued as `gap-analysis-and-
+       recommendations.md`'s G22/R19/R20 (stack/grid/columns). Independent of every Data-plane
+       step below, and already has a standing recommendation ("bundle into a design pass") — the
+       closest thing on this list to already being queued work. Pick up the next time a
+       Form/composed-page mockup needs multi-column, not speculatively before then.
+    3. **Semantic dataset, `CAP-V22` (Phase 1)** — admit once Cases 9/15 (already named, this
+       file's own item 24 step 4 "Analytics trio") actually need the same aggregate shown two
+       ways. Highest-value Data-plane step once forced: closes the "metric drift" problem
+       `CAP-V22`'s own row already names, and is the prerequisite for step 4.
+    4. **Bare Query/Projection reuse (Phase 2)** — a row-level data shape addressable
+       independently of any View. Narrower than step 3, extends it once real; needs its own case
+       (the same rows rendered by two different presentations — e.g. a Customer list as both
+       Table and Kanban), not named anywhere yet.
+    5. **Context/scope propagation (Phase 4)** — parent→child token(s) so a composed page's child
+       View can scope itself to the page's current record/filter. Already named mandatory, not
+       optional, the moment a real case needs a parent-scoped child View
+       (`composable-view-proposal-reconciliation.md` §8(iii)) — low priority until then, since
+       `approval-dashboard.html` shipped live without needing it.
+    6. **Recursive composition depth (Phase 5)** — a `page`'s own `{view: id}` child may itself be
+       a composing `page`. Explicitly out of scope on `CAP-V10 Tier 2`'s own admitted row; needs
+       both step 5 and a genuine multi-level-nesting case before it's even worth designing.
+    7. **Query Planner / projection pushdown (Phase 6)** — tied to the same trigger already
+       governing `CAP-X10`'s own deferral (measured scale pressure at real data volumes, Study 8's
+       100-workspace/50-machine/1M-record target). Do together with `CAP-X10` whenever that
+       trigger fires, not as two separate scale passes.
+    8. **UI Intermediate Representation (Phase 7)** — lowest priority of the eight build-shaped
+       steps. No forcing condition exists today: the concrete problem an IR solves (one compiled
+       representation serving multiple renderers) doesn't apply while `app/ARCHITECTURE.md`
+       commits to exactly one server-rendered target. Revisit only if a second rendering target
+       (mobile, a visual builder) is ever actually pursued.
+    9. **Composability benchmark (Phase 8)** — schedule once steps 2 and 3 above have real code to
+       measure (Application Construction Ratio, Composition Reuse Ratio, Query Reuse Ratio, and
+       the rest of `composable-runtime-blueprint.md` §5 / `007` §32's combined KPI list). Nothing
+       to benchmark before then.
+
+    Full dependency graph and each step's own evidence trail: `composable-runtime-blueprint.md`
+    §5 (the phase table this list reprioritizes) and `007-composable-runtime-architecture.md` §40
+    (PROVEN/PROPOSED citation for every underlying claim).
+
 ---
 
 ## Study 38 — Composed-View UI Component Inventory (2026-09-07)
