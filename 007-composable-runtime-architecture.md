@@ -1803,3 +1803,37 @@ execution.
 
 Its implementation must follow the repository's existing evidence and admission discipline. No new
 capability is implicitly admitted merely by naming this boundary.
+
+---
+
+# 40. Claim Citation Matrix (PROVEN / PROPOSED)
+
+This section is the mechanism named by this document's own changelog (v0.3): every substantive
+architectural claim made above, marked **PROVEN** (implemented, cited to a `CAP-` row, conformance
+test, or file/line) or **PROPOSED** (an architectural target awaiting the study/case that would
+validate it, per `capability-lifecycle.md` §2's A1–A5 admission gate). A PROPOSED row is not
+admitted by appearing here. This matrix does not re-derive evidence — it cites
+`composable-runtime-blueprint.md` §3 (current-state inventory) and `composable-runtime-roadmap.md`
+(the `CR-01`–`CR-28` gap register), which already carry the underlying evidence trail.
+
+| Claim / mechanism | Section | Status | Evidence |
+|---|---|---|---|
+| Domain model (Machine, Field, Event, Constraint, Permission) | §6 | **PROVEN** | `runtime-metadata-schema.md`; stable core, unchanged by this document |
+| View / page composition | §10, §12.4 | **PROVEN** | `CAP-V10` Tier 2, registry + conformance |
+| CEL expression evaluation | §9 | **PROVEN** | `CAP-C13` |
+| Static Component Registry as non-dynamic-dispatch seam | §14 | **PROVEN** (as a pattern) / **PROPOSED** (as a generic Component contract) | The seam pattern itself is proven by existing closed View-type dispatch (`runtime-metadata-schema.md` `### View Types`); a generic, registry-driven Component contract per §13 is not yet built |
+| Metadata compiles to lower-level runtime representations at load time | §17, §26 | **PROVEN** (as a general mechanism) | `internal/metadata/compile.go`, `CAP-W01` — proves the *pattern* of compiling declarative metadata, not the specific Domain/Data/Experience IR this document targets |
+| DataSource, Dataset, Dimension, Measure | §7.1–§7.4 | **PROPOSED** | `CAP-V22`/`CAP-V23` (registered under `V`, migrating to a new `D` Grammar area — `CR-27`, resolved 2026-09-11, see `composable-runtime-roadmap.md`); `CR-03`/`CR-04` |
+| Relation, Projection (independent of View) | §7.5–§7.6 | **PROPOSED** | No `CAP-` row exists yet; `capability-registry.md`'s own note calls this an "unadmitted framing"; `CR-04`, `CR-05` |
+| Query Model (§8), bare Query/Projection reuse | §8 | **PROPOSED** | No `CAP-` row; `CR-05` |
+| Context, Scope, Binding (parent→child propagation) | §11 | **PROPOSED** | No shipped case requires it yet (`approval-dashboard.html` shipped without it); `CR-06` |
+| Layout vocabulary beyond `main`/`aside` | §12.2 | 🟡 **PARTIAL** | `CAP-V10` Tier 2 ships the one pairing; stack/grid/columns extensions are `CR-` tracked design triggers, not yet built |
+| UI Intermediate Representation | §15 | **PROPOSED** | No forcing case (one server-rendered target only, per `app/ARCHITECTURE.md`); `CR-07` |
+| Data IR | §16 | **PROPOSED** | `CR-02` |
+| Execution Plan as a runtime-internal artifact | §17 | **PROPOSED** | `CR-11`, `CR-17` |
+| Composable Execution Planner (dependency DAG, coalescing, batching, bounded concurrency, cost-based strategy selection) | §18 | **PROPOSED** | `composable-runtime-blueprint.md` §5 Phase 6/7 — "design now, implement when forced"; `CR-11`–`CR-15` |
+| CEP → Query Planner boundary | §19 | **PROPOSED** (boundary is documented, not yet enforced by code) | `CR-13` |
+| Security-aware dependency identity / coalescing ordering | §18.10, §20 | **PROPOSED** (RLS/permission foundations are `PROVEN`, the planner-level dependency-identity mechanism is not) | `CR-16` |
+| Renderer-neutral View Model / Render Input | §23 | **PROPOSED** | Current runtime has exactly one server-rendered target; `CR-25` |
+| Composability benchmark harness | §8 (Benchmark program, blueprint) | **PROPOSED** | Benchmark design exists (blueprint §8, this doc §32); no executable planner benchmark yet; `CR-19` |
+| Grammar-area classification for Data-plane primitives | — | **DECIDED, not yet implemented** | `CR-27` resolved 2026-09-11 (new `D` area); registry/lifecycle edits pending |
