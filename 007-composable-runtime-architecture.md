@@ -8,7 +8,7 @@
 > current server-rendered implementation remain valid. New mechanisms should extend and unify
 > them rather than replace them.
 >
-> Status: Draft v0.1 | Created: 2026-09-11
+> Status: Draft v0.2 | Created: 2026-09-11 | Updated: 2026-09-11
 
 ---
 
@@ -235,7 +235,22 @@ large mandatory dependency graph.
 
 # 5. Composition Model
 
-Composition is defined as a graph of reusable runtime elements, not only a tree of Views.
+Composition is defined across a **tree of experience nodes plus a graph of semantic/data
+references**. The distinction is intentional:
+
+```text
+Experience structure                 Semantic dependency
+--------------------                 -------------------
+Page                                 Component A ──→ Dataset X
+  └── Layout                         Component B ──→ Dataset X
+       ├── Component                 Component C ──→ Dataset Y
+       └── View                      Dataset Y ──→ Relation Z
+```
+
+The UI composition tree determines ownership and rendering order. References create reusable
+connections between independently-owned runtime artifacts. Cycles in the experience tree are
+invalid; semantic reference cycles are valid only where the referenced capability explicitly
+supports them and must not cause unbounded evaluation.
 
 At minimum, the runtime should recognize these composition domains:
 
@@ -248,15 +263,16 @@ Domain
  └── Permission
 
 Data
+ ├── DataSource
  ├── Dataset
- ├── Source
  ├── Relation
  ├── Dimension
  ├── Measure
  ├── Projection
  ├── Expression
  ├── Filter
- └── Sort
+ ├── Sort
+ └── Query
 
 Experience
  ├── Page
@@ -354,6 +370,27 @@ dataset:
 
 A Dataset is the preferred shared data contract for reports, dashboards, tables, cards, charts,
 exports, APIs, and other consumers that need the same semantic data.
+
+### Dataset ownership and scope
+
+Reusable Datasets must have an explicit ownership/scope model. The initial architecture recognizes
+three useful scopes:
+
+```text
+Workspace Dataset
+      ↓
+Application Dataset
+      ↓
+Machine-local / View-local query
+```
+
+A reusable Dataset should be promoted to the narrowest scope that satisfies all consumers. A
+View-local query does not need a persisted Dataset identity merely because it happens to contain a
+query. Conversely, a Dataset that is shared across Views, APIs, reports, or applications should
+have stable identity and explicit ownership.
+
+Dataset definitions must not contain renderer-specific properties. Renderer choices belong to the
+Experience Plane.
 
 ## 7.3 Dimension
 
@@ -743,6 +780,27 @@ Avatar
 Components should be named for reusable semantic or structural identity rather than one business
 case.
 
+### Component boundedness
+
+A Component MUST expose a bounded semantic contract. It MUST NOT become "generic" merely by
+accepting arbitrary properties or silently performing arbitrary data access.
+
+A component may declare:
+
+- inputs;
+- data requirements;
+- child slots;
+- bindings;
+- actions/events;
+- accessibility semantics;
+- renderer implementation.
+
+A component MUST NOT silently acquire additional business data that is not represented by its
+contract.
+
+Generic composition is achieved by combining bounded components, not by creating an unbounded
+`GenericComponent` escape hatch.
+
 ## 12.4 View
 
 View remains a supported abstraction but changes in architectural position.
@@ -763,6 +821,10 @@ report
 
 Existing View types remain valid. New capabilities should prefer composition before introducing a
 new View type.
+
+**Normative rule:** a View MUST NOT be required as the universal composition primitive. A requirement
+that can be expressed using Page, Layout, Component, Binding, Dataset, Projection, and Static Content
+should not require a new ViewType solely because the current renderer dispatch is View-oriented.
 
 ## 12.5 Slot
 
@@ -818,11 +880,15 @@ A component must not silently execute unrelated business queries.
 
 Its data requirements must be resolvable from declared bindings and datasets.
 
+Component contracts should be versionable. Breaking contract changes require explicit compatibility
+handling rather than silently changing the meaning of existing metadata.
+
 ---
 
 # 14. Component Registry
 
-A runtime component registry is the preferred long-term dispatch mechanism.
+A runtime component registry is the preferred long-term dispatch mechanism and the required
+**architectural seam** for new generic components.
 
 Conceptually:
 
@@ -838,11 +904,14 @@ resolver
 renderer
 ```
 
+The first implementation may use a statically compiled registry; dynamic plugin loading is not a
+requirement. The important invariant is that component resolution has one identifiable seam rather
+than accumulating business-specific switch statements across handlers.
+
 The registry is responsible for discovering how a component type is implemented. It must not own
 business authorization decisions.
 
-This should eventually replace proliferation of `switch` statements across handlers/templates for
-new component types, while retaining compatibility with current implementations during migration.
+Existing `templ` functions may remain behind registered components during migration.
 
 ---
 
@@ -866,6 +935,9 @@ UINode {
 ```
 
 The actual Go representation may differ.
+
+UI IR represents an **experience tree**. Shared datasets, projections, actions, and other semantic
+artifacts remain references and are not recursively copied into every node.
 
 ## 15.1 UI Compilation
 
@@ -908,6 +980,18 @@ UI IR should encode:
 
 UI IR should not embed HTML, CSS framework classes, SQL, or database-specific implementation.
 
+## 15.3 Composition validity
+
+The compiler MUST reject:
+
+- cyclic experience trees;
+- unresolved required child references;
+- slot/type mismatches;
+- bindings outside the permitted scope;
+- recursion that exceeds the configured composition depth limit.
+
+The compiler SHOULD detect duplicate or unnecessary data dependencies before render planning.
+
 ---
 
 # 16. Data IR
@@ -930,6 +1014,9 @@ Data IR
 ```
 
 The Query Planner consumes Data IR and produces a physical execution plan.
+
+Data IR is logical. It MUST NOT expose database-specific storage or index choices to metadata
+authors.
 
 ---
 
@@ -959,6 +1046,8 @@ in-process evaluation
 ```
 
 The selected strategy must remain transparent to metadata authors.
+
+Physical plans are runtime-internal artifacts. They MUST NOT become portable Runtime Metadata.
 
 ---
 
@@ -1086,6 +1175,20 @@ redundant queries.
 Server-side data filtering, grouping, and authorization remain the default. Browser virtualization
 may be added later for rendering efficiency, but it is not a substitute for server-side query
 planning.
+
+## 20.9 Composition Cost Budget
+
+The runtime should measure or bound at least:
+
+- composition depth;
+- number of resolved nodes;
+- number of distinct Dataset requests;
+- number of physical queries;
+- estimated render work;
+- metadata/IR size.
+
+A composed experience that exceeds configured budgets should fail clearly or degrade through an
+explicit runtime policy. It must not silently produce unbounded work.
 
 ---
 
@@ -1255,6 +1358,8 @@ Before adding a new capability, the architecture review must ask:
 4. Is the requirement semantically unique enough to justify a new capability?
 5. What is the performance cost of its generic form?
 6. What conformance proof will demonstrate it?
+7. What existing abstraction should the new capability lower into?
+8. Will the capability introduce a new business-specific UI primitive or query mini-language?
 
 A capability should normally be admitted at the lowest useful abstraction level.
 
@@ -1273,6 +1378,9 @@ business case
    ↓
 new ViewType
 ```
+
+A proposal that bypasses composition review must be explicitly justified in the capability
+registry.
 
 ---
 
@@ -1309,6 +1417,9 @@ Table Renderer
 
 No application author should need to rewrite existing metadata merely because the runtime gained
 a more composable internal model.
+
+The lowering result must preserve existing observable behavior within an explicitly defined
+compatibility budget.
 
 ---
 
@@ -1435,6 +1546,16 @@ Existing View metadata renders identically or within a defined compatibility bud
 
 Composition depth and Dataset reuse must be benchmarked against the established NFR budgets.
 
+## 31.10 Composition-cycle Safety
+
+Experience-tree cycles, invalid slot recursion, and reference patterns capable of causing unbounded
+resolution must be rejected or bounded before execution.
+
+## 31.11 Component Contract Safety
+
+A component must consume only declared inputs, bindings, and data requirements. Hidden business
+queries are a conformance failure.
+
 ---
 
 # 32. Recommended Benchmark Program
@@ -1515,6 +1636,25 @@ materialized dataset
 ```
 
 with p50/p95/p99 latency, CPU, IO, memory, and write amplification.
+
+## 32.10 Component Contract Cost
+
+Measure the resolution and render overhead of registry-based generic components versus the current
+statically dispatched `templ` implementation. The registry must not add material latency merely to
+provide composability.
+
+## 32.11 Composition Budget Enforcement
+
+Measure behavior at and beyond configured limits for:
+
+- node count;
+- nesting depth;
+- Dataset count;
+- physical query count;
+- metadata size.
+
+The benchmark must prove that over-budget compositions fail predictably rather than degrading into
+unbounded work.
 
 ---
 
@@ -1642,7 +1782,139 @@ default execution.
 
 ---
 
-# 36. Architectural Invariants
+# 36. Architectural Contracts
+
+The following rules are **normative architectural invariants**. They apply to new implementation
+work even before the target abstraction is fully implemented. When current code does not yet satisfy
+an invariant, the gap belongs in the roadmap rather than being treated as permission to introduce a
+second incompatible pattern.
+
+### AC-01 — Machine remains the business capability boundary
+
+Machine remains the primary business-capability boundary. Composition must not turn Machine into a
+mere storage table or make Page/View the owner of business semantics.
+
+### AC-02 — Dataset is presentation-independent
+
+A Dataset MUST NOT contain renderer-specific behavior. It may describe source, relations,
+projection, filtering, grouping, measures, parameters, and other semantic data requirements.
+
+### AC-03 — Component data access is explicit
+
+A Component MUST NOT perform undeclared business data access. Required data must enter through a
+Dataset, Projection, Binding, or another explicitly declared runtime contract.
+
+### AC-04 — Layout is semantically neutral
+
+Layout MUST NOT own business rules, business queries, authorization decisions, or domain-specific
+state transitions.
+
+### AC-05 — View is not the universal composition primitive
+
+A View MUST NOT be required solely because the runtime currently dispatches rendering by ViewType.
+New composition should prefer generic Page/Layout/Component/View/Binding primitives.
+
+### AC-06 — UI composition is a tree
+
+The experience hierarchy MUST be acyclic and tree-shaped. Reusable semantic artifacts are linked by
+references rather than recursively duplicated into the tree.
+
+### AC-07 — Semantic dependencies form explicit references
+
+Datasets, projections, actions, components, and other reusable artifacts MAY be shared by multiple
+nodes through stable references. Reference resolution MUST remain explicit and bounded.
+
+### AC-08 — Metadata is logical, not physical
+
+Portable Runtime Metadata MUST NOT encode PostgreSQL-specific indexes, join algorithms, cache
+internals, file paths, generated SQL, renderer markup, or equivalent physical implementation choices.
+
+### AC-09 — Physical plans are runtime-internal
+
+Logical plans and physical execution plans MUST remain separate. Physical plans MUST NOT become the
+portable contract between authoring tools and the runtime.
+
+### AC-10 — Component contracts are bounded
+
+A generic Component MUST have a finite, documented contract. Arbitrary property bags, hidden data
+loads, and code-execution escape hatches are not valid substitutes for composability.
+
+### AC-11 — Slots are controlled extension points
+
+A Slot MUST declare what class of children it accepts. Composition through Slots must not bypass
+permission checks, data requirements, or component contracts.
+
+### AC-12 — Bindings respect scope
+
+Bindings MUST resolve only against explicitly permitted context/scope. A child must not implicitly
+read unrelated parent state merely because it is reachable in the object graph.
+
+### AC-13 — Security precedes data optimization
+
+Authorization scope MUST be part of the logical Data Plan before aggregation, caching, materialization,
+or result exposure.
+
+### AC-14 — Expressions are side-effect free
+
+Expressions MUST remain deterministic, bounded, side-effect free, and incapable of I/O or arbitrary
+code execution.
+
+### AC-15 — Generic first, specialized second
+
+A new specialized ViewType, Component, or Query language MUST NOT be the first solution when existing
+primitives or one new generic primitive can express the requirement cleanly.
+
+### AC-16 — Convenience abstractions lower to common substrate
+
+High-level presets such as List, Detail, Dashboard, Approval Page, or Process overlays SHOULD lower
+to shared intermediate/runtime primitives instead of creating separate execution models.
+
+### AC-17 — New capabilities require composition review
+
+Every new capability MUST record whether it was expressible through composition, why a new primitive
+was necessary, and what reusable substrate it uses.
+
+### AC-18 — Generic capabilities require executable proof
+
+A capability MUST have conformance tests and, where relevant, benchmark evidence before being treated
+as a stable generic primitive.
+
+### AC-19 — Composition complexity is bounded
+
+The runtime MUST define enforceable limits or cost policies for composition depth, node count, data
+requirements, and physical query generation. "Composable" MUST NOT mean "unbounded."
+
+### AC-20 — Backward compatibility is a first-class constraint
+
+Existing Runtime Metadata remains valid unless an explicit compatibility decision is recorded.
+New generic infrastructure must be introduced through adapters/lowering where practical.
+
+---
+
+# 37. Architectural Review Gate
+
+Before merging a change that adds or materially changes a composable runtime capability, reviewers
+should answer the following questions:
+
+```text
+1. What semantic capability is being added?
+2. Can existing primitives compose it?
+3. If not, what is the smallest generic primitive that unlocks it?
+4. Does the proposal create a new business-specific component or ViewType?
+5. What are the input/data/slot/binding contracts?
+6. Can the requirement be represented in the common Data IR or UI IR?
+7. Where does authorization enter the data plan?
+8. What does the capability lower into?
+9. What is the bounded worst-case composition cost?
+10. What conformance and benchmark evidence proves the design?
+```
+
+A "yes" to business-specific specialization is not automatically rejected, but it requires an
+explicit architectural justification and must not silently establish a new pattern for future work.
+
+---
+
+# 38. Architectural Invariants
 
 The following invariants should remain true as the architecture evolves.
 
@@ -1658,10 +1930,14 @@ The following invariants should remain true as the architecture evolves.
 10. **New specialization requires a composition review.**
 11. **Every admitted capability needs executable proof.**
 12. **Performance budgets apply to composed experiences, not only isolated endpoints.**
+13. **Experience trees are acyclic.**
+14. **Reusable data and behavior are referenced, not silently duplicated.**
+15. **Physical plans remain runtime-internal.**
+16. **Component contracts are bounded and explicit.**
 
 ---
 
-# 37. Architectural Decision Summary
+# 39. Architectural Decision Summary
 
 The preferred Menata direction is:
 
@@ -1700,7 +1976,7 @@ It is a **small, composable substrate** from which richer application experience
 
 ---
 
-# 38. Relationship to Existing Menata Research
+# 40. Relationship to Existing Menata Research
 
 This document consolidates directions already discovered by the repository rather than replacing
 those studies.
@@ -1724,7 +2000,7 @@ findings.
 
 ---
 
-# 39. Open Research Questions
+# 41. Open Research Questions
 
 The following questions remain intentionally open and should be answered by executable studies:
 
@@ -1741,13 +2017,17 @@ The following questions remain intentionally open and should be answered by exec
 11. What generic component contracts can replace multiple specialized ViewTypes without losing
     domain expressiveness?
 12. Which capabilities should be compile-time lowered versus runtime-resolved?
+13. What is the minimal component registry contract that provides generic resolution without imposing
+    a dynamic plugin system?
+14. What is the minimal Data IR that can unify existing list/report/dashboard query paths without
+    over-generalizing the data model?
 
 These questions should be answered through benchmarked prototypes and conformance tests rather
 than architecture-by-assertion.
 
 ---
 
-# 40. Recommended Next Studies
+# 42. Recommended Next Studies
 
 ## Study 41 — Semantic Data Runtime
 
@@ -1802,9 +2082,21 @@ Measure query count, latency, memory, and render cost as composition depth and D
 Compare live SQL, cached Dataset results, indexed JSONB access, generated columns, and materialized
 representations at the established Study 8 scale.
 
+## Study 47 — Architectural Contract Conformance
+
+Build a machine-checkable or test-backed suite for AC-01 through AC-20, prioritizing:
+
+- View-independent composition;
+- Dataset/presentation separation;
+- explicit component data requirements;
+- bounded context/binding;
+- permission-before-optimization;
+- acyclic experience trees;
+- backward-compatible lowering.
+
 ---
 
-# 41. Final Position
+# 43. Final Position
 
 Menata Runtime should not abandon its current architecture in favor of a new frontend-oriented
 composition framework.
