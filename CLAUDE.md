@@ -30,6 +30,17 @@ outside `app/README.md`'s own "Current status" section to still be current**; th
 the one place updated every time a phase lands. Do not add new capability work to `prototype/go/`
 under the assumption it's still the active development target; check `app/ROADMAP.md` first.
 
+**Execution model: don't default to "metadata → View interpreter."** This file's own line above
+("the runtime that interprets it into a living application") is a product-level description, not
+an implementation instruction — see `003-runtime-language.md`'s "Runtime Compilation and
+Execution" section for what "interpreted" actually means here (compiled to runtime-internal
+representations, never to generated application source code). The composable target direction
+(`007-composable-runtime-architecture.md`) is metadata → semantic model → IR → dependency graph →
+planner → physical execution, not a flat metadata-to-View dispatch. When writing new
+composable-adjacent code or docs, check `007` and `composable-runtime-architecture-map.md` before
+reinforcing the older, flatter mental model that `prototype/go/CLAUDE.md` still describes (that
+file is frozen historical record, per the paragraph above, not a template to extend).
+
 ## Two files named "roadmap" — do not confuse them
 
 `roadmap.md` (root, lowercase) and `app/ROADMAP.md` (uppercase) are different documents with
