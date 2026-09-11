@@ -60,7 +60,9 @@ These concerns belong to the runtime.
 
 Applications are not manually programmed.
 
-Applications are interpreted from Runtime Metadata.
+Applications are interpreted from Runtime Metadata — internally compiled to runtime-internal
+representations and executed, never generated as application source code (see
+[003-runtime-language.md](003-runtime-language.md)'s "Runtime Compilation and Execution").
 
 Applications evolve because Business Knowledge evolves.
 
@@ -162,6 +164,8 @@ Runtime Layer
 ──────────────────────────────
 
 Menata Runtime
+  (parse/validate → normalize → domain+data+experience IR
+   → dependency graph → execution planning → physical execution)
 
         │
         ▼
@@ -178,6 +182,11 @@ Menata Language formally expresses Business Knowledge.
 Runtime Metadata expresses how applications should be realized.
 
 Menata Runtime realizes Runtime Metadata into executable applications.
+
+The composable target direction for the Runtime Layer's internal stages is specified in
+[007-composable-runtime-architecture.md](007-composable-runtime-architecture.md), sequenced in
+[composable-runtime-roadmap.md](composable-runtime-roadmap.md), with canonical cross-document
+terminology in [composable-runtime-architecture-map.md](composable-runtime-architecture-map.md).
 
 ---
 
@@ -208,6 +217,11 @@ A running application may include:
 Applications are interpreted.
 
 Applications are not generated.
+
+"Interpreted" here is a product-level property, not a claim that the runtime does no internal
+work: metadata is parsed, validated, normalized, and compiled to runtime-internal representations
+before execution (see [003-runtime-language.md](003-runtime-language.md)). What never happens is
+generating application source code.
 
 Runtime Metadata plays a role similar to HTML in a web browser.
 
