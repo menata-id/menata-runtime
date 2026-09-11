@@ -1,76 +1,61 @@
 # 004. Runtime Metadata
 
-> Runtime Metadata is the executable description interpreted by Menata Runtime.
+> Runtime Metadata is the declarative, executable description from which Menata Runtime realizes an application.
 >
-> It defines how applications are realized.
->
-> Runtime Metadata is designed primarily for deterministic machine interpretation.
+> It declares semantic intent. The runtime validates, normalizes, compiles, plans, and executes that intent without generating application source code.
 
 ---
 
 # Purpose
 
-Business Knowledge explains organizations.
+Business Knowledge explains what an organization knows and intends.
 
-Runtime Metadata explains applications.
+Runtime Metadata describes how that knowledge is realized as a running application.
 
-Business Knowledge answers:
-
-> What does the business know?
-
-Runtime Metadata answers:
-
-> How should the runtime realize that knowledge?
-
-Runtime Metadata is the bridge between Business Knowledge and executable applications.
-
----
-
-# Position in the Architecture
+The relationship is:
 
 ```text
 Business Reality
-        │
-        ▼
+      │
+      ▼
 Business Knowledge
-        │
-        ▼
-Menata Language
-        │
-        ▼
-Authoring Layer
-        │
-        ▼
+      │
+      ▼
+Menata Language / Authoring
+      │
+      ▼
 Runtime Metadata
-        │
-        ▼
-Menata Runtime
-        │
-        ▼
-Applications
+      │
+      ▼
+Parse → Validate → Normalize → Compile / Plan
+      │
+      ▼
+Running Application
 ```
 
-Business Knowledge remains implementation independent.
+Runtime Metadata is therefore the bridge between organizational meaning and runtime realization.
 
-Runtime Metadata contains implementation intent.
-
-Menata Runtime interprets Runtime Metadata into running applications.
+Business Knowledge remains implementation independent. Runtime Metadata contains realization intent, while the runtime determines the physical execution and rendering strategy.
 
 ---
 
 # Runtime Metadata is not Business Knowledge
 
-Business Knowledge should never describe runtime implementation.
+Business Knowledge should not describe runtime implementation details.
 
-Runtime Metadata should never redefine Business Knowledge.
+Runtime Metadata should not redefine the meaning of Business Knowledge.
 
-Business Knowledge remains the source of truth.
+The separation is intentional:
 
-Runtime Metadata realizes that knowledge.
+- **Business Knowledge** defines organizational concepts, rules, policies, and intent.
+- **Runtime Metadata** declares how those concepts are exposed, composed, queried, acted upon, and presented.
+- **Runtime** determines how the declarations are physically realized.
+
+This separation allows the same business knowledge to support different application experiences and allows runtime implementation to evolve without changing the business model.
 
 ---
 
-# Runtime Metadata Characteristics
+# Metadata Characteristics
 
 Runtime Metadata should be:
 
@@ -80,60 +65,100 @@ Runtime Metadata should be:
 - versionable,
 - machine-readable,
 - implementation independent,
-- extensible.
+- referenceable by stable identity,
+- inspectable after inference and normalization.
 
-Runtime Metadata should avoid ambiguity.
+Metadata should express **semantic intent**, not framework-specific implementation.
 
----
-
-# Runtime Metadata Scope
-
-Runtime Metadata may describe:
-
-- applications,
-- machines,
-- pages,
-- navigation,
-- layouts,
-- views,
-- forms,
-- actions,
-- workflows,
-- services,
-- APIs,
-- routing,
-- permissions,
-- constraints,
-- themes,
-- notifications,
-- integrations,
-- scheduling,
-- platform configuration.
-
-Business Knowledge should not contain these runtime concerns.
+For example, metadata should prefer a semantic `status`, `money`, `person`, `collection`, or `stack` over a renderer-specific widget or HTML structure.
 
 ---
 
-# Runtime Metadata Hierarchy
+# Three Composition Planes
 
-The exact hierarchy may evolve.
+Composable applications are not composed only from Views. Runtime Metadata declares three related planes.
 
-Conceptually, Runtime Metadata is expected to be organized as:
+```text
+                    Runtime Metadata
+                           │
+          ┌────────────────┼────────────────┐
+          ▼                ▼                ▼
+       Domain            Data          Experience
+          │                │                │
+   Machine / Field    Dataset / Query   Page / Layout
+   Event              Projection        Component
+   Constraint         Relation          View
+   Permission         Expression        Slot / Binding
+```
+
+## Domain Plane
+
+The Domain Plane describes executable business capability:
+
+- Machine,
+- Field,
+- Event,
+- Constraint,
+- Permission,
+- Action.
+
+These elements describe what the application can do and under which conditions it can do it.
+
+## Data Plane
+
+The Data Plane describes semantic data requirements independently from presentation:
+
+- DataSource,
+- Dataset,
+- Relation,
+- Projection,
+- Dimension,
+- Measure,
+- Expression,
+- Filter,
+- Sort,
+- Query.
+
+A Dataset or Query may be consumed by multiple experiences. A data declaration must not depend on a particular View or renderer.
+
+## Experience Plane
+
+The Experience Plane describes how users encounter application capabilities:
+
+- Page,
+- Layout,
+- Section,
+- Component,
+- View,
+- Slot,
+- Binding,
+- Static Content,
+- Navigation.
+
+Experience composition is independent from the physical data implementation.
+
+---
+
+# Organizational Scope and Composable Scope
+
+Runtime Metadata has an organizational hierarchy, but that hierarchy is not the same as the execution composition graph.
 
 ```text
 Workspace
-    └── Application
-            └── Machine
-                    ├── Page
-                    ├── View
-                    ├── Service
-                    ├── Workflow
-                    ├── Navigation
-                    ├── API
-                    └── Configuration
+  └── Application
+       └── Machine / shared resources
 ```
 
-Each level owns its own responsibility.
+Within an application, declarations may compose across machines and shared resources through stable references.
+
+The runtime must distinguish:
+
+1. **ownership** — where metadata belongs;
+2. **composition** — what semantic elements are combined;
+3. **dependency** — what execution requires;
+4. **scope** — what context and security boundary applies.
+
+This distinction is fundamental to composable execution planning.
 
 ---
 
@@ -141,229 +166,307 @@ Each level owns its own responsibility.
 
 Workspace is the highest organizational boundary.
 
-Workspace owns:
+A workspace owns:
 
 - applications,
-- permissions,
-- governance,
-- deployment configuration,
-- shared resources.
+- permissions and governance,
+- shared resources,
+- runtime configuration,
+- deployment-related configuration.
 
-Applications should not assume a global namespace.
+Workspace isolation is a runtime invariant. Composition must never allow an implicit cross-workspace data or capability dependency.
 
 ---
 
 # Application
 
-Application is an independently realizable solution.
+Application is an independently realizable business solution within a workspace.
 
-An application consists of one or more machines.
+An application may compose capabilities from multiple Machines and shared runtime resources.
 
-Applications remain isolated through Runtime Metadata.
+Applications share runtime infrastructure but remain logically isolated.
 
 ---
 
 # Machine
 
-Machine is the primary realization unit.
+Machine is the primary runtime realization unit for a business capability and corresponds to an Object in the Menata Language model.
 
-A machine realizes one business capability.
+A Machine may carry or reference:
 
-Examples include:
+- Fields,
+- Events,
+- Constraints,
+- Permissions,
+- Actions,
+- Views and experience declarations,
+- data definitions or references.
 
-- Customer Management
-- Purchase Request
-- Purchase Order
-- Attendance
-- Asset Registration
-
-Machines may interact through references, events, permissions, and constraints.
-
----
-
-# Page
-
-Pages define user experiences.
-
-Pages organize application interaction.
-
-Pages do not own Business Knowledge.
-
-Pages realize Business Knowledge.
+A Machine is not required to be the boundary of every composition. Multiple Machines may contribute to one Dataset, Page, or user experience through explicit relations and permissions.
 
 ---
 
-# View
+# Data Metadata
 
-Views determine how information is presented.
+## DataSource
 
-Views describe presentation intent.
+Identifies a logical origin of data. A DataSource may represent Machine records, a reusable Dataset, a service result, or another supported runtime source.
 
-Rendering remains the responsibility of the runtime.
+## Dataset
 
----
+A reusable semantic data contract. It describes what data is available and its meaning without deciding how it is rendered.
 
-# Service
+## Relation
 
-Services expose application capabilities.
+Describes an explicit association between semantic data sources, normally grounded in existing Machine/reference semantics.
 
-Services may include:
+## Projection
 
-- business services,
-- background jobs,
-- scheduled execution,
-- messaging,
-- integration,
-- external communication.
+Defines the semantic shape consumed by an experience or downstream operation. Projection may assign semantic roles such as title, status, person, money, identifier, or timestamp.
 
-Service implementation belongs to the runtime.
+## Query
 
----
+Represents a logical data request. It may contain source, projection, relation, filters, dimensions, measures, expressions, sorting, pagination, and parameters.
 
-# Workflow
+A Query is logical; SQL or another physical operation is a runtime concern.
 
-Workflows coordinate application behavior.
+## Expression
 
-Workflow behavior should emerge from:
+A bounded deterministic computation used by metadata. Expressions cannot perform arbitrary code execution or unrestricted I/O.
 
-- events,
-- constraints,
-- permissions,
-- actions.
-
-Business processes should remain declarative.
-
-Workflow is a responsibility, not a stored metadata section. A Machine does not declare a
-dedicated `workflow` artifact the way it declares Pages, Views, or Services; workflow behavior is
-realized entirely through the Machine's Events, Constraints, Permissions, and Actions. A
-higher-level declarative form may exist purely for authoring convenience, but it compiles into
-those same elements at load time rather than introducing a new runtime concept — see
-[006-runtime-model.md](006-runtime-model.md) § Workflow.
+These concepts are normalized into **Data IR** before physical execution.
 
 ---
 
-# Navigation
+# Experience Metadata
 
-Navigation describes how users move through applications.
+## Page
 
-Navigation should remain independent from rendering technology.
+A Page is an experience root and user interaction surface.
+
+## Layout
+
+Layout composes child experiences spatially or structurally, such as stack, row, grid, split, tabs, panel, or section.
+
+## Component
+
+Component is a reusable semantic presentation primitive with a bounded contract. It may declare inputs, data requirements, child slots, bindings, actions/events, and accessibility semantics.
+
+A Component must not silently introduce unrelated data access or bypass authorization.
+
+## View
+
+View is a precomposed or domain-oriented presentation/data contract retained for compatibility and authoring convenience.
+
+View is **not the universal composition primitive**. Requirements expressible using generic Page, Layout, Component, Dataset, Projection, Binding, and Static Content should not require a new ViewType merely because the current implementation is View-oriented.
+
+## Slot
+
+A named composition point into which compatible child components may be inserted.
+
+## Binding
+
+Connects a component input to an explicit context or semantic data value.
+
+## Static Content
+
+Represents non-data content that can participate in the same Experience tree as dynamic components.
+
+Experience declarations are normalized into **UI IR**.
 
 ---
 
-# Configuration
+# Context, Scope, and Binding
 
-Configuration customizes runtime behavior.
+Composable applications require explicit context propagation.
 
-Configuration should be minimized.
+Typical context domains include:
 
-The runtime should infer behavior whenever safely possible.
+```text
+page
+route
+parameters
+current_user
+workspace
+record
+parent_record
+selection
+query_result
+variables
+```
+
+A conceptual scope chain is:
+
+```text
+Page Scope
+   ↓
+Section Scope
+   ↓
+Collection Scope
+   ↓
+Record Scope
+   ↓
+Field Scope
+```
+
+A Binding resolves a value against an explicit scope. Child components may consume parent context only where the contract permits it.
+
+Context is semantic input; it is not an implicit authorization or data-access mechanism.
+
+---
+
+# Behavior Metadata
+
+Behavior is composed from:
+
+- Event,
+- Action,
+- Constraint,
+- Permission,
+- Service,
+- API.
+
+A higher-level workflow or process description may exist as an authoring convenience, but it must lower into the same behavioral primitives rather than creating an unrelated execution model.
+
+The runtime is responsible for enforcing authorization and constraints before performing physical work.
+
+---
+
+# Navigation Metadata
+
+Navigation describes movement between experiences:
+
+- menus,
+- breadcrumbs,
+- tabs,
+- shortcuts,
+- contextual links,
+- quick actions.
+
+Navigation is part of Experience composition but must remain independent from business execution and physical data access.
+
+---
+
+# Metadata Compilation Boundary
+
+Runtime Metadata is not interpreted as an unstructured collection of configuration at every request.
+
+The canonical realization path is:
+
+```text
+Runtime Metadata
+      │
+      ▼
+Parse / Validate
+      │
+      ▼
+Normalize / Resolve
+      │
+      ├───────────────┬───────────────┐
+      ▼               ▼               ▼
+   Domain IR        Data IR          UI IR
+      │               │               │
+      └───────────────┼───────────────┘
+                      ▼
+              Dependency Graph
+                      │
+                      ▼
+         Composable Execution Planner
+                      │
+             ┌────────┴────────┐
+             ▼                 ▼
+       Data execution       Render plan
+             │                 │
+             ▼                 ▼
+       physical runtime     renderer
+```
+
+This is **runtime compilation**, not application source-code generation. Internal IRs, dependency graphs, execution plans, caches, and compiled metadata representations are valid and expected implementation mechanisms.
 
 ---
 
 # Stable Identity
 
-Every metadata element should possess a stable identity.
+Every persisted or addressable metadata element should have a stable identity.
 
-Labels may change.
+Identity must survive:
 
-Presentation may change.
+- label changes,
+- presentation changes,
+- layout changes,
+- implementation changes.
 
-Identity should remain stable.
-
-Stable identity enables:
-
-- application evolution,
-- metadata versioning,
-- migration,
-- compatibility.
+Stable identity enables dependency sharing, versioning, migration, caching, compatibility, and safe evolution.
 
 ---
 
-# Metadata Evolution
+# References and Reuse
 
-Runtime Metadata is expected to evolve.
+References connect existing semantic elements without duplicating their identity.
 
-Applications evolve by changing Runtime Metadata.
+Composition should prefer references over copied definitions.
 
-The runtime continuously realizes those changes.
+A reference must preserve:
 
-Application regeneration should not be required.
+- target identity,
+- ownership boundary,
+- authorization boundary,
+- version/compatibility semantics.
+
+The runtime may resolve references during normalization and planning.
 
 ---
 
-# Metadata Versioning
+# Metadata Versioning and Evolution
 
-Runtime Metadata should support versioning.
+Runtime Metadata evolves as applications evolve.
 
-Versioning enables:
+Versioning should support:
 
-- application evolution,
 - compatibility,
 - rollback,
 - migration,
-- auditing.
+- auditing,
+- dependency analysis.
 
-Versioning belongs to Runtime Metadata.
+Changes should be classified by impact. Additive changes may be realized directly; behavioral or destructive changes may require explicit migration or compatibility decisions.
 
-Not Business Knowledge.
-
----
-
-# Metadata Independence
-
-Runtime Metadata should remain independent from:
-
-- programming languages,
-- rendering engines,
-- databases,
-- infrastructure,
-- deployment environments.
-
-Runtime implementation may evolve.
-
-Runtime Metadata should remain stable.
+Application source-code regeneration is not required.
 
 ---
 
-# Serialization
+# Inference
 
-Runtime Metadata does not require a specific serialization format.
+The runtime may infer safe defaults from metadata, conventions, or established relationships.
 
-Possible representations include:
+The governing rule is:
 
-- YAML,
-- TOML,
-- JSON,
-- XML,
-- binary formats,
-- future representations.
+> **Infer before configure, but make inference inspectable.**
 
-Serialization is an implementation detail.
+Whenever inference materially changes the normalized model or execution plan, the runtime should be able to expose the resulting decision for diagnostics, testing, and debugging.
 
-Runtime Metadata remains conceptually unchanged.
+Inference must not silently weaken security, ownership, or deterministic semantics.
 
 ---
 
-# Future Evolution
+# Serialization Independence
 
-Runtime Metadata is expected to expand over time.
+Runtime Metadata is conceptual and does not require one serialization format.
 
-New capabilities should extend existing concepts rather than introduce incompatible models.
+Possible representations include YAML, JSON, TOML, XML, database-backed metadata, or future formats.
 
-Evolution should preserve compatibility whenever reasonably possible.
+Serialization is an authoring/storage concern. The normalized Runtime Model and IRs remain the execution contract.
 
 ---
 
 # Summary
 
-Business Knowledge explains organizations.
+Business Knowledge defines organizational meaning.
 
-Runtime Metadata explains applications.
+Runtime Metadata declares application realization.
 
-Menata Runtime interprets Runtime Metadata.
+Domain, Data, and Experience metadata provide composable semantic primitives.
 
-Applications become executable realizations of Business Knowledge.
+The runtime validates and normalizes those declarations into internal representations and dependency graphs, plans bounded physical work, executes behavior and data operations, and renders experiences.
 
-Business Knowledge remains the long-term organizational asset.
-
-Runtime Metadata continuously evolves to realize that knowledge.
+> **Runtime Metadata expresses intent; the runtime determines physical realization.**
