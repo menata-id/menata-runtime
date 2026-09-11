@@ -12,7 +12,7 @@
 
 ## 1. Machine First
 
-Menata Runtime is designed primarily for deterministic machine interpretation.
+Menata Runtime is designed primarily for deterministic machine interpretation and execution.
 
 Human readability is important.
 
@@ -40,7 +40,7 @@ Applications are defined by Runtime Metadata.
 
 Application source code implements the runtime.
 
-Runtime Metadata implements applications.
+Runtime Metadata defines applications.
 
 Application evolution should primarily occur by changing Runtime Metadata rather than application source code.
 
@@ -53,6 +53,8 @@ Runtime Metadata describes **what** applications should become.
 The runtime determines **how** applications are realized.
 
 Implementation details belong to the runtime.
+
+Runtime Metadata must not become an imperative programming language or a physical execution plan.
 
 ---
 
@@ -76,27 +78,25 @@ Whenever application behavior can be inferred safely, explicit metadata should n
 
 Configuration should primarily describe exceptions.
 
+**Inference must be inspectable.** When inference materially affects data access, composition, authorization, rendering, or execution planning, the runtime should be able to expose the resolved result through diagnostics or equivalent tooling. Hidden inference that cannot be explained is not an acceptable substitute for explicit configuration.
+
 ---
 
 ## 7. Composable
 
-Applications should be assembled from reusable metadata.
+Applications should be assembled from reusable runtime elements across three complementary composition domains:
 
-Objects.
+- **Domain** — Machine, Field, Event, Constraint, Permission;
+- **Data** — DataSource, Dataset, Relation, Dimension, Measure, Projection, Expression, Filter, Sort, Query;
+- **Experience** — Page, Layout, Section, Component, View, Slot, Binding, Static Content.
 
-Views.
+Behavioral elements such as Action, Trigger, Event, Constraint, and Process connect these domains without making UI elements responsible for business logic.
 
-Events.
+Each reusable element should have a bounded semantic contract and stable identity where it is persisted or referenced.
 
-Constraints.
+A View remains a supported convenience abstraction, but it is not the universal composition primitive. New capabilities should prefer composition from existing generic primitives before introducing another specialized View type.
 
-Permissions.
-
-Services.
-
-Pages.
-
-Each component should remain independently reusable.
+The canonical composition model and lowering rules are defined by `007-composable-runtime-architecture.md` and operationalized by `composable-runtime-architecture-map.md`.
 
 ---
 
@@ -107,6 +107,8 @@ Relationships should be expressed through references.
 Business Knowledge should have a single source of truth.
 
 Duplicated metadata should be avoided whenever possible.
+
+Logical composition should reference reusable semantic artifacts rather than recursively copying their definitions.
 
 ---
 
@@ -136,7 +138,7 @@ Applications should evolve continuously.
 
 Changing Runtime Metadata changes application behavior.
 
-Application evolution should not require application regeneration.
+Application evolution should not require application source regeneration.
 
 ---
 
@@ -198,9 +200,11 @@ Not by runtime instances.
 
 Menata Runtime should remain extensible.
 
-Additional capabilities should be introduced through extension rather than modification.
+Additional capabilities should be introduced through extension rather than modification of unrelated runtime layers.
 
 The core runtime should remain stable.
+
+A compile-time/static registry seam is an implementation mechanism for closed, known capability types; it does not imply dynamic plugin loading or arbitrary runtime code execution.
 
 ---
 
@@ -219,9 +223,59 @@ However, Runtime Metadata may be produced by:
 - compatible third-party builders,
 - any implementation that follows the Runtime Language specification.
 
-The runtime only interprets Runtime Metadata.
+The runtime does not depend on how Runtime Metadata was created.
 
-The runtime never depends on how Runtime Metadata was created.
+---
+
+# Runtime Realization Principle
+
+## 17. Compile, Plan, Execute — Without Code Generation
+
+Menata Runtime should be described as a **runtime-compiled and executed metadata system** rather than a pure interpreter or a source-code generator.
+
+The runtime may internally perform:
+
+```text
+Runtime Metadata
+      ↓
+Parse / Validate
+      ↓
+Normalize / Resolve
+      ↓
+IR / Lowering
+      ↓
+Execution Planning
+      ↓
+Physical Execution
+      ↓
+Render / Respond
+```
+
+These internal stages do not generate application source code. They compile declarative metadata into runtime representations and execution plans that remain implementation artifacts.
+
+The distinction matters:
+
+- **No application source generation** is required.
+- **Runtime compilation** is allowed and expected.
+- **Physical execution plans** are never user-authored Runtime Metadata.
+
+See `007-composable-runtime-architecture.md` for the normative target and `composable-runtime-architecture-map.md` for the cross-document contract.
+
+---
+
+# Performance and Safety Principle
+
+## 18. Logical Composition, Physical Economy
+
+Logical composability must not imply one physical operation per logical node.
+
+The runtime should share compatible dependencies, deduplicate equivalent work, batch compatible operations, push safe computation to the database, and bound concurrency.
+
+Security scope must be applied before optimization that could widen visibility.
+
+The desired invariant is:
+
+> **Many logical components, as few physical operations as the semantics permit.**
 
 ---
 
