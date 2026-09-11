@@ -1,24 +1,34 @@
 # Composable Runtime Architecture — Transformation Blueprint
 
-> Status: v1.0 — first pass. Assembles `prototype/objectstack/docs/composable-view-proposal-
+> Status: v1.1 — cross-linked to `007-composable-runtime-architecture.md` (2026-09-11, owner
+> decision: 007 stays Tier 1 as the normative target architecture, this document stays Tier 3 as
+> the evolving how-we-get-there plan — the two are complementary, not competing) | Previously
+> v1.0 — first pass. Assembles `prototype/objectstack/docs/composable-view-proposal-
 > reconciliation.md` §1–§10 (four external/owner passes on a "Composable Metadata Runtime"
 > direction, 2026-09-07 → 2026-09-11), `capability-registry.md` (`CAP-V10`, `CAP-V22`, `CAP-C13`,
 > `CAP-X10`), and `benchmarks/004-scale-architecture-study.md` (Study 8) into one target
 > architecture and a phased, evidence-gated evolution plan | Created: 2026-09-11 |
 > Updated: 2026-09-11
 
-> **What this document is.** A synthesis and a sequencing plan, requested directly by the owner
-> after five rounds of external/owner review converged on the same underlying architecture
-> question: today's composition unit is `View`, and the runtime should evolve toward composing
-> Data, UI, and Behavior independently. It organizes gaps already found and evidenced elsewhere in
-> this repo into one coherent target shape, so a future session doesn't have to re-derive the
-> relationships between `CAP-V10`, `CAP-V22`, `CAP-C13`, `CAP-X10`, and Study 8 from scratch.
+> **What this document is.** The Tier 3 companion to **[`007-composable-runtime-architecture.md`]
+> (007-composable-runtime-architecture.md)** (Tier 1). 007 defines *what the architecture must be*
+> — the model, contracts, and invariants (Data/UI/Behavior planes, Dataset, UI IR, the Static
+> Component Registry seam, admission/review gates). This document defines *how the runtime gets
+> there and proves it* — a synthesis and sequencing plan, requested directly by the owner after
+> five rounds of external/owner review converged on the same underlying question: today's
+> composition unit is `View`, and the runtime should evolve toward composing Data, UI, and
+> Behavior independently. It organizes gaps already found and evidenced elsewhere in this repo
+> into a current-state inventory and phased plan, so a future session doesn't have to re-derive
+> the relationships between `CAP-V10`, `CAP-V22`, `CAP-C13`, `CAP-X10`, and Study 8 from scratch —
+> and so 007's own PROPOSED rows (§40) have a concrete "not yet, here's the forcing condition"
+> answer rather than staying open-ended.
 >
-> **What this document is not.** A capability admission. Nothing here is built by this document,
-> and nothing here skips `capability-lifecycle.md` §2's A1–A5 test or this repo's own "declare
-> targets first" discipline (`roadmap.md`, `capability-registry.md` passim). Every phase below
-> names its own forcing condition — a real case, or a direct owner decision of the same
-> evidentiary class already accepted for `CAP-V10 Tier 2`/`CAP-F24`/`CAP-V28`. Where no such
+> **What this document is not.** A capability admission, and not itself the normative spec — where
+> this document and 007 describe the same concept, 007's wording governs. Nothing here is built by
+> this document, and nothing here skips `capability-lifecycle.md` §2's A1–A5 test or this repo's
+> own "declare targets first" discipline (`roadmap.md`, `capability-registry.md` passim). Every
+> phase below names its own forcing condition — a real case, or a direct owner decision of the
+> same evidentiary class already accepted for `CAP-V10 Tier 2`/`CAP-F24`/`CAP-V28`. Where no such
 > condition exists yet, the phase is recorded as sequencing information only, not a green light to
 > build ahead of need.
 

@@ -8,7 +8,30 @@
 > current server-rendered implementation remain valid. New mechanisms should extend and unify
 > them rather than replace them.
 >
-> Status: Draft v0.2 | Created: 2026-09-11 | Updated: 2026-09-11
+> Status: Draft v0.3 — evidence chain and terminology reconciliation (2026-09-11): §14 renamed to
+> Static Component Registry with an explicit non-dynamic-dispatch statement; §40 replaced with a
+> claim-by-claim citation matrix distinguishing PROVEN (implemented, conformance-cited) from
+> PROPOSED (an architectural target, not yet built); a Tier-1-semantics note added below;
+> cross-linked to `composable-runtime-blueprint.md` | Previously v0.2 — bounded-component rule,
+> composition-cycle rejection, composition cost budget, two admission-gate questions added |
+> Previously v0.1 | Created: 2026-09-11 | Updated: 2026-09-11
+
+> **What Tier 1 status means for this document.** Tier 1 in this repository means *normative
+> architectural direction and constraint*, not a certification that every mechanism described here
+> is built or proven — §41 (Open Research Questions) and §42 (Recommended Next Studies) already
+> concede that much of this is still a hypothesis. Every substantive claim in §40 below is marked
+> **PROVEN** (implemented and conformance-cited — a `CAP-` row, test ID, or file/line) or
+> **PROPOSED** (an architectural target awaiting the study or case that would validate it). A
+> PROPOSED claim carries no conformance backing and must still pass `capability-lifecycle.md` §2's
+> A1–A5 admission gate before it becomes a capability — this document does not admit anything by
+> itself.
+>
+> **Relationship to `composable-runtime-blueprint.md`.** This document (Tier 1) answers *what the
+> architecture must be* — the model, contracts, invariants, and boundaries. `composable-runtime-
+> blueprint.md` (Tier 3) answers *how the runtime gets there and proves it* — current-state gaps,
+> phased sequencing, each phase's own forcing condition, and the benchmark program. Read this
+> document for the target shape; read the blueprint for what's actually built today and what has
+> to happen, in what order, before the rest is.
 
 ---
 
@@ -885,15 +908,27 @@ handling rather than silently changing the meaning of existing metadata.
 
 ---
 
-# 14. Component Registry
+# 14. Static Component Registry (Component Registry Seam)
 
-A runtime component registry is the preferred long-term dispatch mechanism and the required
-**architectural seam** for new generic components.
+> **Not a dynamic mechanism.** The Component Registry is a compile-time or statically assembled
+> registry seam. It is **not** a client-side interpreter, a dynamic plugin loader, or a runtime
+> extension mechanism. `prototype/objectstack/docs/composable-view-proposal-reconciliation.md` §4
+> already rejected that shape structurally — a dynamic runtime dispatcher exists to let a client
+> receive and safely interpret *arbitrary* metadata at runtime, the exact situation ObjectStack's
+> React console is in and this server-rendered runtime is not (`app/ARCHITECTURE.md`'s client-side
+> JS policy). §9.1/§10 of the same document reaffirmed that verdict twice more. What follows names
+> a *single identifiable seam* for a fixed, closed set of component types — the same shape
+> `capability-lifecycle.md` §4 already calls a "compile-time registry seam" for field/action/view
+> types — not a second, competing extension mechanism.
+
+A static component registry is the preferred long-term dispatch seam for new generic components,
+replacing accumulating business-specific `switch` statements scattered across handlers with one
+identifiable resolution point.
 
 Conceptually:
 
 ```text
-component type
+component type (closed, known at compile time)
       ↓
 contract / schema
       ↓
@@ -904,12 +939,14 @@ resolver
 renderer
 ```
 
-The first implementation may use a statically compiled registry; dynamic plugin loading is not a
-requirement. The important invariant is that component resolution has one identifiable seam rather
-than accumulating business-specific switch statements across handlers.
+The first implementation may use a statically compiled registry (a Go map or compiler-checked
+switch, resolved and validated at load/compile time); dynamic plugin loading is not a requirement
+and is not the target — extension still means adding Go code and recompiling, per
+`capability-lifecycle.md` §4, exactly as it already does for field/action/view types today.
 
 The registry is responsible for discovering how a component type is implemented. It must not own
-business authorization decisions.
+business authorization decisions, and it must not accept a component `type` string that wasn't
+compiled into the runtime.
 
 Existing `templ` functions may remain behind registered components during migration.
 
@@ -1979,24 +2016,26 @@ It is a **small, composable substrate** from which richer application experience
 # 40. Relationship to Existing Menata Research
 
 This document consolidates directions already discovered by the repository rather than replacing
-those studies.
+those studies. Per the Tier-1-semantics note at the top of this document, every claim below is
+marked **PROVEN** (implemented, conformance-cited) or **PROPOSED** (an architectural target, not
+yet built) — Tier 1 status is not a claim that the proposed rows are already true.
 
-Relevant existing work includes:
-
-- the design principle of composability and reference over duplication;
-- Runtime Model separation of Machine, Page, View, Action, Service, API, Navigation, and Theme;
-- architecture benchmarking around internal models, declarative interpretation, reconciliation,
-  and independent renderers;
-- Study 8's metadata-driven index and lazy metadata loading direction;
-- the existing View configuration for filters, sorting, pagination, and composition;
-- composed View and Dashboard capabilities;
-- Process Overlay as an example of high-level metadata compiling into lower-level primitives;
-- semantic Dataset direction identified in the ObjectStack comparison;
-- expression-layer research;
-- UI component decomposition and presentation-primitive research.
+| §007 claim | Evidence | Status |
+|---|---|---|
+| Composition over specialization; a new requirement should compose before it becomes a new `ViewType` | `capability-lifecycle.md` §2 A4 (non-composability test, Study 5's ADR-0012 Pattern A/B precedent) | **PROVEN** — the discipline already governs every admission |
+| High-level metadata can compile into lower-level runtime primitives at load time | Process Overlay, Study 21, `CAP-W01`, `internal/metadata/compile.go`, conformance T136–T139 | **PROVEN** — the concrete precedent §15's UI IR pipeline generalizes from |
+| A page can compose multiple Views plus a small closed static-content vocabulary and one layout shape | `CAP-V10 Tier 2`, implemented 2026-09-09, conformance T253–T258 (`conformance/tests/230_composed_page.sh`) | **PROVEN** — this is the only shipped instance of the Experience-plane composition tree §12 describes; recursive nesting (§12.4) is still explicitly out of scope |
+| A compile-time expression layer (CEL-shaped) is usable in filters/computed Fields/constraints | `CAP-C13`, ✅ implemented, Study 37 R1 | **PROVEN** |
+| A named, reusable semantic Dataset (§7.2) prevents metric drift across report/dashboard/chart consumers | `CAP-V22`, ❌ Proposed, Study 37 R2 (`prototype/objectstack/`, ObjectStack ADR-0021's own "revenue defined three times" lesson) | **PROPOSED** — no forcing case yet in `case-portfolio.md`; candidate proof cases already named (Cases 9/15, `roadmap.md` item 24 step 4) |
+| Metadata-driven index management / query cost awareness (§8, §20) | `CAP-X10`, ❌, Study 8 (`benchmarks/004-scale-architecture-study.md`), deliberately deferred per "Infer Before Configure" | **PROPOSED** — no measured scale pressure yet at this prototype's data volumes |
+| Generic, semantically-named presentation primitives (`RecordSummaryCard`, not `ApprovalListCard`) reduce ViewType/business-specific proliferation | Study 38 (`benchmarks/029-composed-view-component-inventory.md`) and Study 40 (`benchmarks/030-ui-subcomponent-decomposition-criteria.md`); 7 of 9 primitives already real `templ` code (`app/docs/ui-component-library.md`) | **PROVEN** at the presentation-primitive level; **PROPOSED** as a formal, registry-dispatched Component contract (§13–§14) — the generalization from "primitives exist" to "a Component Registry governs them" hasn't been built |
+| A static/compile-time Component Registry seam is the right dispatch shape; a dynamic client-side/plugin registry is not | `capability-lifecycle.md` §4 (existing compile-time registry-seam pattern for field/action/view types) proves the static half; `composable-view-proposal-reconciliation.md` §4, reaffirmed §9.1/§10, proves the dynamic half is structurally rejected, not merely deferred | **PROVEN** (both halves — one is already-existing practice, the other is a settled negative verdict) |
+| Parent→child context/scope propagation is undesigned but will be mandatory once composed pages need parent-scoped children | `composable-view-proposal-reconciliation.md` §5, §8(iii) | **PROPOSED** — named, prioritized low today (no forcing case), mandatory the moment `CAP-V10 Tier 2` recursion or an equivalent case arrives |
+| A UI Intermediate Representation (§15) is a useful compile target | No prior study — new to this document and to `composable-view-proposal-reconciliation.md` §9.2(b) | **PROPOSED / research question** — §41 Q13–Q14, §42 Study 44; the concrete problem an IR solves (one representation, many renderers) has no forcing case while `app/ARCHITECTURE.md` commits to exactly one renderer |
+| Composability-measuring benchmarks (Application Construction Ratio et al., §32) | `composable-view-proposal-reconciliation.md` §9.2(c), §10 | **PROPOSED** — a candidate future study, not run yet |
 
 The architectural purpose of this document is to establish the common model connecting those
-findings.
+findings — proven and proposed alike — not to claim the proposed rows are already realized.
 
 ---
 

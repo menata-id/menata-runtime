@@ -5,7 +5,12 @@
 > One row per capability. The registry only grows (ratchet):
 > a ✅ capability must never regress — its conformance test guards it.
 >
-> Status: v0.83 — **`composable-runtime-blueprint.md` created** (2026-09-11, root level, Tier 3) —
+> Status: v0.84 — **`007-composable-runtime-architecture.md` reconciled, stays Tier 1** (2026-09-11,
+> direct owner decision, `roadmap.md`'s Study 37 log "Sixth addendum") — Component Registry
+> terminology aligned with the already-settled dynamic-dispatch rejection, §40 rewritten as a
+> PROVEN/PROPOSED citation matrix, cross-linked with `composable-runtime-blueprint.md`. No
+> capability admitted, no row changed, no code changed.
+> Previously v0.83 — **`composable-runtime-blueprint.md` created** (2026-09-11, root level, Tier 3) —
 > the owner's own synthesis of the whole "Composable Metadata Runtime" thread (`CAP-V10`/`CAP-V22`/
 > `CAP-C13`/`CAP-X10`, Study 8) into one target architecture (Data/UI/Behavior planes) and an
 > 8-phase evolution plan, each phase gated by its own forcing condition. No capability admitted, no

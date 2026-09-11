@@ -2475,6 +2475,27 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     capability admitted, no row changed, no code changed; full reconciliation trail in
     `composable-view-proposal-reconciliation.md` §10.
 
+    **Sixth addendum (2026-09-11): 007 reconciled, Tier stays as-is per direct owner decision.**
+    A separate session produced `007-composable-runtime-architecture.md` (root, Tier 1) the same
+    day — the normative spec the original fourth-pass document itself recommended (§24 of that
+    document). Two real issues were found reviewing it against this thread: (1) §14's "Component
+    Registry" read as endorsing exactly the dynamic dispatch mechanism §4 of
+    `composable-view-proposal-reconciliation.md` had already rejected structurally; (2) §38 (now
+    §40) cited prior research in prose with no `CAP-`/Study/file citations, against this repo's own
+    "never an unsourced assertion" rule. Owner decision: keep 007 at Tier 1 (it is the legitimate
+    normative target architecture, not a demotion candidate) rather than the reviewed options of
+    moving it to Tier 3 or leaving it as a bare cross-link; instead, reconcile it in place — §14
+    renamed to "Static Component Registry (Component Registry Seam)" with an explicit statement
+    that it is not a client-side interpreter/dynamic plugin loader, citing the same §4/§9.1/§10
+    verdict; §40 rewritten as a claim-by-claim citation matrix marking every row **PROVEN**
+    (conformance-cited) or **PROPOSED** (architectural target, no forcing case yet); a Tier-1-
+    semantics note added stating Tier 1 here means "constraint baseline," not "everything below is
+    built"; both 007 and `composable-runtime-blueprint.md` cross-linked, with the division made
+    explicit — 007 answers *what the architecture must be*, the blueprint answers *how the runtime
+    gets there and proves it*. `README.md`'s Tier 1 table gains a 007 row (with the same caveat: it
+    carries its own Draft status and PROVEN/PROPOSED markers, unlike `001`–`006`'s settled
+    stability). No capability admitted, no row changed, no code changed.
+
 25. **New (2026-09-07) — priority order for Document Approval's own remaining mockup gaps**, per
     Study 38's live cross-check against the real running app (its own second addendum, below).
     Ordered so already-admitted work goes first, and nothing gets built ahead of its own admission

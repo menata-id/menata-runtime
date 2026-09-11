@@ -411,6 +411,7 @@ decisions/`'s own `001`–`008`). No directory anywhere in this repo is uppercas
 | [004-runtime-metadata.md](004-runtime-metadata.md) | Runtime Metadata — scope, hierarchy, versioning |
 | [005-runtime-lifecycle.md](005-runtime-lifecycle.md) | How metadata continuously realizes running applications |
 | [006-runtime-model.md](006-runtime-model.md) | Runtime object model — Workspace, Application, Machine, and beyond |
+| [007-composable-runtime-architecture.md](007-composable-runtime-architecture.md) | Target architecture for evolving into a Composable Application Runtime (Data/UI/Behavior planes, Dataset, UI IR, the Static Component Registry seam) — **carries its own "Draft" status and a PROVEN/PROPOSED marker per claim** (§40), unlike `001`–`006`'s settled stability; owner decision 2026-09-11 keeps it at Tier 1 as normative direction rather than demoting it, precisely because Tier 1 here means "the constraint baseline," not "everything below is already built." See `composable-runtime-blueprint.md` (Tier 3) for the current-state gap inventory and phased plan that operationalizes it |
 
 ## Tier 2 — Supporting Reference (unnumbered, informs Tier 1)
 
@@ -442,7 +443,7 @@ The runtime's capability is being built and verified through a deliberate discov
 | [capability-lifecycle.md](capability-lifecycle.md) | How a new capability is proposed, admitted, and completed |
 | [nfr-standards.md](nfr-standards.md) | Architecture / performance / security standards per capability area |
 | [brd-menata-runtime-v2.md](brd-menata-runtime-v2.md) | Concept BRD for v2 — the Process Overlay ("declared process, emergent execution"), Study 20's Concept C written as a business requirements document, incl. a metadata-only test against all 21 cases (in Bahasa Indonesia, deliberately matching the comparator BRD's genre) |
-| [composable-runtime-blueprint.md](composable-runtime-blueprint.md) | Target architecture + phased evolution plan for a Composable Runtime (Data/UI/Behavior planes), synthesizing the whole "Composable Metadata Runtime" thread (`prototype/objectstack/docs/composable-view-proposal-reconciliation.md` §1–§10, `CAP-V10`/`CAP-V22`/`CAP-C13`/`CAP-X10`, Study 8) — no capability admitted, each phase gated by its own forcing condition |
+| [composable-runtime-blueprint.md](composable-runtime-blueprint.md) | The Tier 3 "how we get there" companion to `007-composable-runtime-architecture.md`'s Tier 1 "what it must be": current-state gap inventory + an 8-phase evolution plan, synthesizing the whole "Composable Metadata Runtime" thread (`prototype/objectstack/docs/composable-view-proposal-reconciliation.md` §1–§10, `CAP-V10`/`CAP-V22`/`CAP-C13`/`CAP-X10`, Study 8) — no capability admitted, each phase gated by its own forcing condition |
 | [benchmarks/](benchmarks/) | Tier 4 — external evidence studies (see below) |
 
 ## Tier 4 — Evidence Studies (`benchmarks/`, numbered by production order)
