@@ -700,6 +700,13 @@ Dikelola di tempat yang sama dengan jalur langsung, bagian Groups di `/admin/use
 
 ### Views
 
+> **Catatan (2026-09-11, `DOC-09`).** View saat ini adalah satu-satunya primitif komposisi/render
+> yang benar-benar terimplementasi — dokumentasi di bawah ini tetap akurat untuk apa yang berjalan
+> hari ini. Ke depan, `007-composable-runtime-architecture.md` menempatkan View di Experience
+> plane bersama `Component`/`Layout`/`Slot`/`Binding` yang belum dibangun (lihat
+> `composable-runtime-architecture-map.md`) — View bukan primitif tunggal permanen, tapi bagian
+> dari model yang lebih luas. Jangan asumsikan View akan selalu jadi satu-satunya cara compose.
+
 **.menata**
 ```
 Views
