@@ -30,8 +30,7 @@
 > architecture must be* — the model, contracts, invariants, and boundaries. `composable-runtime-
 > blueprint.md` (Tier 3) answers *how the runtime gets there and proves it* — current-state gaps,
 > phased sequencing, each phase's own forcing condition, and the benchmark program. Read this
-> document for the target shape; read the blueprint for what's actually built today and what has
-> to happen, in what order, before the rest is.
+> document for the target shape; read the blueprint for what's actually built today and what has to happen, in what order, before the rest is.
 
 ---
 
@@ -1421,6 +1420,239 @@ registry.
 
 ---
 
+# 26A. Capability Boundary
+
+The composable runtime must define a clear boundary between **declarative composition** and
+**general-purpose programming**. The purpose of this boundary is not to limit composition to a
+small number of UI levels. Atomic components are valid and useful. The boundary is about
+computational power and ownership of implementation.
+
+## 26A.1 Atomic Components
+
+Atomic Components are the terminal, reusable vocabulary of the Experience Plane. They represent a
+small, closed semantic capability whose implementation belongs to the runtime.
+
+Examples:
+
+```text
+Text
+Image
+Icon
+Badge
+Avatar
+Money
+Date
+Button
+Link
+```
+
+An Atomic Component may accept bounded inputs, bindings, accessibility attributes, visibility
+conditions, and other explicitly declared properties. It does not contain arbitrary executable
+logic supplied by Runtime Metadata.
+
+Conceptually:
+
+```text
+Metadata
+   ↓
+select component capability
+   ↓
+bind declared inputs
+   ↓
+runtime-owned implementation
+```
+
+An Atomic Component is therefore **not** a mini program. It is a registered runtime capability.
+
+## 26A.2 Composite Components
+
+Composite Components combine bounded components into a reusable semantic or structural unit.
+
+Examples:
+
+```text
+RecordSummaryCard
+ActionBar
+FormSection
+ActivityFeed
+Collection
+```
+
+A Composite Component may expose controlled Slots and child contracts, but its children remain
+bounded capabilities. A composite must not become an unbounded container that can execute arbitrary
+metadata-defined code.
+
+The preferred rule is:
+
+> **Compose capabilities; do not implement capabilities inside metadata.**
+
+## 26A.3 Experience Components
+
+Experience Components assemble reusable components into application-facing surfaces.
+
+Examples:
+
+```text
+Page
+Dashboard
+Detail Experience
+Approval Experience
+```
+
+Experience Components may contain Layouts, Components, Views, Static Content, Datasets, Bindings,
+and Actions, but they remain declarative composition structures. Business behavior remains owned by
+Events, Actions, Constraints, Permissions, and Process primitives.
+
+An Experience Component should not become a second programming runtime.
+
+## 26A.4 Bounded Expressions
+
+Expressions are permitted where the system needs limited computation for semantic decisions or
+value derivation.
+
+Examples:
+
+```text
+status == "Approved"
+amount * quantity
+ due_date < today()
+```
+
+Expressions MAY provide:
+
+- predicates;
+- calculated values;
+- conditional visibility;
+- derived measures;
+- data transformation;
+- routing decisions within an explicitly bounded domain.
+
+Expressions MUST NOT provide:
+
+- arbitrary loops;
+- recursion;
+- arbitrary function invocation;
+- I/O;
+- database access outside declared runtime planning;
+- filesystem access;
+- network calls;
+- process execution;
+- dynamic code loading;
+- mutation of unrelated runtime state.
+
+The expression layer is therefore a **bounded declarative language**, not a general-purpose
+programming language.
+
+## 26A.5 What Metadata May Express
+
+Runtime Metadata MAY:
+
+```text
+select registered capabilities
+configure bounded inputs
+bind data to declared component inputs
+compose components and layouts
+compose datasets and queries
+filter / sort / group / aggregate through supported semantics
+express bounded conditions and formulas
+select actions and events that already exist
+reference stable runtime identities
+provide static content through approved content nodes
+```
+
+In particular, metadata may express **intent and composition**, while the runtime retains ownership
+of implementation.
+
+## 26A.6 What Metadata Must Never Express
+
+Portable Runtime Metadata MUST NOT become an arbitrary implementation language.
+
+It must not express:
+
+```text
+arbitrary source code
+arbitrary HTML execution
+arbitrary JavaScript execution
+SQL strings as a general data-access escape hatch
+filesystem/network/process operations
+unbounded loops or recursion
+runtime reflection over unspecified capabilities
+hidden database queries
+hidden cross-workspace access
+arbitrary mutation outside declared Actions
+```
+
+A proposed feature that requires one of these mechanisms is not automatically impossible, but it is
+**outside the Composable Runtime metadata boundary**. It must instead be implemented as a runtime
+capability with an explicit contract, security model, performance budget, and conformance proof.
+
+## 26A.7 Capability Admission Gate
+
+The capability-admission process MUST distinguish three outcomes:
+
+```text
+1. Existing composition is sufficient
+       ↓
+   use composition
+
+2. Existing composition is insufficient, but one bounded generic primitive is missing
+       ↓
+   add the smallest reusable primitive
+
+3. The requirement has a genuinely distinct semantic / behavioral identity
+       ↓
+   admit a new runtime capability
+```
+
+Before admitting a new primitive, reviewers should answer:
+
+1. Is it expressible using existing components, layouts, datasets, bindings, actions, and expressions?
+2. If not, is there a smaller generic primitive that enables this and other use cases?
+3. Does the proposal add computational freedom rather than semantic capability?
+4. Does it introduce a new mini-language, arbitrary property bag, or hidden data access path?
+5. Can its contract be finite, documented, validated, versioned, and benchmarked?
+6. What existing runtime substrate will implement or lower it?
+7. What security and permission boundaries apply?
+8. What is its worst-case composition/execution cost?
+9. What conformance test proves the behavior?
+10. What evidence justifies its promotion from application composition to platform capability?
+
+A proposal that cannot answer these questions should remain application-specific configuration or be
+rejected rather than silently becoming a new generic capability.
+
+## 26A.8 When a Composition Becomes a New Capability
+
+Composition becomes a new runtime capability when at least one of the following is true:
+
+- it has a distinct semantic contract used by multiple independent applications or domains;
+- the behavior cannot be expressed clearly as a composition of existing capabilities;
+- keeping it as raw composition would create repeated, error-prone or ambiguous declarations;
+- runtime-owned optimization or security enforcement is materially different from ordinary
+  composition;
+- the capability provides a stable abstraction that prevents multiple ViewType/component-specific
+  implementations from diverging.
+
+The following are **not**, by themselves, sufficient reasons for a new capability:
+
+```text
+"the mockup looks different"
+"the page needs another arrangement"
+"a developer wants custom HTML"
+"one case needs one special property"
+"the existing composition syntax is inconvenient"
+```
+
+These should first trigger decomposition and composition review.
+
+The architectural litmus test is:
+
+> **Does the new abstraction contribute a reusable semantic capability, or merely encode one
+> implementation's preferred arrangement?**
+
+Only the former should normally become a runtime capability.
+
+---
+
 # 27. Backward Compatibility
 
 The architecture must permit incremental adoption.
@@ -1452,8 +1684,8 @@ Projection
 Table Renderer
 ```
 
-No application author should need to rewrite existing metadata merely because the runtime gained
-a more composable internal model.
+No application author should need to rewrite existing metadata merely because the runtime gained a
+more composable internal model.
 
 The lowering result must preserve existing observable behavior within an explicitly defined
 compatibility budget.
@@ -1864,7 +2096,8 @@ nodes through stable references. Reference resolution MUST remain explicit and b
 ### AC-08 — Metadata is logical, not physical
 
 Portable Runtime Metadata MUST NOT encode PostgreSQL-specific indexes, join algorithms, cache
-internals, file paths, generated SQL, renderer markup, or equivalent physical implementation choices.
+internals, file paths, generated SQL, renderer markup, or equivalent physical implementation
+choices.
 
 ### AC-09 — Physical plans are runtime-internal
 
