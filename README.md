@@ -442,6 +442,7 @@ The runtime's capability is being built and verified through a deliberate discov
 | [capability-lifecycle.md](capability-lifecycle.md) | How a new capability is proposed, admitted, and completed |
 | [nfr-standards.md](nfr-standards.md) | Architecture / performance / security standards per capability area |
 | [brd-menata-runtime-v2.md](brd-menata-runtime-v2.md) | Concept BRD for v2 — the Process Overlay ("declared process, emergent execution"), Study 20's Concept C written as a business requirements document, incl. a metadata-only test against all 21 cases (in Bahasa Indonesia, deliberately matching the comparator BRD's genre) |
+| [composable-runtime-blueprint.md](composable-runtime-blueprint.md) | Target architecture + phased evolution plan for a Composable Runtime (Data/UI/Behavior planes), synthesizing the whole "Composable Metadata Runtime" thread (`prototype/objectstack/docs/composable-view-proposal-reconciliation.md` §1–§10, `CAP-V10`/`CAP-V22`/`CAP-C13`/`CAP-X10`, Study 8) — no capability admitted, each phase gated by its own forcing condition |
 | [benchmarks/](benchmarks/) | Tier 4 — external evidence studies (see below) |
 
 ## Tier 4 — Evidence Studies (`benchmarks/`, numbered by production order)

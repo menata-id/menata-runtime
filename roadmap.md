@@ -2449,6 +2449,32 @@ scanning as a new CI step in Phase 5. Object storage, multi-instance cache inval
     no change made. `CAP-W02` reviewed, already correctly dead/superseded, no change. Track F
     (Parked/HOLD) and item 24 step 8 above both updated to match.
 
+    **Fourth addendum (2026-09-11):** a fourth document on the same "Composable Metadata Runtime"
+    direction (owner-authored, Bahasa Indonesia, a full top-to-bottom restatement rather than a
+    targeted follow-up) reconciled in a new §9 of `composable-view-proposal-reconciliation.md`,
+    this time against the repo *after* `CAP-V10` Tier 2 shipped (2026-09-09, item 25.5 above). Most
+    of its View-composition claims are already settled by §1–§8 or already closed by the ship
+    itself (static content + one layout shape are live, not missing); three framings are genuinely
+    new to the study and recorded without admission — a named Query/Projection layer independent
+    of any one View, a UI Intermediate Representation/compile step for UI metadata (the same
+    lowering discipline the Process Overlay already proves, not yet applied to UI, no forcing case
+    since this runtime targets exactly one renderer by design), and a composability-measuring
+    benchmark method (Application Construction Ratio et al.) for whichever future study takes this
+    on. No new row, no status change — `capability-registry.md`'s `CAP-V10 Tier 2` row carries a
+    pointer note only.
+
+    **Fifth addendum (2026-09-11):** the owner replied to the fourth addendum with their own
+    synthesis — merging an earlier verbal Data/Query-first proposal with the fourth document's
+    UI-first framing into one three-plane model (Data/UI/Behavior composability), reframing `View`
+    as a composition preset rather than a primitive, and requesting a dedicated blueprint. Produced
+    as root-level [`composable-runtime-blueprint.md`](composable-runtime-blueprint.md) (Tier 3):
+    assembles this whole thread plus `CAP-V22`/`CAP-C13`/`CAP-X10` and Study 8 into one target
+    architecture and an 8-phase evolution plan, each phase gated by its own forcing condition
+    (a real case, or a direct owner decision of the class already accepted for `CAP-V10 Tier
+    2`/`CAP-F24`/`CAP-V28`) — no phase overrides `capability-lifecycle.md`'s admission gate. No
+    capability admitted, no row changed, no code changed; full reconciliation trail in
+    `composable-view-proposal-reconciliation.md` §10.
+
 25. **New (2026-09-07) — priority order for Document Approval's own remaining mockup gaps**, per
     Study 38's live cross-check against the real running app (its own second addendum, below).
     Ordered so already-admitted work goes first, and nothing gets built ahead of its own admission

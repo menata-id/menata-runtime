@@ -1,6 +1,13 @@
 # Menata Runtime — ObjectStack Comparator Study
 
-> Status: v1.3 — a follow-up owner Q&A (2026-09-09) re-read the same "Composable Metadata Runtime"
+> Status: v1.4 — a fourth pass on the same "Composable Metadata Runtime" direction (2026-09-11,
+> owner-authored, Bahasa Indonesia), reconciled in a new §9 of
+> `docs/composable-view-proposal-reconciliation.md` against the repo *after* `CAP-V10` Tier 2
+> shipped (2026-09-09): most claims already settled by §1–§8 or already closed by the ship;
+> three framings genuinely new to the study (a named Query/Projection layer, a UI Intermediate
+> Representation, and composability-measuring benchmark KPIs) recorded, none admitted. No row
+> status changed, no code changed | Previously v1.3 — a follow-up owner Q&A (2026-09-09) re-read
+> the same "Composable Metadata Runtime"
 > proposal against live code a second time, appending §8 to
 > `docs/composable-view-proposal-reconciliation.md`: two more scoping holes in `CAP-V10` Tier 2's
 > §7 wording (recursive nesting depth undesigned; composed-page layout not folded in) and a
@@ -18,7 +25,7 @@
 > its "critical" items declined with reasons, updated priority order in that doc's §5 | Previously
 > v1.0 — Study 37, first pass: ObjectStack studied from its own source tree and docs, compared
 > area-by-area against Menata Runtime, gaps and candidate capabilities named (none admitted to the
-> registry yet — owner decision pending) | Created: 2026-09-07 | Updated: 2026-09-09
+> registry yet — owner decision pending) | Created: 2026-09-07 | Updated: 2026-09-11
 
 > **Not a metadata-proof prototype.** Every other folder under `prototype/` (except `go/`) answers
 > "can *this platform* realize `design-request.yaml` from metadata alone?" and carries a 16-feature
@@ -73,7 +80,7 @@ conformance tests rather than prose as proof here.
 | [docs/capability-comparison.md](docs/capability-comparison.md) | The six areas the owner named — **field types, views, workflow/automation, approvals, permissions, analytics** — plus other highlights (MCP/AI tools, metadata versioning, notifications, search, validation gates, i18n, packaging), each as a table against the registry |
 | [docs/gap-analysis-and-recommendations.md](docs/gap-analysis-and-recommendations.md) | The gap list, what Menata Runtime should adopt (with the best-practice basis for each), what it should deliberately *not* copy, and where Menata Runtime is ahead — framed by the owner's two words: **flexible** (can build anything) and **powerful** (stays fast on efficient server resources) |
 | [docs/second-opinion-reconciliation.md](docs/second-opinion-reconciliation.md) | An independent second review of the same repos (owner-supplied, 2026-09-07) checked claim-by-claim against registry rows and `app/` source: agreements, disagreements with evidence, six additions (R24–R29: relation policy, searchable fields, API completion, metadata snapshots/rollback, history timeline, event presentation), what was declined and why, and the **updated priority order that supersedes the gap doc's §7** |
-| [docs/composable-view-proposal-reconciliation.md](docs/composable-view-proposal-reconciliation.md) | A third external document (owner-supplied, 2026-09-07) — a "Composable Metadata Runtime" architectural-direction proposal — reconciled against this study's own already-settled position on a Page/Component/Slot ontology (`second-opinion-reconciliation.md` §2): confirms the SPA-shaped rejection of dynamic component dispatch/Canvas, refines `CAP-V10` Tier 2's scope with a small closed static-content vocabulary + its data-resolution mechanism, names an open context-passing question |
+| [docs/composable-view-proposal-reconciliation.md](docs/composable-view-proposal-reconciliation.md) | A third external document (owner-supplied, 2026-09-07) — a "Composable Metadata Runtime" architectural-direction proposal — reconciled against this study's own already-settled position on a Page/Component/Slot ontology (`second-opinion-reconciliation.md` §2): confirms the SPA-shaped rejection of dynamic component dispatch/Canvas, refines `CAP-V10` Tier 2's scope with a small closed static-content vocabulary + its data-resolution mechanism, names an open context-passing question (§5); two more scoping holes found on a second pass (§8, 2026-09-09: recursive depth, composed-page layout); a fourth, broader pass (§9, 2026-09-11, Bahasa Indonesia) checked against the now-shipped `CAP-V10` Tier 2, closing most of its own claims and naming three genuinely new framings (Query/Projection layer, UI Intermediate Representation, composability KPIs), none admitted |
 
 ## Executive summary
 

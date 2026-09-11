@@ -8,11 +8,23 @@
 > reconciled an independently-produced second review the same day). Every verdict below was checked
 > against `capability-registry.md` v0.58 rows and `app/` source, not taken from the proposal's own
 > prose.
-> Status: v1.1 — §8 added (2026-09-09): an owner Q&A session re-read this document and the
+> Status: v1.3 — §10 added (2026-09-11): a fifth document, the owner's own synthesis reply to §9,
+> merging their earlier (unrecorded, verbal) Data/Query-first proposal with §9's UI-composition
+> framing into one three-plane model (Data/UI/Behavior composability) and requesting a dedicated
+> blueprint document — produced as `../../../composable-runtime-blueprint.md`. No row admitted, no
+> code changed | Previously v1.2 — §9 added (2026-09-11): a fourth external document, a full
+> top-to-bottom
+> restatement of the same "Composable Metadata Runtime" direction (owner-authored, Bahasa
+> Indonesia), reconciled against the repo as it stands *after* `CAP-V10` Tier 2 shipped
+> (2026-09-09) — most of its View-composition claims are already settled by §1–§8 or already
+> closed by the ship; three framings (Query/Projection as a named layer, a UI Intermediate
+> Representation, and a composability-measuring benchmark method) are genuinely new and not
+> previously named anywhere in this study. No row admitted, no code changed | Previously v1.1 —
+> §8 added (2026-09-09): an owner Q&A session re-read this document and the
 > proposal's own asks against live code a second time, found two scoping holes in §7's Tier 2
 > wording (recursive nesting depth, composed-page layout) neither §5 nor §7 named, and assessed the
 > §5 context-passing question's actual priority. No row admitted, no code changed | Previously v1.0
-> | Created: 2026-09-07 | Updated: 2026-09-09
+> | Created: 2026-09-07 | Updated: 2026-09-11
 
 ---
 
@@ -229,3 +241,105 @@ that cannot serve the case that justified it.
 **Disposition, unchanged from §6:** no capability admitted, no row status changed. This section
 only adds detail to the Tier 2 scope-in-waiting so items (i)–(iii) aren't rediscovered from zero
 whenever a real case finally forces `CAP-V10` Tier 2's admission.
+
+## 9. Fourth pass (2026-09-11): a full restatement of the same proposal, checked against the now-shipped `CAP-V10` Tier 2
+
+Two days after §8, the owner brought a fourth document on the same proposal — a full top-to-bottom
+architectural review (22 numbered sections, Bahasa Indonesia, no code citations of its own),
+re-running the "Composable Metadata Runtime" direction from first principles against the repo as
+it reads today. Its own framing (§17 of that document) explicitly treats `CAP-V10` Tier 2 as
+already live and as "Version 1 of a Composition Model, not the final form" — so, unlike §1–§8,
+this pass starts from *after* the 2026-09-09 ship, not before it. Every verdict below was checked
+against `capability-registry.md`'s `CAP-V10` / `CAP-V10 Tier 2` rows and `app/` source, the same
+discipline §2 used, not taken from the document's own prose.
+
+### 9.1 Claims already settled or already closed by the ship
+
+| The document's claim | Verdict | Evidence |
+|---|---|---|
+| Composition is still "Page → View → View," with no Component or Layout in the tree | **Partly outdated.** `CAP-V10` Tier 2 (implemented 2026-09-09) already mixes `{view: <id>}` entries with a closed-vocabulary `{content: {type, properties}}` set (`heading`/`text`/`button`/`image`) in the same `Children` list, plus a `Layout` field (`""`/`"main"`/`"aside"`, pairing two entries into a 2/3+1/3 grid row) — i.e. Page → {View \| Content}, with one real layout shape, not zero | `capability-registry.md` `CAP-V10 Tier 2` row, "Implemented 2026-09-09" paragraph; `app/internal/model/model.go` (`PageContent`, `Layout` fields) |
+| Static content + structured View "belum jadi primitive universal," Case 13 still unexplored | **Primitive is real; the Case-13 application of it is what's still open.** The same closed static-content vocabulary is live today on `seeds/050_composed_dashboard.sql`'s own Recent Activity section (a `content` entry). What Study 38 actually found still true: Case 13 (Blog landing) and Case 10 (Organization Composite) have zero visual exploration using it — a mockup-coverage gap, not a missing mechanism | `benchmarks/029-composed-view-component-inventory.md`; `capability-registry.md` `CAP-V10` row's Study 38 note |
+| Component Registry is needed so metadata can reach a renderer without a fixed `ViewType` switch | **Reaffirms §4, no new argument.** The document's own §16/§17 explicitly declines to recommend removing Machine/View/the registry-seam model — it argues for evolution, not the dynamic-dispatch machinery §4 already rejected structurally (no client-side interpreter exists to validate against at runtime) | §4 above, unchanged |
+| Generic Layout model (Stack/Grid/Split/Tabs/Panel) is missing | **Real, but already tracked, narrower than described.** `CAP-V10` Tier 2 ships exactly one shape (`main`/`aside` pairing); a fuller vocabulary is the same gap already named as `G22`/`R19`/`R20` (form sections/columns, low priority) in `gap-analysis-and-recommendations.md`, now with one more confirming data point (composed-page layout, §8(ii) above) | `prototype/objectstack/docs/gap-analysis-and-recommendations.md` rows G22/R19/R20 |
+| Recursive View-in-View nesting (arbitrary depth) is a real gap | **Already named, unchanged.** §8(i) above named this exact gap two days before this document arrived — `CAP-V10` Tier 2's own admitted scope explicitly excludes a `page` composing another `page` | §8(i) above; `CAP-V10 Tier 2` row, "Explicitly still out of scope" |
+| A unified binding/context model (route, params, user, selected record, parent record) is missing | **Already tracked as an open, prioritized question**, narrower framing than the document's. §5/§8(iii) above cover the parent→child scoping case specifically (the one with real forcing pressure); the document's broader "page context" (route/params as declared tokens) has no forcing case named anywhere in `case-portfolio.md` today. `$current_user` is the one general-purpose dynamic Filter token that exists (`CAP-V05`, `app/internal/expr/expr.go`) | §5, §8(iii) above |
+
+### 9.2 Framings genuinely new to this study
+
+Three of the document's asks are not restatements — they don't appear anywhere in Study 37/38/39/40
+or this reconciliation's own §1–§8. None are admitted here; each is recorded so it isn't
+rediscovered from zero if a case ever forces the question.
+
+**(a) Query/Projection as a named layer independent of any one View** (the document's §5/§6 —
+"one Customer query, rendered as Table, Kanban, or Card"). Partly pre-covered: `ViewConfig` already
+unifies Filter/Sort/Group *per View* (§2 table row above); `CAP-C13` (✅, the CEL expression
+operator) is already a general compute/transform primitive usable in filters and computed Fields;
+`CAP-V22` (❌ Proposed, "semantic dataset," Study 37 R2) already proposes the reusable-named-
+*aggregate* half of this ask. What is genuinely uncovered: a bare, reusable row-level data shape
+addressable independently of any View — today reuse only happens by referencing a whole View by id
+(`{view: <id>}` in `Children`), never a data shape alone rendered by more than one presentation. No
+forcing case named in `case-portfolio.md`. Not a candidate registry row — the existing `CAP-V22`
+row is the nearest neighbor and should carry a pointer here, not a new row, until a case actually
+needs the same rows shown two ways.
+
+**(b) A UI Intermediate Representation / compile step for UI metadata** (the document's §12/§13 —
+metadata → normalize → resolve → compile → render plan, as a formal stage before rendering). The
+underlying *pattern* — declarative metadata compiled at load time into lower-level runtime
+primitives — is already proven, just not for UI: the Process Overlay (Study 21, `CAP-W01`,
+`internal/metadata/compile.go`) does exactly this for `process` blocks. Extending the same
+discipline to UI metadata is a reasonable analogy, but the concrete problem a UI IR exists to solve
+— one compiled representation serving *multiple* renderers (web, mobile, a visual builder) — doesn't
+apply today: `app/ARCHITECTURE.md`'s client-side JS policy commits this runtime to exactly one
+server-rendered target, by design, not many. Recorded as an idea worth revisiting only if/when a
+second rendering target is ever pursued; no forcing case, no candidate registry row.
+
+**(c) Composability-measuring benchmark KPIs** (the document's §20/§21 — Application Construction
+Ratio, Composition Reuse Ratio, View/Data Independence, Runtime Extension Cost). A new measurement
+method, not used by any prior study in this series (which measure capability coverage and
+conformance-test count, not composition ratios). Not adopted here — a reconciliation document
+doesn't schedule a new study; recorded as a candidate method for whichever future study takes on
+Query/Projection or UI-composition depth next, per `roadmap.md`'s own "Recommended order"
+mechanism.
+
+The document's own closing ask — three follow-on artifacts (a Composable Runtime Architecture
+Spec, a Gap-to-Roadmap Matrix, and a UI-IR benchmark/prototype) — is recorded here as owner-
+suggested next steps, decision pending, the same disposition Study 37 itself closed with.
+
+### 9.3 Disposition
+
+**No capability admitted, no row status changed, no code changed.** `CAP-V10 Tier 2` stays ✅ at
+its already-shipped scope — nothing in this pass asks for a scope change to what's live, only for
+(a) and (b) above to be tracked as separate, unadmitted framings the moment a case forces either
+one. Procedural updates only: this section; `capability-registry.md`'s `CAP-V10 Tier 2` row gets a
+short dated pointer (not a scope change); `roadmap.md`'s Study 37 log gets a dated addendum
+pointing here; `prototype/objectstack/README.md`'s status header and documents table.
+
+## 10. Fifth pass (2026-09-11): the owner's own synthesis — Data-first and UI-first framings merged
+
+The owner replied to §9 with their own synthesis, comparing it against a proposal they had raised
+verbally in an earlier, unrecorded exchange (a Dataset/Query/Projection-first framing, not
+previously written into this study). Their own conclusion: the two are not competing directions —
+§9's document is stronger on *UI decomposition* (identifying `ViewType` proliferation as an
+architectural tax and proposing Page→Layout→Component→Binding→Primitive), their own is stronger on
+*data/query composability as a performance foundation* (Dataset→Query Planner→Physical Plan, tying
+composability to Study 8's own scale-architecture concerns) — and Menata needs both, meeting in the
+middle. Full synthesis: three composability dimensions (Data / UI / Behavior) converging through
+one compiler discipline into an Execution Plan (database) and a UI IR (renderer); `View` demoted
+from "fundamental UI primitive" to "specialized composition preset" (a `list` View ≈ a Collection
+component + table renderer, a `dashboard` View ≈ a Page + grid layout + metric/collection
+components); a Query Planner/Cost Model named as the missing link between `CAP-V22`'s already-
+proposed semantic dataset and Study 8's already-registered index/cache scale findings; and a
+sharpened admission gate ("can an existing primitive compose it? can a new *generic* primitive
+compose it? only then is it a real capability") offered as a refinement of, not a replacement for,
+`capability-lifecycle.md` §2's existing A1–A5 test.
+
+**Disposition:** no capability admitted, no row changed, no code changed — this pass is a
+synthesis and a request, not a new technical claim to verify against code. Per the owner's own
+explicit ask, its output is a dedicated blueprint document rather than a further reconciliation
+section here: **[`composable-runtime-blueprint.md`](../../../composable-runtime-blueprint.md)**
+(root level, Tier 3), which organizes everything §1–§10 of this document, `capability-registry.md`
+(`CAP-V10`/`CAP-V22`/`CAP-C13`/`CAP-X10`), and `benchmarks/004-scale-architecture-study.md` (Study
+8) already established into one target architecture and a phased, evidence-gated evolution plan.
+This document (`composable-view-proposal-reconciliation.md`) stays the historical record of how
+each individual claim was checked against code; the blueprint is where they were assembled into a
+plan.
