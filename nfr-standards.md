@@ -160,6 +160,14 @@ Rule: a synchronous request path may not contain a P4 operation — slow work is
 - **Performance** — search P1 with its own index (never LIKE-scans over JSONB); notification fan-out P4; calendar lookups cached per workspace (tiny, hot).
 - **Architecture** — workspace-service seam (lifecycle §4); services are workspace-scoped singletons; no service reaches into another workspace ever.
 
+### 2.11 Data (CAP-D*)
+
+**New area, added 2026-09-11 (`CR-27`) — profile written ahead of first implementation per §4 Maintenance's own rule.** No `CAP-D*` capability is currently ✅ or under active implementation; this profile exists so one exists *before* the first one lands, not retrofitted after.
+
+- **Security** — security/permission scope must be part of a Data-plane dependency's identity *before* any coalescing/caching/reuse decision (`007-composable-runtime-architecture.md` §18.10, §20) — two logically-identical Dataset/Query requests under different permission scopes are never shared or cached together. RLS remains the enforcement boundary; a Dataset/Projection is a *shape* over already-scoped data, never a bypass of it.
+- **Performance** — governed by the composition-level budgets in §1a below, not a fixed P-class of its own — a Data-plane request inherits whichever P1–P5 class its consuming View/Component falls into (typically P1 list/detail or P3 report/dashboard), with the composition-level dimensions as an additional, cross-cutting constraint on top.
+- **Architecture** — `D` capabilities are consumed by `V` (View/Component) but do not themselves render; a Dataset/Relation/Projection/Query must remain addressable and reusable independent of any one View, per `007` §7–§8 — a Data-plane capability that can only be expressed inline on one View is not yet a real `D` capability (fails A4 non-composability against the existing View-inline pattern).
+
 ---
 
 # 3. How this binds (relationship to lifecycle)

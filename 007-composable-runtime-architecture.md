@@ -1823,7 +1823,7 @@ admitted by appearing here. This matrix does not re-derive evidence — it cites
 | CEL expression evaluation | §9 | **PROVEN** | `CAP-C13` |
 | Static Component Registry as non-dynamic-dispatch seam | §14 | **PROVEN** (as a pattern) / **PROPOSED** (as a generic Component contract) | The seam pattern itself is proven by existing closed View-type dispatch (`runtime-metadata-schema.md` `### View Types`); a generic, registry-driven Component contract per §13 is not yet built |
 | Metadata compiles to lower-level runtime representations at load time | §17, §26 | **PROVEN** (as a general mechanism) | `internal/metadata/compile.go`, `CAP-W01` — proves the *pattern* of compiling declarative metadata, not the specific Domain/Data/Experience IR this document targets |
-| DataSource, Dataset, Dimension, Measure | §7.1–§7.4 | **PROPOSED** | `CAP-V22`/`CAP-V23` (registered under `V`, migrating to a new `D` Grammar area — `CR-27`, resolved 2026-09-11, see `composable-runtime-roadmap.md`); `CR-03`/`CR-04` |
+| DataSource, Dataset, Dimension, Measure | §7.1–§7.4 | **PROPOSED** | `CAP-V22`/`CAP-V23` (reclassified to new Grammar area `D` — `CR-27`, resolved 2026-09-11; IDs retained unchanged for stability, full rows stay under `capability-registry.md`'s `## Views`, pointer rows added under `## Data`); `CR-03`/`CR-04` |
 | Relation, Projection (independent of View) | §7.5–§7.6 | **PROPOSED** | No `CAP-` row exists yet; `capability-registry.md`'s own note calls this an "unadmitted framing"; `CR-04`, `CR-05` |
 | Query Model (§8), bare Query/Projection reuse | §8 | **PROPOSED** | No `CAP-` row; `CR-05` |
 | Context, Scope, Binding (parent→child propagation) | §11 | **PROPOSED** | No shipped case requires it yet (`approval-dashboard.html` shipped without it); `CR-06` |

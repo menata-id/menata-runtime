@@ -138,7 +138,7 @@ This is the core reason the Composable Execution Planner is a first-class bounda
 
 | Phase | What it does | Depends on | Forcing condition | If met today? |
 |---|---|---|---|---|
-| **0. Grammar-area decision** | Decide whether Dataset is a new Grammar area or folds under View | Nothing | Owner taxonomy decision | Open |
+| **0. Grammar-area decision** | Decide whether Dataset is a new Grammar area or folds under View | Nothing | Owner taxonomy decision | **Resolved 2026-09-11 — new Grammar area `D`, `CR-27` in `composable-runtime-roadmap.md`** |
 | **1. Semantic dataset** | Admit/build `CAP-V22` for reusable semantic aggregates | Phase 0 | Case needs same aggregate in multiple presentations | Not yet |
 | **2. Bare Query/Projection reuse** | Make row-level data shape addressable independently of View | Phase 1 | Case needs same rows across different presentations | Not yet |
 | **3. Layout vocabulary** | Extend stack/grid/columns/split/tabs where real composed-page work forces it | Nothing | Existing queued design trigger | Low priority |

@@ -42,7 +42,7 @@ All five criteria must hold. Any failure → stays Proposed (with the failing cr
 |---|-----------|------|
 | A1 | **Dual evidence** | Named by ≥2 *independent* sources — at minimum one case (terrain) and one benchmark (map). A single enthusiastic source is a hypothesis, not a capability. |
 | A2 | **Universality or declared verticality** | Either most platforms/patterns have it (table stakes), or it is explicitly scoped to a vertical (e.g. CAP-C10 double-entry) — never "we might need it someday". |
-| A3 | **Single responsibility within Grammar** | Maps to exactly one Grammar area (Field/Event/Action/Constraint/Permission/View) or one declared cross-cutting area (Integration, Workspace Services). If it needs two, it is two capabilities. |
+| A3 | **Single responsibility within Grammar** | Maps to exactly one Grammar area (Field/Event/Action/Constraint/Permission/View/Record Lifecycle/Data — added 2026-09-11, `CR-27`) or one declared cross-cutting area (Integration, Workspace Services). If it needs two, it is two capabilities. |
 | A4 | **Non-composability** | Cannot be built by composing existing supported capabilities. (Study 5 showed ADR-0012 Patterns A & B compose — only Pattern C was admitted as new.) |
 | A5 | **Business language exists** | A domain expert can say it in `.menata`-style business language. If only an engineer can phrase it, it belongs to the runtime's internals, not to a capability the metadata exposes. |
 
@@ -126,7 +126,7 @@ Rules that keep this honest:
 
 ```markdown
 ## Capability Proposal: <name>
-- Grammar area: <one of F/E/A/C/P/V/R/X/I/O>
+- Grammar area: <one of F/E/A/C/P/V/R/X/I/O/D>
 - Evidence (≥2 independent): <case + benchmark refs>
 - Business language: <how a domain expert says it in .menata>
 - Non-composability: <why existing capabilities cannot express it>
