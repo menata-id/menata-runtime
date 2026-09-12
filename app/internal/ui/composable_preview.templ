@@ -53,24 +53,7 @@ templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdm
 				</a>
 			}
 		</div>
-		if planExplain != "" {
-			<div class="hidden" data-composable-plan={ planExplain }></div>
-		}
-		<div class="space-y-3">
-			for i, s := range summaries {
-				<a
-					href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + s.RecordID) }
-					class="block transition-opacity hover:opacity-80"
-				>
-					@RecordSummaryCard(initials(s.Title.Display), s.Title.Display, s.Subtitle.Display, statusBadgeComponent(badges, i))
-				</a>
-			}
-			if len(summaries) == 0 {
-				<div class="rounded-lg border border-slate-200 bg-white py-16 text-center text-sm text-slate-400">
-					No records yet. Create the first one.
-				</div>
-			}
-		</div>
+		@composableCardGrid(wsSlug, machine.ID, summaries, badges, planExplain)
 		if opts.Cards {
 			@paginationBar(wsSlug, machine.ID, opts)
 		}

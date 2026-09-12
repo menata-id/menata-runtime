@@ -142,3 +142,29 @@ CPAGE_BODY=$(get_body "$BASE_URL/mch_approval_document/composable-preview?page=9
 ! printf '%s' "$CPAGE_BODY" | grep -q "No records yet" \
   && printf '%s' "$CPAGE_BODY" | grep -qE 'Page [0-9]+ of [0-9]+'
 check T271 "composable-runtime-roadmap.md §17f" "?page=999 clamps to the real last page with real content, via genuine pagination wiring" $?
+
+# T272/T273/T274 -- composable-runtime-roadmap.md §17g: the REAL,
+# standalone List route (not /composable-preview) now runs on the
+# composable substrate for this cards-display View -- the actual
+# cutover, not just another preview. T272 checks the honest, checkable
+# signal (data-composable-plan, the same diagnostic 17b already proved on
+# the preview route) now appears on the real route too -- proof that THIS
+# request was genuinely served by listCardsViaComposable/
+# resolveComposableCardSummaries/explainComposablePlan, not merely "still
+# shows a card correctly" (which T248 already established and would hold
+# identically regardless of which code path renders it). T273/T274 prove
+# the cutover is functionally complete, not just carrying a diagnostic
+# marker: search and pagination (17f's own proof shape) work identically
+# on the real route now, reusing the T270/T271 records already created.
+CCUTOVER_BODY=$(get_body "$BASE_URL/mch_approval_document" "$ALICE")
+printf '%s' "$CCUTOVER_BODY" | grep -q 'data-composable-plan="ExecutionPlan: '
+check T272 "composable-runtime-roadmap.md §17g" "the real /mch_approval_document List route now runs through the composable substrate (data-composable-plan present), not just a preview" $?
+
+CCUTOVER_SEARCH_BODY=$(get_body "$BASE_URL/mch_approval_document?q=T270+Search+Wiring+$$" "$ALICE")
+printf '%s' "$CCUTOVER_SEARCH_BODY" | grep -q "T270 Search Wiring $$"
+check T273 "composable-runtime-roadmap.md §17g" "?q= also works correctly on the real cutover route, not just the preview" $?
+
+CCUTOVER_PAGE_BODY=$(get_body "$BASE_URL/mch_approval_document?page=999" "$ALICE")
+! printf '%s' "$CCUTOVER_PAGE_BODY" | grep -q "No records yet" \
+  && printf '%s' "$CCUTOVER_PAGE_BODY" | grep -qE 'Page [0-9]+ of [0-9]+'
+check T274 "composable-runtime-roadmap.md §17g" "?page=999 also clamps correctly on the real cutover route, not just the preview" $?

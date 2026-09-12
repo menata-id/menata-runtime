@@ -43,6 +43,28 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	view := h.interp.Get().DefaultListView(machineID)
+
+	// CAP-R03: ?archived=1 shows the archive itself (ListArchived) instead
+	// of the live list -- the one place a soft-deleted record can still be
+	// found and restored. Sort/filter/search/pagination below all apply the
+	// same way to either set.
+	archived := r.URL.Query().Get("archived") == "1"
+
+	// composable-runtime-roadmap.md 17g: a live (not archived), cards-
+	// display View now renders through the same composable substrate
+	// /composable-preview has proven equivalent to this real page since
+	// 17e (visual)/17f (search/sort/pagination) -- see
+	// resolveComposableCardSummaries's own doc comment for the pipeline.
+	// Archived stays on the table-rendering path below unconditionally:
+	// no Machine seeded today combines CanDelete (needed to even reach
+	// ?archived=1) with a cards-display View, so there is no real target
+	// yet to prove an archived+cards branch against -- kept correct/
+	// general rather than narrowed to "only for mch_approval_document."
+	if view != nil && view.Config.Display == "cards" && !archived {
+		h.listCardsViaComposable(w, r, machine, applicationID, role, view)
+		return
+	}
+
 	fieldByID := fieldIndex(machine)
 
 	// CAP-P06: field-level visibility -- a column this role's Permission
@@ -66,11 +88,6 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		cols = append(cols, def)
 	}
 
-	// CAP-R03: ?archived=1 shows the archive itself (ListArchived) instead
-	// of the live list -- the one place a soft-deleted record can still be
-	// found and restored. Sort/filter/search/pagination below all apply the
-	// same way to either set.
-	archived := r.URL.Query().Get("archived") == "1"
 	var records []*store.Record
 	var err error
 	if archived {
@@ -112,7 +129,37 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		Cards:       view != nil && view.Config.Display == "cards", // CAP-V02 Tier 2
 	}
 	a := h.auth(r)
-	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, model.ViewTypeList))
+	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, model.ViewTypeList), nil, nil, "")
+	if err := page.Render(r.Context(), w); err != nil {
+		slog.Error("render list", "error", err)
+	}
+}
+
+// listCardsViaComposable is List's own cutover branch (composable-
+// runtime-roadmap.md 17g) for a live, cards-display View -- reuses
+// resolveComposableCardSummaries (17e/17f's own already-proven pipeline,
+// composable_preview.go) and explainComposablePlan (17b) exactly as
+// /composable-preview does, merging their output into List's own real
+// ui.ListViewOptions (which needs ManualOrder/CanDelete fields
+// resolveComposableCardSummaries has no business deciding). Extracted to
+// its own function to keep List itself within Gate 3's cyclomatic-
+// complexity ratchet, the same lesson 17c/17e/17f already established.
+func (h *Handler) listCardsViaComposable(w http.ResponseWriter, r *http.Request, machine *model.Machine, applicationID string, role []string, view *model.View) {
+	summaries, badges, searchQuery, pageNum, totalPages, ok := h.resolveComposableCardSummaries(w, r, machine, view)
+	if !ok {
+		return
+	}
+	opts := ui.ListViewOptions{
+		SearchQuery: searchQuery,
+		ManualOrder: view.Config.ManualOrder,
+		CanDelete:   h.guard.CanDelete(machine, role),
+		Page:        pageNum,
+		TotalPages:  totalPages,
+		Cards:       true,
+	}
+	planExplain := h.explainComposablePlan(r, applicationID, machine, role[0])
+	a := h.auth(r)
+	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, nil, nil, h.interp.Get().PermittedEvents(machine.ID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machine.ID, model.ViewTypeList), summaries, badges, planExplain)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render list", "error", err)
 	}

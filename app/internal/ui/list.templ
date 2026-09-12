@@ -3,9 +3,19 @@ package ui
 import "fmt"
 import "net/url"
 import "strings"
+import "menata.id/app/internal/composable"
 import "menata.id/app/internal/model"
 
-templ List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink, viewNav []ViewNavLink) {
+// composable-runtime-roadmap.md 17g: summaries/badges/planExplain are
+// non-nil exactly when List's own cutover branch (record_crud.go's
+// listCardsViaComposable) supplied them -- opts.Cards alone isn't enough
+// to distinguish that path from the still-kept-for-generality archived+
+// cards case (which still goes through rows/listCards, since
+// resolveComposableCardSummaries doesn't handle ListArchived).
+// summaries != nil is the discriminator: resolveComposableCardSummaries
+// always returns a non-nil (if possibly empty) slice, while the archived
+// path passes a literal nil for these three params.
+templ List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink, viewNav []ViewNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, planExplain string) {
 	@Page(machine.Name, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		if len(viewNav) > 0 {
 			@viewNavPill(viewNav)
@@ -37,7 +47,9 @@ templ List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, mach
 				</a>
 			}
 		</div>
-		if opts.Cards {
+		if opts.Cards && summaries != nil {
+			@composableCardGrid(wsSlug, machine.ID, summaries, badges, planExplain)
+		} else if opts.Cards {
 			@listCards(wsSlug, machine.ID, rows, opts.Archived)
 		} else {
 		<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -169,6 +181,34 @@ templ paginationBar(wsSlug, machineID string, opts ListViewOptions) {
 			}
 		</div>
 	}
+}
+
+// composableCardGrid (composable-runtime-roadmap.md 17e-17g) renders a
+// RecordSummaryCard grid from internal/composable's own View Model
+// slices -- shared by ComposablePreview (composable_preview.templ) and
+// List's own cutover branch above, so there is exactly one place this
+// markup is written, not two copies that could drift apart.
+// planExplain, when non-empty, is 17b's own Dependency DAG/Execution
+// Planner diagnostic, rendered as a hidden inspectable attribute.
+templ composableCardGrid(wsSlug, machineID string, summaries []composable.RecordSummary, badges []composable.StatusValue, planExplain string) {
+	if planExplain != "" {
+		<div class="hidden" data-composable-plan={ planExplain }></div>
+	}
+	<div class="space-y-3">
+		for i, s := range summaries {
+			<a
+				href={ templ.SafeURL("/" + wsSlug + "/" + machineID + "/" + s.RecordID) }
+				class="block transition-opacity hover:opacity-80"
+			>
+				@RecordSummaryCard(initials(s.Title.Display), s.Title.Display, s.Subtitle.Display, statusBadgeComponent(badges, i))
+			</a>
+		}
+		if len(summaries) == 0 {
+			<div class="rounded-lg border border-slate-200 bg-white py-16 text-center text-sm text-slate-400">
+				No records yet. Create the first one.
+			</div>
+		}
+	</div>
 }
 
 func pageLink(wsSlug, machineID string, opts ListViewOptions, page int) string {

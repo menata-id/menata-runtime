@@ -1207,6 +1207,59 @@ registration is not touched, only its internals refactored.
 
 ---
 
+# 17g. Cutover — Document Approval's Cards Page (2026-09-12)
+
+**Not one of the original 14 phases — the first time in the whole 17a-17g series that
+PRODUCTION-serving code was modified, not just an additive preview route.** With visual (17e)
+and functional (17f) equivalence both proven for `mch_approval_document`'s cards page
+(`vw_ad_all`), §2a rule 6's own precondition for a real cutover was finally met. Two more
+equivalence facts were checked directly against the code before committing to this (same
+"ground before scoping" discipline as 17e/17f): CAP-P06 hidden fields (no role on this Machine
+declares any — real, deferred gap: `LowerCardRowComponent`/`CardBadgeField` read
+`view.Config.Columns` directly with no caller-filtering hook, a latent issue for a future
+Machine that DOES declare hidden fields, not this one) and CAP-V05/V09 declarative Filter
+(`vw_ad_all` has none configured — cheap to close regardless, done as part of this change since
+it needed no composable-package signature change).
+
+**What was built:** `resolveComposableCardSummaries` (`composable_preview.go`) now also applies
+`h.applyListFilter` (closing the Filter gap above) and returns raw `searchQuery`/`page`/
+`totalPages` instead of a pre-built `ui.ListViewOptions`, so each caller can merge its own
+additional fields. `record_crud.go`'s `List` gained a new branch —
+`if view.Config.Display == "cards" && !archived` — delegating to a new
+`listCardsViaComposable` (extracted to stay within Gate 3's complexity ratchet), which calls the
+exact same `resolveComposableCardSummaries`/`explainComposablePlan` `/composable-preview` has
+used since 17b/17e/17f. `list.templ`'s `List` gained `summaries`/`badges`/`planExplain`
+parameters and a new `composableCardGrid` shared component (extracted from what was
+`composable_preview.templ`'s own inline card-loop markup, now called by both templates — one
+markup, not two copies that could drift) — `summaries != nil` is the discriminator distinguishing
+this new branch from the still-kept-for-generality archived+cards path (`resolveComposable
+CardSummaries` always returns a non-nil, if possibly empty, slice; that other path passes a
+literal `nil`). `ListContent`'s own embedded rendering (CAP-V10, `vw_ad_page`'s "Pending
+Documents" section) is completely untouched — confirmed directly from `list.templ:195-198` that
+`listCards`/`cardSummary`/`cardBadge` are shared by `List` AND `ListContent`, so they stay alive
+and unchanged; only `List`'s own standalone branch stopped calling them for this one View.
+
+**Proof:** T272 (the real `GET /mch_approval_document` — not `/composable-preview` — now carries
+the same `data-composable-plan` diagnostic 17b proved on the preview route, the honest signal
+that this specific request was actually served by the composable pipeline, not merely "still
+shows a card correctly" which T248 already established and would hold regardless of which code
+path renders it), T273 (`?q=` works identically on the real route), T274 (`?page=999` clamps
+identically on the real route) — reusing the exact records T270/T271 already created. Full
+suite: 280 passed, 0 failed (`./scripts/local-ci.sh`), including T248 and T253-257 (the composed
+page's own "Pending Documents" section, `ListContent`-rendered, untouched and still passing
+unchanged) — the real regression check proving 17e/17f's equivalence work was genuinely
+complete, not merely appearing to be.
+
+**Not done here** (explicitly deferred, not silently skipped): CAP-P06 hidden-fields filtering
+inside `LowerCardRowComponent`/`CardBadgeField` remains a named, real gap for a future Machine
+that needs it — no forcing case today. No other Machine/page is touched: `mch_approval_step`,
+Document Approval's own Detail/Dashboard, Project Management, and `vw_ad_page`'s embedded
+section all remain exactly where 17b-17f left them. **The live `menata-runtime` process was not
+restarted** — per `app/CLAUDE.md`'s own "Server lifecycle" section, that stays a separate,
+deliberate, manual action, not implied by this commit.
+
+---
+
 # 18. Phase 14 — Production Hardening
 
 Only after real trial workloads:
