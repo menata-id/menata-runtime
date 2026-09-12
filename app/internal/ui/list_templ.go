@@ -23,7 +23,7 @@ import "menata.id/app/internal/model"
 // summaries != nil is the discriminator: resolveComposableCardSummaries
 // always returns a non-nil (if possibly empty) slice, while the archived
 // path passes a literal nil for these three params.
-func List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink, viewNav []ViewNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, planExplain string) templ.Component {
+func List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink, viewNav []ViewNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, slaUrgencies []string, planExplain string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -182,7 +182,7 @@ func List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machi
 				return templ_7745c5c3_Err
 			}
 			if opts.Cards && summaries != nil {
-				templ_7745c5c3_Err = composableCardGrid(wsSlug, machine.ID, summaries, badges, planExplain).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = composableCardGrid(wsSlug, machine.ID, summaries, badges, slaUrgencies, planExplain).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -681,7 +681,7 @@ func paginationBar(wsSlug, machineID string, opts ListViewOptions) templ.Compone
 // markup is written, not two copies that could drift apart.
 // planExplain, when non-empty, is 17b's own Dependency DAG/Execution
 // Planner diagnostic, rendered as a hidden inspectable attribute.
-func composableCardGrid(wsSlug, machineID string, summaries []composable.RecordSummary, badges []composable.StatusValue, planExplain string) templ.Component {
+func composableCardGrid(wsSlug, machineID string, summaries []composable.RecordSummary, badges []composable.StatusValue, slaUrgencies []string, planExplain string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -743,7 +743,7 @@ func composableCardGrid(wsSlug, machineID string, summaries []composable.RecordS
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = RecordSummaryCard(initials(s.Title.Display), s.Title.Display, s.Subtitle.Display, statusBadgeComponent(badges, i)).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = RecordSummaryCard(initials(s.Title.Display), s.Title.Display, s.Subtitle.Display, statusBadgeComponent(badges, slaUrgencies, i)).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

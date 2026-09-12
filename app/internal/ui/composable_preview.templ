@@ -49,7 +49,7 @@ import "menata.id/app/internal/model"
 // `board-lane-body`, `cursor-move`, `draggable`) are deliberately NOT
 // copied -- they name behavior this preview doesn't have; copying the
 // name without the behavior would be misleading, not equivalent.
-templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, opts ListViewOptions, lanes []composable.BoardLane, laneNames map[string]string, planExplain string) {
+templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, slaUrgencies []string, opts ListViewOptions, lanes []composable.BoardLane, laneNames map[string]string, planExplain string) {
 	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4 flex items-center gap-3">
 			<h1 class="flex-1 text-xl font-semibold text-slate-900">
@@ -72,7 +72,7 @@ templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdm
 		if len(lanes) > 0 {
 			@composableBoardLanes(wsSlug, machine.ID, lanes, laneNames, planExplain)
 		} else {
-			@composableCardGrid(wsSlug, machine.ID, summaries, badges, planExplain)
+			@composableCardGrid(wsSlug, machine.ID, summaries, badges, slaUrgencies, planExplain)
 		}
 		if opts.Cards {
 			@paginationBar(wsSlug, machine.ID, opts)
@@ -124,16 +124,19 @@ templ composableBoardLanes(wsSlug, machineID string, lanes []composable.BoardLan
 	</div>
 }
 
-// statusBadgeComponent mirrors list.templ's own cardBadge -- simpler,
-// since this pilot's own real target (mch_approval_document's vw_ad_all)
-// has no SLA-eligible column, so only StatusBadge is needed here (a named
-// gap, not an oversight -- see ComposablePreview's own handler doc
-// comment). nil (no badge rendered) when i is out of range or the
+// statusBadgeComponent mirrors list.templ's own cardBadge exactly --
+// SlaBadge when this row's own slaUrgencies entry is set (17r: the
+// named gap this doc comment used to describe, "vw_ad_all has no
+// SLA-eligible column," is now closed -- it does), StatusBadge
+// otherwise. nil (no badge rendered) when i is out of range or the
 // resolved value is empty, matching cardBadge's own "cs.Badge == ''"
 // no-badge case.
-func statusBadgeComponent(badges []composable.StatusValue, i int) templ.Component {
+func statusBadgeComponent(badges []composable.StatusValue, slaUrgencies []string, i int) templ.Component {
 	if i >= len(badges) || badges[i].Display == "" {
 		return nil
+	}
+	if i < len(slaUrgencies) && slaUrgencies[i] != "" {
+		return SlaBadge(badges[i].Display, slaUrgencies[i])
 	}
 	return StatusBadge(badges[i].Display)
 }

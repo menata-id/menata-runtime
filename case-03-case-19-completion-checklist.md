@@ -37,7 +37,7 @@ Ground truth: `/ui-sample/case.html?case=3`'s own `screens` array (read directly
 |---|---|---|---|---|---|---|
 | 1 | Submit document (Wizard/Form) | `document-submit.html` | `vw_ad_form`, `POST /mch_approval_document` | **Built**, but structurally split: the mockup bundles metadata + PDF + mode + per-step assignee + step reordering + saved-flow selection into ONE wizard; real code splits submitting the Document (`vw_ad_form`) from creating each Approval Step (`vw_as_form`, one POST per step). A real, separate "Approval Flow Template" mechanism (`seeds/047_approval_flow_template.sql`, `mch_approval_flow_template`/`_step`) does cover reusable/saved flows by document type, confirmed — just not surfaced inside one screen. | Not composable — `model.ViewTypeForm` has a composable Dataset case (`BuildDatasetFromView`) but nothing renders a Form through it; this whole screen is untouched by any 17-series work. | Real UX-flow gap (one wizard vs. two separate submissions) independent of composable; no dedicated wizard screen exists. |
 | 2 | Signature positions (Coordinate editor) | `document-signature-placement.html` | `CoordPlace`, `GET/POST /mch_approval_document/{id}/place` (CAP-V21) | **Built.** | **Not composable at all** — `internal/composable` has zero representation for `model.ViewTypeCoordPlacement`; no Dataset case, no Component. | Composable-representation gap only; visual/functional gap not checked here. |
-| 3 | Approval inbox (Worklist + Detail) | `document-approval.html` | List (`vw_ad_all`/`vw_ad_pending` cards) + Detail (`vw_ad_detail`) + progress (`DecisionStepper`, `/mch_approval_document/{id}/progress`) | **Built**, with one confirmed gap: no `sla_field` is configured anywhere on this Machine's own views (grepped directly), so the mockup's own "SLA chips" are not wired for this case at all (CAP-V17 exists generically elsewhere, e.g. SLA Lab, just not applied here). The mockup's inline PDF preview alongside the action bar is also not confirmed to exist as one layout — the real file field only renders as a download link (`record_crud.go`'s `FieldTypeFile` case), not an inline viewer. | **List: production** (17g). **Detail: production** (17o closes `CR-29` — the real `/mch_approval_document/{id}` route now sources its own field set/order from `composable.BuildDatasetFromView`'s `ViewTypeDetail` case; per-field value formatting, which needs real store I/O, stays in the handler by architectural necessity). **DecisionStepper progress: not composable at all.** | SLA wiring for this Machine (classic gap); inline PDF preview layout (classic gap, unverified how large); DecisionStepper composable representation (composable gap, still open). |
+| 3 | Approval inbox (Worklist + Detail) | `document-approval.html` | List (`vw_ad_all`/`vw_ad_pending` cards) + Detail (`vw_ad_detail`) + progress (`DecisionStepper`, `/mch_approval_document/{id}/progress`) | **SLA wiring done, 2026-09-12 (17r, Stage A item 1).** `mch_approval_document` gained a real `fld_ad_due_date` Field; `sla_field`/`sla_warning_days` wired on `vw_ad_all`/`vw_ad_pending`/`vw_ad_detail` — real OVERDUE/"N day(s) left" badges now render on both List and Detail, matching the mockup directly. **Real bug found and fixed the same day** (not Case-3-specific — see `capability-registry.md`'s `CAP-V17` row): the real cards-mode List route (17g) never actually considered `SlaField` at all before this, and a per-record Status-badge fallback was needed so a Document with no due date (the common case) still shows its own Status badge instead of none. **Remaining, unrelated to SLA:** the mockup's inline PDF preview alongside the action bar is still not confirmed to exist as one layout — the real file field only renders as a download link (`record_crud.go`'s `FieldTypeFile` case), not an inline viewer. | **List: production** (17g, SLA badge now included). **Detail: production** (17o closes `CR-29`). **DecisionStepper progress: not composable at all.** | Inline PDF preview layout (classic gap, unverified how large — Stage A item 2); DecisionStepper composable representation (composable gap, Stage B); a small, named cosmetic gap in the SLA-fallback case (the fallback badge value can also still appear in the card's own subtitle text — see `CAP-V17`'s own row for the full account). |
 | 4 | Approval dashboard (Composed page) | `approval-dashboard.html` | `GET /mch_approval_document/page` (`vw_ad_page`) | **Built** for all 4 of its own real sections (Summary/Pending Documents/Recent Activity/Total Approval Steps). **Recent Activity is real now** (17p, closing CAP-R04's own "R28" gap) — a real cross-record activity feed, not a placeholder. | **2 sections are production composable** — 17l's own "Total Approval Steps" Metric, and note that Recent Activity (17p) is classic-only, not composable (no `internal/composable` representation for `activity_log` yet — a separate, later increment). | Field-level diff between snapshots (17p's own named, deferred gap); composable representation for `activity_log` (separate, unforced work); the Metric section still doesn't map to anything ui-sample asked for, named so it's never mistaken for design-completeness progress. |
 
 ## 3. Project Management (Case 19)
@@ -122,10 +122,13 @@ entirely).
    a Form can now embed more than one child-row block) and `CAP-V14` (Board gains an opt-in
    `CardMeta` rendering key). Unblocked Team Capacity (screen 6) as a side effect — the real
    relationship now exists, though the screen itself is still unbuilt.
-4. **Stage A — small, low-risk, classic-only fixes, independent of each other:** SLA wiring on
-   Approval Document (Case 3 screen 3, reuses CAP-V17, pure metadata); inline PDF preview (Case 3
-   screen 3, ground exact size first); Board drag-reorder within one lane (Case 19 screen 1,
-   client-side + a `sort_order` write, same shape `MoveToLane`/`Move` already use).
+4. **Stage A — small, low-risk, classic-only fixes, independent of each other:**
+   ~~SLA wiring on Approval Document~~ **done, 2026-09-12 (17r)** — see row 3's own update above
+   and `capability-registry.md`'s `CAP-V17` row for the real gap found and fixed along the way
+   (the production cards-mode List route never actually considered `SlaField` at all until now).
+   Remaining Stage A items, not yet started: inline PDF preview (Case 3 screen 3, ground exact
+   size first); Board drag-reorder within one lane (Case 19 screen 1, client-side + a `sort_order`
+   write, same shape `MoveToLane`/`Move` already use).
 5. **Stage B — composable-representation-only gaps** (no new classic capability, confirmed by grep
    that `internal/composable` has zero references to any of these three today): `CoordPlacement`
    (Case 3 screen 2), `DecisionStepper` progress (Case 3 screen 3), `activity_log` (Case 3 screen
@@ -179,9 +182,9 @@ those table cells back together by hand.
   never been touched by any composable work either.
 - Signature positions (screen 2) — built classically, but has zero `internal/composable`
   representation at all.
-- Approval inbox (screen 3) — no `sla_field` configured on this Machine (the mockup's own SLA
-  chips aren't wired here); no inline PDF preview (file fields only render as a download link);
-  `DecisionStepper` progress has no composable representation.
+- Approval inbox (screen 3) — SLA wiring done, 2026-09-12 (17r); still no inline PDF preview (file
+  fields only render as a download link); `DecisionStepper` progress has no composable
+  representation.
 - Approval dashboard (screen 4) — no field-level diff between activity snapshots yet; no
   composable representation for `activity_log`.
 

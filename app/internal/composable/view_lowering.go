@@ -14,10 +14,18 @@ import (
 // Views always put Status last but an earlier value_list column, e.g.
 // Document Type, is merely descriptive text). Returns "" when no column
 // is value_list-typed -- not every card has a badge.
-func CardBadgeField(m *model.Machine, columns []string) string {
+func CardBadgeField(m *model.Machine, columns []string, slaField string) string {
 	badge := ""
 	for i := 1; i < len(columns); i++ {
-		if f := findField(m, columns[i]); f != nil && f.Type == model.FieldTypeValueList {
+		f := findField(m, columns[i])
+		if f != nil && f.Type == model.FieldTypeValueList {
+			badge = columns[i]
+		} else if slaField != "" && columns[i] == slaField {
+			// 17r: an SlaField (CAP-V17) column is badge-eligible too --
+			// same "last badge-eligible column wins" rule cardSummary
+			// (list.templ) already established, extended here rather than
+			// duplicated, so the composable cards path picks the identical
+			// column the classic table/cards path would.
 			badge = columns[i]
 		}
 	}
@@ -82,7 +90,7 @@ func LowerCardRowComponent(m *model.Machine, v *model.View, ds Dataset) (UINode,
 	if len(columns) > 0 {
 		title = columns[0]
 	}
-	badge := CardBadgeField(m, columns)
+	badge := CardBadgeField(m, columns, v.Config.SlaField)
 	var subtitleFields []string
 	for i := 1; i < len(columns); i++ {
 		if columns[i] != badge {

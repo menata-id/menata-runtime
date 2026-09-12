@@ -129,7 +129,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		Cards:       view != nil && view.Config.Display == "cards", // CAP-V02 Tier 2
 	}
 	a := h.auth(r)
-	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, model.ViewTypeList), nil, nil, "")
+	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, cols, rows, h.interp.Get().PermittedEvents(machineID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, model.ViewTypeList), nil, nil, nil, "")
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render list", "error", err)
 	}

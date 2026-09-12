@@ -15,7 +15,7 @@ import "menata.id/app/internal/model"
 // summaries != nil is the discriminator: resolveComposableCardSummaries
 // always returns a non-nil (if possibly empty) slice, while the archived
 // path passes a literal nil for these three params.
-templ List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink, viewNav []ViewNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, planExplain string) {
+templ List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, columns []ColumnDef, rows []ListRow, permittedEvents []*model.Event, unreadCount int, opts ListViewOptions, subNav []SubNavLink, viewNav []ViewNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, slaUrgencies []string, planExplain string) {
 	@Page(machine.Name, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		if len(viewNav) > 0 {
 			@viewNavPill(viewNav)
@@ -48,7 +48,7 @@ templ List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, mach
 			}
 		</div>
 		if opts.Cards && summaries != nil {
-			@composableCardGrid(wsSlug, machine.ID, summaries, badges, planExplain)
+			@composableCardGrid(wsSlug, machine.ID, summaries, badges, slaUrgencies, planExplain)
 		} else if opts.Cards {
 			@listCards(wsSlug, machine.ID, rows, opts.Archived)
 		} else {
@@ -190,7 +190,7 @@ templ paginationBar(wsSlug, machineID string, opts ListViewOptions) {
 // markup is written, not two copies that could drift apart.
 // planExplain, when non-empty, is 17b's own Dependency DAG/Execution
 // Planner diagnostic, rendered as a hidden inspectable attribute.
-templ composableCardGrid(wsSlug, machineID string, summaries []composable.RecordSummary, badges []composable.StatusValue, planExplain string) {
+templ composableCardGrid(wsSlug, machineID string, summaries []composable.RecordSummary, badges []composable.StatusValue, slaUrgencies []string, planExplain string) {
 	if planExplain != "" {
 		<div class="hidden" data-composable-plan={ planExplain }></div>
 	}
@@ -200,7 +200,7 @@ templ composableCardGrid(wsSlug, machineID string, summaries []composable.Record
 				href={ templ.SafeURL("/" + wsSlug + "/" + machineID + "/" + s.RecordID) }
 				class="block transition-opacity hover:opacity-80"
 			>
-				@RecordSummaryCard(initials(s.Title.Display), s.Title.Display, s.Subtitle.Display, statusBadgeComponent(badges, i))
+				@RecordSummaryCard(initials(s.Title.Display), s.Title.Display, s.Subtitle.Display, statusBadgeComponent(badges, slaUrgencies, i))
 			</a>
 		}
 		if len(summaries) == 0 {

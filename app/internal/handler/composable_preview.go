@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -72,6 +73,7 @@ func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 	viewName := machine.Name
 	var summaries []composable.RecordSummary
 	var badges []composable.StatusValue
+	var slaUrgencies []string
 	var opts ui.ListViewOptions
 	var lanes []composable.BoardLane
 	var laneNames map[string]string
@@ -81,7 +83,7 @@ func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 		var searchQuery string
 		var pageNum, totalPages int
 		var ok bool
-		summaries, badges, searchQuery, pageNum, totalPages, ok = h.resolveComposableCardSummaries(w, r, machine, view)
+		summaries, badges, slaUrgencies, searchQuery, pageNum, totalPages, ok = h.resolveComposableCardSummaries(w, r, machine, view)
 		if !ok {
 			return
 		}
@@ -106,7 +108,7 @@ func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 	plannerDuration := time.Since(planStart)
 
 	a := h.auth(r)
-	page := ui.ComposablePreview(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, viewName, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), summaries, badges, opts, lanes, laneNames, planExplain)
+	page := ui.ComposablePreview(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, viewName, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), summaries, badges, slaUrgencies, opts, lanes, laneNames, planExplain)
 	renderStart := time.Now()
 	renderErr := page.Render(r.Context(), w)
 	renderDuration := time.Since(renderStart)
@@ -185,7 +187,7 @@ func logComposableBenchmark(r *http.Request, machineID string, rows int, dataDur
 // composable-preview family, record_crud.go's own `List` just calls it.
 func (h *Handler) listCardsViaComposable(w http.ResponseWriter, r *http.Request, machine *model.Machine, applicationID string, role []string, view *model.View) {
 	dataStart := time.Now()
-	summaries, badges, searchQuery, pageNum, totalPages, ok := h.resolveComposableCardSummaries(w, r, machine, view)
+	summaries, badges, slaUrgencies, searchQuery, pageNum, totalPages, ok := h.resolveComposableCardSummaries(w, r, machine, view)
 	if !ok {
 		return
 	}
@@ -202,7 +204,7 @@ func (h *Handler) listCardsViaComposable(w http.ResponseWriter, r *http.Request,
 	planExplain, metrics := h.explainComposablePlan(r, applicationID, machine, role[0])
 	plannerDuration := time.Since(planStart)
 	a := h.auth(r)
-	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, nil, nil, h.interp.Get().PermittedEvents(machine.ID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machine.ID, model.ViewTypeList), summaries, badges, planExplain)
+	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, nil, nil, h.interp.Get().PermittedEvents(machine.ID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machine.ID, model.ViewTypeList), summaries, badges, slaUrgencies, planExplain)
 	renderStart := time.Now()
 	renderErr := page.Render(r.Context(), w)
 	renderDuration := time.Since(renderStart)
@@ -212,24 +214,46 @@ func (h *Handler) listCardsViaComposable(w http.ResponseWriter, r *http.Request,
 	logComposableBenchmark(r, machine.ID, len(summaries), dataDuration, plannerDuration, renderDuration, metrics)
 }
 
-func (h *Handler) resolveComposableCardSummaries(w http.ResponseWriter, r *http.Request, machine *model.Machine, view *model.View) (summaries []composable.RecordSummary, badges []composable.StatusValue, searchQuery string, page, totalPages int, ok bool) {
+func (h *Handler) resolveComposableCardSummaries(w http.ResponseWriter, r *http.Request, machine *model.Machine, view *model.View) (summaries []composable.RecordSummary, badges []composable.StatusValue, slaUrgencies []string, searchQuery string, page, totalPages int, ok bool) {
 	ds, err := composable.BuildDatasetFromView(machine, view)
 	if err != nil {
 		http.Error(w, "failed to build dataset", http.StatusInternalServerError)
-		return nil, nil, "", 0, 0, false
+		return nil, nil, nil, "", 0, 0, false
 	}
 	rowNode, err := composable.LowerCardRowComponent(machine, view, ds)
 	if err != nil {
 		http.Error(w, "failed to lower card component", http.StatusInternalServerError)
-		return nil, nil, "", 0, 0, false
+		return nil, nil, nil, "", 0, 0, false
 	}
 
+	// 17r: the badge column may be the View's own SlaField instead of a
+	// value_list -- LowerStatusBadge/ResolveStatusValue only ever handle
+	// value_list (Gate 5: slaUrgency's own real computation lives in this
+	// package, not internal/composable, so it can never be lowered the
+	// same way).
+	//
+	// Per-record fallback, matching cardSummary's (list.templ) own exact
+	// "last eligible column WITH A NON-EMPTY VALUE wins" rule -- caught
+	// live building this: a record with no due date at all (the common
+	// case for every pre-existing Document -- due date is optional) would
+	// otherwise show NO badge at all instead of falling back to its own
+	// Status, since the structural column pick alone can't see that this
+	// specific record's own SlaField value is blank. slaField/valueListField
+	// are the two candidate columns (at most one of either kind, by
+	// CardBadgeField's own single-winner design); each record tries
+	// slaField first, falls back to valueListField only when slaUrgency
+	// itself reports not-ok (unparseable/blank).
+	slaField := ""
+	if badgeField := composable.CardBadgeField(machine, view.Config.Columns, view.Config.SlaField); badgeField == view.Config.SlaField {
+		slaField = badgeField
+	}
+	valueListField := composable.CardBadgeField(machine, view.Config.Columns, "")
 	var badgeNode *composable.UINode
-	if badgeField := composable.CardBadgeField(machine, view.Config.Columns); badgeField != "" {
-		node, err := composable.LowerStatusBadge(machine, badgeField)
+	if valueListField != "" {
+		node, err := composable.LowerStatusBadge(machine, valueListField)
 		if err != nil {
 			http.Error(w, "failed to lower status badge", http.StatusInternalServerError)
-			return nil, nil, "", 0, 0, false
+			return nil, nil, nil, "", 0, 0, false
 		}
 		badgeNode = &node
 	}
@@ -238,7 +262,7 @@ func (h *Handler) resolveComposableCardSummaries(w http.ResponseWriter, r *http.
 	records, err := h.records.List(r.Context(), machine.ID, sortField, sortDir)
 	if err != nil {
 		http.Error(w, "failed to load records", http.StatusInternalServerError)
-		return nil, nil, "", 0, 0, false
+		return nil, nil, nil, "", 0, 0, false
 	}
 	records = h.applyListFilter(r, view, records)
 
@@ -249,25 +273,45 @@ func (h *Handler) resolveComposableCardSummaries(w http.ResponseWriter, r *http.
 
 	summaries = make([]composable.RecordSummary, 0, len(records))
 	badges = make([]composable.StatusValue, 0, len(records))
+	slaUrgencies = make([]string, 0, len(records))
 	for _, rec := range records {
 		summary, err := composable.ResolveRecordSummary(machine, rowNode, rec.ID, rec.Data)
 		if err != nil {
 			http.Error(w, "failed to resolve record summary", http.StatusInternalServerError)
-			return nil, nil, "", 0, 0, false
+			return nil, nil, nil, "", 0, 0, false
 		}
 		summaries = append(summaries, summary)
 
-		var badge composable.StatusValue
-		if badgeNode != nil {
-			badge, err = composable.ResolveStatusValue(machine, *badgeNode, rec.Data)
-			if err != nil {
-				http.Error(w, "failed to resolve status badge", http.StatusInternalServerError)
-				return nil, nil, "", 0, 0, false
-			}
+		badge, urgency, err := resolveCardBadge(machine, rec, slaField, view.Config.SlaWarningDays, badgeNode)
+		if err != nil {
+			http.Error(w, "failed to resolve status badge", http.StatusInternalServerError)
+			return nil, nil, nil, "", 0, 0, false
 		}
 		badges = append(badges, badge)
+		slaUrgencies = append(slaUrgencies, urgency)
 	}
-	return summaries, badges, searchQuery, page, totalPages, true
+	return summaries, badges, slaUrgencies, searchQuery, page, totalPages, true
+}
+
+// resolveCardBadge (17r) is resolveComposableCardSummaries' own per-record
+// badge resolution, split out to keep that function's own branching under
+// Gate 3's threshold -- tries slaField first (CAP-V17), falls back to
+// badgeNode's own value_list resolution only when the SLA value is blank/
+// unparseable for THIS record, matching cardSummary's (list.templ) own
+// per-row "last eligible column with a non-empty value" rule.
+func resolveCardBadge(machine *model.Machine, rec *store.Record, slaField string, slaWarningDays int, badgeNode *composable.UINode) (composable.StatusValue, string, error) {
+	var badge composable.StatusValue
+	urgency := ""
+	if slaField != "" {
+		if label, u, ok := slaUrgency(fmt.Sprintf("%v", rec.Data[slaField]), slaWarningDays); ok {
+			badge.Display, urgency = label, u
+		}
+	}
+	if badge.Display != "" || badgeNode == nil {
+		return badge, urgency, nil
+	}
+	badge, err := composable.ResolveStatusValue(machine, *badgeNode, rec.Data)
+	return badge, urgency, err
 }
 
 // boardRelationTarget (composable-runtime-roadmap.md 17h) returns the

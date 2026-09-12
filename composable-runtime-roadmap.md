@@ -2049,6 +2049,72 @@ T291-T301).
 
 ---
 
+# 17r. Case 3 SLA Wiring — Stage A Item 1 (2026-09-12)
+
+**Not a composable increment on paper, but became one along the way** — closes
+`case-03-case-19-completion-checklist.md`'s Stage A item 1, the owner's own approved staging plan
+for the remaining checklist work (`/root/.claude/plans/goofy-puzzling-oasis.md`).
+
+**What was expected vs. what was found:** the plan's own sizing called this "pure metadata, no
+code change expected" — reusing CAP-V17's already-Supported `sla_field`/`sla_warning_days`
+mechanism verbatim. Grounding directly (not assuming) found `mch_approval_document` had no
+due-date Field at all (already named in `seeds/048`'s own comment); adding one (`fld_ad_due_date`)
+and wiring `sla_field` on `vw_ad_all`/`vw_ad_pending`/`vw_ad_detail` was the metadata part, exactly
+as sized. But the real cards-mode List route (`mch_approval_document`'s own production cutover,
+17g) then rendered the raw date as plain text, not a badge — a genuine gap in
+`resolveComposableCardSummaries` (`composable_preview.go`), never exercised before because
+17e/17f's own real target (`vw_ad_all`) had no SLA-eligible column at the time (named honestly in
+that function's own doc comment then: "nothing forces it yet" — now forced).
+
+**What was built (code, not just metadata):**
+- `composable.CardBadgeField` (`internal/composable/view_lowering.go`) gains an `slaField`
+  parameter — an SlaField column is now badge-eligible too, same "last badge-eligible column wins"
+  rule `cardSummary` (`list.templ`) already established for the classic path, extended rather than
+  duplicated.
+- `resolveComposableCardSummaries`/new `resolveCardBadge` (`composable_preview.go`): per record,
+  tries the SLA badge first (`slaUrgency`, already existing); falls back to a value_list badge
+  (e.g. Status) when that record's own SLA value is blank/unparseable.
+- **Real bug caught live, not a hypothetical:** the first version had no such fallback — since
+  due date is optional and every pre-existing real Document lacks one, this would have shown NO
+  badge at all for the vast majority of real Documents on the live site. Caught by direct manual
+  verification against a real submitted-with-no-due-date Document before deploying, not by a
+  conformance test alone.
+- `ui.List`/`composableCardGrid`/`ComposablePreview`/`statusBadgeComponent` (list.templ,
+  composable_preview.templ) — threaded a new `slaUrgencies []string` parallel slice through so
+  the composable cards path can pick `SlaBadge` vs `StatusBadge` per record, matching `cardBadge`'s
+  own existing switch exactly.
+
+**Named, not silently perfect:** in the fallback case (SLA blank, Status wins as badge), Status
+also still appears in the card's own subtitle text — a small cosmetic duplication. The classic
+table/cards path's own subtitle exclusion is computed per-record (`cardSummary`); the composable
+path's subtitle exclusion is structural/per-View (`LowerCardRowComponent`, unchanged), so it can't
+dynamically exclude whichever column ends up the fallback badge for one specific record. A real,
+minor equivalence gap, deliberately not chased further in this increment — full replication would
+mean moving subtitle composition into the handler per-record, a bigger change than this stage's
+own sizing warranted.
+
+**Proof:** conformance T302-T306 (`conformance/tests/246_case3_sla_wiring.sh`) — real
+SLA-overdue/not-overdue badges on both the real List page and Detail; composable-preview
+reproduces the same real badge (equivalence, not resemblance); a real Document with no due date
+still shows its own real Status badge (the fallback, not a missing badge). Two seeded demo
+Documents (`seeds/058_case3_sla_wiring.sql`) with fixed ids and dates fixed far in the past/future
+(same "unambiguous bucket only" precedent `seeds/029`'s own header already established, avoiding
+calendar drift on a deployment meant to stay live a long time).
+
+**Deployed live**, same as every prior increment: seeded the real dev DB, rebuilt, restarted via
+`server-manager.sh`, verified directly (both documents' own real badges confirmed on
+`menata.app`/`aksi.menata.id`). `case-03-case-19-completion-checklist.md` updated (Stage A item 1
+closed, §7 outstanding-items line closed); `capability-registry.md` cites the full account on
+`CAP-V17`'s own row.
+
+**Verification:** `go build`/`go vet`/`go test ./...` (isolated schema, idempotency verified with
+two consecutive seed runs), all 5 quality gates (one deliberate complexity split —
+`resolveComposableCardSummaries` was split into a new `resolveCardBadge` helper to stay under
+Gate 3's threshold, no baseline bump needed), and `./scripts/local-ci.sh` — 312 passed, 0 failed
+(307 + new T302-T306).
+
+---
+
 # 18. Phase 14 — Production Hardening
 
 Only after real trial workloads:
