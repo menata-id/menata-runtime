@@ -3,6 +3,7 @@ package handler
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -32,6 +33,18 @@ import (
 // gap, not an oversight: SlaBadge is not reproduced -- no column on this
 // pilot's own real target (vw_ad_all) is SLA-eligible, so nothing forces
 // it yet.
+//
+// composable-runtime-roadmap.md 17f: sort/search/pagination now reuse
+// List's own real behavior (sortFieldFor/searchListRecords/
+// paginateListRecords, extracted from record_crud.go's List into shared
+// functions rather than reimplemented here) -- previously this route
+// always passed "","" to RecordStore.List (correct for vw_ad_all's own
+// DefaultSort only by coincidence) and never searched or paginated at
+// all. Archive/Restore/Move-up/down and the Archived-toggle view stay
+// out of scope: cards mode never renders the first three even on the
+// real page (list.templ's own `if opts.Cards {...} else {...}` puts them
+// only in the table branch), and no role on this Machine has CanDelete
+// today, so there is no real target to prove the toggle against.
 func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	machine, ok := h.interp.Get().GetMachine(machineID)
@@ -57,10 +70,11 @@ func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 	viewName := machine.Name
 	var summaries []composable.RecordSummary
 	var badges []composable.StatusValue
+	var opts ui.ListViewOptions
 	if view := h.interp.Get().DefaultListView(machineID); view != nil && view.Config.Display == "cards" {
 		viewName = view.Name
 		var ok bool
-		summaries, badges, ok = h.resolveComposableCardSummaries(w, r, machine, view)
+		summaries, badges, opts, ok = h.resolveComposableCardSummaries(w, r, machine, view)
 		if !ok {
 			return
 		}
@@ -69,29 +83,31 @@ func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 	planExplain := h.explainComposablePlan(r, applicationID, machine, role[0])
 
 	a := h.auth(r)
-	page := ui.ComposablePreview(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, viewName, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), summaries, badges, planExplain)
+	page := ui.ComposablePreview(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, viewName, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), summaries, badges, opts, planExplain)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render composable preview", "error", err)
 	}
 }
 
 // resolveComposableCardSummaries resolves view's own cards rendering (the
-// RecordSummary/StatusValue slices ComposablePreview's templ needs) --
+// RecordSummary/StatusValue slices, and the ListViewOptions carrying
+// search/pagination state, ComposablePreview's templ needs) --
 // extracted purely to keep ComposablePreview itself within Gate 3's
-// cyclomatic-complexity ratchet (composable-runtime-roadmap.md 17e; the
-// same lesson 17c's own test refactor already applied). On any failure,
-// writes a generic (CWE-209-safe, Gate 1) 500 itself and returns ok=false
-// -- the caller's only job on that path is to return immediately.
-func (h *Handler) resolveComposableCardSummaries(w http.ResponseWriter, r *http.Request, machine *model.Machine, view *model.View) (summaries []composable.RecordSummary, badges []composable.StatusValue, ok bool) {
+// cyclomatic-complexity ratchet (composable-runtime-roadmap.md 17e/17f;
+// the same lesson 17c's own test refactor already applied). On any
+// failure, writes a generic (CWE-209-safe, Gate 1) 500 itself and
+// returns ok=false -- the caller's only job on that path is to return
+// immediately.
+func (h *Handler) resolveComposableCardSummaries(w http.ResponseWriter, r *http.Request, machine *model.Machine, view *model.View) (summaries []composable.RecordSummary, badges []composable.StatusValue, opts ui.ListViewOptions, ok bool) {
 	ds, err := composable.BuildDatasetFromView(machine, view)
 	if err != nil {
 		http.Error(w, "failed to build dataset", http.StatusInternalServerError)
-		return nil, nil, false
+		return nil, nil, ui.ListViewOptions{}, false
 	}
 	rowNode, err := composable.LowerCardRowComponent(machine, view, ds)
 	if err != nil {
 		http.Error(w, "failed to lower card component", http.StatusInternalServerError)
-		return nil, nil, false
+		return nil, nil, ui.ListViewOptions{}, false
 	}
 
 	var badgeNode *composable.UINode
@@ -99,16 +115,23 @@ func (h *Handler) resolveComposableCardSummaries(w http.ResponseWriter, r *http.
 		node, err := composable.LowerStatusBadge(machine, badgeField)
 		if err != nil {
 			http.Error(w, "failed to lower status badge", http.StatusInternalServerError)
-			return nil, nil, false
+			return nil, nil, ui.ListViewOptions{}, false
 		}
 		badgeNode = &node
 	}
 
-	records, err := h.records.List(r.Context(), machine.ID, "", "")
+	sortField, sortDir := sortFieldFor(view)
+	records, err := h.records.List(r.Context(), machine.ID, sortField, sortDir)
 	if err != nil {
 		http.Error(w, "failed to load records", http.StatusInternalServerError)
-		return nil, nil, false
+		return nil, nil, ui.ListViewOptions{}, false
 	}
+
+	searchQuery := strings.TrimSpace(r.URL.Query().Get("q"))
+	records = searchListRecords(searchQuery, view.Config.Columns, records)
+
+	var pageNum, totalPages int
+	records, pageNum, totalPages = paginateListRecords(records, r.URL.Query().Get("page"))
 
 	summaries = make([]composable.RecordSummary, 0, len(records))
 	badges = make([]composable.StatusValue, 0, len(records))
@@ -116,7 +139,7 @@ func (h *Handler) resolveComposableCardSummaries(w http.ResponseWriter, r *http.
 		summary, err := composable.ResolveRecordSummary(machine, rowNode, rec.ID, rec.Data)
 		if err != nil {
 			http.Error(w, "failed to resolve record summary", http.StatusInternalServerError)
-			return nil, nil, false
+			return nil, nil, ui.ListViewOptions{}, false
 		}
 		summaries = append(summaries, summary)
 
@@ -125,12 +148,13 @@ func (h *Handler) resolveComposableCardSummaries(w http.ResponseWriter, r *http.
 			badge, err = composable.ResolveStatusValue(machine, *badgeNode, rec.Data)
 			if err != nil {
 				http.Error(w, "failed to resolve status badge", http.StatusInternalServerError)
-				return nil, nil, false
+				return nil, nil, ui.ListViewOptions{}, false
 			}
 		}
 		badges = append(badges, badge)
 	}
-	return summaries, badges, true
+	opts = ui.ListViewOptions{SearchQuery: searchQuery, Page: pageNum, TotalPages: totalPages, Cards: true}
+	return summaries, badges, opts, true
 }
 
 // explainComposablePlan (composable-runtime-roadmap.md 17b) lowers

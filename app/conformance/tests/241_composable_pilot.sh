@@ -6,7 +6,9 @@
 # machine T248 (210_v02t2_v09t2.sh) already proves the real cards feature
 # against. As of 17e (T268/T269 below), this route reuses the exact same
 # RecordSummaryCard/StatusBadge/Avatar rendering the real cards feature
-# does, proven equivalent, not just visually similar. Reuses ALICE/
+# does, proven equivalent, not just visually similar. As of 17f
+# (T270/T271), sort/search/pagination are wired through the same shared
+# helpers (list_query.go) the real List route uses. Reuses ALICE/
 # ALICE_ID (010's own resolution) and FRANK (HR, app_hr -- no role at all
 # on app_approval, same "wrong app" shape as every other cross-app 403
 # test in this suite).
@@ -109,3 +111,34 @@ printf '%s' "$CEQ_COMPOSABLE_BODY" | grep -q ">$CEQ_INITIALS<" \
   && printf '%s' "$CEQ_COMPOSABLE_BODY" | grep -q "Report · Sequential" \
   && printf '%s' "$CEQ_COMPOSABLE_BODY" | grep -q ">Draft<"
 check T269 "composable-runtime-roadmap.md §17e" "composable-preview reproduces the same initials/subtitle/badge -- real render-output equivalence, not an approximation" $?
+
+# T270 -- composable-runtime-roadmap.md §17f: free-text search (?q=) is now
+# wired via searchListRecords (extracted from record_crud.go's own List
+# into list_query.go, so both routes share the identical substring/case-
+# insensitive match, not two independently-maintained copies) -- proves
+# the query param is genuinely applied on this route, not merely present
+# in the code.
+CSEARCH_TITLE="T270 Search Wiring $$"
+CSEARCH_DATA="fld_ad_title=${CSEARCH_TITLE// /+}&fld_ad_document_type=Report&fld_ad_file=t270.pdf&fld_ad_submitted_by=$ALICE_ID&fld_ad_approval_mode=Sequential"
+post_redirect "$BASE_URL/mch_approval_document" "$CSEARCH_DATA" "$ALICE" >/dev/null
+CSEARCH_MATCH_BODY=$(get_body "$BASE_URL/mch_approval_document/composable-preview?q=T270+Search+Wiring+$$" "$ALICE")
+CSEARCH_NOMATCH_BODY=$(get_body "$BASE_URL/mch_approval_document/composable-preview?q=NoSuchTitleAnywhere$$" "$ALICE")
+printf '%s' "$CSEARCH_MATCH_BODY" | grep -q "T270 Search Wiring $$" \
+  && ! printf '%s' "$CSEARCH_NOMATCH_BODY" | grep -q "T270 Search Wiring $$"
+check T270 "composable-runtime-roadmap.md §17f" "?q= is genuinely wired -- a matching query keeps the record, a non-matching query excludes it" $?
+
+# T271 -- composable-runtime-roadmap.md §17f: pagination (?page=) is now
+# wired via paginateListRecords (list_query.go) -- ?page=999 (far beyond
+# any real page count) clamps to the actual last page and still shows real
+# content, not an empty/error response. 26 fresh records are created here
+# (pageSize=25) so mch_approval_document is guaranteed to have more than
+# one page regardless of how many earlier tests happened to create,
+# rather than relying on incidental accumulation from the rest of the
+# suite.
+for CPAGE_I in $(seq 1 26); do
+  post_redirect "$BASE_URL/mch_approval_document" "fld_ad_title=T271+Page+Filler+${$}_${CPAGE_I}&fld_ad_document_type=Report&fld_ad_file=t271.pdf&fld_ad_submitted_by=$ALICE_ID&fld_ad_approval_mode=Sequential" "$ALICE" >/dev/null
+done
+CPAGE_BODY=$(get_body "$BASE_URL/mch_approval_document/composable-preview?page=999" "$ALICE")
+! printf '%s' "$CPAGE_BODY" | grep -q "No records yet" \
+  && printf '%s' "$CPAGE_BODY" | grep -qE 'Page [0-9]+ of [0-9]+'
+check T271 "composable-runtime-roadmap.md §17f" "?page=999 clamps to the real last page with real content, via genuine pagination wiring" $?

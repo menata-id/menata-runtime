@@ -24,15 +24,7 @@ templ List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, mach
 					<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "?archived=1") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">View Archive</a>
 				}
 			}
-			<form method="get" action={ templ.SafeURL("/" + wsSlug + "/" + machine.ID) } class="flex items-center">
-				<input
-					type="search"
-					name="q"
-					value={ opts.SearchQuery }
-					placeholder="Search..."
-					class="w-48 rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-				/>
-			</form>
+			@searchBox(wsSlug, machine.ID, opts.SearchQuery)
 			if !opts.Archived {
 				<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/export.csv") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">Export</a>
 				<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/import") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">Import</a>
@@ -137,21 +129,45 @@ templ List(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, mach
 			</table>
 		</div>
 		}
-		if opts.TotalPages > 1 {
-			<div class="mt-4 flex items-center justify-center gap-4 text-sm text-slate-500">
-				if opts.Page > 1 {
-					<a href={ templ.SafeURL(pageLink(wsSlug, machine.ID, opts, opts.Page-1)) } class="hover:text-slate-800">← Prev</a>
-				} else {
-					<span class="text-slate-300">← Prev</span>
-				}
-				<span>Page { fmt.Sprintf("%d", opts.Page) } of { fmt.Sprintf("%d", opts.TotalPages) }</span>
-				if opts.Page < opts.TotalPages {
-					<a href={ templ.SafeURL(pageLink(wsSlug, machine.ID, opts, opts.Page+1)) } class="hover:text-slate-800">Next →</a>
-				} else {
-					<span class="text-slate-300">Next →</span>
-				}
-			</div>
-		}
+		@paginationBar(wsSlug, machine.ID, opts)
+	}
+}
+
+// searchBox (CAP-V08) is List's own free-text search input -- extracted
+// (composable-runtime-roadmap.md 17f) so ComposablePreview can reuse the
+// identical markup instead of a lookalike, the same "reuse, don't
+// re-derive" posture 17e already established for RecordSummaryCard/
+// StatusBadge/Avatar.
+templ searchBox(wsSlug, machineID, query string) {
+	<form method="get" action={ templ.SafeURL("/" + wsSlug + "/" + machineID) } class="flex items-center">
+		<input
+			type="search"
+			name="q"
+			value={ query }
+			placeholder="Search..."
+			class="w-48 rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+		/>
+	</form>
+}
+
+// paginationBar (CAP-R05) is List's own Prev/Next pager -- extracted
+// (composable-runtime-roadmap.md 17f) for the same reuse reason as
+// searchBox. Renders nothing when opts.TotalPages <= 1.
+templ paginationBar(wsSlug, machineID string, opts ListViewOptions) {
+	if opts.TotalPages > 1 {
+		<div class="mt-4 flex items-center justify-center gap-4 text-sm text-slate-500">
+			if opts.Page > 1 {
+				<a href={ templ.SafeURL(pageLink(wsSlug, machineID, opts, opts.Page-1)) } class="hover:text-slate-800">← Prev</a>
+			} else {
+				<span class="text-slate-300">← Prev</span>
+			}
+			<span>Page { fmt.Sprintf("%d", opts.Page) } of { fmt.Sprintf("%d", opts.TotalPages) }</span>
+			if opts.Page < opts.TotalPages {
+				<a href={ templ.SafeURL(pageLink(wsSlug, machineID, opts, opts.Page+1)) } class="hover:text-slate-800">Next →</a>
+			} else {
+				<span class="text-slate-300">Next →</span>
+			}
+		</div>
 	}
 }
 

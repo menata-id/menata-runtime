@@ -24,13 +24,34 @@ import "menata.id/app/internal/model"
 // HTML comment -- untested territory for this codebase's .templ files) so
 // it's inspectable via the response body without server-log access. Empty
 // when the plan could not be built; renders nothing in that case.
-templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, planExplain string) {
+//
+// composable-runtime-roadmap.md 17f: opts now carries real search/
+// pagination state (SearchQuery/Page/TotalPages/Cards), reusing List's
+// own searchBox/paginationBar templ components directly (list.templ,
+// same package) rather than lookalike markup -- the same "reuse, don't
+// re-derive" posture 17e already established. Only rendered when
+// opts.Cards (i.e. this machine actually has a cards-display View);
+// the 17c fallback (no cards view at all) shows neither, since there is
+// nothing real to search or paginate in that case.
+templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, opts ListViewOptions, planExplain string) {
 	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
-		<div class="mb-4">
-			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
-			<p class="mt-1 inline-block rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700">
-				Composable substrate preview — same card rendering as the real cards view.
-			</p>
+		<div class="mb-4 flex items-center gap-3">
+			<h1 class="flex-1 text-xl font-semibold text-slate-900">
+				{ viewName }
+				<span class="ml-2 inline-block rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-normal text-amber-700">Composable preview</span>
+			</h1>
+			if opts.Cards {
+				@searchBox(wsSlug, machine.ID, opts.SearchQuery)
+				<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/export.csv") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">Export</a>
+				<a href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/import") } class="text-sm text-slate-500 hover:text-slate-700 transition-colors">Import</a>
+				<a
+					href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/new") }
+					class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+				>
+					<span>+</span>
+					<span>New</span>
+				</a>
+			}
 		</div>
 		if planExplain != "" {
 			<div class="hidden" data-composable-plan={ planExplain }></div>
@@ -50,6 +71,9 @@ templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdm
 				</div>
 			}
 		</div>
+		if opts.Cards {
+			@paginationBar(wsSlug, machine.ID, opts)
+		}
 	}
 }
 

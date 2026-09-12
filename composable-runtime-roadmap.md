@@ -1149,6 +1149,64 @@ not modified by this change at all.
 
 ---
 
+# 17f. Full Functional Equivalence — Search, Sort, Pagination (2026-09-12)
+
+**Not one of the original 14 phases** — continues closing §2a rule 6's own cutover precondition
+one dimension further than 17e: a real cutover needs the whole PAGE to behave equivalently, not
+just one card's own visual shape. Grounded directly against the real code before starting (two
+Explore passes, not assumed): the real List handler (`record_crud.go`) also does sort, free-text
+search (`?q=`), and pagination (`?page=`, 25/page), none of which `/composable-preview` did
+before this session.
+
+**Two categories of suspected gap turned out NOT to be gaps at all, once actually checked** —
+the same "grounding pays off" lesson 17e's own StatusBadge discovery already taught:
+
+- **Archive/Restore/Move-up/down buttons** live *only* inside `list.templ`'s own `else` branch
+  of `if opts.Cards { @listCards(...) } else { <table>...buttons...</table> }` — cards mode
+  never renders them, for any role, on any machine. Not deferred; structurally inapplicable to a
+  cards-display page by the real feature's own design, worth recording as a general fact (not
+  just true for this one page).
+- **The "View Archive" toggle** (gated on `opts.CanDelete`) is unreachable on
+  `mch_approval_document` regardless: no permission row for any of its three roles (`Submitter`,
+  `System`, `Approver`) sets `can_delete` — it stays the migration default `false`. No real,
+  observable target exists to prove equivalence against, so — per "prove, don't assume" — this
+  stays deferred rather than built unprovably.
+
+**What was built:** three functions extracted verbatim from `record_crud.go`'s own `List` into a
+new file, `internal/handler/list_query.go` (not grown further into `record_crud.go` itself,
+already over Gate 2's own LOC budget — `sortFieldFor`, `searchListRecords`,
+`paginateListRecords`), and two templ components extracted verbatim from `list.templ`'s own
+`List` (`searchBox`, `paginationBar`, reusing the already-package-level `pageLink` unchanged).
+`List` itself now calls all five instead of its own inline code/markup — a pure, behavior-
+preserving refactor (verified by the full existing suite staying green, not a new test
+re-proving `List` itself). `ComposablePreview`/`resolveComposableCardSummaries`
+(`composable_preview.go`) now call the same five: `sortFieldFor(view)` replaces the `"",""`
+literal `RecordStore.List` previously received (correct for `vw_ad_all` only by coincidence
+before this), `searchListRecords`/`paginateListRecords` run in the same filter → search →
+paginate order `List` already uses, and `composable_preview.templ` calls the same
+`searchBox`/`paginationBar` plus the three `Export`/`Import`/`New` chrome links, gated on
+`opts.Cards` so the 17c no-cards-view fallback shows neither (nothing real to search/paginate
+there).
+
+**Proof:** T270 (a matching `?q=` keeps a freshly created record, a non-matching one excludes
+it) and T271 (`?page=999`, after creating 26 fresh records to guarantee more than one real page
+regardless of the rest of the suite's own incidental accumulation, clamps to the real last page
+with real content, not an empty/error response) — both prove genuine wiring, not merely code
+that compiles. Full suite: 277 passed, 0 failed (`./scripts/local-ci.sh`) — no regression
+(confirming the `List`/`list.templ` refactor is behavior-preserving), three net new tests.
+
+**Not done here** (explicitly deferred, not silently skipped): sort's own behavioral change is
+unobservable on `vw_ad_all` specifically (its `DefaultSort` already coincided with the old
+`"",""` behavior) — stated honestly rather than manufacturing a misleading assertion; the fix is
+structural correctness for any OTHER cards-display View with a different `DefaultSort`, not
+provable on this one page. Archive/Restore/Move/Archived-toggle remain out of scope per Context
+above. **Actual cutover of the real List route remains untouched and undecided** — §2a rule 6
+still treats it as its own separate, later decision, even now that both visual (17e) and
+functional (17f) equivalence are proven for this one page; `record_crud.go`'s own route
+registration is not touched, only its internals refactored.
+
+---
+
 # 18. Phase 14 — Production Hardening
 
 Only after real trial workloads:

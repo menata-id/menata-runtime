@@ -76,15 +76,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if archived {
 		records, err = h.records.ListArchived(r.Context(), machineID)
 	} else {
-		sortField, sortDir := "", ""
-		if view != nil && view.Config.ManualOrder {
-			// CAP-V14 wins over DefaultSort when both are declared on the same
-			// View -- manual order only means anything if it's what's actually
-			// shown.
-			sortField = store.SortOrderField
-		} else if view != nil && view.Config.DefaultSort != nil {
-			sortField, sortDir = view.Config.DefaultSort.Field, view.Config.DefaultSort.Direction
-		}
+		sortField, sortDir := sortFieldFor(view)
 		records, err = h.records.List(r.Context(), machineID, sortField, sortDir)
 	}
 	if err != nil {
@@ -98,54 +90,15 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	// CAP-V08: free-text search across this View's visible columns, ?q=.
 	// Substring, case-insensitive, HTTP black-box (a plain GET query param,
-	// no JS) -- matches this prototype's no-SPA-framework posture.
+	// no JS) -- matches this prototype's no-SPA-framework posture. See
+	// searchListRecords's own doc comment.
 	searchQuery := strings.TrimSpace(r.URL.Query().Get("q"))
-	if searchQuery != "" {
-		q := strings.ToLower(searchQuery)
-		kept := records[:0]
-		for _, rec := range records {
-			match := false
-			for _, id := range colIDs {
-				if v, ok := rec.Data[id]; ok && strings.Contains(strings.ToLower(fmt.Sprintf("%v", v)), q) {
-					match = true
-					break
-				}
-			}
-			if match {
-				kept = append(kept, rec)
-			}
-		}
-		records = kept
-	}
+	records = searchListRecords(searchQuery, colIDs, records)
 
-	// CAP-R05: pagination applies AFTER filter/search, on the final matching
-	// set, not as a SQL LIMIT/OFFSET before them -- otherwise a filter could
-	// discard most of one SQL page and never see matching rows sitting on
-	// the next one. In-memory slicing costs nothing extra at this
-	// prototype's scale, the same tradeoff CAP-V08/V09's own in-memory
-	// filtering already made.
-	const pageSize = 25
-	pageNum, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	if pageNum < 1 {
-		pageNum = 1
-	}
-	totalRecords := len(records)
-	totalPages := (totalRecords + pageSize - 1) / pageSize
-	if totalPages < 1 {
-		totalPages = 1
-	}
-	if pageNum > totalPages {
-		pageNum = totalPages
-	}
-	start := (pageNum - 1) * pageSize
-	end := start + pageSize
-	if start > totalRecords {
-		start = totalRecords
-	}
-	if end > totalRecords {
-		end = totalRecords
-	}
-	records = records[start:end]
+	// CAP-R05: pagination applies AFTER filter/search -- see
+	// paginateListRecords's own doc comment for why.
+	var pageNum, totalPages int
+	records, pageNum, totalPages = paginateListRecords(records, r.URL.Query().Get("page"))
 
 	rows := h.buildListRows(r, cols, colIDs, fieldByID, view, records)
 
