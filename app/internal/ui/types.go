@@ -379,6 +379,40 @@ type BoardLane struct {
 	ID   string
 	Name string
 	Rows []ListRow
+
+	// CardMeta (17q), when non-nil, is one entry per Rows entry, same
+	// index -- Board's own opt-in per-card metadata (label chips, member
+	// avatars, checklist progress, due date), driven by
+	// model.ViewConfig.CardMeta. nil for every Board that doesn't declare
+	// it (every existing seeded Board renders exactly as before).
+	CardMeta []BoardCardMeta
+}
+
+// BoardCardMeta (17q) is one card's own opt-in metadata on a Board --
+// see model.BoardCardMetaConfig for where each piece comes from. Every
+// field is independently optional: Labels/AvatarInitials nil, Progress/
+// DueDate "" simply render nothing for that piece.
+type BoardCardMeta struct {
+	Labels  []BoardLabelChip
+	// MemberNames holds raw display names, not pre-computed initials --
+	// same handler/ui-package division of labor memberInitials/initials()
+	// already establish (admin.templ's own AvatarStack call site): the
+	// handler never computes initials itself, only the ui package does,
+	// from within a templ.
+	MemberNames []string
+	Progress    string // e.g. "3/6"; "" = not shown
+	DueDate     string // formatted date; "" = not shown
+}
+
+// BoardLabelChip (17q) is one colored label tag -- Color is a closed
+// palette key (the LabelChip templ, components.templ, switches on it),
+// matching StatusBadge/SlaBadge's own established closed-switch
+// convention rather than free-form CSS. Named distinctly from the
+// LabelChip templ itself -- Go doesn't allow a type and a templ-generated
+// function to share one identifier in the same package.
+type BoardLabelChip struct {
+	Name  string
+	Color string
 }
 
 // DashboardTile (CAP-V10) is one section of a composed dashboard View --

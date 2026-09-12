@@ -26,13 +26,14 @@ type HiddenField struct {
 // session state: every prior step's answer travels as a hidden input on
 // each subsequent step's page, so the browser IS the state.
 //
-// childLines (CAP-F16, added 2026-09-09) is non-nil only on the FINAL step
-// -- the caller's own responsibility, this templ doesn't check stepIndex
-// itself. The two mechanisms were already compatible at the data layer
-// (record_crud.go's Create reads fv.Config.ChildLines unconditionally,
-// wizard or not); this was the only piece actually missing -- see
-// capability-registry.md's CAP-V12 row, "Gap found 2026-09-08."
-func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, stepIndex, totalSteps int, fields []FormField, hidden []HiddenField, childLines *ChildLinesData, errors []string, unreadCount int, subNav []SubNavLink) templ.Component {
+// childLinesGroups (CAP-F16, added 2026-09-09; plural since 17q) is
+// non-empty only on the FINAL step -- the caller's own responsibility, this
+// templ doesn't check stepIndex itself. The two mechanisms were already
+// compatible at the data layer (record_crud.go's Create reads every
+// ChildLines block unconditionally, wizard or not); this was the only piece
+// actually missing -- see capability-registry.md's CAP-V12 row, "Gap found
+// 2026-09-08."
+func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, stepIndex, totalSteps int, fields []FormField, hidden []HiddenField, childLinesGroups []*ChildLinesData, errors []string, unreadCount int, subNav []SubNavLink) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -72,7 +73,7 @@ func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 			var templ_7745c5c3_Var3 templ.SafeURL
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machine.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 31, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 32, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -85,7 +86,7 @@ func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(machine.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 32, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 33, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -98,7 +99,7 @@ func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", stepIndex+1))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 34, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 35, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -111,7 +112,7 @@ func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", totalSteps))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 34, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 35, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -134,7 +135,7 @@ func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(e)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 42, Col: 14}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 43, Col: 14}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
@@ -157,7 +158,7 @@ func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 			var templ_7745c5c3_Var8 templ.SafeURL
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machine.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 48, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 49, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -178,7 +179,7 @@ func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("%d", stepIndex))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 50, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 51, Col: 81}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 			if templ_7745c5c3_Err != nil {
@@ -196,7 +197,7 @@ func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(h.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 52, Col: 40}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 53, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 				if templ_7745c5c3_Err != nil {
@@ -209,7 +210,7 @@ func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(h.Value)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 52, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 53, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 				if templ_7745c5c3_Err != nil {
@@ -226,10 +227,12 @@ func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 					return templ_7745c5c3_Err
 				}
 			}
-			if childLines != nil {
-				templ_7745c5c3_Err = ChildLinesSection(childLines.Title, childLines.Rows, childLines.SumFieldA, childLines.SumFieldALabel, childLines.SumFieldB, childLines.SumFieldBLabel).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
+			for _, cl := range childLinesGroups {
+				if cl != nil {
+					templ_7745c5c3_Err = ChildLinesSection(cl.Title, cl.Rows, cl.SumFieldA, cl.SumFieldALabel, cl.SumFieldB, cl.SumFieldBLabel).Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
 				}
 			}
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"flex items-center gap-3 border-t border-slate-100 pt-5\"><button type=\"submit\" class=\"inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors\">")
@@ -254,7 +257,7 @@ func WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool,
 			var templ_7745c5c3_Var12 templ.SafeURL
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machine.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 71, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/wizard.templ`, Line: 74, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {

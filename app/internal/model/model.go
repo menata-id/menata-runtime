@@ -832,6 +832,18 @@ type ViewConfig struct {
 	Display     string             `json:"display,omitempty"`      // list: CAP-V02 Tier 2 -- "" (table, default) | "cards" (RecordSummaryCard-shaped rows, same Columns underneath)
 	DefaultSort *SortConfig        `json:"default_sort,omitempty"` // list: initial sort
 	ChildLines  *ChildLinesConfig  `json:"child_lines,omitempty"`  // form: CAP-F16 embedded child rows
+	// ChildLinesGroups (17q) is ChildLines' plural sibling -- a Form was
+	// hard-limited to ONE embedded child-Machine block (this same struct's
+	// own ChildLines field, a single pointer) until Case 19's Card Form
+	// needed three (Checklist, Members, Labels) at once. Additive: every
+	// existing seed using the singular ChildLines field (008/027/044/047/
+	// 052) is untouched and keeps rendering exactly as before; this field
+	// is simply looped alongside it wherever ChildLines is read. Each entry
+	// is independent -- same validate/insert/render logic as the singular
+	// field, just once per entry. ChildLinesTemplate (CAP-V28) stays scoped
+	// to the singular ChildLines slot only; no forcing case yet for a
+	// templated group.
+	ChildLinesGroups []ChildLinesConfig `json:"child_lines_groups,omitempty"`
 	Filter      []FilterCondition  `json:"filter,omitempty"`       // list: CAP-V09 declarative row filter, CAP-V05 "my records" via $current_user
 	DateField   string             `json:"date_field,omitempty"`   // calendar/timeline: CAP-V07, the date field grouped/ordered on
 	Report      *ReportConfig      `json:"report,omitempty"`       // report: CAP-V13
@@ -863,6 +875,14 @@ type ViewConfig struct {
 	// Lists" model: lanes are the Field's own fixed option set, not a
 	// second CRUD surface -- see capability-registry.md's CAP-V14 row.
 	GroupField string `json:"group_field,omitempty"`
+
+	// CardMeta (17q) is Board's own opt-in per-card rendering config --
+	// same posture as SlaField/ResourceField above: a small, explicit,
+	// per-View key, not automatic detection. nil for every Board that
+	// doesn't declare it (every existing seeded Board -- Kanban Lab's own
+	// vw_kbt_board included -- keeps rendering byte-identical). See
+	// BoardCardMetaConfig's own doc comment.
+	CardMeta *BoardCardMetaConfig `json:"card_meta,omitempty"`
 
 	// CoordPlacement (CAP-V21) configures a "coord_placement" View -- see
 	// CoordPlacementConfig's own doc comment.
@@ -1094,6 +1114,47 @@ type ChildLinesTemplateConfig struct {
 	ChildParentField   string            `json:"child_parent_field"`
 	ChildSequenceField string            `json:"child_sequence_field"`
 	ChildFieldMap      map[string]string `json:"child_field_map"`
+}
+
+// BoardCardMetaConfig (17q) names, per relationship, which already-
+// discoverable reverse-reference Machine to read and which ONE field on
+// it is the ambiguous piece a generic scan can't infer -- "which Machine
+// points back at me" is already generic (the same CAP-V06 `childLists`
+// convention: found by scanning for a `reference` field targeting this
+// Board's own Machine, never asked for explicitly here); "which field on
+// that Machine is the label/member/done flag" is the one thing metadata
+// must actually name, the same class of explicitness CAP-V15's own
+// SumFieldA/SumFieldB already uses. Composes entirely from already-
+// supported Grammar (Machine/Field/Reference/user field/CAP-O02
+// master-data) -- no capability-lifecycle.md admission needed, same
+// posture CAP-V17's SLA badge set already established for a render-time
+// visual enhancement to an existing View type.
+type BoardCardMetaConfig struct {
+	// Labels: LabelsMachine is a join Machine (its own reference-back-to-
+	// this-Board's-Machine field is discovered automatically); its own
+	// LabelsRefField is the OTHER reference field on that join row,
+	// pointing at the actual Label record; LabelsNameField/LabelsColorField
+	// name that Label Machine's own display fields.
+	LabelsMachine    string `json:"labels_machine,omitempty"`
+	LabelsRefField   string `json:"labels_ref_field,omitempty"`
+	LabelsNameField  string `json:"labels_name_field,omitempty"`
+	LabelsColorField string `json:"labels_color_field,omitempty"`
+
+	// Members: MembersMachine is a join Machine (reference-back field
+	// discovered automatically); MembersUserField is that join row's own
+	// `user`-typed field.
+	MembersMachine   string `json:"members_machine,omitempty"`
+	MembersUserField string `json:"members_user_field,omitempty"`
+
+	// Progress: ProgressMachine is a child Machine (reference-back field
+	// discovered automatically); ProgressDoneField is that child row's own
+	// `boolean` field, rendered as "done/total".
+	ProgressMachine   string `json:"progress_machine,omitempty"`
+	ProgressDoneField string `json:"progress_done_field,omitempty"`
+
+	// DueDateField names a plain `date`-typed Field on THIS (Board's own)
+	// Machine -- no reverse-reference hop needed, just a direct read.
+	DueDateField string `json:"due_date_field,omitempty"`
 }
 
 // SortConfig defines the default sort order for a list view.

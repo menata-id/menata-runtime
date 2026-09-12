@@ -492,7 +492,7 @@ func (h *Handler) NewForm(w http.ResponseWriter, r *http.Request) {
 	// CAP-V12: a FormView declaring Steps renders as a multi-step wizard
 	// instead of the single Form -- step 0, no carried-forward values yet.
 	if fv := h.interp.Get().FormView(machine.ID); fv != nil && len(fv.Config.Steps) > 0 {
-		var childLines *ui.ChildLinesData
+		var childLines []*ui.ChildLinesData
 		if len(fv.Config.Steps) == 1 { // CAP-F16: step 0 is also the final step
 			childLines = h.buildChildLinesData(r.Context(), machine)
 		}
@@ -558,7 +558,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			a := h.auth(r)
-			var childLines *ui.ChildLinesData
+			var childLines []*ui.ChildLinesData
 			if step+2 == len(fv.Config.Steps) { // CAP-F16: step+1 is the final step
 				childLines = h.buildChildLinesData(r.Context(), machine)
 			}
@@ -684,19 +684,20 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	// CAP-F16: a form with embedded child rows validates them together with
 	// the parent -- one combined violations list, so a bad child row blocks
 	// the whole submission exactly like a bad parent field would, before
-	// anything (parent or child) is written.
-	var childLines *model.ChildLinesConfig
-	var childRowsData []map[string]any
-	if fv != nil {
-		childLines = fv.Config.ChildLines
-	}
-	if childLines != nil {
-		rows, rowViolations, err := h.validateChildRows(r.Context(), r, childLines)
+	// anything (parent or child) is written. Loops over every block the
+	// FormView declares (the singular ChildLines field plus every
+	// ChildLinesGroups entry, 17q) -- unchanged behavior for the 5 existing
+	// single-block seeds, since childLinesConfigs returns exactly one entry
+	// for those.
+	childLinesBlocks := childLinesConfigs(fv)
+	childRowsByBlock := make([][]map[string]any, len(childLinesBlocks))
+	for i, cl := range childLinesBlocks {
+		rows, rowViolations, err := h.validateChildRows(r.Context(), r, cl)
 		if err != nil {
 			http.Error(w, "failed to validate child rows", http.StatusInternalServerError)
 			return
 		}
-		childRowsData = rows
+		childRowsByBlock[i] = rows
 		violations = append(violations, rowViolations...)
 	}
 
@@ -737,8 +738,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to create record", http.StatusInternalServerError)
 		return
 	}
-	if childLines != nil {
-		if err := h.insertChildRows(r.Context(), childLines, workspaceID, childRowsData, rec.ID); err != nil {
+	for i, cl := range childLinesBlocks {
+		if err := h.insertChildRows(r.Context(), cl, workspaceID, childRowsByBlock[i], rec.ID); err != nil {
 			http.Error(w, "failed to create child rows", http.StatusInternalServerError)
 			return
 		}

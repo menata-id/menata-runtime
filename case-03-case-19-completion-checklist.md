@@ -51,8 +51,8 @@ valid entry point per `app/CLAUDE.md`'s own ui-sample rule).
 
 | # | Screen | Mockup file | Maps to (real) | Classic capability | Composable status | Gap to close |
 |---|---|---|---|---|---|---|
-| 1 | Project board (Kanban) | `project-board.html` | `GET /mch_pm_card/board` (`vw_pmc_board`) | **Built**, CAP-V14 Tier 3, a deliberately narrower cut (`capability-registry.md`'s own row says so) — fixed lane grouping only. Confirmed by direct field check: `mch_pm_card` has exactly `fld_pmc_list` (reference), `fld_pmc_title` (text), `fld_pmc_description` (rich_text) — **no label field, no assignee/member field, no due-date field.** The mockup's own labels/member avatars/checklist-count badge/free-position drag have no backing data to render even if composable supported them. | **Production** for the lane-grouping itself (17n). | Missing Fields (label, assignee, due date) — classic, blocks the mockup regardless of architecture; richer drag semantics (reorder within a lane, not just move between lanes) — classic UI/JS work, unrelated to composable. |
-| 2 | Card detail | `project-card.html` | `GET /mch_pm_card/{id}` (`vw_pmc_detail`) + embedded Checklist (CAP-F16 `ChildLines` on the Card's own Form, CAP-V06 reverse-reference list on Detail) + embedded Activity (17p) | **Built** for description + checklist + activity mechanism. **The activity feed itself always renders empty against today's real data** — `mch_pm_card` has zero declared Events (a fact about this Machine's own metadata, not a flaw in the mechanism). **Not built at all:** assignee (no such Field), position/due-date (no such Field). | **Production** (17o — `Detail` is one shared handler across every Machine, so this route was cut over in the same change as Case 3's own Detail page; `CR-29` closed). | New `user`/assignee Field on `mch_pm_card` (classic, not yet admitted); new date Field for "position"/due date (classic, not yet admitted); at least one real Event on `mch_pm_card` needed before its own activity feed ever shows anything. |
+| 1 | Project board (Kanban) | `project-board.html` | `GET /mch_pm_card/board` (`vw_pmc_board`) | **Done, 2026-09-12 (17q).** Re-grounded directly against the mockup's own real card markup (not the earlier paraphrase above, kept struck through for the record): Labels are shared, reusable, colored (Design/blue, Frontend/emerald, High/rose, QA·Research·UX/violet, Planning/amber) and Members are multi-person per card — both real, both now built. `mch_pm_card` gained `fld_pmc_due_date` (date); two new join Machines (`mch_pm_card_member`, `mch_pm_card_label`) + a new master-data Machine (`mch_pm_label`) close the relationship gaps, composing entirely from already-supported Grammar (checked directly against `capability-lifecycle.md`'s A4 — no admission test needed, see below). Board's own card now renders real colored label chips, member avatars, checklist progress ("N/M"), and the due date (`seeds/057_case19_card_fields.sql`, conformance T291-T295). Still not built: richer drag semantics (reorder within a lane) — classic UI/JS work, unrelated to any of the above, still open. | **Production** for the lane-grouping (17n) AND the new per-card metadata (17q) — both render through the same composable Board route (`boardViaComposable`), the metadata via a new opt-in `CardMeta` Config key (`model.BoardCardMetaConfig`), same "explicit opt-in, not automatic detection" posture `CAP-V17`/`CAP-V18` already established. | Richer drag semantics only — everything else this row named is closed. ~~Missing Fields (label, assignee, due date) — classic, blocks the mockup regardless of architecture~~ (closed, 17q). |
+| 2 | Card detail | `project-card.html` | `GET /mch_pm_card/{id}` (`vw_pmc_detail`) + embedded Checklist (CAP-F16 `ChildLines` on the Card's own Form, CAP-V06 reverse-reference list on Detail) + embedded Activity (17p) + embedded Members/Labels (17q) | **Done, 2026-09-12 (17q).** Due date renders automatically via Detail's own existing generic field loop (zero new Detail code, `CR-29`'s own discipline preserved). Members/Labels render automatically via CAP-V06's existing generic `childLists` — each its own titled reverse-reference section, resolved to REAL names ("Design", "Project Owner"), not raw ids — a real, generic gap in `childLists`' own label resolution was found and fixed the same day (`childListItemLabel`, `formfields.go`): a join Machine with no Text/Number Field used to fall back to the bare record id; it now also tries that row's OTHER `user`/`reference` Field, same "generic by construction" posture `childLists`' own doc comment already claims. **The activity feed itself still always renders empty against today's real data** — `mch_pm_card` has zero declared Events (unchanged, a fact about that Machine's own metadata, not a flaw). | **Production** (17o's Detail cutover, unchanged — Members/Labels/Due date all reach the page through mechanisms 17o/17p already proved, no new composable work needed for this row). | Nothing classic left for this screen. A cosmetic gap remains, named not hidden: Members/Labels render as titled reverse-reference blocks, not the mockup's own compact single `Members: Raka Aditya · Andi Nur` line — deliberately not special-cased into the shared generic Detail handler for one Machine's own layout. |
 | — | Checklist (no mockup file — `case.html`'s own screens array lists this third entry with no linked file) | — | `mch_pm_checklist_item`, embedded via the Card's own Form/Detail | **Built.** | Not composable at all (no pilot, no production — untouched). | Composable representation only, if ever forced. |
 
 ### Exploratory — "composable view explorations" (case-19.html's own label; real, named, but not a hard requirement the way the two core screens are)
@@ -62,7 +62,7 @@ valid entry point per `app/CLAUDE.md`'s own ui-sample rule).
 | 3 | Timeline / Roadmap | `project-timeline.html` | **Not built.** No Timeline-type View declared for any PM Machine. | Needs a new View declaration at minimum; `model.ViewTypeTimeline` already exists generically (used elsewhere, e.g. Action Lab) but has never been wired to Project Management. |
 | 4 | Calendar | `project-calendar.html` | **Not built** for PM. `model.ViewTypeCalendar` exists generically elsewhere. | Needs a date Field on a PM Machine + a real Calendar View declared. |
 | 5 | Sprint Dashboard | `project-dashboard.html` | **Not built.** No Dashboard View declared for any PM Machine. | Needs a Dashboard View declaration; the underlying `DashboardSection` mechanism already exists generically. |
-| 6 | Team Capacity | `project-team.html` | **Not built.** No member/allocation Field or aggregation exists. | Blocked on the same missing assignee Field named in Card Detail's own row above. |
+| 6 | Team Capacity | `project-team.html` | **Not built** — but its own blocker (a real Members relationship) closed 2026-09-12 (17q, see Core row #1/#2). Building the actual capacity/allocation aggregation view itself is separate, unscoped work — a real Members join existing is necessary, not sufficient. | No longer blocked on a missing Field; still needs a real Dashboard/aggregation View declared against `mch_pm_card_member`, plus admission if that aggregation shape is new. |
 | 7 | Workflow Automation | `project-automation.html` | **Partially built** — Events/Actions (CAP-E*/CAP-A*) exist as a generic mechanism; no PM-specific automation authoring screen exists. | Needs a UI surfacing trigger→condition→action specifically for PM, if ever admitted — not a data-model gap, a UI-surface one. |
 | 8 | Board Settings | `project-settings.html` | **Not built.** No dedicated settings screen; Permissions exist generically (real `Permission` records) but with no UI matching this mockup's own statuses/labels/custom-fields/permissions grouping. | Needs a real settings screen; the underlying Permission mechanism it would configure already exists. |
 
@@ -74,9 +74,13 @@ valid entry point per `app/CLAUDE.md`'s own ui-sample rule).
   Positions (screen 2) also remains untouched. Every screen still has at least one real, classic
   (non-composable) gap against its own ui-sample mockup.
 - **Case 19:** both core screens now have a real composable slice (Board's lane-grouping, Card
-  Detail as of 17o). Both core screens are still missing real Fields (label, assignee, due date)
-  that block matching the mockup regardless of architecture. All 6 exploratory screens are
-  entirely unbuilt in classic code — composable status does not even apply to them yet.
+  Detail as of 17o). **Status update (2026-09-12, 17q):** both core screens' own remaining Field
+  gaps (label, member, due date) are closed too — Labels/Members/Due Date all render real, on both
+  Board and Card Detail, matching the mockup's own real Trello-shaped multi-value relationships.
+  Only richer drag semantics (screen 1) and the compact single-line Detail layout (screen 2,
+  cosmetic) remain open for the two core screens. All 6 exploratory screens are still entirely
+  unbuilt in classic code — composable status does not even apply to them yet (Team Capacity,
+  screen 6, is unblocked as of 17q but still unbuilt itself).
 - **Shared blocker, closed 2026-09-12 (17p):** CAP-R04 (activity/history timeline, "R28") is
   admitted and built — real for Case 3's own two screens (Approval inbox's Detail history,
   Approval dashboard's Recent Activity), mechanically real but legitimately empty for Case 19's
@@ -97,8 +101,20 @@ Staged so each stage only depends on the one before it.
    scoped via CAP-V20, cross-record via CAP-V10 Tier 2). Case 19's own feed stays honestly empty
    pending real Events on `mch_pm_card` (not a flaw in this capability). No field-diff between
    snapshots yet — named, deferred.
-3. **Close Case 19's core-screen Field gaps** — assignee/member Field, label Field, due-date Field
-   on `mch_pm_card` (also admission-gated). Unblocks Team Capacity (screen 6) as a side effect.
+3. ~~**Close Case 19's core-screen Field gaps** — assignee/member Field, label Field, due-date
+   Field on `mch_pm_card` (also admission-gated).~~ **Done, 2026-09-12 (17q)** — re-grounded
+   directly against `project-board.html`/`project-card.html`'s own real markup first (Members and
+   Labels are both real MULTI-value, Trello-shaped relationships, not single-value Fields as this
+   line originally assumed). **Correction on "admission-gated":** checked `capability-lifecycle.md`
+   §2's A4 directly rather than assuming — every piece composes entirely from already-Supported
+   Grammar (a plain date Field; two join Machines reusing CAP-V06's existing generic
+   reverse-reference discovery; a master-data Machine reusing CAP-O02's existing pattern), which is
+   exactly what A4 excludes from "new capability" — no admission test was actually run or needed.
+   One real capability WAS extended (registered by citation on its own existing row, not a fresh
+   one, same posture `CAP-V17` already used): `CAP-F16` (`ChildLines` → plural `ChildLinesGroups`,
+   a Form can now embed more than one child-row block) and `CAP-V14` (Board gains an opt-in
+   `CardMeta` rendering key). Unblocked Team Capacity (screen 6) as a side effect — the real
+   relationship now exists, though the screen itself is still unbuilt.
 4. **New View types for Case 19's remaining exploratory screens** — Timeline, Calendar, Dashboard
    (screens 3-5), each admission-gated, each usable generically once built (not PM-specific code).
 5. **Automation/Settings screens** (7-8) — UI-surface work over already-existing generic

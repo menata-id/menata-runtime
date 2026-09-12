@@ -18,13 +18,14 @@ type HiddenField struct {
 // session state: every prior step's answer travels as a hidden input on
 // each subsequent step's page, so the browser IS the state.
 //
-// childLines (CAP-F16, added 2026-09-09) is non-nil only on the FINAL step
-// -- the caller's own responsibility, this templ doesn't check stepIndex
-// itself. The two mechanisms were already compatible at the data layer
-// (record_crud.go's Create reads fv.Config.ChildLines unconditionally,
-// wizard or not); this was the only piece actually missing -- see
-// capability-registry.md's CAP-V12 row, "Gap found 2026-09-08."
-templ WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, stepIndex, totalSteps int, fields []FormField, hidden []HiddenField, childLines *ChildLinesData, errors []string, unreadCount int, subNav []SubNavLink) {
+// childLinesGroups (CAP-F16, added 2026-09-09; plural since 17q) is
+// non-empty only on the FINAL step -- the caller's own responsibility, this
+// templ doesn't check stepIndex itself. The two mechanisms were already
+// compatible at the data layer (record_crud.go's Create reads every
+// ChildLines block unconditionally, wizard or not); this was the only piece
+// actually missing -- see capability-registry.md's CAP-V12 row, "Gap found
+// 2026-09-08."
+templ WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, stepIndex, totalSteps int, fields []FormField, hidden []HiddenField, childLinesGroups []*ChildLinesData, errors []string, unreadCount int, subNav []SubNavLink) {
 	@Page("New "+machine.Name, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mx-auto max-w-xl">
 			<div class="mb-5 flex items-center gap-3">
@@ -54,8 +55,10 @@ templ WizardForm(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool
 					for _, ff := range fields {
 						@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel, ff.LivePreviewURL, ff.LivePreviewField, ff.LivePreviewLabel, ff.TemplateLookupURL)
 					}
-					if childLines != nil {
-						@ChildLinesSection(childLines.Title, childLines.Rows, childLines.SumFieldA, childLines.SumFieldALabel, childLines.SumFieldB, childLines.SumFieldBLabel)
+					for _, cl := range childLinesGroups {
+						if cl != nil {
+							@ChildLinesSection(cl.Title, cl.Rows, cl.SumFieldA, cl.SumFieldALabel, cl.SumFieldB, cl.SumFieldBLabel)
+						}
 					}
 					<div class="flex items-center gap-3 border-t border-slate-100 pt-5">
 						<button

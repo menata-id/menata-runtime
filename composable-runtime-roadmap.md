@@ -1969,6 +1969,86 @@ discipline, not just three one-off SQL mistakes:
 
 ---
 
+# 17q. Case 19 Trello-Style Card Fields — Members, Labels, Due Date (2026-09-12)
+
+**Not a composable increment — a classic-capability increment**, same reason 17p was brief:
+`case-03-case-19-completion-checklist.md`'s own Stage 3, closing Case 19's real Field gaps against
+`project-board.html`/`project-card.html` (ui-sample, re-checked directly this same conversation
+after a direct owner instruction to ground against the mockup and make Project Management "look
+like Trello," not the checklist's own earlier, more cautious paraphrase).
+
+**Re-grounded directly, found real, corrected without assuming:** the checklist's own Stage 3
+wording ("assignee Field", "label Field") implied single-value Fields. Checking
+`project-card.html`'s own real markup directly shows BOTH Members ("Raka Aditya · Andi Nur") and
+Labels ("Frontend · Sprint 4") are genuinely multi-value, Trello-shaped relationships, and
+`project-board.html`'s own card markup confirms Labels are a shared, reusable, COLORED entity
+(Design/blue, Frontend/emerald, High/rose, QA·Research·UX/violet, Planning/amber — the same name
+always the same color across every card). Checked `capability-lifecycle.md` §2's A4
+(non-composability) directly rather than assuming admission was needed (the checklist's own
+"(also admission-gated)" note, now corrected there): every piece composes entirely from
+already-Supported Grammar — a plain `date` Field; two join Machines (`mch_pm_card_member`,
+`mch_pm_card_label`) reusing CAP-V06's already-generic reverse-reference discovery, the same
+shape `mch_pm_checklist_item` already uses; a master-data Machine (`mch_pm_label`) reusing
+CAP-O02's existing pattern. No admission test was run because none was needed.
+
+**Real mechanism limit found first, changed the approach:** `ViewConfig.ChildLines` (CAP-F16) was
+a single block per Form, confirmed by reading all 4 real call sites and the 5 existing seeds using
+it — `vw_pmc_form` already used that one slot for Checklist, so Members/Labels needed a second
+mechanism, not a third use of the same slot. Added an additive plural sibling,
+`ChildLinesGroups []ChildLinesConfig`, looped alongside the existing singular field everywhere
+it's read (`formfields.go`, `record_crud.go`'s Create) — every pre-existing single-block seed is
+untouched.
+
+**What was built:**
+- `fld_pmc_due_date` (date) directly on `mch_pm_card` — renders automatically via Detail's own
+  existing generic field loop (CR-29/17o), zero new Detail code.
+- `mch_pm_label` (master-data, Name + Color) and two join Machines
+  (`mch_pm_card_member`/`mch_pm_card_label`) — Members/Labels render automatically on Card Detail
+  via CAP-V06's existing generic `childLists`, zero new Detail code.
+- `ChildLinesGroups` (CAP-F16 plural) wired into `vw_pmc_form` — the real Card Form now authors
+  Checklist, Member, and Label rows atomically in one submission.
+- Board's own opt-in `ViewConfig.CardMeta` key (`model.BoardCardMetaConfig`) — same "explicit
+  opt-in Config key, not automatic detection" posture `CAP-V17`/`CAP-V18` already established, to
+  avoid silently changing any of the ~29 other seeded lab Boards/Lists. `boardViaComposable` now
+  renders real colored label chips, member avatars (reusing the already-built, already-wired
+  `AvatarStack`), checklist progress ("N/M", counted from the same real Checklist Item rows,
+  not re-rendered as a list), and the due date, per card.
+- **Real generic bug found and fixed along the way, not Card-specific:** `childLists`' own label
+  resolution (`displayLabel`) falls back to the bare record id when a reverse-referencing Machine
+  has neither a Text nor a Number Field — exactly `mch_pm_card_label`/`mch_pm_card_member`'s own
+  shape. New `childListItemLabel` tries that row's OTHER `user`/`reference` Field next before
+  falling back to the id — Card Detail now shows "Design"/"Project Owner", not raw UUIDs.
+
+**Explicitly out of scope, named not silently dropped:** richer drag semantics (reorder within a
+lane); the mockup's own compact single-line Detail layout for Members/Labels (renders as titled
+reverse-reference blocks instead — deliberately not special-cased into the shared generic Detail
+handler for one Machine's own layout, same discipline CR-29 established); Attachments/Comments;
+Team Capacity's own aggregation view (unblocked as a side effect, not built); any
+`internal/composable` representation for any of this (classic-only, same "build classic, then cut
+over" sequencing every prior stage used).
+
+**Proof:** conformance T291-T301 (`conformance/tests/245_case19_card_fields.sh`) — real colored
+label chips, real checklist progress, real due date, real member avatars on the real Board card;
+real resolved (non-UUID) names on Card Detail's reverse-reference sections; the real Card Form
+renders and atomically persists all three ChildLines blocks; and T301 directly proves Kanban Lab's
+own Tier 2 board (no `CardMeta` declared) renders with none of this new markup at all — the
+opt-in key is a genuine no-op elsewhere, not automatic detection.
+
+**Deployed live**, same as every prior increment: seeded the real dev DB (no new migration needed
+— Machines/Fields/Views are metadata rows), rebuilt, restarted via
+`/root/scripts/server-manager.sh restart menata-runtime`. `case-03-case-19-completion-checklist.md`
+updated — Stage 3 closed, the "(also admission-gated)" note corrected with the A4 finding;
+`capability-registry.md` cites this on `CAP-F16`, `CAP-V14 Tier 3`, and `CAP-V06`'s own existing
+rows; `docs/ui-component-library.md`'s `AvatarStack` row gains its new call site.
+
+**Verification:** `go build`/`go vet`/`go test ./...` (isolated schema), all 5 quality gates (two
+deliberate LOC baseline bumps on `formfields.go`, 556→646, both cited in that file's own new doc
+comments; no complexity baseline bumps — every new function that first came in over threshold was
+split back under it instead), and `./scripts/local-ci.sh` — 307 passed, 0 failed (296 + new
+T291-T301).
+
+---
+
 # 18. Phase 14 — Production Hardening
 
 Only after real trial workloads:

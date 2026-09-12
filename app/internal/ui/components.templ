@@ -45,6 +45,28 @@ templ SlaBadge(label, urgency string) {
 	}
 }
 
+// LabelChip (17q) renders one Trello-style colored label tag on a Board
+// card -- Color is a closed palette (model.BoardCardMetaConfig's own
+// LabelsColorField, read directly off a real seeded Label record), same
+// closed-switch convention StatusBadge/SlaBadge above already use rather
+// than a free-form CSS class.
+templ LabelChip(name, color string) {
+	switch color {
+	case "blue":
+		<span class="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">{ name }</span>
+	case "emerald":
+		<span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">{ name }</span>
+	case "amber":
+		<span class="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">{ name }</span>
+	case "rose":
+		<span class="rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">{ name }</span>
+	case "violet":
+		<span class="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">{ name }</span>
+	default:
+		<span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">{ name }</span>
+	}
+}
+
 // viewNavPill (CAP-O03 Tier 3) renders a segmented pill switching between a
 // Machine's own collection-level View types (List/Report/Board/Calendar/
 // Timeline) -- the within-Machine nav axis, distinct from subNavBar's

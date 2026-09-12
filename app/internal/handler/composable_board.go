@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -62,7 +64,8 @@ func (h *Handler) boardViaComposable(w http.ResponseWriter, r *http.Request, mac
 		http.Error(w, "failed to resolve board lanes", http.StatusInternalServerError)
 		return
 	}
-	lanes, err := buildComposableBoardLanes(machine, composableLanes, cardRecs, laneRecs, laneMachine, colIDs)
+	cardMeta := h.buildBoardCardMeta(r.Context(), machine, view.Config.CardMeta, cardRecs)
+	lanes, err := buildComposableBoardLanes(machine, composableLanes, cardRecs, laneRecs, laneMachine, colIDs, cardMeta)
 	if err != nil {
 		http.Error(w, "failed to build board lanes", http.StatusInternalServerError)
 		return
@@ -108,7 +111,7 @@ func visibleBoardColumns(machine *model.Machine, view *model.View, hidden map[st
 // ORIGINAL record data, never via a Dataset's own unfiltered Projection.
 // Split out of boardViaComposable itself (Gate 3: keeps its own
 // complexity small).
-func buildComposableBoardLanes(machine *model.Machine, composableLanes []composable.BoardLane, cardRecs, laneRecs []*store.Record, laneMachine *model.Machine, colIDs []string) ([]ui.BoardLane, error) {
+func buildComposableBoardLanes(machine *model.Machine, composableLanes []composable.BoardLane, cardRecs, laneRecs []*store.Record, laneMachine *model.Machine, colIDs []string, cardMeta map[string]ui.BoardCardMeta) ([]ui.BoardLane, error) {
 	cardByID := make(map[string]*store.Record, len(cardRecs))
 	for _, rec := range cardRecs {
 		cardByID[rec.ID] = rec
@@ -128,9 +131,231 @@ func buildComposableBoardLanes(machine *model.Machine, composableLanes []composa
 		if laneRec, ok := laneByID[cl.LaneRecordID]; ok {
 			laneName = displayLabel(laneMachine, laneRec.ID, laneRec.Data)
 		}
-		lanes = append(lanes, ui.BoardLane{ID: cl.LaneRecordID, Name: laneName, Rows: rows})
+		var meta []ui.BoardCardMeta
+		if cardMeta != nil {
+			// 17q: CardMeta must line up with Rows by index (board.templ
+			// zips them) -- cardMeta is nil only when the View declares no
+			// CardMeta config at all, so every existing Board (which never
+			// sets it) skips this entirely, zero behavior change.
+			meta = make([]ui.BoardCardMeta, len(rows))
+			for i, row := range rows {
+				meta[i] = cardMeta[row.ID]
+			}
+		}
+		lanes = append(lanes, ui.BoardLane{ID: cl.LaneRecordID, Name: laneName, Rows: rows, CardMeta: meta})
 	}
 	return lanes, nil
+}
+
+// buildBoardCardMeta (17q) computes every card's own opt-in Board metadata
+// (label chips, member names, checklist progress, due date) in three
+// independent, cheap passes, keyed by card record id -- nil (zero extra
+// queries) when the View declares no CardMeta config, so every existing
+// Board is untouched. Each piece composes entirely from already-supported
+// Grammar (reference/user/boolean/date Fields, CAP-O02 master-data,
+// the same reverse-reference discovery CAP-V06's own childLists already
+// uses) -- see model.BoardCardMetaConfig's own doc comment.
+func (h *Handler) buildBoardCardMeta(ctx context.Context, machine *model.Machine, cfg *model.BoardCardMetaConfig, cardRecs []*store.Record) map[string]ui.BoardCardMeta {
+	if cfg == nil {
+		return nil
+	}
+	meta := make(map[string]ui.BoardCardMeta, len(cardRecs))
+	if cfg.LabelsMachine != "" {
+		for cardID, chips := range h.boardCardLabels(ctx, machine.ID, cfg) {
+			m := meta[cardID]
+			m.Labels = chips
+			meta[cardID] = m
+		}
+	}
+	if cfg.MembersMachine != "" {
+		for cardID, names := range h.boardCardMembers(ctx, machine.ID, cfg) {
+			m := meta[cardID]
+			m.MemberNames = names
+			meta[cardID] = m
+		}
+	}
+	if cfg.ProgressMachine != "" {
+		for cardID, p := range h.boardCardProgress(ctx, machine.ID, cfg) {
+			m := meta[cardID]
+			m.Progress = p
+			meta[cardID] = m
+		}
+	}
+	if cfg.DueDateField != "" {
+		mergeBoardDueDates(meta, cfg.DueDateField, cardRecs)
+	}
+	return meta
+}
+
+// mergeBoardDueDates (17q) is buildBoardCardMeta's own due-date pass,
+// split out to keep that function's own branching under Gate 3's
+// threshold -- a plain Field read on the Board's own Machine, no
+// reverse-reference hop needed.
+func mergeBoardDueDates(meta map[string]ui.BoardCardMeta, dueDateField string, cardRecs []*store.Record) {
+	for _, rec := range cardRecs {
+		v, ok := rec.Data[dueDateField]
+		if !ok {
+			continue
+		}
+		s := fmt.Sprintf("%v", v)
+		if s == "" {
+			continue
+		}
+		m := meta[rec.ID]
+		m.DueDate = s
+		meta[rec.ID] = m
+	}
+}
+
+// boardReverseParentField finds joinMachineID's own `reference` field that
+// targets targetMachineID -- the same "found by scanning, never asked for
+// explicitly" discovery CAP-V06's own childLists already uses, applied
+// here instead of adding a redundant explicit config key.
+func (h *Handler) boardReverseParentField(joinMachineID, targetMachineID string) (string, bool) {
+	jm, ok := h.interp.Get().GetMachine(joinMachineID)
+	if !ok {
+		return "", false
+	}
+	for _, f := range jm.Fields {
+		if f.Type == model.FieldTypeReference && f.Options.TargetMachine == targetMachineID {
+			return f.ID, true
+		}
+	}
+	return "", false
+}
+
+// boardCardLabels (17q) reads every LabelsMachine join row, resolving each
+// one's own LabelsRefField to the real Label record's Name/Color -- the
+// Label Machine itself is never named in config, it's read off
+// LabelsRefField's own declared TargetMachine (the same reference-field
+// metadata CAP-F13 already validates at load time).
+func (h *Handler) boardCardLabels(ctx context.Context, cardMachineID string, cfg *model.BoardCardMetaConfig) map[string][]ui.BoardLabelChip {
+	parentField, ok := h.boardReverseParentField(cfg.LabelsMachine, cardMachineID)
+	if !ok {
+		return nil
+	}
+	labelByID := h.boardLabelRecordsByID(ctx, cfg)
+	if labelByID == nil {
+		return nil
+	}
+	joinRecs, err := h.records.List(ctx, cfg.LabelsMachine, "", "")
+	if err != nil {
+		slog.Error("list board label joins", "machine", cfg.LabelsMachine, "error", err)
+		return nil
+	}
+	out := make(map[string][]ui.BoardLabelChip)
+	for _, join := range joinRecs {
+		cardID, _ := join.Data[parentField].(string)
+		labelID, _ := join.Data[cfg.LabelsRefField].(string)
+		if chip, ok := labelByID[labelID]; ok && cardID != "" {
+			out[cardID] = append(out[cardID], chip)
+		}
+	}
+	return out
+}
+
+// boardLabelRecordsByID (17q) resolves LabelsRefField's own declared
+// TargetMachine (never named separately in config) and reads every real
+// Label record on it into a Name/Color lookup -- split out of
+// boardCardLabels itself (Gate 3: keeps its own branching under
+// threshold).
+func (h *Handler) boardLabelRecordsByID(ctx context.Context, cfg *model.BoardCardMetaConfig) map[string]ui.BoardLabelChip {
+	joinMachine, ok := h.interp.Get().GetMachine(cfg.LabelsMachine)
+	if !ok {
+		return nil
+	}
+	refField, ok := fieldIndex(joinMachine)[cfg.LabelsRefField]
+	if !ok || refField.Type != model.FieldTypeReference {
+		return nil
+	}
+	labelMachine, ok := h.interp.Get().GetMachine(refField.Options.TargetMachine)
+	if !ok {
+		return nil
+	}
+	labelRecs, err := h.records.List(ctx, labelMachine.ID, "", "")
+	if err != nil {
+		slog.Error("list board label records", "machine", labelMachine.ID, "error", err)
+		return nil
+	}
+	labelByID := make(map[string]ui.BoardLabelChip, len(labelRecs))
+	for _, rec := range labelRecs {
+		labelByID[rec.ID] = ui.BoardLabelChip{
+			Name:  fmt.Sprintf("%v", rec.Data[cfg.LabelsNameField]),
+			Color: fmt.Sprintf("%v", rec.Data[cfg.LabelsColorField]),
+		}
+	}
+	return labelByID
+}
+
+// boardCardMembers (17q) reads every MembersMachine join row's own
+// MembersUserField, resolving each user id to a real display name via
+// userLabel (CAP-F05) -- initials are computed later, inside internal/ui,
+// same division of labor admin.templ's own AvatarStack call site already
+// established (memberInitials/initials()).
+func (h *Handler) boardCardMembers(ctx context.Context, cardMachineID string, cfg *model.BoardCardMetaConfig) map[string][]string {
+	parentField, ok := h.boardReverseParentField(cfg.MembersMachine, cardMachineID)
+	if !ok {
+		return nil
+	}
+	joinRecs, err := h.records.List(ctx, cfg.MembersMachine, "", "")
+	if err != nil {
+		slog.Error("list board member joins", "machine", cfg.MembersMachine, "error", err)
+		return nil
+	}
+	out := make(map[string][]string)
+	for _, join := range joinRecs {
+		cardID, _ := join.Data[parentField].(string)
+		userID, _ := join.Data[cfg.MembersUserField].(string)
+		if cardID == "" || userID == "" {
+			continue
+		}
+		name, err := h.userLabel(ctx, userID)
+		if err != nil {
+			continue
+		}
+		out[cardID] = append(out[cardID], name)
+	}
+	return out
+}
+
+// boardCardProgress (17q) counts ProgressMachine's own child rows per
+// card, rendering "done/total" from ProgressDoneField -- the same real
+// child rows CAP-F16's own Checklist mechanism already creates, just
+// counted rather than rendered as a full list.
+func (h *Handler) boardCardProgress(ctx context.Context, cardMachineID string, cfg *model.BoardCardMetaConfig) map[string]string {
+	parentField, ok := h.boardReverseParentField(cfg.ProgressMachine, cardMachineID)
+	if !ok {
+		return nil
+	}
+	childRecs, err := h.records.List(ctx, cfg.ProgressMachine, "", "")
+	if err != nil {
+		slog.Error("list board progress children", "machine", cfg.ProgressMachine, "error", err)
+		return nil
+	}
+	type counts struct{ done, total int }
+	byCard := make(map[string]*counts)
+	for _, rec := range childRecs {
+		cardID, _ := rec.Data[parentField].(string)
+		if cardID == "" {
+			continue
+		}
+		c, ok := byCard[cardID]
+		if !ok {
+			c = &counts{}
+			byCard[cardID] = c
+		}
+		c.total++
+		if fmt.Sprintf("%v", rec.Data[cfg.ProgressDoneField]) == "true" {
+			c.done++
+		}
+	}
+	out := make(map[string]string, len(byCard))
+	for cardID, c := range byCard {
+		if c.total > 0 {
+			out[cardID] = fmt.Sprintf("%d/%d", c.done, c.total)
+		}
+	}
+	return out
 }
 
 // buildComposableBoardRows resolves one lane's own real cards into

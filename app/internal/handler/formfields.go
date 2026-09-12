@@ -12,6 +12,7 @@ import (
 
 	"menata.id/app/internal/constraint"
 	"menata.id/app/internal/model"
+	"menata.id/app/internal/store"
 	"menata.id/app/internal/ui"
 )
 
@@ -166,12 +167,35 @@ func childRowName(row int, fieldID string) string {
 // ChildLinesConfig's own doc comment for why edit doesn't use this).
 // existingRows is nil at Create; kept as a param so a future edit-time
 // extension has an obvious seam, not because anything passes it non-nil today.
-func (h *Handler) buildChildLinesData(ctx context.Context, machine *model.Machine) *ui.ChildLinesData {
+//
+// Returns every block the FormView declares -- the singular ChildLines
+// field first (if set), then each ChildLinesGroups entry in order (17q) --
+// so a caller never special-cases "one vs many"; nil/empty means the form
+// declares no child rows at all.
+func (h *Handler) buildChildLinesData(ctx context.Context, machine *model.Machine) []*ui.ChildLinesData {
 	view := h.interp.Get().FormView(machine.ID)
-	if view == nil || view.Config.ChildLines == nil {
+	if view == nil {
 		return nil
 	}
-	cl := view.Config.ChildLines
+	var out []*ui.ChildLinesData
+	if view.Config.ChildLines != nil {
+		if d := h.buildOneChildLinesData(ctx, machine, view.Config.ChildLines); d != nil {
+			out = append(out, d)
+		}
+	}
+	for i := range view.Config.ChildLinesGroups {
+		if d := h.buildOneChildLinesData(ctx, machine, &view.Config.ChildLinesGroups[i]); d != nil {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// buildOneChildLinesData is buildChildLinesData's own per-block body,
+// unchanged from before 17q's plural extension -- factored out so the
+// singular ChildLines field and every ChildLinesGroups entry share exactly
+// one implementation, not a copy each.
+func (h *Handler) buildOneChildLinesData(ctx context.Context, machine *model.Machine, cl *model.ChildLinesConfig) *ui.ChildLinesData {
 	childMachine, ok := h.interp.Get().GetMachine(cl.Machine)
 	if !ok {
 		return nil
@@ -204,6 +228,25 @@ func (h *Handler) buildChildLinesData(ctx context.Context, machine *model.Machin
 		break
 	}
 	return data
+}
+
+// childLinesConfigs (17q) returns every ChildLinesConfig a FormView
+// declares -- the singular ChildLines field (if set) then each
+// ChildLinesGroups entry -- the same "one vs many, looped uniformly" shape
+// buildChildLinesData uses, for callers that need the raw config (Create's
+// own validate/insert pass) rather than the rendered ui.ChildLinesData.
+func childLinesConfigs(fv *model.View) []*model.ChildLinesConfig {
+	if fv == nil {
+		return nil
+	}
+	var out []*model.ChildLinesConfig
+	if fv.Config.ChildLines != nil {
+		out = append(out, fv.Config.ChildLines)
+	}
+	for i := range fv.Config.ChildLinesGroups {
+		out = append(out, &fv.Config.ChildLinesGroups[i])
+	}
+	return out
 }
 
 // childLinesRows (CAP-F16, extended by CAP-V28) builds MaxRows row slots of
@@ -370,7 +413,7 @@ func (h *Handler) childLists(ctx context.Context, wsSlug string, machine *model.
 				}
 				if refID, _ := v.(string); refID == recordID {
 					items = append(items, ui.ChildListItem{
-						Label: displayLabel(m, rec.ID, rec.Data),
+						Label: h.childListItemLabel(ctx, m, f.ID, rec),
 						Link:  "/" + wsSlug + "/" + m.ID + "/" + rec.ID,
 					})
 				}
@@ -381,6 +424,53 @@ func (h *Handler) childLists(ctx context.Context, wsSlug string, machine *model.
 		}
 	}
 	return out
+}
+
+// childListItemLabel (17q) resolves one reverse-reference row's own
+// display label -- displayLabel first (a real Text/Number Field), and
+// only when that falls back to the bare record id (a join Machine with
+// NEITHER, e.g. mch_pm_card_label: two `reference`/`user` Fields and
+// nothing else) does it try the row's OTHER `user` or `reference` Field
+// (never hostFieldID, the one pointing back at the parent childLists is
+// already listing) -- resolving a Member join row to the real member's
+// name, or a Label join row to the real Label's own name, rather than a
+// raw UUID. Generic by construction, same posture childLists' own doc
+// comment already establishes -- not special-cased to Card/Label/Member.
+func (h *Handler) childListItemLabel(ctx context.Context, m *model.Machine, hostFieldID string, rec *store.Record) string {
+	if label := displayLabel(m, rec.ID, rec.Data); label != rec.ID {
+		return label
+	}
+	for _, f := range m.Fields {
+		if f.ID == hostFieldID {
+			continue
+		}
+		if label := h.otherFieldLabel(ctx, f, rec); label != "" {
+			return label
+		}
+	}
+	return rec.ID
+}
+
+// otherFieldLabel is childListItemLabel's own per-Field resolution step,
+// split out to keep that function's own branching under Gate 3's
+// threshold -- "" means this Field didn't produce a usable label (blank
+// value, wrong type, or the lookup itself failed), not an error.
+func (h *Handler) otherFieldLabel(ctx context.Context, f *model.Field, rec *store.Record) string {
+	v, _ := rec.Data[f.ID].(string)
+	if v == "" {
+		return ""
+	}
+	switch f.Type {
+	case model.FieldTypeUser:
+		if name, err := h.userLabel(ctx, v); err == nil {
+			return name
+		}
+	case model.FieldTypeReference:
+		if label, err := h.referenceLabel(ctx, f.Options.TargetMachine, v); err == nil {
+			return label
+		}
+	}
+	return ""
 }
 
 func (h *Handler) referenceOptions(ctx context.Context, targetMachineID string) []ui.ReferenceOption {

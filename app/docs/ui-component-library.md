@@ -245,7 +245,7 @@ root `CLAUDE.md`'s "append, don't rewrite" convention).
 | # | Component | Study 38 cluster | Status | Real call site |
 |---|---|---|---|---|
 | 1 | `Avatar(initials string)` | Cluster 3 | Implemented, wired | `AvatarStack`, `RecordSummaryCard`, `ActivityFeedItem` (all below) |
-| 2 | `AvatarStack(initials []string)` | Cluster 3 | Implemented, wired | `admin.templ`'s `AdminUsers` — Groups list member avatars |
+| 2 | `AvatarStack(initials []string)` | Cluster 3 | Implemented, wired | `admin.templ`'s `AdminUsers` — Groups list member avatars; `board.templ`'s `Board` — Case 19's own per-card Member avatars (2026-09-12, composable-runtime-roadmap.md 17q) |
 | 3 | `RecordSummaryCard(avatarInitials, title, subtitle string, badge templ.Component)` | Cluster 2, ✓ proven by diff | Implemented, **not yet wired** | none — see below |
 | 4 | `StickyActionBar(label, message string)` (children = actions) | Cluster 7, ✓ proven with a correction | Implemented, wired | `detail.templ`'s `Detail` — the Approve/Reject/Submit button row |
 | 5 | `SectionWrapper(title, viewBadge, actionLabel, actionHref string)` | Cluster 1 | Implemented, wired (one call site; `CAP-V10` Tier 2 use still pending — see status update above) | `detail.templ`'s `Detail` — inline parent decision-stepper card |

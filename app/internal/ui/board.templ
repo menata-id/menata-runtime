@@ -72,7 +72,7 @@ templ Board(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, mac
 								No records
 							</div>
 						}
-						for _, row := range lane.Rows {
+						for i, row := range lane.Rows {
 							<a
 								href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + row.ID) }
 								class="board-card block cursor-move rounded-md border border-slate-200 bg-white p-3 text-sm shadow-sm hover:shadow"
@@ -82,10 +82,32 @@ templ Board(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, mac
 									js(event, me) event.dataTransfer.setData('text/plain', me.dataset.recordId) end
 								end"
 							>
+								if i < len(lane.CardMeta) && len(lane.CardMeta[i].Labels) > 0 {
+									<div class="mb-2 flex flex-wrap gap-1">
+										for _, chip := range lane.CardMeta[i].Labels {
+											@LabelChip(chip.Name, chip.Color)
+										}
+									</div>
+								}
 								for _, cell := range row.Cells {
 									if cell.Value != "" {
 										<div class="truncate text-slate-700">{ cell.Value }</div>
 									}
+								}
+								if i < len(lane.CardMeta) && (lane.CardMeta[i].Progress != "" || lane.CardMeta[i].DueDate != "" || len(lane.CardMeta[i].MemberNames) > 0) {
+									<div class="mt-2 flex items-center justify-between gap-2">
+										<div class="flex items-center gap-2 text-xs text-slate-400">
+											if lane.CardMeta[i].Progress != "" {
+												<span>{ lane.CardMeta[i].Progress }</span>
+											}
+											if lane.CardMeta[i].DueDate != "" {
+												<span>{ lane.CardMeta[i].DueDate }</span>
+											}
+										</div>
+										if len(lane.CardMeta[i].MemberNames) > 0 {
+											@AvatarStack(memberInitials(lane.CardMeta[i].MemberNames))
+										}
+									</div>
 								}
 							</a>
 						}

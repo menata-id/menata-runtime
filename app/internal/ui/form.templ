@@ -7,7 +7,7 @@ import "menata.id/app/internal/model"
 // separate "edit form" view declared in metadata. recordID == "" selects
 // Create mode (POST /{machine}); a non-empty recordID selects Edit mode
 // (POST /{machine}/{recordID}), matching the router's two POST routes.
-templ Form(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, recordID string, fields []FormField, errors []string, unreadCount int, childLines *ChildLinesData, subNav []SubNavLink) {
+templ Form(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, recordID string, fields []FormField, errors []string, unreadCount int, childLinesGroups []*ChildLinesData, subNav []SubNavLink) {
 	@Page(formTitle(machine, recordID), workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mx-auto max-w-xl">
 			<div class="mb-5 flex items-center gap-3">
@@ -33,8 +33,10 @@ templ Form(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, mach
 					for _, ff := range fields {
 						@FieldInput(ff.Field, ff.Name, ff.Value, ff.Options, ff.Typeahead, ff.TypeaheadURL, ff.TypeaheadLabel, ff.LivePreviewURL, ff.LivePreviewField, ff.LivePreviewLabel, ff.TemplateLookupURL)
 					}
-					if childLines != nil {
-						@ChildLinesSection(childLines.Title, childLines.Rows, childLines.SumFieldA, childLines.SumFieldALabel, childLines.SumFieldB, childLines.SumFieldBLabel)
+					for _, cl := range childLinesGroups {
+						if cl != nil {
+							@ChildLinesSection(cl.Title, cl.Rows, cl.SumFieldA, cl.SumFieldALabel, cl.SumFieldB, cl.SumFieldBLabel)
+						}
 					}
 					<div class="flex items-center gap-3 border-t border-slate-100 pt-5">
 						<button

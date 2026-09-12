@@ -10,7 +10,7 @@
 103 internal/handler/embed.go
 731 internal/handler/events.go
 206 internal/handler/format.go
-556 internal/handler/formfields.go
+646 internal/handler/formfields.go
 499 internal/handler/handler.go
 417 internal/handler/invitations.go
 212 internal/handler/page.go
