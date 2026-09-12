@@ -22,6 +22,20 @@ type Record struct {
 	DeletedAt *time.Time // CAP-R03 -- non-nil means archived (soft-deleted)
 }
 
+// RecordEvent (CAP-R04 "R28", composable-runtime-roadmap.md 17p) is one
+// read row of the append-only record_events audit trail LogEvent writes
+// -- PerformedBy is already a resolved actor-label string (CAP-R04's own
+// 2026-07-12 fix), no further label lookup needed. No Snapshot field:
+// field-diff-between-snapshots display is a named, deferred gap, not
+// built here.
+type RecordEvent struct {
+	ID          string
+	RecordID    string
+	EventID     string
+	PerformedBy string
+	PerformedAt time.Time
+}
+
 type RecordStore struct {
 	pool *pgxpool.Pool
 }
@@ -305,6 +319,55 @@ func (s *RecordStore) LogEvent(ctx context.Context, recordID, eventID, performed
 		`INSERT INTO record_events (record_id, event_id, performed_by, correlation_id, workspace_id, snapshot) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), $5, $6)`,
 		recordID, eventID, performedBy, correlationID, workspaceID, string(snapshotJSON))
 	return err
+}
+
+// ListEventsForRecord (CAP-R04 "R28", 17p) returns one record's own
+// event history, most-recent-first -- the record-scoped read side
+// LogEvent never had. Relies on the same RLS/session-scoped workspace
+// isolation every other query here already relies on (no explicit
+// workspace_id filter, matching List's own pattern).
+func (s *RecordStore) ListEventsForRecord(ctx context.Context, recordID string) ([]RecordEvent, error) {
+	rows, err := s.db(ctx).Query(ctx,
+		`SELECT id, record_id, event_id, COALESCE(performed_by, ''), performed_at
+		 FROM record_events WHERE record_id = $1 ORDER BY performed_at DESC`,
+		recordID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanRecordEvents(rows)
+}
+
+// ListEventsForMachine (CAP-R04 "R28", 17p) returns the most recent
+// events across EVERY record of one Machine, most-recent-first, capped
+// at limit -- the cross-record read side a composed page's own activity
+// feed needs (17k's own vw_ad_page placeholder, closed here).
+func (s *RecordStore) ListEventsForMachine(ctx context.Context, machineID string, limit int) ([]RecordEvent, error) {
+	rows, err := s.db(ctx).Query(ctx,
+		`SELECT re.id, re.record_id, re.event_id, COALESCE(re.performed_by, ''), re.performed_at
+		 FROM record_events re JOIN records r ON r.id = re.record_id
+		 WHERE r.machine_id = $1 ORDER BY re.performed_at DESC LIMIT $2`,
+		machineID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanRecordEvents(rows)
+}
+
+// scanRecordEvents scans rows shaped {id, record_id, event_id,
+// performed_by, performed_at} -- shared by ListEventsForRecord/
+// ListEventsForMachine so the two can never scan a different shape.
+func scanRecordEvents(rows pgx.Rows) ([]RecordEvent, error) {
+	var out []RecordEvent
+	for rows.Next() {
+		var e RecordEvent
+		if err := rows.Scan(&e.ID, &e.RecordID, &e.EventID, &e.PerformedBy, &e.PerformedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
 }
 
 // NextSequence (CAP-F18) atomically returns the next value of a

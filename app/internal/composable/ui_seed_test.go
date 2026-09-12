@@ -65,12 +65,23 @@ func TestLowerPageAgainstApprovalDashboard(t *testing.T) {
 		t.Error("Slots[\"main\"][0].Dataset.Filter is empty, want vw_ad_pending's Status=In Review filter lowered")
 	}
 
-	// Phase 5 migrates PageContent{Type:"text"} through the Text component
-	// contract (ui.go's lowerStaticContent) instead of a bare
-	// static_content node -- this is that migration's own regression test.
+	// Status update (2026-09-12, composable-runtime-roadmap.md 17p): the
+	// "aside" slot's own Recent Activity entry is no longer a static
+	// PageContent placeholder -- CAP-R04's "R28" gap it was naming is now
+	// closed (seeds/055_activity_log.sql), replacing it with a real
+	// {view: "vw_ad_activity"} entry. internal/composable has no
+	// representation for the new activity_log View Type at all (17p is
+	// classic-capability-only, by design -- composable wiring is a
+	// separate, later, unstarted increment), so this now lowers to a
+	// bare view_ref node (BuildDatasetFromView's default case rejects
+	// activity_log, caught gracefully, same as detail/decision_stepper's
+	// own "no Dataset" shape before their own composable cases existed).
 	asideSlot := page.Slots["aside"]
-	if len(asideSlot) != 1 || asideSlot[0].Kind != composable.UINodeComponent || asideSlot[0].ComponentType != composable.ComponentText {
-		t.Fatalf("Slots[\"aside\"] = %+v, want one Text component node", asideSlot)
+	if len(asideSlot) != 1 || asideSlot[0].Kind != composable.UINodeViewRef {
+		t.Fatalf("Slots[\"aside\"] = %+v, want one view_ref node", asideSlot)
+	}
+	if asideSlot[0].Properties["view_id"] != "vw_ad_activity" || asideSlot[0].Properties["view_type"] != "activity_log" {
+		t.Errorf("Slots[\"aside\"][0] Properties = %+v, want view_id=vw_ad_activity view_type=activity_log", asideSlot[0].Properties)
 	}
 	if asideSlot[0].Properties["title"] != "Recent Activity" {
 		t.Errorf("Slots[\"aside\"][0] title = %q, want %q", asideSlot[0].Properties["title"], "Recent Activity")

@@ -531,6 +531,36 @@ templ DividedList() {
 	</ul>
 }
 
+// ActivityItem (CAP-R04 "R28", composable-runtime-roadmap.md 17p) is one
+// resolved record_events row, ready to render -- Actor is the already-
+// resolved actor-label string (CAP-R04's own 2026-07-12 fix), Line is
+// the fired Event's own declared Name (plus, in cross-record mode, the
+// owning record's own display label), Meta is a pre-formatted timestamp
+// string. No field-diff between snapshots -- a named, deferred gap.
+type ActivityItem struct {
+	Actor string
+	Line  string
+	Meta  string
+}
+
+// ActivityLogSection (17p) wires the previously-unwired ActivityFeedItem/
+// DividedList (Study 38 Clusters 6/4) to real data for the first time --
+// initials(item.Actor) computed here, matching every other call site's
+// own convention of never asking the handler to pre-compute initials.
+// A real, honest empty state when there's nothing to show yet (e.g. a
+// Machine with no declared Events at all) rather than an empty list.
+templ ActivityLogSection(items []ActivityItem) {
+	if len(items) == 0 {
+		<div class="px-4 py-6 text-center text-sm text-slate-400">No activity yet</div>
+	} else {
+		@DividedList() {
+			for _, item := range items {
+				@ActivityFeedItem(initials(item.Actor), item.Line, item.Meta)
+			}
+		}
+	}
+}
+
 // MemberChip (Study 38 Cluster 9, additional A1 evidence for the already-
 // proposed R13/CAP-F03 Tier 2) renders one Group-membership checkbox as a
 // removable-looking chip -- group-detail.html's own member-chip shape --

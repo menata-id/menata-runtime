@@ -89,6 +89,8 @@ func (h *Handler) renderChildView(r *http.Request, hostRec *store.Record, childV
 		return h.renderDecisionStepperChild(r, hostRec, view)
 	case model.ViewTypeCoordPlacement:
 		return h.renderCoordPlacementChild(r, hostRec, view)
+	case model.ViewTypeActivityLog:
+		return h.renderActivityLogChild(r, hostRec, view)
 	default:
 		// Same drift class as above: metadata/validate.go's own
 		// EmbeddableChildViewTypes check should have already rejected this

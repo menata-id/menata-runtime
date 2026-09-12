@@ -1873,6 +1873,73 @@ else reduced), and `./scripts/local-ci.sh` — 292 passed, 0 failed, unchanged.
 
 ---
 
+# 17p. Activity Log — Admitted Capability Closing CAP-R04's "R28" Gap (2026-09-12)
+
+**Not a composable increment — a classic-capability increment**, deliberately brief in this
+document for that reason. `case-03-case-19-completion-checklist.md`'s own Stage 2, closing
+`CAP-R04`'s long-open "R28" note (`capability-registry.md`) — the read side of the `record_events`
+audit trail, which never existed at all before this.
+
+**Admission test run and recorded first** (`capability-registry.md`'s `CAP-R04` row,
+2026-09-12), all five pass: A1 three independent sources (Study 37 Cases 3/9, Study 38
+`approval-dashboard.html`, Study 40 `project-card.html`, a genuinely different domain); A2
+universal (activity feeds are table-stakes); A3 single responsibility (View-grammar, the same
+relationship `CAP-V13` Report already has to Record data); A4 non-composable (`record_events` is
+a system table, never a queryable Machine); A5 real business language. Owner decision on shape:
+**one new `activity_log` View Type**, valid in BOTH the existing record-level embedding mechanism
+(CAP-V20, `embed.go`) and the existing page-level embedding mechanism (CAP-V10 Tier 2, `page.go`)
+— which mode applies is decided entirely by which mechanism resolves it, not by any new Config
+field.
+
+**What was built:** `store.RecordStore` gains `RecordEvent` and its first-ever read methods,
+`ListEventsForRecord`/`ListEventsForMachine` (`LogEvent`'s own write path existed since Phase 1;
+nothing ever read it back). The exact visual component this needed already existed, unwired,
+built ahead of time for exactly this (`components.templ`'s `ActivityFeedItem`/`DividedList`,
+Study 38 Clusters 6/4 — its own doc comment: "Available the moment that feed exists") — this
+increment wires it, doesn't rebuild it. New `internal/handler/activity_log.go`
+(`renderActivityLogChild`/`renderPageActivityLogChild`) dispatches from `embed.go`'s and
+`page.go`'s own existing Type-switches (one new `case` each). `seeds/055_activity_log.sql`
+declares `vw_ad_activity`/`vw_pmc_activity` and wires both real modes: record-scoped on
+`vw_ad_detail`/`vw_pmc_detail`'s own Children, and — the direct, named payoff — replaces
+`vw_ad_page`'s own "Recent Activity requires..." placeholder (`17k`) with the real thing.
+
+**Two real, honest limitations, named rather than discovered by a user:** no field-diff between
+consecutive snapshots (Study 37's own fuller vision) — actor + Event name + timestamp only. And
+`mch_pm_card` (Case 19) has zero declared Events in `seeds/052` — its own Activity section is
+mechanically real and correctly wired but renders its own honest "No activity yet" empty state
+against today's real data, a fact about that Machine's own metadata, not a flaw here.
+
+**Proof:** `TestListEventsForRecord`/`TestListEventsForMachine`/
+`TestListEventsForMachine_ScopedToOneMachine` (`internal/store/record_events_test.go`, real DB) —
+most-recent-first ordering, genuine cross-record scope, and that a Machine-scoped query never
+leaks another Machine's rows (caught live while writing the first version of this test: sharing
+one transaction across multiple `LogEvent` calls made every row's own `performed_at` IDENTICAL,
+since Postgres's `NOW()` is transaction-time, not statement-time — fixed by giving each call its
+own real transaction). Conformance `T287`-`T290` (`conformance/tests/244_activity_log.sh`) — a
+real Document's real Submit event shows up on both its own Detail page and the composed page's
+Recent Activity section; Case 19's own Card Detail shows the honest empty state. `T255`
+(`230_composed_page.sh`) updated to match — the placeholder it used to check for is gone now, by
+design.
+
+**Explicitly out of scope (named, not silently dropped):** any `internal/composable`
+representation for `activity_log` — this is a classic-capability increment only, the same
+"build classic, then cut over" sequencing every prior stage in this series has used; a Case 19
+Event that would actually populate its own activity feed; a whole-workspace or cross-Machine feed
+(`ListEventsForMachine` is scoped to one Machine, matching `approval-dashboard.html`'s own real
+target).
+
+**Deployed live**, same as every prior increment: migrated + seeded the real dev DB, rebuilt,
+restarted via `/root/scripts/server-manager.sh restart menata-runtime`.
+`case-03-case-19-completion-checklist.md` updated — Stage 2 marked done;
+`docs/ui-component-library.md`'s own inventory rows #7/#8 marked wired.
+
+**Verification:** `go build`/`go vet`/`go test ./...` (isolated schema), all 5 quality gates (two
+deliberate, minimal dispatch-hook LOC bumps — `embed.go`/`page.go`, +2 each — and one deliberate
+complexity baseline addition, `TestLowerPageAgainstApprovalDashboard` +1, from one added
+assertion), and `./scripts/local-ci.sh` — 296 passed, 0 failed (292 + new T287-T290).
+
+---
+
 # 18. Phase 14 — Production Hardening
 
 Only after real trial workloads:

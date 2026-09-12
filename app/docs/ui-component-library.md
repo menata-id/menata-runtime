@@ -250,8 +250,8 @@ root `CLAUDE.md`'s "append, don't rewrite" convention).
 | 4 | `StickyActionBar(label, message string)` (children = actions) | Cluster 7, ✓ proven with a correction | Implemented, wired | `detail.templ`'s `Detail` — the Approve/Reject/Submit button row |
 | 5 | `SectionWrapper(title, viewBadge, actionLabel, actionHref string)` | Cluster 1 | Implemented, wired (one call site; `CAP-V10` Tier 2 use still pending — see status update above) | `detail.templ`'s `Detail` — inline parent decision-stepper card |
 | 6 | `StatTile(label string, value int)` | Cluster 5 | Implemented, wired | `dashboard.templ`'s `Dashboard` — CAP-V10 tile number |
-| 7 | `ActivityFeedItem(actorInitials, line, meta string)` | Cluster 6 | Implemented, **not yet wired** | none — see below |
-| 8 | `DividedList()` (children = rows) | Cluster 4 | Implemented, **not yet wired** | available for `ActivityFeedItem` rows or any other divide-y list |
+| 7 | `ActivityFeedItem(actorInitials, line, meta string)` | Cluster 6 | **Wired, 2026-09-12 (composable-runtime-roadmap.md 17p)** | `components.templ`'s new `ActivityLogSection` — CAP-R04 "R28"'s own real activity feed, both record-scoped (Document/Card Detail) and cross-record (the composed page's own "Recent Activity") |
+| 8 | `DividedList()` (children = rows) | Cluster 4 | **Wired, 2026-09-12 (17p)** | same `ActivityLogSection` call site as row 7 |
 | 9 | `MemberChip(id, name, initials string, checked bool)` | Cluster 9 | Implemented, wired | `admin.templ`'s `GroupDetail` — Group membership editor |
 
 Not built: **Choice Card** (Study 38 Cluster 10) — the radio-as-bordered-card shape from

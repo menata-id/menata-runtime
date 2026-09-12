@@ -44,8 +44,15 @@ check T254a "CAP-V10" "the Pending Documents section includes a real In-Review d
 ! echo "$CP_BODY" | grep -q "Composed Page Draft $$"
 check T254b "CAP-V10" "the same section excludes a real Draft (never-submitted) document -- the section's own filter applies inside composition" $?
 
-echo "$CP_BODY" | grep -q "CAP-R04"
-check T255 "CAP-V10" "the Recent Activity section renders its own honest placeholder text (named gap, not invented data)" $?
+# Status update (2026-09-12, composable-runtime-roadmap.md 17p): CAP-R04's
+# own "R28" gap this placeholder named is now closed
+# (seeds/055_activity_log.sql) -- the Recent Activity section is real now,
+# not a placeholder. By this point in the suite, earlier files (010's own
+# submit flow, at minimum) have already fired real evt_ad_submit events on
+# real Documents, so a real Event name is real content to check for
+# instead of the placeholder's own former text.
+! echo "$CP_BODY" | grep -q "Recent Activity requires a record-history"
+check T255 "composable-runtime-roadmap.md 17p" "the Recent Activity section no longer shows the placeholder -- it's real now" $?
 
 # T256 -- same CAP-X06 cross-workspace gate every other collection-level
 # route already enforces (T49's own pattern) -- a ws_default account given

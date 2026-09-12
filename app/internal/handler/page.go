@@ -113,6 +113,8 @@ func (h *Handler) renderPageChild(r *http.Request, child model.ChildViewRef) *ui
 		return h.renderPageListChild(r, view, title, child.Layout)
 	case model.ViewTypeDashboard:
 		return h.renderPageDashboardChild(r, view, title, child.Layout)
+	case model.ViewTypeActivityLog:
+		return h.renderPageActivityLogChild(r, view, title, child.Layout)
 	default:
 		slog.Warn("page: declared children view is not a Type a page can compose", "children_view", child.View, "type", view.Type)
 		return nil

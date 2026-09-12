@@ -783,6 +783,19 @@ const (
 	// the two lists don't have to agree, and don't today (list/dashboard
 	// here vs decision_stepper/coord_placement there).
 	ViewTypePage ViewType = "page"
+	// ViewTypeActivityLog (CAP-R04 "R28", composable-runtime-roadmap.md
+	// 17p) renders a chronological actor/Event/timestamp feed over
+	// record_events -- the read side of CAP-R04's own audit trail
+	// (store.RecordStore.LogEvent), which had no read side at all before
+	// this. Deliberately the FIRST View Type valid in BOTH
+	// EmbeddableChildViewTypes (CAP-V20, record-level: one host record's
+	// own history) and PageEmbeddableViewTypes (CAP-V10 Tier 2, page-
+	// level: cross-record activity across a whole Machine) -- which mode
+	// applies is decided entirely by which mechanism resolves it
+	// (embed.go vs page.go), not by any Config field on the View itself.
+	// No field-diff between snapshots yet (Study 37's own fuller vision)
+	// -- actor + Event name + timestamp only, a named, deferred gap.
+	ViewTypeActivityLog ViewType = "activity_log"
 )
 
 // PageEmbeddableViewTypes (CAP-V10 Tier 2) is every View Type a `page`
@@ -792,8 +805,9 @@ const (
 // EmbeddableChildViewTypes already established for CAP-V20 Tier 2's own
 // record-level Children.
 var PageEmbeddableViewTypes = map[ViewType]bool{
-	ViewTypeList:      true,
-	ViewTypeDashboard: true,
+	ViewTypeList:        true,
+	ViewTypeDashboard:   true,
+	ViewTypeActivityLog: true, // 17p, cross-record mode
 }
 
 // PageContent (CAP-V10 Tier 2) is one static-content Children entry --
@@ -960,6 +974,7 @@ type Binding struct {
 var EmbeddableChildViewTypes = map[ViewType]bool{
 	ViewTypeDecisionStepper: true,
 	ViewTypeCoordPlacement:  true,
+	ViewTypeActivityLog:     true, // 17p, record-scoped mode
 }
 
 // DecisionStepperConfig (CAP-V20) declares a "decision_stepper" View.
