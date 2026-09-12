@@ -373,12 +373,15 @@ func (h *Handler) MoveRecord(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/"+h.workspaceSlug(r)+"/"+machineID, http.StatusSeeOther)
 }
 
-// BoardMove (CAP-V14 Tier 2) handles a kanban card drop -- CanEdit-gated
+// BoardMove (CAP-V14 Tier 2/Tier 3) handles a kanban card drop -- CanEdit-gated
 // same as MoveRecord above, no constraint re-validation, the same "trusted
 // same-record field write triggered by a UI action, not a business Event"
-// posture MoveRecord itself already takes for sort_order. lane must be one
-// of the GroupField's own declared value_list options -- rejected otherwise
-// (this project's "Unknown = explicit" discipline), not written as an
+// posture MoveRecord itself already takes for sort_order. lane must be
+// valid for the GroupField's own type -- Tier 2 (value_list): one of its
+// declared Options.Values; Tier 3 (reference): a real record id on its own
+// TargetMachine (the same CAP-F13 referential-integrity check an ordinary
+// reference field write already gets) -- rejected otherwise (this
+// project's "Unknown = explicit" discipline), never written as an
 // arbitrary string into the record's data.
 func (h *Handler) BoardMove(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
@@ -411,10 +414,20 @@ func (h *Handler) BoardMove(w http.ResponseWriter, r *http.Request) {
 	}
 	lane := r.FormValue("lane")
 	validLane := false
-	for _, v := range groupField.Options.Values {
-		if v == lane {
-			validLane = true
-			break
+	switch groupField.Type {
+	case model.FieldTypeReference:
+		exists, err := h.records.Exists(r.Context(), groupField.Options.TargetMachine, lane)
+		if err != nil {
+			http.Error(w, "failed to validate lane", http.StatusInternalServerError)
+			return
+		}
+		validLane = exists
+	default: // model.FieldTypeValueList
+		for _, v := range groupField.Options.Values {
+			if v == lane {
+				validLane = true
+				break
+			}
 		}
 	}
 	if !validLane {

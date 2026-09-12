@@ -332,13 +332,17 @@ func (h *Handler) buildDashboardTiles(r *http.Request, view *model.View) ([]ui.D
 	return tiles, nil
 }
 
-// Board (CAP-V14 Tier 2) renders a kanban board View -- one lane per
-// GroupField value_list option, sorted by sort_order within each lane (the
-// same manual-order column CAP-V14's Up/Down buttons already use), so a
-// card dropped into a lane by BoardMove renders where it landed. Every
-// declared option gets a lane, even an empty one -- from GroupField's own
-// Options.Values, not a distinct-values scan of the records (an option
-// nobody's used yet still has to be a valid drop target).
+// Board (CAP-V14 Tier 2/Tier 3) renders a kanban board View -- one lane per
+// GroupField value_list option (Tier 2) or one lane per GroupField's own
+// target-machine record (Tier 3, GroupField is a reference -- Case 19's
+// own dynamic, user-creatable Lists), sorted by sort_order within each
+// lane (the same manual-order column CAP-V14's Up/Down buttons already
+// use), so a card dropped into a lane by BoardMove renders where it
+// landed. Every lane the source has gets rendered, even an empty one --
+// Tier 2 from GroupField's own Options.Values, Tier 3 from a plain List of
+// the target machine -- neither is a distinct-values scan of THIS
+// machine's own records, so an unused lane still shows up as a valid drop
+// target either way.
 func (h *Handler) Board(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	machine, ok := h.interp.Get().GetMachine(machineID)
@@ -406,9 +410,27 @@ func (h *Handler) Board(w http.ResponseWriter, r *http.Request) {
 		byLane[laneVal] = append(byLane[laneVal], ui.ListRow{ID: rec.ID, Cells: cells})
 	}
 
-	lanes := make([]ui.BoardLane, 0, len(groupField.Options.Values))
-	for _, v := range groupField.Options.Values {
-		lanes = append(lanes, ui.BoardLane{Name: v, Rows: byLane[v]})
+	var lanes []ui.BoardLane
+	switch groupField.Type {
+	case model.FieldTypeReference:
+		// CAP-V14 Tier 3: lanes are the target machine's own records, not a
+		// fixed option set -- metadata/validate.go already guarantees
+		// TargetMachine resolves at load time.
+		targetMachine, _ := h.interp.Get().GetMachine(groupField.Options.TargetMachine)
+		targetRecords, err := h.records.List(r.Context(), groupField.Options.TargetMachine, store.SortOrderField, "")
+		if err != nil {
+			http.Error(w, "failed to load board lanes", http.StatusInternalServerError)
+			return
+		}
+		lanes = make([]ui.BoardLane, 0, len(targetRecords))
+		for _, lrec := range targetRecords {
+			lanes = append(lanes, ui.BoardLane{ID: lrec.ID, Name: displayLabel(targetMachine, lrec.ID, lrec.Data), Rows: byLane[lrec.ID]})
+		}
+	default: // model.FieldTypeValueList
+		lanes = make([]ui.BoardLane, 0, len(groupField.Options.Values))
+		for _, v := range groupField.Options.Values {
+			lanes = append(lanes, ui.BoardLane{ID: v, Name: v, Rows: byLane[v]})
+		}
 	}
 
 	a := h.auth(r)

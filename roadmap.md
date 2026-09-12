@@ -3258,6 +3258,59 @@ placeholder pending it — **the best-evidenced actionable item this study produ
 
 ---
 
+## Study 41 — Case 19's Own Board/Card Capability Gap: Dynamic Lists, Cross-Column Card.Move (2026-09-11)
+
+Surfaced while grounding `composable-runtime-roadmap.md`'s Phase 13 (Trial Migration): seeding
+Case 19 (Project Management) into `app/` for the first time required checking what the real
+runtime's own board mechanism actually supports, and it does not match Case 19's own literal
+declaration (`case-portfolio.md`'s Case 19 section: "Boards contain Lists (columns); Lists
+contain Cards; both Lists and Cards are freely reordered by drag-and-drop, and Cards move between
+Lists"). `capability-registry.md`'s own `CAP-V14 Tier 2` row already named this narrowness at
+implementation time (2026-08-22) — quoted directly: *"a deliberately narrower cut than Case 19's
+own literal declaration... Case 19's own 'Lists' are separate, user-creatable, freely-reordered
+records (`Card.Move` = CAP-F13 reference write + CAP-A13 `cross_set_field`) — a materially bigger
+feature (a second CRUD surface) than any other case in the portfolio needs. This cut instead
+groups a new `board` View by an existing `value_list` Field."* This study is the first time that
+existing self-documented gap was checked against a real attempt to seed Case 19 rather than left
+as a footnote.
+
+**What's missing, precisely:** the real `board` View type (`model.ViewTypeBoard`,
+`ViewConfig.GroupField`) only groups by a Field whose lane set is fixed at metadata-design time
+(`Options.Values`, a `value_list`). Case 19's own Lists are dynamic, user-creatable *records* — a
+`reference` Field pointing at them has no fixed option set, so no lane exists to render or drop a
+card into until a new mechanism is built: a board grouped by a `reference` Field's own distinct
+*records* (not `Options.Values`), plus a `Card.Move`-across-Lists write path composing `CAP-F13`
+(the reference write itself) with `CAP-A13`'s existing `cross_set_field` action shape into one
+drag gesture, the same way `CAP-V14 Tier 2`'s own `RecordStore.MoveToLane` composes a field write
+with `Move`'s sort-order mechanics for the fixed-lane case.
+
+**Independent second source, found in the same session**: `app/web/static/ui-sample/case-19.html`
+(the case-coverage table's own current, valid design reference for Case 19 — linked design
+`project-board.html`) states the same ambition in its own words, written well before this study:
+*"Cards can be reordered and moved across lists, while the same domain data can be rendered as
+board, timeline, calendar and dashboard views"* and names manual ordering as *"the portfolio's
+manual-ordering benchmark: list order, card order and cross-column movement are first-class
+interactions rather than a cosmetic Kanban rendering."* The case-coverage table's own summary row
+(`index.html`) nonetheless marks Case 19 "real code" — an honest drift already worth naming: the
+mockup's own ambition and what `CAP-V14 Tier 2` actually shipped are not the same thing, and
+nothing before this study said so in one place.
+
+**Decision (owner, 2026-09-11, conversation, made when this gap forced a concrete choice during
+Phase 13's own seeding work):** do not build the missing mechanism as part of Trial Migration.
+`app/seeds/052_project_management.sql` seeds Case 19 at composable-substrate-proof scope only —
+real `CAP-F13` references (Board←List←Card), `CAP-V06` child-lists on each parent's own Detail
+page, `CAP-F16` `ChildLines` for Checklist Items — explicitly not the dynamic-lane board or
+`Card.Move`. Building the real mechanism remains a `capability-lifecycle.md` §2 admission
+decision, not made here; it now has enough evidence on file (this study's own dual case+mockup
+sourcing) that a future A1–A5 pass would not be starting from nothing.
+
+**Registry impact:** `capability-registry.md` (now v0.85) — `CAP-V14 Tier 2`'s own row gains a
+dated pointer note to this study and registers a **named, not-yet-admitted candidate**,
+`CAP-V14 Tier 3` (dynamic-lane board + composed `Card.Move`). No capability admitted, no
+conformance test added, no code changed.
+
+---
+
 # Principles
 
 - **The map before the territory** — benchmark catalogs predict gaps before cases find them.

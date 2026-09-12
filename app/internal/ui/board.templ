@@ -3,8 +3,11 @@ package ui
 import "strconv"
 import "menata.id/app/internal/model"
 
-// Board (CAP-V14 Tier 2) renders a kanban board: one lane per GroupField
-// value_list option, cards draggable between lanes -- each card's own
+// Board (CAP-V14 Tier 2/Tier 3) renders a kanban board: one lane per
+// GroupField value_list option (Tier 2, fixed lanes) or one lane per
+// GroupField's own target-machine record (Tier 3, dynamic lanes) --
+// views.Board resolves which; this template only ever renders
+// {ID, Name, Rows} generically, cards draggable between lanes -- each card's own
 // Hyperscript `on dragstart` and each lane body's own `on dragover`/
 // `on drop` handlers below (app/ROADMAP.md Phase 4 client-side JavaScript
 // policy correction -- these used to be page-level delegated vanilla-JS
@@ -29,7 +32,7 @@ templ Board(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, mac
 			data-board-csrf={ csrfToken }
 		>
 			for _, lane := range lanes {
-				<div class="board-lane w-72 shrink-0 rounded-lg border border-slate-200 bg-slate-50" data-lane={ lane.Name }>
+				<div class="board-lane w-72 shrink-0 rounded-lg border border-slate-200 bg-slate-50" data-lane={ lane.ID }>
 					<h2 class="border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
 						{ lane.Name }
 						<span class="ml-1 text-slate-400">({ strconv.Itoa(len(lane.Rows)) })</span>

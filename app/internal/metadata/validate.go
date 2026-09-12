@@ -532,6 +532,33 @@ func validateReferences(workspaces []*model.Workspace) error {
 						}
 					}
 
+					// CAP-V14 Tier 3: a board view's own group_field must
+					// name a real Field on THIS machine of type value_list
+					// (Tier 2's own fixed-lane mode) or reference (Tier 3's
+					// dynamic-lane mode, one lane per target-machine
+					// record) -- any other type has no lane concept and
+					// silently rendered zero lanes before this check
+					// existed. A reference group_field's own
+					// target_machine must resolve to a real Machine, same
+					// discipline every other reference-field validation in
+					// this file already applies.
+					if v.Type == model.ViewTypeBoard && v.Config.GroupField != "" {
+						gf, ok := fieldByID[v.Config.GroupField]
+						if !ok {
+							return fmt.Errorf("view %s on machine %s: group_field %q does not name a Field on this machine", v.ID, m.ID, v.Config.GroupField)
+						}
+						switch gf.Type {
+						case model.FieldTypeValueList:
+							// Tier 2: lanes are the Field's own declared Options.Values.
+						case model.FieldTypeReference:
+							if _, ok := machineByID[gf.Options.TargetMachine]; !ok {
+								return fmt.Errorf("view %s on machine %s: group_field %q is a reference to unknown machine %q", v.ID, m.ID, v.Config.GroupField, gf.Options.TargetMachine)
+							}
+						default:
+							return fmt.Errorf("view %s on machine %s: group_field %q must be type value_list or reference, got %q", v.ID, m.ID, v.Config.GroupField, gf.Type)
+						}
+					}
+
 					// CAP-V21: reference_field must be a real `reference`
 					// Field on THIS machine; preview_field must name a real
 					// Field on whatever machine that reference points to

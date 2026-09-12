@@ -355,14 +355,28 @@ type ResourceCalendarGroup struct {
 	Dates    []CalendarGroup
 }
 
-// BoardLane (CAP-V14 Tier 2) is one column of a kanban board -- Name is one
-// of the GroupField's own declared value_list options, Rows is every record
-// currently holding that value, in sort_order (the same manual-order column
-// CAP-V14's Up/Down buttons already use). Every declared option gets a lane,
-// including an empty one -- the lane list comes from the Field's own
-// Options.Values, not a distinct-values scan of the records themselves,
-// so an option nobody's used yet still shows up as a valid drop target.
+// BoardLane is one column of a kanban board. Rows is every record currently
+// in this lane, in sort_order (the same manual-order column CAP-V14's
+// Up/Down buttons already use).
+//
+// ID (CAP-V14 Tier 3) is the value board.templ posts back to BoardMove on
+// drop -- Name is only ever the human-visible label. For Tier 2's own
+// fixed-lane mode (GroupField is a value_list), ID == Name == the Field's
+// own declared option string -- unchanged behavior. For Tier 3's own
+// dynamic-lane mode (GroupField is a reference), ID is the target record's
+// own id and Name is that record's own displayLabel -- a raw id would be
+// useless as a lane header, and posting a display label back instead of
+// the id would break BoardMove's own Exists lookup, so the two must be
+// named separately once they can differ.
+//
+// Every lane the source has gets rendered, including an empty one -- for
+// Tier 2, every value_list option (Options.Values, not a distinct-values
+// scan of the records); for Tier 3, every record of the reference field's
+// own target machine (views.Board's own List call, not a distinct-values
+// scan either) -- so an unused lane still shows up as a valid drop target
+// either way.
 type BoardLane struct {
+	ID   string
 	Name string
 	Rows []ListRow
 }

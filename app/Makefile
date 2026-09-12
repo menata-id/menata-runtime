@@ -103,6 +103,19 @@ seed:
 	psql "$(DB_URL)" -f seeds/041_expression_lab.sql
 	psql "$(DB_URL)" -f seeds/042_inline_view_composition.sql
 	psql "$(DB_URL)" -f seeds/043_approver_type_toggle.sql
+	# 044-051 were missing from this target until now (found running
+	# local-ci.sh for the CAP-V14 Tier 3 change -- their absence was
+	# silently failing 10 unrelated conformance tests, T243/T244/T247a/
+	# T247b/T248/T249a/T253/T254a/T255/T258, every one exactly matching
+	# these seeds' own capability areas).
+	psql "$(DB_URL)" -f seeds/044_document_submit_dashboard_live_wiring.sql
+	psql "$(DB_URL)" -f seeds/045_declared_navigation_pilot.sql
+	psql "$(DB_URL)" -f seeds/046_navigation_group_lab.sql
+	psql "$(DB_URL)" -f seeds/047_approval_flow_template.sql
+	psql "$(DB_URL)" -f seeds/048_v02t2_v09t2_realization.sql
+	psql "$(DB_URL)" -f seeds/050_composed_dashboard.sql
+	psql "$(DB_URL)" -f seeds/051_dashboard_nav_supersede.sql
+	psql "$(DB_URL)" -f seeds/052_project_management.sql
 
 # The real test suite for HTTP/behavioral correctness -- requires migrate-up
 # + seed already applied and the server running (`make dev` in another

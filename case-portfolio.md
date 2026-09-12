@@ -682,7 +682,7 @@ their capability cluster already has case evidence.
 | 16 | Point of Sale | Low — composition of Case 5+8+15 | composes only, no new CAP | ⚠️ documented |
 | 17 | Helpdesk | Low — re-proves Case 7, domain-portability only | composes Case 7, no new CAP | ⚠️ documented |
 | 18 | HR Operations | Low — Employee master only; payroll flagged domain-engine | F13 tree (2nd), O02 (3rd) | ⚠️ documented |
-| 19 | Project Management (Trello-like) | Medium — manual ordering | V14(new), F13, F16 | ⚠️ documented |
+| 19 | Project Management (Trello-like) | Medium — manual ordering | V14(new), V14 Tier 3, F13, F16 | ✅ dynamic board live (see Case 19's own §) |
 | 20 | Hospital System | Medium — scheduling + compliance weight | V07 (1st evidence), P06 (1st evidence), F16 | ⚠️ documented |
 | 21 | E-learning | Medium — sequential unlock + certificates | F21(new), F20, C12, E06 (reused) | ⚠️ documented |
 
@@ -835,6 +835,34 @@ are freely reordered by drag-and-drop, and Cards move between Lists.
 
 Files: `prototype/go/docs/examples/pm-board.{menata,yaml}`, `pm-list.{menata,yaml}`,
 `pm-card.{menata,yaml}`, `pm-checklist-item.{menata,yaml}` (four Machines)
+
+**Status update (2026-09-11, `composable-runtime-roadmap.md` §17, Phase 13 Trial
+Migration):** seeded in `app/` for the first time (`app/seeds/052_project_management.sql`,
+four Machines — Board/List/Card/Checklist Item) — but at composable-substrate-proof
+scope only, not this case's own literal declaration above. `List.Reorder`/`Card.Move`
+(CAP-V14's own dynamic, user-creatable-Lists model) are explicitly **not** built —
+`capability-registry.md`'s own `CAP-V14 Tier 2` row already documents why: the real
+board view is "a deliberately narrower cut than Case 19's own literal declaration,"
+fixed `value_list` lanes only. Formally logged as `roadmap.md`'s Study 41 (dual-sourced
+against this case's own declaration above and, independently, `app/web/static/
+ui-sample/case-19.html`/`project-board.html`'s own design-intent wording), with a
+named, not-yet-admitted `CAP-V14 Tier 3` candidate now on `CAP-V14 Tier 2`'s own row.
+Owner decision (2026-09-11, conversation): building the literal declaration is real
+new-capability work (a `capability-lifecycle.md`-governed admission decision),
+deliberately not made as part of this seeding. What IS real: Board
+←List←Card via `CAP-F13` reference fields, `CAP-V06` child-lists on each parent's own
+Detail page, and Checklist Item via `CAP-F16` `ChildLines` embedded in Card's own form —
+exactly this case's own last declared target, unchanged.
+
+**Status update (2026-09-12):** `CAP-V14 Tier 3` (dynamic-lane board grouping) admitted
+and implemented — `vw_pmc_board` (`app/seeds/052_project_management.sql`) now renders
+Cards grouped into real, dynamic List lanes (labeled "To Do"/"Doing"/"Done", the Lists'
+own real names), and dragging a Card between Lists (`POST .../board-move`) persists.
+See `capability-registry.md`'s `CAP-V14 Tier 2` row for the full admission test and
+implementation notes; conformance T259–T261. This case's own `Card.Move` target is now
+real; `List.Reorder`/free drag-reordering of Lists themselves is not (Lists still order
+by `created_at`, no manual-ordering UI for the Lists row itself) — named honestly as
+still open, not silently claimed.
 
 ## Case 20 — Hospital System (target declaration)
 
