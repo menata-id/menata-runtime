@@ -3,8 +3,16 @@ package ui
 import "menata.id/app/internal/model"
 import "menata.id/app/internal/store"
 
-templ Detail(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, fields []DetailField, permittedEvents []EventTrigger, childLists []ChildList, unreadCount int, subNav []SubNavLink, extraLinks []DetailLink, embedded []EmbeddedSection) {
+// planExplain (composable-runtime-roadmap.md 17o), when non-empty, is
+// 17b's own Dependency DAG/Execution Planner diagnostic -- the exact same
+// pattern list.templ/board.templ already use. Empty whenever no real
+// Detail View is declared for this Machine (the field list then falls
+// back to its own pre-17o behavior, untouched).
+templ Detail(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, record *store.Record, fields []DetailField, permittedEvents []EventTrigger, childLists []ChildList, unreadCount int, subNav []SubNavLink, extraLinks []DetailLink, embedded []EmbeddedSection, planExplain string) {
 	@Page(machine.Name + " — Detail", workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
+		if planExplain != "" {
+			<div class="hidden" data-composable-plan={ planExplain }></div>
+		}
 		<div class="mx-auto max-w-2xl">
 			<div class="mb-5 flex items-center gap-3">
 				<a

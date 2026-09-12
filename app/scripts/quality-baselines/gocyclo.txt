@@ -30,6 +30,7 @@ handler (*Handler).List 29
 handler (*Handler).Login 13
 handler (*Handler).Notifications 12
 handler (*Handler).Report 13
+handler (*Handler).resolveDetailFieldValue 16
 handler (*Handler).Search 14
 handler (*Handler).SetCoordPlace 14
 handler (*Handler).Signup 19

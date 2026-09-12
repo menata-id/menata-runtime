@@ -55,7 +55,7 @@ The following are the important implementation gaps that must be explicitly trac
 | CR-26 | migration compatibility for existing View handlers | **RESOLVED 2026-09-12** — see §2a's Migration Compatibility Contract below, backed by 17a/17b/17c's own real evidence (three shipped increments, not a policy statement). | P0 |
 | CR-27 | Grammar-area decision for `Dataset` (new Grammar area `D`, alongside `F/E/A/C/P/V/R/X/I/O`, vs. folding under `View`) | **RESOLVED 2026-09-11, implemented** — owner decision: new Grammar area `D` (Data), consistent with the Domain/Data/Experience plane split `004`/`006`/`007` commit to. `capability-registry.md` gained a `## Data` section; `CAP-V22`/`CAP-V23` are reclassified there (pointer rows) with their IDs **retained unchanged** in `## Views` for stability, per the registry's own ratchet rule (never renumber/delete, only append). `capability-lifecycle.md` A3 and the proposal template now enumerate `D`; `nfr-standards.md` gained `### 2.11 Data (CAP-D*)`. | P0 |
 | CR-28 | `007-composable-runtime-architecture.md` §40 (claim-by-claim PROVEN/PROPOSED citation matrix) does not exist | **RESOLVED 2026-09-11** — §40 added to `007`, citing `composable-runtime-blueprint.md` §3 and this file's own `CR-01`–`CR-28` register per claim. | P0 |
-| CR-29 | Detail-shaped composable primitive (recognized while auditing `CR-20`, 17l) — `BuildDatasetFromView` had no case for `model.ViewTypeDetail`, and no route ever lowered a single-record field list through `internal/composable` | **Phase slice implemented, 2026-09-12 (§17m)** — `BuildDatasetFromView` gains a `ViewTypeDetail` case (every Machine Field, no Filter/Sort/GroupBy — WHICH record is a request-level concern, not a Dataset one). Design decision: no 8th `ComponentType` — the existing `Collection` component + the existing `ResolveCollectionItem` (unchanged) resolve one record's own field list exactly as they already resolve one row of many. Proven on a new, additive, read-only route (`GET /{machineID}/{recordID}/composable-preview`, `internal/handler/composable_preview_detail.go`), with real render-output equivalence for plain/value_list fields against the real Detail page (T281/T282, `conformance/tests/242_composable_detail_pilot.sh`) — reference/user/file fields are a named, not-yet-matched boundary (`ResolveFieldValue`'s own documented scope). The real production `Detail` route (`record_crud.go`) is untouched — this is a pilot, mirroring 17a's own List pilot, not yet a cutover. See §17m. | P1 |
+| CR-29 | Detail-shaped composable primitive (recognized while auditing `CR-20`, 17l) — `BuildDatasetFromView` had no case for `model.ViewTypeDetail`, and no route ever lowered a single-record field list through `internal/composable` | **Phase slice implemented, 2026-09-12 (§17m)** — `BuildDatasetFromView` gains a `ViewTypeDetail` case (every Machine Field, no Filter/Sort/GroupBy — WHICH record is a request-level concern, not a Dataset one). Design decision: no 8th `ComponentType` — the existing `Collection` component + the existing `ResolveCollectionItem` (unchanged) resolve one record's own field list exactly as they already resolve one row of many. Proven on a new, additive, read-only route (`GET /{machineID}/{recordID}/composable-preview`, `internal/handler/composable_preview_detail.go`), with real render-output equivalence for plain/value_list fields against the real Detail page (T281/T282, `conformance/tests/242_composable_detail_pilot.sh`) — reference/user/file fields are a named, not-yet-matched boundary (`ResolveFieldValue`'s own documented scope). The real production `Detail` route (`record_crud.go`) is untouched — this is a pilot, mirroring 17a's own List pilot, not yet a cutover. See §17m. **RESOLVED 2026-09-12 (§17o)** — the real production `Detail` route now sources its own field set/order from this same Dataset; see §17o. | P1 |
 
 **See also (2026-09-12): `case-03-case-19-completion-checklist.md`** (root) — the complete,
 per-screen inventory of both trial applications (Case 3, Case 19) against their own real
@@ -1802,6 +1802,74 @@ by removing the now-dead Reference `case` — net LOC ended lower than the bumpe
 `boardViaComposable` itself kept under the Gate 3 threshold via `visibleBoardColumns`/
 `buildComposableBoardLanes`/`buildComposableBoardRows` helpers, no baseline edit needed for it),
 and `./scripts/local-ci.sh` — 292 passed, 0 failed (291 + new T286).
+
+---
+
+# 17o. Detail Cutover — Closing CR-29's Deferred Production Cutover (2026-09-12)
+
+**Closes `CR-29`.** `case-03-case-19-completion-checklist.md`'s own Stage 1 (real, cited
+document, appended the same day after an owner-flagged review found no such checklist actually
+existed despite prior claims of "bertahap"): cut over the real `Detail` route, the one Stage-1
+item needing no new capability admission.
+
+**Re-grounded before writing code, since 17m's own plan had already found `Detail` far more
+complex than List/Board — confirmed the exact reason, not just remembered it:** `Detail`'s own
+per-field formatting (reference → label + link via a real second store lookup; user/group →
+label via a second lookup; money/computed/boolean/SLA via real handler business logic) needs
+either I/O or handler-specific logic `internal/composable` cannot do — it's zero-I/O by
+construction (Gate 5), and `ResolveFieldValue`'s own doc comment already states this boundary.
+List's own cutover (17g) never hit this because `vw_ad_all`'s own real columns happen to be
+plain text/value_list only; `Detail` shows every field, including a `user` and a `file` field on
+`mch_approval_document` itself — it cannot avoid the problem the way List did.
+
+**The honestly-scoped cutover:** only the field SET/ORDER moves onto
+`composable.BuildDatasetFromView`'s own `ViewTypeDetail` case (17m) — the same Dataset that
+already exists. Every per-field VALUE formatting rule (`internal/handler/composable_detail.go`'s
+new `resolveDetailFieldValue`/`dereferenceDetailLink`) is moved **verbatim** from `Detail`'s own
+prior inline loop, not reimplemented — it has to stay in the handler, not by scope avoidance but
+because it genuinely needs real I/O or business logic. `Detail`'s own complexity dropped from its
+45-baseline to 26 as a direct result (the switch moved out); the extracted
+`resolveDetailFieldValue` needed one deliberate baseline addition (16 — an irreducible 7-way
+field-type dispatch, the same shape `Report`/`calendarTimeline` already sit at without further
+splitting). `record_crud.go` itself shrank (1103 → 1086 LOC) despite the new dispatch logic, since
+the extracted switch was larger than what replaced it.
+
+**Since `Detail` is one shared handler across every Machine in the runtime** (not scoped to the
+two trial cases the way List/Board's own cutovers were), this single change closes the gap for
+both trial cases AND every other seeded Machine at once — Case 19's own Card Detail
+(`/mch_pm_card/{id}`) is production-composable as a direct consequence, no separate change needed.
+
+**One real edge case, named and preserved:** unlike List/Board, `Detail` still renders every
+Field even when NO `detail`-type View is declared at all (`detailView` can be `nil`). Composable's
+own `BuildDatasetFromView` needs a real `*model.View`, so the cutover only fires when a real
+Detail View IS declared (true for both trial cases and in practice nearly everywhere) — the
+`nil` case keeps its exact prior fallback, now sharing the same `detailFieldValue`/
+`resolveDetailFieldValue` formatting helpers rather than a second copy of the same switch (a real
+simplification found while implementing, not planned in advance).
+
+**Proof — the strongest equivalence evidence any cutover in this series has had:**
+`TestBuildDetailFieldsViaComposable`/`_HiddenFieldExcluded`
+(`internal/handler/composable_detail_test.go`) cover every field type that needs no real store
+lookup (text, boolean, money, computed, file, SLA urgency, CAP-P06 hidden-field exclusion).
+Reference/user/group label dereferencing needs a real `DATABASE_URL` and is proven instead by the
+**full 292-test conformance suite passing completely unchanged** — since `Detail` is universally
+shared, that suite already exercises Detail pages across dozens of real Machines and every field
+type (`CAP-F06`/`F08`/`F09`/`F14`/`V17` and more), a comprehensive real-world equivalence proof
+neither List nor Board's own cutover had access to.
+
+**Not done here** (named, not silently dropped, matching 17m's own posture): child lists, event
+triggers, extra action links, embedded CAP-V20 `Children` — none of these are the record's own
+field list, none were touched; DecisionStepper progress pages remain entirely outside
+`internal/composable`; permission-scope narrowing (`SecurityScope.Apply`) is still not applied to
+a Detail Dataset.
+
+**Deployed live**, same as every prior increment: rebuilt, restarted via
+`/root/scripts/server-manager.sh restart menata-runtime`. `case-03-case-19-completion-checklist.md`
+updated to reflect both trial cases' own Detail screens as production.
+
+**Verification:** `go build`/`go vet`/`go test ./...` (isolated schema), all 5 quality gates
+(one deliberate, documented complexity baseline addition — `resolveDetailFieldValue` — everything
+else reduced), and `./scripts/local-ci.sh` — 292 passed, 0 failed, unchanged.
 
 ---
 

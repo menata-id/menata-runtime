@@ -978,48 +978,31 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 	// Detail page.
 	hidden := h.hiddenFields(machine, role)
 	detailView := h.interp.Get().DetailView(machineID) // CAP-V17: nil if none declared, same as every other optional View lookup
-	fields := make([]ui.DetailField, 0, len(machine.Fields))
-	for _, f := range machine.Fields {
-		if hidden[f.ID] {
-			continue
+	// composable-runtime-roadmap.md 17o: when a real Detail View IS
+	// declared, the field SET/ORDER now comes from composable's own
+	// ViewTypeDetail Dataset (17m) -- every per-field VALUE formatting
+	// rule is unchanged, see buildDetailFieldsViaComposable's own doc
+	// comment for why that logic can't move into internal/composable
+	// itself. No declared View (rare, and never gated the field list
+	// before either) keeps the exact prior fallback.
+	var fields []ui.DetailField
+	var planExplain string
+	if detailView != nil {
+		var err error
+		fields, err = h.buildDetailFieldsViaComposable(r.Context(), machine, detailView, hidden, h.workspaceSlug(r), rec)
+		if err != nil {
+			slog.Warn("detail: build fields via composable", "machine_id", machineID, "error", err)
 		}
-		val := ""
-		if v, ok := rec.Data[f.ID]; ok {
-			val = fmt.Sprintf("%v", v)
+		planExplain, _ = h.explainComposablePlan(r, applicationID, machine, role[0])
+	}
+	if fields == nil {
+		fields = make([]ui.DetailField, 0, len(machine.Fields))
+		for _, f := range machine.Fields {
+			if hidden[f.ID] {
+				continue
+			}
+			fields = append(fields, h.detailFieldValue(r.Context(), f, detailView, h.workspaceSlug(r), rec))
 		}
-		link := ""
-		switch {
-		case f.Type == model.FieldTypeReference && val != "":
-			refID := val
-			target := f.Options.TargetMachine
-			if label, err := h.referenceLabel(r.Context(), target, refID); err == nil && label != "" {
-				val = label
-				link = "/" + h.workspaceSlug(r) + "/" + target + "/" + refID
-			}
-		case f.Type == model.FieldTypeUser && val != "":
-			if label, err := h.userLabel(r.Context(), val); err == nil && label != "" {
-				val = label
-			}
-		case f.Type == model.FieldTypeGroup && val != "":
-			if label, err := h.groupLabel(r.Context(), val); err == nil && label != "" {
-				val = label
-			}
-		case f.Type == model.FieldTypeBoolean:
-			val = boolLabel(val) // CAP-F09
-		case f.Type == model.FieldTypeMoney && val != "":
-			val = formatMoney(val, f, rec.Data) // CAP-F08
-		case f.Type == model.FieldTypeFile && val != "":
-			link = "/files/" + val // CAP-F06
-		case f.Type == model.FieldTypeComputed:
-			val = computedValue(f, rec.Data) // CAP-F14
-		}
-		urgency := ""
-		if detailView != nil && f.ID == detailView.Config.SlaField {
-			if label, u, ok := slaUrgency(val, detailView.Config.SlaWarningDays); ok { // CAP-V17
-				val, urgency = label, u
-			}
-		}
-		fields = append(fields, ui.DetailField{Name: f.Name, Value: val, Link: link, SlaUrgency: urgency})
 	}
 
 	// Suppress the reverse-reference section CAP-V06 would otherwise build
@@ -1096,7 +1079,7 @@ func (h *Handler) Detail(w http.ResponseWriter, r *http.Request) {
 		embedded = h.renderEmbeddedViews(r, rec, detailView.Config.Children)
 	}
 	a := h.auth(r)
-	page := ui.Detail(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), extraLinks, embedded)
+	page := ui.Detail(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, rec, fields, permittedEvents, childLists, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), extraLinks, embedded, planExplain)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render detail", "error", err)
 	}

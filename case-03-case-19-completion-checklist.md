@@ -37,7 +37,7 @@ Ground truth: `/ui-sample/case.html?case=3`'s own `screens` array (read directly
 |---|---|---|---|---|---|---|
 | 1 | Submit document (Wizard/Form) | `document-submit.html` | `vw_ad_form`, `POST /mch_approval_document` | **Built**, but structurally split: the mockup bundles metadata + PDF + mode + per-step assignee + step reordering + saved-flow selection into ONE wizard; real code splits submitting the Document (`vw_ad_form`) from creating each Approval Step (`vw_as_form`, one POST per step). A real, separate "Approval Flow Template" mechanism (`seeds/047_approval_flow_template.sql`, `mch_approval_flow_template`/`_step`) does cover reusable/saved flows by document type, confirmed — just not surfaced inside one screen. | Not composable — `model.ViewTypeForm` has a composable Dataset case (`BuildDatasetFromView`) but nothing renders a Form through it; this whole screen is untouched by any 17-series work. | Real UX-flow gap (one wizard vs. two separate submissions) independent of composable; no dedicated wizard screen exists. |
 | 2 | Signature positions (Coordinate editor) | `document-signature-placement.html` | `CoordPlace`, `GET/POST /mch_approval_document/{id}/place` (CAP-V21) | **Built.** | **Not composable at all** — `internal/composable` has zero representation for `model.ViewTypeCoordPlacement`; no Dataset case, no Component. | Composable-representation gap only; visual/functional gap not checked here. |
-| 3 | Approval inbox (Worklist + Detail) | `document-approval.html` | List (`vw_ad_all`/`vw_ad_pending` cards) + Detail (`vw_ad_detail`) + progress (`DecisionStepper`, `/mch_approval_document/{id}/progress`) | **Built**, with one confirmed gap: no `sla_field` is configured anywhere on this Machine's own views (grepped directly), so the mockup's own "SLA chips" are not wired for this case at all (CAP-V17 exists generically elsewhere, e.g. SLA Lab, just not applied here). The mockup's inline PDF preview alongside the action bar is also not confirmed to exist as one layout — the real file field only renders as a download link (`record_crud.go`'s `FieldTypeFile` case), not an inline viewer. | **List: production** (17g). **Detail: pilot only** (17m's generic route, not cut over — `CR-29`). **DecisionStepper progress: not composable at all.** | SLA wiring for this Machine (classic gap); inline PDF preview layout (classic gap, unverified how large); Detail cutover + DecisionStepper composable representation (composable gap). |
+| 3 | Approval inbox (Worklist + Detail) | `document-approval.html` | List (`vw_ad_all`/`vw_ad_pending` cards) + Detail (`vw_ad_detail`) + progress (`DecisionStepper`, `/mch_approval_document/{id}/progress`) | **Built**, with one confirmed gap: no `sla_field` is configured anywhere on this Machine's own views (grepped directly), so the mockup's own "SLA chips" are not wired for this case at all (CAP-V17 exists generically elsewhere, e.g. SLA Lab, just not applied here). The mockup's inline PDF preview alongside the action bar is also not confirmed to exist as one layout — the real file field only renders as a download link (`record_crud.go`'s `FieldTypeFile` case), not an inline viewer. | **List: production** (17g). **Detail: production** (17o closes `CR-29` — the real `/mch_approval_document/{id}` route now sources its own field set/order from `composable.BuildDatasetFromView`'s `ViewTypeDetail` case; per-field value formatting, which needs real store I/O, stays in the handler by architectural necessity). **DecisionStepper progress: not composable at all.** | SLA wiring for this Machine (classic gap); inline PDF preview layout (classic gap, unverified how large); DecisionStepper composable representation (composable gap, still open). |
 | 4 | Approval dashboard (Composed page) | `approval-dashboard.html` | `GET /mch_approval_document/page` (`vw_ad_page`) | **Built** for 3 of its own real sections (Summary/Pending Documents/Recent Activity). **Recent Activity is a named placeholder** — CAP-R04 (record activity/history timeline) does not exist anywhere in this runtime, for any Machine. | **1 section is production composable** — 17l's own "Total Approval Steps" Metric. **Named explicitly: that section does not exist in the ui-sample mockup at all** — it was added as a composable live-execution demo (17l), not toward closing this screen's own gap. The other 3 sections remain classic. | CAP-R04 (blocks Recent Activity — real, structural, needed regardless of composable); the composable Metric added doesn't map to anything ui-sample asked for, named so it's never mistaken for progress on this screen. |
 
 ## 3. Project Management (Case 19)
@@ -52,7 +52,7 @@ valid entry point per `app/CLAUDE.md`'s own ui-sample rule).
 | # | Screen | Mockup file | Maps to (real) | Classic capability | Composable status | Gap to close |
 |---|---|---|---|---|---|---|
 | 1 | Project board (Kanban) | `project-board.html` | `GET /mch_pm_card/board` (`vw_pmc_board`) | **Built**, CAP-V14 Tier 3, a deliberately narrower cut (`capability-registry.md`'s own row says so) — fixed lane grouping only. Confirmed by direct field check: `mch_pm_card` has exactly `fld_pmc_list` (reference), `fld_pmc_title` (text), `fld_pmc_description` (rich_text) — **no label field, no assignee/member field, no due-date field.** The mockup's own labels/member avatars/checklist-count badge/free-position drag have no backing data to render even if composable supported them. | **Production** for the lane-grouping itself (17n). | Missing Fields (label, assignee, due date) — classic, blocks the mockup regardless of architecture; richer drag semantics (reorder within a lane, not just move between lanes) — classic UI/JS work, unrelated to composable. |
-| 2 | Card detail | `project-card.html` | `GET /mch_pm_card/{id}` (`vw_pmc_detail`) + embedded Checklist (CAP-F16 `ChildLines` on the Card's own Form, CAP-V06 reverse-reference list on Detail) | **Built** for description + checklist. **Not built at all:** assignee (no such Field), position/due-date (no such Field), activity feed (CAP-R04, same gap as Case 3's own dashboard — not built anywhere). | **Pilot only** (17m's generic `/composable-preview` route works here since it's Machine-agnostic — never cut over to this real route). | CAP-R04 (activity, shared blocker with Case 3); new `user`/assignee Field on `mch_pm_card` (classic, not yet admitted); new date Field for "position"/due date (classic, not yet admitted); Detail cutover (composable, `CR-29`). |
+| 2 | Card detail | `project-card.html` | `GET /mch_pm_card/{id}` (`vw_pmc_detail`) + embedded Checklist (CAP-F16 `ChildLines` on the Card's own Form, CAP-V06 reverse-reference list on Detail) | **Built** for description + checklist. **Not built at all:** assignee (no such Field), position/due-date (no such Field), activity feed (CAP-R04, same gap as Case 3's own dashboard — not built anywhere). | **Production** (17o — `Detail` is one shared handler across every Machine, so this route was cut over in the same change as Case 3's own Detail page; `CR-29` closed). | CAP-R04 (activity, shared blocker with Case 3); new `user`/assignee Field on `mch_pm_card` (classic, not yet admitted); new date Field for "position"/due date (classic, not yet admitted). |
 | — | Checklist (no mockup file — `case.html`'s own screens array lists this third entry with no linked file) | — | `mch_pm_checklist_item`, embedded via the Card's own Form/Detail | **Built.** | Not composable at all (no pilot, no production — untouched). | Composable representation only, if ever forced. |
 
 ### Exploratory — "composable view explorations" (case-19.html's own label; real, named, but not a hard requirement the way the two core screens are)
@@ -68,23 +68,27 @@ valid entry point per `app/CLAUDE.md`'s own ui-sample rule).
 
 ## 4. What this means, stated plainly
 
-- **Case 3:** 2 of 4 screens have at least one real composable slice (List production, one
-  Metric); the other 2 screens (Submit, Signature Positions) have never been touched by any
-  composable work at all. Every screen has at least one real, classic (non-composable) gap
-  against its own ui-sample mockup.
-- **Case 19:** 1 of 2 core screens has a real composable slice (Board's lane-grouping); the other
-  (Card Detail) is pilot-only. Both core screens are missing real Fields (label, assignee, due
-  date) that block matching the mockup regardless of architecture. All 6 exploratory screens are
+- **Case 3:** 3 of 4 screens now have at least one real composable slice (List production, Detail
+  production as of 17o, one Metric); the other screen (Submit) and one sub-part of screen 3
+  (DecisionStepper progress) have never been touched by any composable work at all. Signature
+  Positions (screen 2) also remains untouched. Every screen still has at least one real, classic
+  (non-composable) gap against its own ui-sample mockup.
+- **Case 19:** both core screens now have a real composable slice (Board's lane-grouping, Card
+  Detail as of 17o). Both core screens are still missing real Fields (label, assignee, due date)
+  that block matching the mockup regardless of architecture. All 6 exploratory screens are
   entirely unbuilt in classic code — composable status does not even apply to them yet.
 - **Shared blocker:** CAP-R04 (activity/history timeline) blocks one screen in each case and does
   not exist anywhere in this runtime today.
 
-## 5. Suggested staged order (not started — awaiting direction)
+## 5. Suggested staged order
 
-Staged so each stage only depends on the one before it, and nothing here is started yet:
+Staged so each stage only depends on the one before it.
 
-1. **Composable cutover for what already has real code** — Detail (both cases), closing `CR-29`'s
-   own deferred production cutover. No new classic capability needed first.
+1. ~~**Composable cutover for what already has real code** — Detail (both cases), closing
+   `CR-29`'s own deferred production cutover.~~ **Done, 2026-09-12 (17o)** — `Detail` is one
+   shared handler across every Machine in the runtime, so this single change closed it for both
+   trial cases (and every other seeded Machine) at once. Proven by the full 292-test conformance
+   suite passing unchanged (Detail pages across many real Machines/field types).
 2. **Close the shared classic blocker** — CAP-R04 (activity timeline), since it blocks a named
    screen in both cases simultaneously. Governed by `capability-lifecycle.md`'s own A1-A5
    admission test before building — this document names the target, it does not pre-approve it.
