@@ -58,7 +58,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "==> quality gates (error-leak scan, handler LOC + complexity ratchets)"
+echo "==> quality gates (error-leak scan, handler LOC + complexity ratchets, composable import boundary)"
 ./scripts/check-quality-gates.sh
 
 echo "==> local-ci: isolated schema $SCHEMA, throwaway port $PORT"

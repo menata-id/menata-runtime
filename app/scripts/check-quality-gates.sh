@@ -6,6 +6,11 @@
 # check-cross-domain-import.sh: fail only on regression past a recorded
 # baseline, not on every pre-existing violation) so introducing this gate
 # doesn't require fixing already-shipped, conformance-passing code first.
+# Gate 5 (added for the composable-runtime-roadmap.md architecture) is the
+# exception -- modeled on portal-ga3's check-cross-domain-import.sh but as
+# a strict zero-tolerance check, not a ratchet, since there is nothing to
+# grandfather: it currently holds with zero violations and must keep
+# holding absolutely, not just avoid getting worse.
 #
 # See app/docs/portal-ga3-code-quality-benchmark.md for the full rationale.
 #
@@ -140,7 +145,48 @@ else
 fi
 echo ""
 
-OVERALL_FAIL=$((GATE1_FAIL || GATE2_FAIL || GATE3_FAIL || GATE4_FAIL))
+echo ""
+
+# --- Gate 5: internal/composable import-boundary fitness function -------
+# composable-runtime-roadmap.md's own architecture (007-composable-
+# runtime-architecture.md) requires internal/composable to be a pure,
+# execution-free package: metadata -> semantic model -> IR -> dependency
+# graph -> planner -> physical PLAN, never a package that reaches into
+# storage or transport itself. doc.go states this intent in prose across
+# 13 phases, but nothing enforced it mechanically -- this is that
+# enforcement, same "fail on any occurrence, no ratchet" shape as Gate 4
+# (there are zero existing violations to grandfather; this boundary is
+# meant to hold absolutely, not just avoid regressing from some count).
+# Modeled on portal-ga3's own check-cross-domain-import.sh (FF-004, R5.2)
+# but as a strict zero-tolerance check rather than a baseline ratchet,
+# since a composable/store or composable/http coupling is never legitimate
+# in production code -- unlike portal-ga3's own transitional domain-import
+# migration, there's no partial-progress state worth grandfathering here.
+#
+# _test.go files are exempted by design: internal/composable's own
+# *_seed_test.go files legitimately import internal/store and
+# internal/testing/testdb to seed real Postgres data and prove Phase
+# 13's Trial Migration equivalence against it -- that is test-only
+# infrastructure, not the production import graph this gate protects.
+echo "=== Gate 5: internal/composable import-boundary fitness function ==="
+GATE5_FAIL=0
+FORBIDDEN='menata\.id/app/internal/store|menata\.id/app/internal/db|menata\.id/app/internal/handler|"net/http"'
+BOUNDARY_VIOLATIONS=$(find internal/composable -name "*.go" ! -name "*_test.go" -print0 \
+  | xargs -0 grep -nE "$FORBIDDEN" || true)
+if [ -n "$BOUNDARY_VIOLATIONS" ]; then
+  echo "$BOUNDARY_VIOLATIONS"
+  echo ""
+  echo "FAIL: internal/composable production code must not import internal/store,"
+  echo "      internal/db, internal/handler, or net/http -- it is a pure,"
+  echo "      execution-free package (composable-runtime-roadmap.md /"
+  echo "      007-composable-runtime-architecture.md). Move the dependency behind"
+  echo "      an adapter in the caller, not into this package."
+  GATE5_FAIL=1
+else
+  echo "  PASS -- internal/composable production code imports none of store/db/handler/net-http."
+fi
+
+OVERALL_FAIL=$((GATE1_FAIL || GATE2_FAIL || GATE3_FAIL || GATE4_FAIL || GATE5_FAIL))
 if [ "$OVERALL_FAIL" -ne 0 ]; then
   exit 1
 fi
