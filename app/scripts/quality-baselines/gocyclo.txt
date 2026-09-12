@@ -15,7 +15,7 @@ executor resolveDateArithmetic 12
 handler (*Handler).APICreate 16
 handler (*Handler).AdminSetGroupRoles 12
 handler (*Handler).AdminUpdateUser 16
-handler (*Handler).Board 20
+handler (*Handler).Board 21
 handler (*Handler).BoardMove 13
 handler (*Handler).ChildLinesTemplate 11
 handler (*Handler).ChooseWorkspace 12

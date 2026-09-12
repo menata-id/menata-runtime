@@ -45,6 +45,16 @@ print('OK' if ok else 'FAIL')
 [ "$V14T3_LANES" = "OK" ]
 check T259 "CAP-V14" "a reference-typed group_field renders one lane per real target record, labeled by its own display name (got $V14T3_LANES)" $?
 
+# T286 -- composable-runtime-roadmap.md 17n: this real route now renders
+# through internal/composable (boardViaComposable) -- carries the same
+# live Dependency DAG/Execution Planner diagnostic the List cutover
+# (17g) already proves on its own real route, T272. T259 above, run
+# against this exact same real page, is the actual equivalence proof
+# (unchanged lane/card content); this only proves the plumbing is real,
+# not a hardcoded diagnostic string.
+printf '%s' "$BOARD_BODY" | grep -q 'data-composable-plan="ExecutionPlan: '
+check T286 "composable-runtime-roadmap.md 17n" "the real Card Board route now carries a real Dependency DAG/Execution Planner diagnostic too" $?
+
 # T260 -- POST .../board-move with a real target-machine record id moves
 # the Card into that List (a real CAP-F13 referential-integrity write, the
 # same MoveToLane mechanism T177 already proved, now over a dynamic lane).

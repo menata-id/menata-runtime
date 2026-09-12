@@ -372,6 +372,15 @@ func (h *Handler) Board(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// composable-runtime-roadmap.md 17n: a reference-typed group_field
+	// (CAP-V14 Tier 3, dynamic lanes) now renders through
+	// internal/composable -- see boardViaComposable's own doc comment.
+	// The value_list branch below (Tier 2, fixed lanes) is untouched:
+	// composable.ResolveBoardLanes has no support for it yet.
+	if groupField.Type == model.FieldTypeReference {
+		h.boardViaComposable(w, r, machine, applicationID, role, view, groupField)
+		return
+	}
 
 	hidden := h.hiddenFields(machine, role)
 	colIDs := []string{}
@@ -410,31 +419,16 @@ func (h *Handler) Board(w http.ResponseWriter, r *http.Request) {
 		byLane[laneVal] = append(byLane[laneVal], ui.ListRow{ID: rec.ID, Cells: cells})
 	}
 
-	var lanes []ui.BoardLane
-	switch groupField.Type {
-	case model.FieldTypeReference:
-		// CAP-V14 Tier 3: lanes are the target machine's own records, not a
-		// fixed option set -- metadata/validate.go already guarantees
-		// TargetMachine resolves at load time.
-		targetMachine, _ := h.interp.Get().GetMachine(groupField.Options.TargetMachine)
-		targetRecords, err := h.records.List(r.Context(), groupField.Options.TargetMachine, store.SortOrderField, "")
-		if err != nil {
-			http.Error(w, "failed to load board lanes", http.StatusInternalServerError)
-			return
-		}
-		lanes = make([]ui.BoardLane, 0, len(targetRecords))
-		for _, lrec := range targetRecords {
-			lanes = append(lanes, ui.BoardLane{ID: lrec.ID, Name: displayLabel(targetMachine, lrec.ID, lrec.Data), Rows: byLane[lrec.ID]})
-		}
-	default: // model.FieldTypeValueList
-		lanes = make([]ui.BoardLane, 0, len(groupField.Options.Values))
-		for _, v := range groupField.Options.Values {
-			lanes = append(lanes, ui.BoardLane{ID: v, Name: v, Rows: byLane[v]})
-		}
+	// CAP-V14 Tier 2 only from here on -- a reference-typed group_field
+	// (Tier 3) always returns early above (17n), so this is never reached
+	// for anything but a fixed value_list group_field.
+	lanes := make([]ui.BoardLane, 0, len(groupField.Options.Values))
+	for _, v := range groupField.Options.Values {
+		lanes = append(lanes, ui.BoardLane{ID: v, Name: v, Rows: byLane[v]})
 	}
 
 	a := h.auth(r)
-	page := ui.Board(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, view.Config.GroupField, cols, lanes, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, model.ViewTypeBoard))
+	page := ui.Board(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, view.Config.GroupField, cols, lanes, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machineID, model.ViewTypeBoard), "")
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render board", "error", err)
 	}

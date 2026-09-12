@@ -21,5 +21,5 @@
 174 internal/handler/search.go
 177 internal/handler/upload.go
 196 internal/handler/validation.go
-441 internal/handler/views.go
+450 internal/handler/views.go
 74 internal/handler/workspace.go

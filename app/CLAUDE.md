@@ -117,6 +117,28 @@ replacement. Document Approval (Case 3, case-coverage table) is the owner-cited 
 of this exact gap already having gone unmeasured — flagged in conversation 2026-09-10, not yet
 written up with a citation anywhere.
 
+**Status update (2026-09-12, real citation, owner-flagged recurring problem):** this gap is now
+measured for at least one case, and the owner reports it recurring across multiple AI development
+sessions specifically because agents keep treating the CURRENT, incomplete live rendering as the
+design reference instead of checking `ui-sample` first. Concrete case: **Case 19 (Project
+Management)**'s own `project-board.html` (linked from `case-19.html`, this table's own entry
+point) is a rich Trello-like board — labels, members, drag-and-drop, checklist, activity — while
+the real, live `/mch_pm_card/board` route (`internal/ui/board.templ`) renders `CAP-V14`'s own
+deliberately narrower cut: fixed lane columns grouped by one `value_list`/`reference` field, no
+labels, no members, no drag-and-drop. This is real, measured drift (`capability-registry.md`'s
+own `CAP-V14 Tier 2` row already names the narrower cut as deliberate, not accidental), not a
+comparison anyone had written down before.
+
+**Load-bearing rule, stated explicitly so it stops recurring:** `composable-runtime-roadmap.md`'s
+own "render-output equivalence" proofs (17e, 17i, 17m, and any cutover after them) prove that
+migrating rendering logic onto the composable substrate does not change what the CURRENT code
+already renders — an architecture-migration safety proof. They are **never** a claim that the
+current rendering matches `ui-sample`'s own design intent, and must never be read or cited as
+one. Closing the actual design gap against `project-board.html` (or any other case's own linked
+mockup) is separate, real, unstarted work — none of 17a–17m attempted it, by design (matching
+this repo's own `Filename case`/`append, don't rewrite` discipline: the gap is named here with a
+citation, not silently closed by accident nor silently left unmeasured again).
+
 ## Established pattern so far
 
 Each `internal/<name>/doc.go` states what it's graduated from (or "NEW" for `internal/storage`),

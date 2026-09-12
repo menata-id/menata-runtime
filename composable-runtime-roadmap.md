@@ -126,6 +126,7 @@ increment) and manufacturing one now would be exactly what Principle #8 warns ag
 8. **Evidence before optimization.** Every coalescing/batching strategy is benchmarked against a naive baseline.
 9. **Inference is inspectable.** Important inferred dependencies must be diagnosable.
 10. **Trial cases are real consumers.** Document Approval and Project Management use the same substrate.
+11. **Render-output equivalence proves migration safety, not design completeness.** An "equivalence" claim anywhere in this roadmap (17e, 17i, 17m, and any cutover after them) means the composable path renders identically to whatever the CURRENT code already renders — proof the architecture migration changed nothing about existing behavior. It is never a claim that the current rendering matches `app/web/static/ui-sample`'s own design intent (`app/CLAUDE.md`'s "ui-sample" section, status update 2026-09-12) — that is a separate, real, unmeasured-until-now gap (concrete citation there: Case 19's `project-board.html` vs. the real, deliberately narrower `board.templ`). Owner-flagged as a recurring mistake across AI sessions; stated here so this roadmap's own evidence is never misread as closing it.
 
 ---
 
@@ -1714,6 +1715,85 @@ all stay real, handler-level, and explicitly out of scope.
 (two new-function complexity fixes via small helpers — `allFieldIDs`,
 `buildPreviewDetailFields`/`assertCellsMatch` — no baseline edits needed), and
 `./scripts/local-ci.sh` — 291 passed, 0 failed (286 + new T281-T285).
+
+---
+
+# 17n. Board Cutover — Project Management's Dynamic-Lane Board to the Composable Substrate
+(2026-09-12)
+
+**A real production cutover, not another pilot** — following 17g's own precedent (List cutover
+for Document Approval), the real `GET /{machineID}/board` route now renders CAP-V14 Tier 3
+(reference-typed `group_field`, dynamic lanes) through `internal/composable`, not just the
+existing `/composable-preview`. Owner-requested directly ("ubah langsung di produksi... agar
+langsung di menata.app").
+
+**Three real constraints found while grounding, all preserved, not discovered mid-
+implementation:**
+1. `Board()` (`internal/handler/views.go`) is shared across every Machine with a board View —
+   `seeds/032_kanban_lab.sql`'s `vw_kbt_board` (CAP-V14 **Tier 2**, `value_list` `group_field`)
+   goes through the exact same handler `mch_pm_card`'s own **Tier 3** board does.
+   `composable.ResolveBoardLanes` only ever supports Tier 3 (its own doc comment says so).
+   **Scope correction: this cutover only ever replaces the Tier 3 branch** — a new dispatch
+   (`if groupField.Type == model.FieldTypeReference { h.boardViaComposable(...); return }`)
+   routes only reference-typed boards through composable; the Tier 2 branch is now the ONLY
+   remaining code in `Board()`'s own switch-turned-plain-block, completely unchanged in behavior
+   (proven: `T176`/`T177`, Kanban Lab's own board/board-move, still pass unchanged).
+2. The real `board.templ` has drag-and-drop (`board-card`, `cursor-move`, Hyperscript
+   `dragstart`/`dragover`/`drop`); the additive preview's own `composableBoardLanes` deliberately
+   does not (`242_composable_pm_board_pilot.sh`'s own T278/T279 comment says so directly).
+   **This cutover reuses the existing `ui.Board()` template unchanged** — only where the lane/
+   card data comes from changes, so dragging keeps working exactly as before.
+3. CAP-P06 hidden-field filtering must survive — composable's own `Dataset.Projection.Fields`
+   (from `BuildDatasetFromView`'s Board case) is unfiltered and also carries the group field
+   itself. **Every cell is resolved individually via the existing `composable.ResolveFieldValue`
+   against this role's own already-hidden-filtered `colIDs`**, never by indexing into a Dataset's
+   raw Projection.
+
+**What composable genuinely drives here:** the LANE GROUPING itself — which real Card lands in
+which real List's lane — is computed by the existing, already-proven
+`composable.ResolveBoardLanes` (17h), the actual CAP-V14 Tier 3 semantic. New file
+`internal/handler/composable_board.go` (`boardViaComposable`, `buildComposableBoardLanes`,
+`buildComposableBoardRows`, `visibleBoardColumns`) wires this into the real route;
+`internal/ui/board.templ` gains the same `planExplain` hidden-diagnostic parameter `list.templ`'s
+own `composableCardGrid` already established for the List cutover (empty for every Tier 2 board,
+real for Tier 3).
+
+**Proof:** `TestBuildComposableBoardLanes`/`TestBuildComposableBoardLanes_EmptyLane`
+(`internal/handler/composable_board_test.go`) — the new composable-driven path produces the
+exact `[]ui.BoardLane` shape the old, now-removed Reference-branch logic used to build directly,
+including CAP-V14's own "an unused lane still renders empty" rule. Conformance: `T259`-`T261`
+(`240_dynamic_board_lanes.sh`), run against the SAME now-cut-over real route, still pass
+unchanged — the actual equivalence proof; new `T286` confirms the real page now also carries a
+real Dependency DAG/Execution Planner diagnostic (`data-composable-plan`), not a hardcoded
+string. `T176`/`T177` (`060_ui_cluster.sh`, Kanban Lab's own Tier 2 board) still pass unchanged,
+proving the scope correction actually holds.
+
+**Also fixed, same increment (found while grounding, unrelated to the cutover itself):**
+`conformance/tests/242_composable_detail_pilot.sh` (17m) collided with the pre-existing
+`242_composable_pm_board_pilot.sh` (17i) — both shared the `242` prefix. Renamed to `243`, the
+real next-free slot.
+
+**Per Principle 11 (§3) — stated again so this increment's own evidence is never misread:** this
+cutover proves the composable path renders identically to the current `board.templ` output. It
+does not close the real, separately-tracked design gap against `project-board.html` (the rich
+Trello-like mockup, `app/CLAUDE.md`'s "ui-sample" section) — that stays exactly as open as before.
+
+**Not done here** (named, not silently dropped): CAP-V14 Tier 2 (value_list) boards moving to
+composable — `ResolveBoardLanes` has no support for this yet, real, separate, unforced work; any
+visual/UX change toward `project-board.html`'s own richer design (labels, members, drag-and-drop
+reordering within a lane); `board-move` itself (`POST .../board-move`) — already real, already
+tested, untouched — only the `GET` render path changed.
+
+**Deployed live**, same as 17k-17m: rebuilt (`go build -o bin/server ./cmd/server`), restarted
+via `/root/scripts/server-manager.sh restart menata-runtime` — no new migration/seed needed here
+(purely a code change).
+
+**Verification:** `go build`/`go vet`/`go test ./...` (isolated schema), all 5 quality gates
+(`views.go`'s own complexity/LOC growth from the new dispatch baselined, then partially offset
+by removing the now-dead Reference `case` — net LOC ended lower than the bumped baseline;
+`boardViaComposable` itself kept under the Gate 3 threshold via `visibleBoardColumns`/
+`buildComposableBoardLanes`/`buildComposableBoardRows` helpers, no baseline edit needed for it),
+and `./scripts/local-ci.sh` — 292 passed, 0 failed (291 + new T286).
 
 ---
 

@@ -17,8 +17,18 @@ import "menata.id/app/internal/model"
 // -- only the drag gesture needs Hyperscript; a client with JS disabled
 // still sees every card in its correct lane, just without the ability to
 // move one.
-templ Board(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName, groupField string, columns []ColumnDef, lanes []BoardLane, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) {
+// planExplain (composable-runtime-roadmap.md 17n), when non-empty, is
+// 17b's own Dependency DAG/Execution Planner diagnostic, rendered as a
+// hidden inspectable attribute -- the exact same pattern list.templ's own
+// composableCardGrid already uses for the List cutover (17g). Empty for
+// every value_list (Tier 2) board, unchanged since before this Machine
+// existed; non-empty only for a reference (Tier 3) board's own cutover
+// branch (internal/handler/composable_board.go).
+templ Board(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName, groupField string, columns []ColumnDef, lanes []BoardLane, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink, planExplain string) {
 	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
+		if planExplain != "" {
+			<div class="hidden" data-composable-plan={ planExplain }></div>
+		}
 		<div class="mb-4">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
 		</div>

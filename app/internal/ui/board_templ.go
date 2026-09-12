@@ -25,7 +25,14 @@ import "menata.id/app/internal/model"
 // -- only the drag gesture needs Hyperscript; a client with JS disabled
 // still sees every card in its correct lane, just without the ability to
 // move one.
-func Board(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName, groupField string, columns []ColumnDef, lanes []BoardLane, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink) templ.Component {
+// planExplain (composable-runtime-roadmap.md 17n), when non-empty, is
+// 17b's own Dependency DAG/Execution Planner diagnostic, rendered as a
+// hidden inspectable attribute -- the exact same pattern list.templ's own
+// composableCardGrid already uses for the List cutover (17g). Empty for
+// every value_list (Tier 2) board, unchanged since before this Machine
+// existed; non-empty only for a reference (Tier 3) board's own cutover
+// branch (internal/handler/composable_board.go).
+func Board(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName, groupField string, columns []ColumnDef, lanes []BoardLane, unreadCount int, subNav []SubNavLink, viewNav []ViewNavLink, planExplain string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -58,20 +65,39 @@ func Board(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, mach
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"mb-4\"><h1 class=\"text-xl font-semibold text-slate-900\">")
+			if planExplain != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"hidden\" data-composable-plan=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var3 string
+				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(planExplain)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 30, Col: 57}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"></div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " <div class=\"mb-4\"><h1 class=\"text-xl font-semibold text-slate-900\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(viewName)
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(viewName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 23, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 33, Col: 62}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h1></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</h1></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -81,162 +107,162 @@ func Board(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, mach
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " <div class=\"flex gap-4 overflow-x-auto pb-4\" data-board-ws=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(wsSlug)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 30, Col: 25}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" data-board-machine=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " <div class=\"flex gap-4 overflow-x-auto pb-4\" data-board-ws=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(machine.ID)
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(wsSlug)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 31, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 40, Col: 25}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" data-board-csrf=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" data-board-machine=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfToken)
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(machine.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 32, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 41, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" data-board-csrf=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var7 string
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfToken)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 42, Col: 30}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, lane := range lanes {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"board-lane w-72 shrink-0 rounded-lg border border-slate-200 bg-slate-50\" data-lane=\"")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var7 string
-				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(lane.ID)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 35, Col: 108}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"><h2 class=\"border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"board-lane w-72 shrink-0 rounded-lg border border-slate-200 bg-slate-50\" data-lane=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var8 string
-				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(lane.Name)
+				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(lane.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 37, Col: 17}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 45, Col: 108}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, " <span class=\"ml-1 text-slate-400\">(")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"><h2 class=\"border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var9 string
-				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(lane.Rows)))
+				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(lane.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 38, Col: 71}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 47, Col: 17}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, ")</span></h2><div class=\"board-lane-body min-h-16 space-y-2 p-2\" _=\"on dragover\n\t\t\t\t\t\t\tjs(event) event.preventDefault() end\n\t\t\t\t\t\tend\n\t\t\t\t\t\ton drop\n\t\t\t\t\t\t\tjs(event, me)\n\t\t\t\t\t\t\t\tevent.preventDefault();\n\t\t\t\t\t\t\t\tvar recordId = event.dataTransfer.getData('text/plain');\n\t\t\t\t\t\t\t\tvar lane = me.closest('.board-lane').dataset.lane;\n\t\t\t\t\t\t\t\tvar board = me.closest('[data-board-machine]');\n\t\t\t\t\t\t\t\tif (!recordId || !lane || !board) return;\n\t\t\t\t\t\t\t\tfetch('/' + board.dataset.boardWs + '/' + board.dataset.boardMachine + '/' + recordId + '/board-move', {\n\t\t\t\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\t\t\t\theaders: { 'Content-Type': 'application/x-www-form-urlencoded' },\n\t\t\t\t\t\t\t\t\tbody: 'lane=' + encodeURIComponent(lane) + '&csrf_token=' + encodeURIComponent(board.dataset.boardCsrf)\n\t\t\t\t\t\t\t\t}).then(function() { location.reload(); });\n\t\t\t\t\t\t\tend\n\t\t\t\t\t\tend\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " <span class=\"ml-1 text-slate-400\">(")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var10 string
+				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(lane.Rows)))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 48, Col: 71}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, ")</span></h2><div class=\"board-lane-body min-h-16 space-y-2 p-2\" _=\"on dragover\n\t\t\t\t\t\t\tjs(event) event.preventDefault() end\n\t\t\t\t\t\tend\n\t\t\t\t\t\ton drop\n\t\t\t\t\t\t\tjs(event, me)\n\t\t\t\t\t\t\t\tevent.preventDefault();\n\t\t\t\t\t\t\t\tvar recordId = event.dataTransfer.getData('text/plain');\n\t\t\t\t\t\t\t\tvar lane = me.closest('.board-lane').dataset.lane;\n\t\t\t\t\t\t\t\tvar board = me.closest('[data-board-machine]');\n\t\t\t\t\t\t\t\tif (!recordId || !lane || !board) return;\n\t\t\t\t\t\t\t\tfetch('/' + board.dataset.boardWs + '/' + board.dataset.boardMachine + '/' + recordId + '/board-move', {\n\t\t\t\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\t\t\t\theaders: { 'Content-Type': 'application/x-www-form-urlencoded' },\n\t\t\t\t\t\t\t\t\tbody: 'lane=' + encodeURIComponent(lane) + '&csrf_token=' + encodeURIComponent(board.dataset.boardCsrf)\n\t\t\t\t\t\t\t\t}).then(function() { location.reload(); });\n\t\t\t\t\t\t\tend\n\t\t\t\t\t\tend\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if len(lane.Rows) == 0 {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"rounded-md border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400\">No records</div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"rounded-md border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400\">No records</div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				for _, row := range lane.Rows {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<a href=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<a href=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var10 templ.SafeURL
-					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + row.ID))
+					var templ_7745c5c3_Var11 templ.SafeURL
+					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + row.ID))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 67, Col: 76}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 77, Col: 76}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" class=\"board-card block cursor-move rounded-md border border-slate-200 bg-white p-3 text-sm shadow-sm hover:shadow\" draggable=\"true\" data-record-id=\"")
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var11 string
-					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(row.ID)
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 70, Col: 31}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\" class=\"board-card block cursor-move rounded-md border border-slate-200 bg-white p-3 text-sm shadow-sm hover:shadow\" draggable=\"true\" data-record-id=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\" _=\"on dragstart\n\t\t\t\t\t\t\t\t\tjs(event, me) event.dataTransfer.setData('text/plain', me.dataset.recordId) end\n\t\t\t\t\t\t\t\tend\">")
+					var templ_7745c5c3_Var12 string
+					templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(row.ID)
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 80, Col: 31}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\" _=\"on dragstart\n\t\t\t\t\t\t\t\t\tjs(event, me) event.dataTransfer.setData('text/plain', me.dataset.recordId) end\n\t\t\t\t\t\t\t\tend\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					for _, cell := range row.Cells {
 						if cell.Value != "" {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"truncate text-slate-700\">")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"truncate text-slate-700\">")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							var templ_7745c5c3_Var12 string
-							templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(cell.Value)
+							var templ_7745c5c3_Var13 string
+							templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(cell.Value)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 77, Col: 59}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/board.templ`, Line: 87, Col: 59}
 							}
-							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div>")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</a>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</a>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
