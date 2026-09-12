@@ -46,7 +46,19 @@ AS_ID="${AS_URL##*/}"
 # T209 -- the assigned Approver (Bob) reaches the page from Detail, sees an
 # editable preview with the pin defaulted to center (no placement declared
 # yet), and a drop-simulating POST persists.
-DETAIL_HAS_LINK=$(get_body "$BASE_URL/mch_approval_step/$AS_ID" "$BOB" | grep -c "Set Position")
+#
+# Detail's own standalone "Set Position" DetailLink (record_crud.go) is
+# suppressed by design here (2026-09-10 -- "a top-of-page link to the
+# standalone full-page version of the SAME content is a dead duplicate")
+# because seeds/042_inline_view_composition.sql already embeds vw_as_place
+# inline on vw_as_detail's own Config.Children -- seeds/042's own comment:
+# "previously only reachable via a separate 'Set Position' DetailLink".
+# What Detail shows INSTEAD is that embedded section itself, titled per
+# seeds/044_document_submit_dashboard_live_wiring.sql's own rename ("Your
+# Signature Position", matching document-approval.html's mockup copy) --
+# checking for that is the correct proof Bob can reach the position editor
+# from Detail today, not the superseded standalone link text.
+DETAIL_HAS_LINK=$(get_body "$BASE_URL/mch_approval_step/$AS_ID" "$BOB" | grep -c "Your Signature Position")
 GET_BODY=$(get_body "$BASE_URL/mch_approval_step/$AS_ID/place" "$BOB")
 HAS_EDIT_MARKERS=$(echo "$GET_BODY" | grep -c 'data-coordplace-machine')
 HAS_DEFAULT_CENTER=$(echo "$GET_BODY" | grep -c 'left:50.00%; top:50.00%')
