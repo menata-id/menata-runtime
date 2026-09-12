@@ -139,6 +139,12 @@ mockup) is separate, real, unstarted work — none of 17a–17m attempted it, by
 this repo's own `Filename case`/`append, don't rewrite` discipline: the gap is named here with a
 citation, not silently closed by accident nor silently left unmeasured again).
 
+**The complete, per-screen tracking document this rule demands now exists:**
+`case-03-case-19-completion-checklist.md` (repo root) — every `ui-sample` screen for both trial
+applications (Case 3, Case 19), each checked directly against that mockup file (not the current
+code), with classic-capability status and composable status tracked as two separate columns, and
+a staged execution order. Read it before describing either trial case as "done" in any sense.
+
 ## Established pattern so far
 
 Each `internal/<name>/doc.go` states what it's graduated from (or "NEW" for `internal/storage`),

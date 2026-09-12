@@ -57,6 +57,14 @@ The following are the important implementation gaps that must be explicitly trac
 | CR-28 | `007-composable-runtime-architecture.md` §40 (claim-by-claim PROVEN/PROPOSED citation matrix) does not exist | **RESOLVED 2026-09-11** — §40 added to `007`, citing `composable-runtime-blueprint.md` §3 and this file's own `CR-01`–`CR-28` register per claim. | P0 |
 | CR-29 | Detail-shaped composable primitive (recognized while auditing `CR-20`, 17l) — `BuildDatasetFromView` had no case for `model.ViewTypeDetail`, and no route ever lowered a single-record field list through `internal/composable` | **Phase slice implemented, 2026-09-12 (§17m)** — `BuildDatasetFromView` gains a `ViewTypeDetail` case (every Machine Field, no Filter/Sort/GroupBy — WHICH record is a request-level concern, not a Dataset one). Design decision: no 8th `ComponentType` — the existing `Collection` component + the existing `ResolveCollectionItem` (unchanged) resolve one record's own field list exactly as they already resolve one row of many. Proven on a new, additive, read-only route (`GET /{machineID}/{recordID}/composable-preview`, `internal/handler/composable_preview_detail.go`), with real render-output equivalence for plain/value_list fields against the real Detail page (T281/T282, `conformance/tests/242_composable_detail_pilot.sh`) — reference/user/file fields are a named, not-yet-matched boundary (`ResolveFieldValue`'s own documented scope). The real production `Detail` route (`record_crud.go`) is untouched — this is a pilot, mirroring 17a's own List pilot, not yet a cutover. See §17m. | P1 |
 
+**See also (2026-09-12): `case-03-case-19-completion-checklist.md`** (root) — the complete,
+per-screen inventory of both trial applications (Case 3, Case 19) against their own real
+`/ui-sample/` mockups (not the current code), with a staged, not-yet-started execution order.
+This Gap Register tracks the composable *substrate's* own capabilities; that document tracks
+what each trial application still needs — classic capability AND composable status, tracked
+separately — to actually match its own design intent. Read that document before assuming either
+trial case is "done."
+
 ---
 
 # 2a. Migration Compatibility Contract (resolves CR-26)
