@@ -21,6 +21,47 @@ other real capability work — not roadmap-phase-constrained the way the graduat
 `README.md`'s own "Current status" section still has the authoritative history of how `app/` got
 here, but no longer names a "phase in progress" to check before touching code.
 
+## Server lifecycle — never kill/start the shared process ad hoc
+
+**Status update (2026-09-12):** this has been gotten wrong more than once — an agent killing the
+live process with a raw `kill $(cat /tmp/some.pid)` (or a bare `nohup ./bin/server &`) during a
+manual smoke test, leaving it down for whoever hits `menata.app`/`aksi.menata.id` next, or for the
+following session to discover cold. `menata-runtime`'s real instance (port 4000,
+`aksi.menata.id`, cutover `ROADMAP.md` Phase 6) shares this host with `portal-ga3`, `iaabl2-*`,
+and `menata-aksi` — it is one of several apps a single global script already manages, per-app, by
+name:
+
+```bash
+go build -o bin/server ./cmd/server     # the script does NOT build for you — do this first
+/root/scripts/server-manager.sh {start|stop|restart|status} menata-runtime
+```
+
+`status` (no app name needed for the bulk form) shows every app on the host at once, dev and
+prod, so it's also the right first move before touching anything. `portal-ga3` is a **separate
+application on the same script** (`... portal-ga3`, port 3003) — a `menata-runtime` restart must
+never touch it, and vice versa; check `status` before and after to confirm only the intended app
+moved.
+
+**Never**: `kill`/`kill -9` against a PID you found yourself (`lsof`, a stashed `.pid` file, `ps
+grep`), or a bare `nohup ... &` to bring it back up. The script's own stop function does a real
+graceful SIGTERM-then-SIGKILL sequence with a wait loop, and its start function verifies
+`/health` actually responds before declaring success — a manual kill/nohup pair skips both and is
+exactly how this has gone wrong before.
+
+**Never** add automatic/scheduled/self-healing restart logic (systemd `Restart=`, a cron
+watchdog, a monitor script that restarts on crash-detect) — this host has a standing, explicit,
+server-wide policy against it: `/root/docs/server-policies/NO-AUTO-RESTART-POLICY.md` (not
+menata-runtime-specific; applies to every app `server-manager.sh` manages). A crash should surface
+as a crash, investigated from logs, not get silently hidden by an auto-restart. Manual,
+on-demand restart via the script above is the only supported mode on this host.
+
+For a throwaway server that isn't the shared port-4000 instance at all — a one-off manual smoke
+test, say — don't touch the shared instance or invent your own pid-file convention: follow
+`scripts/local-ci.sh`'s own pattern instead (isolated Postgres schema + a server bound to a
+scratch port, its own `trap cleanup EXIT INT TERM` tearing everything down automatically when the
+script exits). That pattern already exists and already gets teardown right; a fresh ad-hoc
+approach is what keeps reintroducing this mistake.
+
 ## The source of truth for "how we actually work" — still not fully migrated here
 
 `../prototype/go/CLAUDE.md` carries this project's entire accumulated "caught live" gotcha catalog

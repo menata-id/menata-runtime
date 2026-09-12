@@ -40,7 +40,10 @@ land as Phase 2/3 need them.
 Same real resource constraint as `prototype/go`'s own deployment (`prototype/go/DEVELOPMENT.md`'s
 own note) — this host runs several other apps' production instances already; a container
 runtime's overhead isn't free on a host this size. Deployment stays a plain compiled binary via
-`server-manager.sh`, same pattern, once there's a binary to deploy.
+`server-manager.sh`, same pattern, once there's a binary to deploy. **Status update (2026-09-12):
+there is a binary now — see `CLAUDE.md`'s "Server lifecycle" section for the actual
+start/stop/restart commands and what not to do (this line originally just gestured at the script
+without saying how, which is part of why that got gotten wrong more than once).**
 
 ## Installation
 
