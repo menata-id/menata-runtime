@@ -37,6 +37,17 @@ func discoverRelations(m *model.Machine, fields []string) []RelationRef {
 	return rels
 }
 
+// allFieldIDs returns every one of m's own Field ids, in declaration
+// order -- split out of BuildDatasetFromView's own Detail case (Gate 3:
+// keeps that switch's own complexity small).
+func allFieldIDs(m *model.Machine) []string {
+	ids := make([]string, len(m.Fields))
+	for i, f := range m.Fields {
+		ids[i] = f.ID
+	}
+	return ids
+}
+
 func containsString(ss []string, s string) bool {
 	for _, v := range ss {
 		if v == s {
@@ -116,6 +127,17 @@ func BuildDatasetFromView(m *model.Machine, v *model.View) (Dataset, error) {
 		}
 	case model.ViewTypeForm:
 		fields = v.Config.Fields
+	case model.ViewTypeDetail:
+		// 17m: a Detail view's own data requirement is every one of its
+		// Machine's Fields, in declaration order -- unlike List/Board/Form,
+		// Detail is never driven by a ViewConfig column/field list
+		// (internal/handler/record_crud.go's real Detail handler already
+		// walks m.Fields directly, not v.Config). WHICH single record is
+		// a request-level concern (the URL's own recordID), not a Dataset
+		// one -- the same reasoning a List's own Dataset never encodes
+		// which workspace it's scoped to. No Filter/Sort/GroupBy/Measures:
+		// a Detail view declares none of CAP-V09's filter/sort grammar.
+		fields = allFieldIDs(m)
 	default:
 		return Dataset{}, fmt.Errorf("composable: view %s (machine %s, type %s) has no representable data requirement", v.ID, m.ID, v.Type)
 	}
@@ -260,7 +282,7 @@ func BuildDataIR(app *model.Application) (DataIR, error) {
 	for _, m := range app.Machines {
 		for _, v := range m.Views {
 			switch v.Type {
-			case model.ViewTypeList, model.ViewTypeCalendar, model.ViewTypeTimeline, model.ViewTypeBoard, model.ViewTypeForm:
+			case model.ViewTypeList, model.ViewTypeCalendar, model.ViewTypeTimeline, model.ViewTypeBoard, model.ViewTypeForm, model.ViewTypeDetail:
 				if ds, err := BuildDatasetFromView(m, v); err == nil {
 					ir.Datasets = append(ir.Datasets, ds)
 				}

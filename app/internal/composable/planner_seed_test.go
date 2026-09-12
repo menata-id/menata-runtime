@@ -24,6 +24,17 @@ import (
 // Experience-plane closure this increment adds), not an accident --
 // TestGroupByMachineAgainstApprovalCase/TestBuildExecutionPlanAgainstApprovalCase's
 // own counts below were updated to match, not loosened to hide it.
+//
+// Status update (2026-09-12, composable-runtime-roadmap.md 17m):
+// vw_ad_detail (a real `detail`-type View on mch_approval_document) now
+// ALSO carries its own real Dataset -- BuildDatasetFromView used to error
+// for ViewTypeDetail ("no representable data requirement"), so
+// lowerViewRefChild's own view_ref node for it previously carried a nil
+// Dataset, invisible to the DAG. 17m's own Detail-Page Composition Pilot
+// closes that gap, so this Machine's own group now has a genuine FOURTH
+// node -- one more real, distinct Dataset (every Field, no Filter/Sort/
+// GroupBy), not a duplicate of any of the other three. Counts below
+// updated again to match.
 func buildApprovalDocumentDAG(t *testing.T) composable.DependencyDAG {
 	t.Helper()
 	pool := testdb.Connect(t)
@@ -46,7 +57,8 @@ func buildApprovalDocumentDAG(t *testing.T) composable.DependencyDAG {
 
 // TestGroupByMachineAgainstApprovalCase proves Phase 8's own stage 1
 // (execution groups) against real seeded metadata: mch_approval_document's
-// three distinct Datasets share one MachineID and must land in one
+// four distinct Datasets (vw_ad_form, vw_ad_all, vw_ad_pending, and, since
+// 17m, vw_ad_detail) share one MachineID and must land in one
 // ExecutionGroup, grouped (not merged) -- Phase 7 already proved they're
 // legitimately distinct dependencies. A second group, for
 // mch_approval_step, is the 17k cross-machine component (see
@@ -63,8 +75,8 @@ func TestGroupByMachineAgainstApprovalCase(t *testing.T) {
 	if groups[0].MachineID != "mch_approval_document" {
 		t.Errorf("groups[0].MachineID = %q, want mch_approval_document", groups[0].MachineID)
 	}
-	if len(groups[0].Nodes) != 3 {
-		t.Fatalf("len(groups[0].Nodes) = %d, want 3 (vw_ad_form, vw_ad_all, vw_ad_pending)", len(groups[0].Nodes))
+	if len(groups[0].Nodes) != 4 {
+		t.Fatalf("len(groups[0].Nodes) = %d, want 4 (vw_ad_form, vw_ad_all, vw_ad_pending, vw_ad_detail)", len(groups[0].Nodes))
 	}
 	if groups[1].MachineID != "mch_approval_step" {
 		t.Errorf("groups[1].MachineID = %q, want mch_approval_step", groups[1].MachineID)
@@ -77,17 +89,17 @@ func TestGroupByMachineAgainstApprovalCase(t *testing.T) {
 // TestBuildExecutionPlanAgainstApprovalCase proves Phase 8's own
 // counting-based "lower physical work" comparison against the same real
 // DAG: form=1 consumer, all=1 consumer, pending=2 consumers (Phase 7's own
-// real duplicate), plus the 17k Metric component's own dataset=1 consumer
-// -- naive=5, deduplicated=4.
+// real duplicate), detail=1 consumer (17m), plus the 17k Metric
+// component's own dataset=1 consumer -- naive=6, deduplicated=5.
 func TestBuildExecutionPlanAgainstApprovalCase(t *testing.T) {
 	dag := buildApprovalDocumentDAG(t)
 	plan := composable.BuildExecutionPlan(dag)
 
-	if plan.NaiveQueryCount != 5 {
-		t.Errorf("NaiveQueryCount = %d, want 5", plan.NaiveQueryCount)
+	if plan.NaiveQueryCount != 6 {
+		t.Errorf("NaiveQueryCount = %d, want 6", plan.NaiveQueryCount)
 	}
-	if plan.DeduplicatedQueryCount != 4 {
-		t.Errorf("DeduplicatedQueryCount = %d, want 4", plan.DeduplicatedQueryCount)
+	if plan.DeduplicatedQueryCount != 5 {
+		t.Errorf("DeduplicatedQueryCount = %d, want 5", plan.DeduplicatedQueryCount)
 	}
 	if plan.DeduplicatedQueryCount >= plan.NaiveQueryCount {
 		t.Errorf("DeduplicatedQueryCount (%d) not lower than NaiveQueryCount (%d)", plan.DeduplicatedQueryCount, plan.NaiveQueryCount)

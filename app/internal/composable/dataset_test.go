@@ -91,6 +91,34 @@ func TestBuildDatasetFromView_BoardGroupField(t *testing.T) {
 	}
 }
 
+// TestBuildDatasetFromView_Detail (composable-runtime-roadmap.md 17m) is
+// the regression test for a real gap: a Detail view used to error
+// ("has no representable data requirement") because, unlike List/Board/
+// Form, it's never driven by ViewConfig's own column/field list --
+// record_crud.go's real Detail handler walks m.Fields directly. Its own
+// Dataset now projects every one of the Machine's own Fields, in
+// declaration order, with no Filter/Sort/GroupBy/Measures -- WHICH single
+// record is a request-level concern, not a Dataset one.
+func TestBuildDatasetFromView_Detail(t *testing.T) {
+	m := builders.Machine("mch_task").
+		WithField(builders.Field("fld_title", model.FieldTypeText).Build()).
+		WithField(builders.Field("fld_status", model.FieldTypeValueList).Build()).
+		Build()
+	v := builders.View("vw_detail", model.ViewTypeDetail).Build()
+
+	ds, err := composable.BuildDatasetFromView(m, v)
+	if err != nil {
+		t.Fatalf("BuildDatasetFromView: %v", err)
+	}
+	want := []string{"fld_title", "fld_status"}
+	if !reflect.DeepEqual(ds.Projection.Fields, want) {
+		t.Errorf("Projection.Fields = %v, want %v", ds.Projection.Fields, want)
+	}
+	if len(ds.Filter) != 0 || len(ds.Sort) != 0 || len(ds.GroupBy) != 0 || len(ds.Measures) != 0 {
+		t.Errorf("Filter/Sort/GroupBy/Measures all want empty, got Filter=%+v Sort=%+v GroupBy=%v Measures=%+v", ds.Filter, ds.Sort, ds.GroupBy, ds.Measures)
+	}
+}
+
 func TestBuildDatasetFromReport(t *testing.T) {
 	idx := composable.MachineIndex{"mch_jel": builders.Machine("mch_jel").Build()}
 	cfg := &model.ReportConfig{Machine: "mch_jel", GroupField: "fld_account", SumFields: []string{"fld_debit", "fld_credit"}}

@@ -46,7 +46,7 @@ The following are the important implementation gaps that must be explicitly trac
 | CR-17 | plan identity / immutable plan reuse | partial metadata/interpreter caching foundations | P1 |
 | CR-18 | inference diagnostics | principle exists; inspectability tooling missing. **Phase 8 update, 2026-09-11** — `planner.go`'s `ExecutionPlan.Explain()` is real, deterministic inspectability tooling (group count, per-group Machine/node counts, naive-vs-deduplicated query count), the first concrete tool this principle has, though scoped to execution planning only — broader inference inspectability (e.g. Dataset/Scope-level diagnostics) remains open. | P1 |
 | CR-19 | composability benchmark harness | **Phase slice implemented, 2026-09-12 (§17j)** — `scripts/benchmark-composable.sh` + `scripts/loadtest` run 3 of Phase 12's own 9 required scenarios against a real throwaway server with real seeded data, reporting real p50/p95/p99 latency, real CPU/memory (`/proc` sampling), real DB pool stats, and `composable.MeasureComposition`'s own structural facts (previously Go-test-only) now correlated per real request. Cache hit ratio stays honestly N/A (no cache exists); scenarios 2/4/5/6/8/9 stay `SKIP` (no live route). See §17j for the real numbers. | P0 |
-| CR-20 | trial applications using shared composable substrate | **Phase slice implemented, 2026-09-12 (§17l), Trial Definition-of-Done audited against real evidence** — `composable-apps-trial.md` §15's own checklist, cited per bullet: §15.3 execution planning on the live path (17b/T265), physical-work metrics collected (17j), data consumed by multiple presentation forms without duplicated semantics (CR-03/CR-21) are all real and citable; §15.4 governance proof is clean (no trial-specific hacks found on grep) and CAP-D0x stays correctly unadmitted (`capability-registry.md`'s own `## Data` section). §15.1/15.2's own named "Document Detail"/"Card Detail" composition remains genuinely open — no Detail-shaped composable primitive exists — named explicitly, not silently dropped. See §17l. | P0 |
+| CR-20 | trial applications using shared composable substrate | **Phase slice implemented, 2026-09-12 (§17l), Trial Definition-of-Done audited against real evidence** — `composable-apps-trial.md` §15's own checklist, cited per bullet: §15.3 execution planning on the live path (17b/T265), physical-work metrics collected (17j), data consumed by multiple presentation forms without duplicated semantics (CR-03/CR-21) are all real and citable; §15.4 governance proof is clean (no trial-specific hacks found on grep) and CAP-D0x stays correctly unadmitted (`capability-registry.md`'s own `## Data` section). §15.1/15.2's own named "Document Detail"/"Card Detail" composition — see `CR-29`, a real Detail-shaped composable primitive now exists (a pilot, not yet a production cutover). | P0 |
 | CR-21 | metadata/schema representation for new composable artifacts | **Phase slice implemented, 2026-09-12 (§17k)** — Data plane (`Dataset`/`Query`) is now real, loadable metadata: `migrations/030_composable_data_plane.sql`, `model.go`'s `Dataset`/`DatasetConfig`/`Query`/`QueryConfig`, `metadata.loadDatasets`/`loadQueries`/`validateDatasets`/`validateQueries`, and `composable.BuildDatasetFromDeclaredDataset` (converges with the existing inferred adapters — proven, same CR-03 two-adapters-one-Dataset shape). Experience plane closed via the existing `ChildViewRef` mechanism gaining a third kind (`component`+`dataset_id`), not a new competing table — `LowerChildren`'s `lowerComponentChild` resolves it through the existing `ResolveComponent`. Real seed (`seeds/053_composable_data_plane_lab.sql`), Go tests, and conformance T265 (live). "Universal" still means only Dataset/Query + one Experience kind — Layout/Slot beyond Children, and any authoring UI, remain open; CAP-D* admission via `capability-lifecycle.md` §2 A1-A5 is a separate, later, owner-level decision this slice does not make. See §17k. | P0 |
 | CR-22 | capability registry alignment | composable concepts span existing CAPs but are not yet one tracked implementation program | P1 |
 | CR-23 | conformance model for composition validity | existing conformance is capability-oriented; composition proofs need expansion | P1 |
@@ -55,6 +55,7 @@ The following are the important implementation gaps that must be explicitly trac
 | CR-26 | migration compatibility for existing View handlers | **RESOLVED 2026-09-12** — see §2a's Migration Compatibility Contract below, backed by 17a/17b/17c's own real evidence (three shipped increments, not a policy statement). | P0 |
 | CR-27 | Grammar-area decision for `Dataset` (new Grammar area `D`, alongside `F/E/A/C/P/V/R/X/I/O`, vs. folding under `View`) | **RESOLVED 2026-09-11, implemented** — owner decision: new Grammar area `D` (Data), consistent with the Domain/Data/Experience plane split `004`/`006`/`007` commit to. `capability-registry.md` gained a `## Data` section; `CAP-V22`/`CAP-V23` are reclassified there (pointer rows) with their IDs **retained unchanged** in `## Views` for stability, per the registry's own ratchet rule (never renumber/delete, only append). `capability-lifecycle.md` A3 and the proposal template now enumerate `D`; `nfr-standards.md` gained `### 2.11 Data (CAP-D*)`. | P0 |
 | CR-28 | `007-composable-runtime-architecture.md` §40 (claim-by-claim PROVEN/PROPOSED citation matrix) does not exist | **RESOLVED 2026-09-11** — §40 added to `007`, citing `composable-runtime-blueprint.md` §3 and this file's own `CR-01`–`CR-28` register per claim. | P0 |
+| CR-29 | Detail-shaped composable primitive (recognized while auditing `CR-20`, 17l) — `BuildDatasetFromView` had no case for `model.ViewTypeDetail`, and no route ever lowered a single-record field list through `internal/composable` | **Phase slice implemented, 2026-09-12 (§17m)** — `BuildDatasetFromView` gains a `ViewTypeDetail` case (every Machine Field, no Filter/Sort/GroupBy — WHICH record is a request-level concern, not a Dataset one). Design decision: no 8th `ComponentType` — the existing `Collection` component + the existing `ResolveCollectionItem` (unchanged) resolve one record's own field list exactly as they already resolve one row of many. Proven on a new, additive, read-only route (`GET /{machineID}/{recordID}/composable-preview`, `internal/handler/composable_preview_detail.go`), with real render-output equivalence for plain/value_list fields against the real Detail page (T281/T282, `conformance/tests/242_composable_detail_pilot.sh`) — reference/user/file fields are a named, not-yet-matched boundary (`ResolveFieldValue`'s own documented scope). The real production `Detail` route (`record_crud.go`) is untouched — this is a pilot, mirroring 17a's own List pilot, not yet a cutover. See §17m. | P1 |
 
 ---
 
@@ -1637,6 +1638,82 @@ unchanged, not made here.
 (`internal/handler/page.go`'s +3 LOC dispatch-hook growth baselined —
 `scripts/quality-baselines/handler-loc.txt` — the new logic itself lives in the new
 `page_component.go`, Gate 2), and `./scripts/local-ci.sh` — 286 passed, 0 failed (285 + new T280).
+
+---
+
+# 17m. Detail-Page Composition Pilot — the First Composable Primitive for a Single Record
+(2026-09-12)
+
+**Closes `CR-29`** (opened this same increment — see §2). 17l's own CR-20 audit named "Document
+Detail"/"Card Detail" composition (`composable-apps-trial.md` §6.1/§6.2's own vertical-slice
+requirement) as a real, still-open gap: `BuildDatasetFromView` errored for `model.ViewTypeDetail`
+("has no representable data requirement"), and no route ever lowered a single-record field list
+through `internal/composable`.
+
+**Scoping correction made during grounding, worth recording:** the obvious next move — cut over
+the real production `Detail` route the way 17e→17g cut over List — was rejected after reading
+`Detail`'s own real handler (`internal/handler/record_crud.go:948-1099`). Unlike List/Board,
+Detail's real behavior spans reference/user/group label dereferencing, money/computed
+formatting, SLA urgency, reverse-reference child lists (CAP-V06), event input pickers (CAP-P04),
+extra action links, and embedded CAP-V20 `Children` — none of which the composable View Model
+represents today (`ResolveFieldValue`'s own doc comment already names its scope as deliberately
+narrow). A real cutover in one increment would have been substantially riskier than 17e/17g's own
+List cutover ever was. Following this whole roadmap's own rhythm instead — 17a piloted List
+*additively* several increments before 17g's real cutover — this increment pilots Detail the same
+way and leaves the real cutover for later, separately-scoped work.
+
+**A real, honest architectural finding, not a new component:** a Detail view's field list (one
+record, N field/value pairs, in Machine.Fields order) needs no 8th `ComponentType`.
+`ComponentCollection` + the already-existing `ResolveCollectionItem` — "one row from a Collection
+component's own `Dataset.Projection.Fields`, in order" — is exactly the right shape, called once
+for the host record instead of once per row. `component.go`'s own closed-set doc comment ("not a
+starting point for more") stays honored.
+
+**What was built:** `internal/composable/dataset.go`'s `BuildDatasetFromView` gains a
+`ViewTypeDetail` case (`Projection{Fields: <every Machine Field, in order>}`, no
+`Filter`/`Sort`/`GroupBy`/`Measures` — split into a small `allFieldIDs` helper, Gate 3), and
+`BuildDataIR`'s own switch now includes it too. No new resolver: the existing `LowerCollection`
+lowers the Detail-derived Dataset into a `Collection` node, and the existing
+`ResolveCollectionItem` resolves the host record — proven against real seeded data
+(`TestBuildDatasetFromView_Detail`, `TestResolveCollectionItemAgainstApprovalDetail`). A new,
+additive, read-only route, `GET /{machineID}/{recordID}/composable-preview`
+(`internal/router/router.go`, alongside the existing `/{machineID}/{recordID}` Detail line),
+handled by a new file (`internal/handler/composable_preview_detail.go`, kept separate from the
+already-398-line `composable_preview.go`) — same guard sequence every record route already uses,
+narrow by construction: 404s when the Machine declares no real `detail`-type View (no case forces
+the "none declared" path yet, unlike the real `Detail` handler which never needs one). A new,
+small template (`internal/ui/composable_preview_detail.templ`) renders the field list in
+`detail.templ`'s own `<dl>`/`<dt>`/`<dd>` visual shape.
+
+**Proof, not asserted:** `conformance/tests/242_composable_detail_pilot.sh` — T281 (ground truth:
+the real Detail page's own Title, extracted correctly only after catching a real markup fact —
+`detail.templ` wraps every non-empty, non-link, non-SLA value in `@StatusBadge`'s own `<span>`,
+even a plain Title, so a naïve "plain text right after `<dd>`" extractor silently matched empty;
+fixed to skip through wrapping tags), T282 (this preview reproduces the same real Title/Document
+Type/Approval Mode/Status — real equivalence for every field type `ResolveFieldValue` can
+actually resolve, not overclaimed past it), T283 (role denial), T284 (cross-workspace 404), T285
+(unknown record 404) — all pass.
+
+**Real regression this correctly caused, fixed honestly:** `mch_approval_document`'s own
+`vw_ad_detail` (a real `detail`-type View) now ALSO carries a real Dataset for the first time —
+previously nil (silently invisible to the DAG, since `BuildDatasetFromView` errored). This is a
+genuine fourth node in that Machine's own execution group.
+`TestGroupByMachineAgainstApprovalCase`/`TestBuildExecutionPlanAgainstApprovalCase`
+(`planner_seed_test.go`) and conformance `T265` (`241_composable_pilot.sh`) all had hardcoded
+counts from before this Dataset existed (3 nodes → 4; naive=5/dedup=4 → naive=6/dedup=5) — updated
+to the new, correct, real numbers with a dated comment, not loosened.
+
+**Not done here** (named, not silently dropped): cutting over the real production `Detail` route
+(the scoping correction above); permission-scope narrowing (`SecurityScope.Apply`, proven for
+List/Board by `CR-16`, not yet applied to a Detail Dataset); reference/user/group label
+dereferencing, money/computed-via-sugar formatting, SLA urgency, reverse-reference child lists,
+event input pickers, and embedded CAP-V20 `Children` living inside `internal/composable` itself —
+all stay real, handler-level, and explicitly out of scope.
+
+**Verification:** `go build`/`go vet`/`go test ./...` (isolated schema), all 5 quality gates
+(two new-function complexity fixes via small helpers — `allFieldIDs`,
+`buildPreviewDetailFields`/`assertCellsMatch` — no baseline edits needed), and
+`./scripts/local-ci.sh` — 291 passed, 0 failed (286 + new T281-T285).
 
 ---
 

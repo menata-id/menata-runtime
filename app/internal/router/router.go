@@ -135,6 +135,7 @@ func Mount(r chi.Router, h *handler.Handler) {
 		r.Get("/{machineID}/board", h.Board)                // CAP-V14 Tier 2 kanban board
 		r.Get("/{machineID}/composable-preview", h.ComposablePreview) // composable-runtime-roadmap.md §17a Live Wiring Pilot
 		r.Get("/{machineID}/{recordID}", h.Detail)
+		r.Get("/{machineID}/{recordID}/composable-preview", h.RecordComposablePreview) // composable-runtime-roadmap.md 17m Detail-Page Composition Pilot
 		r.Get("/{machineID}/{recordID}/edit", h.EditForm)
 		r.Get("/{machineID}/{recordID}/document", h.Document) // CAP-F21
 		r.Post("/{machineID}/{recordID}", h.Update)

@@ -57,11 +57,18 @@ check T264 "composable-runtime-roadmap.md §17a" "a Machine from another Workspa
 # (mch_approval_document: 3, mch_approval_step: 1) -- the assertion below
 # was updated to match, not loosened to hide it (same update already made
 # to planner_seed_test.go's own Go-test counterpart).
+#
+# Status update (2026-09-12, composable-runtime-roadmap.md 17m):
+# vw_ad_detail (a real `detail`-type View) now also carries its own real
+# Dataset -- BuildDatasetFromView used to error for ViewTypeDetail, so
+# this view_ref node's own Dataset was previously nil, invisible to the
+# DAG. 17m's own Detail-Page Composition Pilot closes that gap: a genuine
+# FOURTH node on mch_approval_document's own group, naive=6 dedup=5.
 CPLAN_BODY=$(get_body "$BASE_URL/mch_approval_document/composable-preview" "$ALICE")
-printf '%s' "$CPLAN_BODY" | grep -q 'data-composable-plan="ExecutionPlan: 2 group(s), naive=5 dedup=4' \
-  && printf '%s' "$CPLAN_BODY" | grep -q 'mch_approval_document: 3 node(s)' \
+printf '%s' "$CPLAN_BODY" | grep -q 'data-composable-plan="ExecutionPlan: 2 group(s), naive=6 dedup=5' \
+  && printf '%s' "$CPLAN_BODY" | grep -q 'mch_approval_document: 4 node(s)' \
   && printf '%s' "$CPLAN_BODY" | grep -q 'mch_approval_step: 1 node(s)'
-check T265 "composable-runtime-roadmap.md §17b" "Dependency DAG/Execution Planner runs on this live request (2 groups, naive=5 dedup=4, mch_approval_document: 3 node(s), mch_approval_step: 1 node(s))" $?
+check T265 "composable-runtime-roadmap.md §17b" "Dependency DAG/Execution Planner runs on this live request (2 groups, naive=6 dedup=5, mch_approval_document: 4 node(s), mch_approval_step: 1 node(s))" $?
 
 # T266 -- composable-runtime-roadmap.md §17c generalizes this route beyond
 # the one machine with a cards-display List View: mch_approval_step has
