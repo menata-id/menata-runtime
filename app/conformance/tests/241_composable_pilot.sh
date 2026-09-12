@@ -31,3 +31,21 @@ check T263 "composable-runtime-roadmap.md §17a" "a role with no permission on t
 CPILOT_CROSS_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$ALICE" "$BASE_URL_ACME/mch_approval_document/composable-preview")
 [ "$CPILOT_CROSS_CODE" = "404" ]
 check T264 "composable-runtime-roadmap.md §17a" "a Machine from another Workspace 404s on the composable preview route too (got $CPILOT_CROSS_CODE)" $?
+
+# T265 -- composable-runtime-roadmap.md §17b (Dependency DAG + Execution
+# Planner on the live path): this route now also lowers mch_approval_document's
+# FULL page (every View, not just the cards list rendered above) through
+# BuildDependencyDAG + BuildExecutionPlan as a side-channel diagnostic --
+# the same real, previously Go-test-only proof (planner_seed_test.go's own
+# TestGroupByMachineAgainstApprovalCase/TestBuildExecutionPlanAgainstApprovalCase)
+# now happening on an actual HTTP request. mch_approval_document has three
+# distinct real Datasets (vw_ad_form, vw_ad_all, vw_ad_pending), with
+# vw_ad_pending's own real duplicate consumption (Phase 7's dedup proof --
+# once as an ordinary child, once inside vw_ad_page's own Slots["main"]):
+# naive=4 collapses to dedup=3 in one ExecutionGroup. Exposed as a hidden
+# data-composable-plan attribute, inspectable from the response body alone,
+# no server-log access needed.
+CPLAN_BODY=$(get_body "$BASE_URL/mch_approval_document/composable-preview" "$ALICE")
+printf '%s' "$CPLAN_BODY" | grep -q 'data-composable-plan="ExecutionPlan: 1 group(s), naive=4 dedup=3' \
+  && printf '%s' "$CPLAN_BODY" | grep -q 'mch_approval_document: 3 node(s)'
+check T265 "composable-runtime-roadmap.md §17b" "Dependency DAG/Execution Planner runs on this live request (1 group, naive=4 dedup=3, mch_approval_document: 3 node(s))" $?

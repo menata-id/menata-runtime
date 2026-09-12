@@ -93,14 +93,15 @@ The following are the important implementation gaps that must be explicitly trac
 
 **Detailed backlog:** the deliverables above are the short checklist; the full item-by-item
 backlog — `runtime-metadata-schema.md` alignment, capability-governance taxonomy, composition-level
-NFRs, README/agent-guidance wording, and benchmark/guide cross-links — is tracked in
+NFRs, README/agent-guidance wording, and benchmark/guide cross-links — was tracked in
 `composable-runtime-roadmap-phase0-documentation-alignment.md` (`DOC-01`–`DOC-10`). **All ten items
-resolved 2026-09-11**, same session as `CR-27`/`CR-28` above. That addendum's own §4 Exit Criteria
-is the authoritative Phase 0 gate, and it is now fully checked.
+resolved 2026-09-11**, same session as `CR-27`/`CR-28` above; that addendum is now closed and
+condensed to a resolutions table (§2) — the actual corrections live in the target documents each
+row names.
 
 ### Exit criteria
 
-No Tier 1 document uses “interpreted” to imply “no internal compilation,” and no document presents View as the universal composition primitive. **Met, 2026-09-11** — see `composable-runtime-roadmap-phase0-documentation-alignment.md` §4 for the complete, itemized gate, now fully checked. **Phase 0 is closed.** The next primary implementation step, `CR-01` (Canonical Semantic Model in code), is subject to its own forcing condition — closing Phase 0 does not itself trigger it.
+No Tier 1 document uses “interpreted” to imply “no internal compilation,” and no document presents View as the universal composition primitive. **Met, 2026-09-11** — see `composable-runtime-roadmap-phase0-documentation-alignment.md`'s resolutions table for what closed each item. **Phase 0 is closed.** The next primary implementation step, `CR-01` (Canonical Semantic Model in code), is subject to its own forcing condition — closing Phase 0 does not itself trigger it.
 
 ---
 
@@ -930,6 +931,56 @@ substrate — one View, one component type, was the whole pilot. Phase 14's own 
 *partially* satisfied by one real route with real traffic potential, not fully — a future
 decision point, not assumed here, is whether to keep expanding live-wiring (more Views/component
 types) before Phase 14's tuning work would have enough real signal to act on.
+
+---
+
+# 17b. Live Wiring Pilot — Dependency DAG + Execution Planner on the Live Path (2026-09-12)
+
+**Not one of the original 14 phases** — a direct continuation of 17a, closing the specific gap
+17a's own closing note named: `internal/composable`'s Dependency DAG/Execution Planner (Phase
+7/8) had never run against a real HTTP request, only against Go tests
+(`planner_seed_test.go`'s own `TestGroupByMachineAgainstApprovalCase`/
+`TestBuildExecutionPlanAgainstApprovalCase`). This is the single largest unmet item in
+`composable-apps-trial.md` §15.3 ("execution planning is present on the live runtime path")
+standing between the pilot and a real trial.
+
+**Goal:** prove the Dependency DAG/Execution Planner boundary is exercised by a live request,
+without claiming physical execution — `LogicalQuery`/CR-05 and Phase 9's own real
+query-execution gap remain exactly as open as before this change; only the logical
+planning/diagnostics boundary moves onto the live path.
+
+**What was built:** `ComposablePreview` (`app/internal/handler/composable_preview.go`) gained
+one new side-channel step, `explainComposablePlan`, added after the existing render-path code
+(unchanged — same guards, same `DefaultListView`/`LowerCardRowComponent`/`ResolveRecordSummary`
+pipeline 17a already proved). It calls `composable.LowerPage(machine, viewIdx, machineIdx)` on
+the **whole machine** (every View, not just the one cards list the page renders) — the same
+call the Go test above already proves against `mch_approval_document` — then
+`composable.BuildDependencyDAG` + `composable.BuildExecutionPlan(dag).Explain()`, using
+`composable.ResolveSecurityScope(machine, role)` for the security scope (a known, documented
+simplification: the caller's first held role only, since `roleForApp` returns a set and
+`ResolveSecurityScope` takes one — real enforcement stays on `guard.CanRead`'s own multi-role
+union logic, completely unaffected). The result is logged (`slog.Info("composable_plan", ...)`,
+same `correlation_id` pattern CAP-I04 already uses) and rendered into a hidden
+`data-composable-plan` attribute in `composable_preview.templ` — a data attribute rather than an
+HTML comment (untested territory for this codebase's `.templ` files) — so it is inspectable from
+the response body alone, no server-log access required, per Principle #9 ("inference is
+inspectable"). Any lowering error is logged and swallowed; the diagnostic never fails the page.
+
+**Proof:** `conformance/tests/241_composable_pilot.sh`'s new T265 — hits the same
+`composable-preview` URL and asserts the response body's `data-composable-plan` attribute
+reports `ExecutionPlan: 1 group(s), naive=4 dedup=3` and `mch_approval_document: 3 node(s)` —
+the exact real structural fact the Go test already proved (three distinct Datasets, `vw_ad_form`/
+`vw_ad_all`/`vw_ad_pending`, with `vw_ad_pending`'s own real duplicate consumption collapsing
+naive=4 to dedup=3), now observed from a live HTTP response instead of only a Go test. Full
+suite: 271 passed, 0 failed (`./scripts/local-ci.sh`) — no regression, one net new test.
+
+**Not done here** (explicitly deferred, not silently skipped, same posture as 17a): the plan is
+still purely a diagnostic side-channel — nothing about how records are actually fetched changed
+(`h.records.List` per view, unchanged), so no physical query reduction happens yet; that remains
+CR-05/Phase 9's own open gap. Dashboard tiles (`vw_ad_dashboard`) are counted in the plan but
+still not rendered as a composable View Model on this route — only the pending-list cards
+render, exactly as 17a shipped. Document Approval's Detail page, Project Management, and a
+production cutover of this route all remain out of scope, same as 17a's own closing note.
 
 ---
 

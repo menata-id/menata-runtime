@@ -11,7 +11,17 @@ import "menata.id/app/internal/model"
 // Deliberately narrower than the real CAP-V02 Tier 2 cards feature
 // (list.templ) -- title+subtitle only, no status badge -- see
 // ComposablePreview's own handler doc comment for why.
-templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary) {
+//
+// planExplain (composable-runtime-roadmap.md 17b) is ExecutionPlan.Explain()'s
+// own output from lowering this machine's FULL page (every View, not just
+// the cards list rendered below) through BuildDependencyDAG/
+// BuildExecutionPlan -- a side-channel diagnostic proving the Dependency
+// DAG/Execution Planner boundary runs on this live request, not the data
+// source for the cards grid. Rendered into a hidden data attribute (not an
+// HTML comment -- untested territory for this codebase's .templ files) so
+// it's inspectable via the response body without server-log access. Empty
+// when the plan could not be built; renders nothing in that case.
+templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary, planExplain string) {
 	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4">
 			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
@@ -19,6 +29,9 @@ templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdm
 				Composable substrate preview — title/subtitle only, not the full cards view.
 			</p>
 		</div>
+		if planExplain != "" {
+			<div class="hidden" data-composable-plan={ planExplain }></div>
+		}
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 			for _, s := range summaries {
 				<a
