@@ -136,21 +136,19 @@ This is the core reason the Composable Execution Planner is a first-class bounda
 
 ## 5. Phased evolution plan
 
-| Phase | What it does | Depends on | Forcing condition | If met today? |
-|---|---|---|---|---|
-| **0. Grammar-area decision** | Decide whether Dataset is a new Grammar area or folds under View | Nothing | Owner taxonomy decision | **Resolved 2026-09-11 — new Grammar area `D`, `CR-27` in `composable-runtime-roadmap.md`** |
-| **1. Semantic dataset** | Admit/build `CAP-V22` for reusable semantic aggregates | Phase 0 | Case needs same aggregate in multiple presentations | Not yet |
-| **2. Bare Query/Projection reuse** | Make row-level data shape addressable independently of View | Phase 1 | Case needs same rows across different presentations | Not yet |
-| **3. Layout vocabulary** | Extend stack/grid/columns/split/tabs where real composed-page work forces it | Nothing | Existing queued design trigger | Low priority |
-| **4. Context/scope propagation** | Parent→child context for real parent-scoped composition | CAP-V10 | Real case requires scope propagation | Not yet |
-| **5. Recursive composition depth** | Allow nested page composition if a real case requires it | Phase 4 | Real multi-level nesting case | Not yet |
-| **6. Composable Execution Planner foundation** | Derive Dependency DAG from composition + Data/UI IR; define canonical dependency identity; add plan objects and execution budgets | Phases 1/2 | A composed case produces repeated logical dependencies or measurable fan-out | **Design now; implementation when forced by case/benchmark** |
-| **7. Planner optimization** | Add dependency deduplication, query coalescing, batching, bounded concurrency, and cost-based strategy selection | Phase 6 | Benchmark shows meaningful physical-work reduction opportunity | Not yet |
-| **8. Query/index pushdown** | Dataset-aware projection/filter pushdown and metadata-driven index hints | Phase 1/2/6 | Measured DB cost pressure at target scale | Not yet |
-| **9. UI Intermediate Representation** | Formalize normalized UI compile step | Phases 3–5 | Second renderer/builder or other explicit forcing case | Not yet |
-| **10. Composability benchmark** | Compare naive vs planner-enabled execution across shared and independent dependency patterns | Phases 6–8 | Enough implementation exists to measure | Design now; execute with planner prototype |
+**Superseded 2026-09-12 by `composable-runtime-roadmap.md`'s Phase 0–14 sequence** (added
+2026-09-11), which carries a full gap register (its §2), Build/Proof/Exit-criteria per phase, and
+the actual implementation dependencies — this section's own 11-row table was the coarser first
+draft of that same sequence, and had already gone stale on its own Phase 0 row ("Resolved
+2026-09-11 ... `CR-27` in `composable-runtime-roadmap.md`"). Read that roadmap directly for current
+phase status; this table is not maintained further. Full original table preserved in git history.
 
-The planner is deliberately split into **foundation** and **optimization** so the execution boundary can be established without prematurely building an elaborate optimizer. The first useful milestone is a correct dependency DAG and hard execution budgets; optimization follows measured evidence.
+The one framing point worth keeping standalone, since it isn't restated verbatim there: the
+Composable Execution Planner is deliberately split into **foundation** (a correct dependency DAG
+and hard execution budgets) and **optimization** (dependency deduplication, query coalescing,
+batching, bounded concurrency, cost-based strategy selection) so the execution boundary is
+established before an elaborate optimizer is built — optimization follows measured evidence, not
+the reverse.
 
 ---
 

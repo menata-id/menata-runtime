@@ -2182,36 +2182,13 @@ isolated schema. Track G's own implementation step is done — no longer just un
     for later" — alongside `conformance.yml` and `css-gate.yml`, three real GitHub-hosted checks
     now exist where none did before Study 33. The "no second reviewer" half of F5 is unchanged
     (solo-admin repo) and still needs no action.
-16. ~~CAP-F22~~ ~~CAP-V21~~ ~~CAP-V20~~ (Document Approval PDF signature extension, Study 32) —
-    **all three done, same session (2026-08-29) — Study 32's entire plan is now closed.**
-    **CAP-F22**: conformance T206–T208 (`conformance/tests/120_pdf_signature.sh`), full suite
-    208/208. New `composite_pdf_signature` action type (`internal/executor/executor.go`),
-    `github.com/pdfcpu/pdfcpu` dependency, `seeds/035_pdf_signature_lab.sql`.
-    **CAP-V21**: conformance T209–T211 (`conformance/tests/130_coord_placement.sh`), full suite
-    211/211. New `coord_placement` View type (`internal/handler/coordplace.go`,
-    `internal/ui/coordplace.templ`), reusing CAP-V14 board's own drag-and-drop JS pattern; found
-    and closed a real authorization gap BoardMove's own precedent never had to (per-record
-    ownership on top of machine-level `CanEdit`).
-    **CAP-V20**: conformance T212–T215 (`conformance/tests/140_decision_stepper.sh`), full suite
-    215/215. New `decision_stepper` View type — the lightest of the three, purely a GET-rendering
-    reuse of `PermittedEventsForRecord` and the already-existing event-trigger route, no new POST
-    route or JS; also the first real consumer of `Machine.Config`'s `steps_machine`/`steps_parent_
-    field` (seeded since Case 3's original build, never read by any code until this).
-    Full build notes in `capability-registry.md`'s CAP-F22/CAP-V21/CAP-V20 rows. Full gap analysis:
-    `benchmarks/024-pdf-signature-approval-study.md`.
-
-    **Correction, same day (2026-08-29):** closing all three didn't actually close Case 3 — the
-    owner confirmed directly that "approvers are drawn from a work group" (Study 32's own original
-    framing) meant the Approver *picker* should be restricted to a Group's membership, which
-    CAP-O07 (who *holds* a role via group membership) never covered on its own, despite
-    `case-portfolio.md`'s Case 3 note having assumed it did. Admitted and built as **CAP-F23**
-    (new capability, not a footnote on an existing row — see its own registry row for the full
-    A1–A5 admission reasoning), conformance T216–T218
-    (`conformance/tests/150_group_approver_picker.sh`), full suite 218/218, zero regressions. New
-    `FieldOptions.RestrictToGroup` (a Group *name*, not id — Groups have no stable authored id) +
-    `GroupStore.GetByName` + a migration closing a real pre-existing gap found as a byproduct
-    (`groups.name` had no uniqueness constraint). Case 3 is now actually closed against Study 32's
-    original requirement, not just its own later-narrowed capability list.
+16. ~~CAP-F22~~ ~~CAP-V21~~ ~~CAP-V20~~ ~~CAP-F23~~ (Document Approval PDF signature extension,
+    Study 32) — **✅ all four done, 2026-08-29 — Study 32's entire plan is closed, Case 3 actually
+    closed against its original requirement.** Full build notes (conformance test IDs, files
+    changed): `capability-registry.md`'s CAP-F22/CAP-V21/CAP-V20/CAP-F23 rows. Full narrative
+    (including the same-day correction that CAP-O07 alone didn't cover the "approvers drawn from a
+    Group" requirement, closed instead by the new CAP-F23): `case-portfolio.md`'s Case 3 extension
+    note (2026-08-23). Full gap analysis: `benchmarks/024-pdf-signature-approval-study.md`.
 17. **CAP-O08 (Application-declared mobile bottom navigation bar, Study 31)** — an owner-directed
     target (2026-08-23) with no roadmap mention until now (found during a 2026-08-29 documentation
     consistency check). Its own registry row already gates it correctly: "needs a real case... none

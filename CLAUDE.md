@@ -94,13 +94,13 @@ conformance test ID, or a specific commit/file/line behind it.
 
 ## Established convention: append, don't rewrite
 
-When something documented here goes stale (a capability ships, a decision gets revisited), the
-convention across this repo is to **append** a dated correction/status-update note rather than
-silently rewriting the original text — `roadmap.md`'s dated status blocks, `capability-
-registry.md`'s per-row notes, and the ADRs under `prototype/go/docs/decisions/` (e.g. ADR-002,
-ADR-004's own "Status update (2026-08-22)" sections) are the pattern to copy. This keeps the
-*why* of a past decision visible even after reality has moved past it. Follow it when you find
-something stale rather than editing history away.
+`README.md`'s own "Established convention: append, don't rewrite" section (right after "Where
+does a new document go?") is the full rule and its rationale, with the canonical examples
+(`roadmap.md`'s dated status blocks, `capability-registry.md`'s per-row notes, the ADRs under
+`prototype/go/docs/decisions/`) — read that, don't restate it here. Short version: when something
+documented in this repo goes stale, **append** a dated correction/status-update note rather than
+silently rewriting the original text, so the *why* of a past decision stays visible after reality
+moves past it.
 
 ## Direct push to main is normal here
 

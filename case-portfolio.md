@@ -273,56 +273,6 @@ full A1–A5 admission test in that row. Not built.
 
 ---
 
-# Case 10 — extension note (2026-09-08): declared navigation (`CAP-O03` Tier 5)
-
-**Business reality:** direct owner request, following the `CAP-O03` Tier 4 admission above —
-*"buat plan untuk opsi B [Navigation as a declared entity], sebagaimana sudah ada di konsep menata
-runtime"*, made explicitly because the six platforms `benchmarks/009-in-app-navigation-benchmark.
-md` first surveyed (Salesforce, Odoo, Frappe, ServiceNow, Jira, Notion) lean ERP/metadata-based,
-comparatively limited in their own menu expressiveness — Menata Runtime's own ambition is a more
-powerful runtime, and its OWN foundational docs already say so: both `004-runtime-metadata.md` and
-`006-runtime-model.md` name `Navigation` as a first-class hierarchy peer of Page/View/Service, not
-a Machine-level afterthought. This is the same terrain Case 10's own base scenario already named —
-PT Maju Bersama, one employee crossing 4 of 8 applications in one morning (`roadmap.md` line 286) —
-exactly the shape of workday a flat, per-Application, inference-only Machine list serves worst: an
-employee moving across several Applications needs a menu that can group, order, and curate across
-Application boundaries, not just hide one Machine within a single app (Tier 4's own narrower
-scope). Declared here, per this file's own rule, before anything is built, so this candidate has
-its terrain half of admission A1 on record — the same pattern Case 3's own CAP-X16 note already
-used.
-
-**Declared target:**
-
-| Target | Capability | Pattern |
-|--------|-----------|---------|
-| A Navigation entry that is real, ordered, nestable, standalone metadata — able to reference a Machine, a specific View, an external URL, or exist purely as a grouping header with no destination at all — instead of every nav link being inferred from Machine/View structure the way `CAP-O03` Tiers 2–4 all are | **`CAP-O03` Tier 5 (new)** — a declared `navigation_entries` artifact, optional per Application; an Application with none keeps today's exact inferred behavior unchanged | Drupal `Menu` (Configuration Entity) + `MenuLinkContent` (Content Entity) — `menu_name`/`weight`/`parent`/`link.uri`, decoupled from the target |
-
-**Why this is genuinely new terrain, not a restatement of Tier 4:** Tier 4 (already admitted) can
-only ever subtract — hide a Machine that would otherwise show. It has no way to add a link to
-something that isn't a Machine at all, order entries deliberately, or group several Machines (or
-Applications) under one heading. `006-runtime-model.md`'s own one-line scope for Navigation —
-*"menus, breadcrumbs, tabs, shortcuts, quick actions"* — was never fully realized by any tier built
-so far; only the plain "menus" half, and only ever by inference.
-
-**Deliberately out of scope for this declaration, phased not silently dropped** (full plan:
-`benchmarks/009-in-app-navigation-benchmark.md`'s own implementation-plan follow-on finding):
-external URLs, breadcrumbs, and quick actions — Phase 1 covers only Machine/View targets, ordering,
-nesting, and hiding, the slice that actually closes Case 3's own original observed problem and
-Case 10's cross-application need; the fuller `006`-scoped vocabulary is named for a later phase.
-
-**Status:** `CAP-O03` Tier 5 registered ❌ Proposed in `capability-registry.md` v0.66 the same day
-— full A1–A5 admission test on that row, full layer-by-layer implementation plan in
-`benchmarks/009-in-app-navigation-benchmark.md`. Recommendation on that same row: build Tier 5's
-Phase 1 directly rather than building Tier 4 first — Tier 5 subsumes Tier 4 entirely (an allow-list
-needs no separate hide flag, the same reason Drupal and Salesforce's own mechanisms need none
-either). **Implemented 2026-09-08, same day, Phase 1** — `capability-registry.md` v0.68's `CAP-O03`
-Tier 5 row has the full account. Piloted on `app_approval` itself (`seeds/045_declared_
-navigation_pilot.sql`): Approval Document, a Dashboard view, and a "Reference" group nesting
-Signature declared; Approval Step left undeclared, absent from the menu, still directly reachable —
-closing this case's own original observed problem for real, on the live application.
-
----
-
 # Case 3 — extension note (2026-09-09): composed approval dashboard (`CAP-V10` Tier 2)
 
 **Business reality:** direct owner decision, in an owner Q&A session re-examining the
@@ -661,6 +611,61 @@ SOX — found by benchmarking the standard directly, not just the two platforms.
 Files: `prototype/go/docs/examples/accounting-chart-of-account.{menata,yaml}`,
 `accounting-journal-entry.{menata,yaml}`, `accounting-journal-entry-line.{menata,yaml}`,
 `accounting-fiscal-period.{menata,yaml}` (four Machines, one file pair each)
+
+---
+
+# Case 10 — extension note (2026-09-08): declared navigation (`CAP-O03` Tier 5)
+
+*(Relocated 2026-09-12 next to Case 9 to restore numeric order — this note originally sat between
+two Case 3 notes only because of write order; no content changed. Its cross-reference to "the
+`CAP-O03` Tier 4 admission above" now refers to the Case 3 note of the same date, earlier in this
+file, not to a note directly above.)*
+
+**Business reality:** direct owner request, following the `CAP-O03` Tier 4 admission above —
+*"buat plan untuk opsi B [Navigation as a declared entity], sebagaimana sudah ada di konsep menata
+runtime"*, made explicitly because the six platforms `benchmarks/009-in-app-navigation-benchmark.
+md` first surveyed (Salesforce, Odoo, Frappe, ServiceNow, Jira, Notion) lean ERP/metadata-based,
+comparatively limited in their own menu expressiveness — Menata Runtime's own ambition is a more
+powerful runtime, and its OWN foundational docs already say so: both `004-runtime-metadata.md` and
+`006-runtime-model.md` name `Navigation` as a first-class hierarchy peer of Page/View/Service, not
+a Machine-level afterthought. This is the same terrain Case 10's own base scenario already named —
+PT Maju Bersama, one employee crossing 4 of 8 applications in one morning (`roadmap.md` line 286) —
+exactly the shape of workday a flat, per-Application, inference-only Machine list serves worst: an
+employee moving across several Applications needs a menu that can group, order, and curate across
+Application boundaries, not just hide one Machine within a single app (Tier 4's own narrower
+scope). Declared here, per this file's own rule, before anything is built, so this candidate has
+its terrain half of admission A1 on record — the same pattern Case 3's own CAP-X16 note already
+used.
+
+**Declared target:**
+
+| Target | Capability | Pattern |
+|--------|-----------|---------|
+| A Navigation entry that is real, ordered, nestable, standalone metadata — able to reference a Machine, a specific View, an external URL, or exist purely as a grouping header with no destination at all — instead of every nav link being inferred from Machine/View structure the way `CAP-O03` Tiers 2–4 all are | **`CAP-O03` Tier 5 (new)** — a declared `navigation_entries` artifact, optional per Application; an Application with none keeps today's exact inferred behavior unchanged | Drupal `Menu` (Configuration Entity) + `MenuLinkContent` (Content Entity) — `menu_name`/`weight`/`parent`/`link.uri`, decoupled from the target |
+
+**Why this is genuinely new terrain, not a restatement of Tier 4:** Tier 4 (already admitted) can
+only ever subtract — hide a Machine that would otherwise show. It has no way to add a link to
+something that isn't a Machine at all, order entries deliberately, or group several Machines (or
+Applications) under one heading. `006-runtime-model.md`'s own one-line scope for Navigation —
+*"menus, breadcrumbs, tabs, shortcuts, quick actions"* — was never fully realized by any tier built
+so far; only the plain "menus" half, and only ever by inference.
+
+**Deliberately out of scope for this declaration, phased not silently dropped** (full plan:
+`benchmarks/009-in-app-navigation-benchmark.md`'s own implementation-plan follow-on finding):
+external URLs, breadcrumbs, and quick actions — Phase 1 covers only Machine/View targets, ordering,
+nesting, and hiding, the slice that actually closes Case 3's own original observed problem and
+Case 10's cross-application need; the fuller `006`-scoped vocabulary is named for a later phase.
+
+**Status:** `CAP-O03` Tier 5 registered ❌ Proposed in `capability-registry.md` v0.66 the same day
+— full A1–A5 admission test on that row, full layer-by-layer implementation plan in
+`benchmarks/009-in-app-navigation-benchmark.md`. Recommendation on that same row: build Tier 5's
+Phase 1 directly rather than building Tier 4 first — Tier 5 subsumes Tier 4 entirely (an allow-list
+needs no separate hide flag, the same reason Drupal and Salesforce's own mechanisms need none
+either). **Implemented 2026-09-08, same day, Phase 1** — `capability-registry.md` v0.68's `CAP-O03`
+Tier 5 row has the full account. Piloted on `app_approval` itself (`seeds/045_declared_
+navigation_pilot.sql`): Approval Document, a Dashboard view, and a "Reference" group nesting
+Signature declared; Approval Step left undeclared, absent from the menu, still directly reachable —
+closing this case's own original observed problem for real, on the live application.
 
 ---
 
