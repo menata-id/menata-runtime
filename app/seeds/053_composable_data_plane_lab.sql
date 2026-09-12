@@ -42,6 +42,20 @@ ON CONFLICT (id) DO NOTHING;
 -- ds_ad_steps_by_document -- the first real metadata proving a Children
 -- entry can declare "render Component X bound to Dataset Y" directly,
 -- instead of only ever a View or static Content.
+-- Status update (2026-09-12, caught live redeploying 17p): the original
+-- guard below matched on this entry's own dataset_id
+-- (ds_ad_steps_by_document) -- but seeds/054_composable_metric_live_fix.sql
+-- (the very next seed in sequence) RENAMES that same entry's dataset_id
+-- to ds_ad_total_steps. On any SECOND full `make seed` run against a
+-- database that already went through 053+054 once, this guard no longer
+-- recognized its own prior work (the dataset_id it was checking for was
+-- already renamed away) and appended a second, stale duplicate --
+-- confirmed live on menata_runtime's own vw_ad_page after a second
+-- deployment. An isolated throwaway schema (this repo's own standard
+-- test pattern) never catches this class of bug: each one only ever
+-- runs `make seed` once before being torn down. Fixed to guard on "any
+-- Metric component entry already exists at all", which survives 054's
+-- own later rename.
 UPDATE views
    SET config = jsonb_set(
          config,
@@ -49,4 +63,7 @@ UPDATE views
          (config->'children') || '[{"component":"Metric","dataset_id":"ds_ad_steps_by_document","title":"Steps by Decision"}]'::jsonb
        )
  WHERE id = 'vw_ad_page'
-   AND NOT (config->'children' @> '[{"component":"Metric","dataset_id":"ds_ad_steps_by_document"}]'::jsonb);
+   AND NOT EXISTS (
+     SELECT 1 FROM jsonb_array_elements(config->'children') AS c
+     WHERE c->>'component' = 'Metric'
+   );
