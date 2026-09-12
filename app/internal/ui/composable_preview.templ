@@ -39,10 +39,16 @@ import "menata.id/app/internal/model"
 // exactly when this machine's own preview is a dynamic-lane Board
 // instead of a cards List (mutually exclusive today -- a machine has
 // one or the other, never both, as its default collection view).
-// Deliberately narrower than the real board.templ: plain cell text, no
-// RecordSummaryCard, no drag-and-drop -- a later increment's job,
-// mirroring 17a's own original posture before 17e closed a similar gap
-// for cards.
+//
+// composable-runtime-roadmap.md 17i: composableBoardLanes now matches
+// board.templ's own visual classes and makes each card a real link,
+// proven equivalent by T278/T279 -- drag-and-drop stays deliberately
+// out (a mutation, the write-path boundary 006-runtime-model.md already
+// settles: Action is Domain-plane, this package governs Data/Experience
+// only), so the drag-only classes (`board-card`/`board-lane`/
+// `board-lane-body`, `cursor-move`, `draggable`) are deliberately NOT
+// copied -- they name behavior this preview doesn't have; copying the
+// name without the behavior would be misleading, not equivalent.
 templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, opts ListViewOptions, lanes []composable.BoardLane, laneNames map[string]string, planExplain string) {
 	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4 flex items-center gap-3">
@@ -64,7 +70,7 @@ templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdm
 			}
 		</div>
 		if len(lanes) > 0 {
-			@composableBoardLanes(lanes, laneNames, planExplain)
+			@composableBoardLanes(wsSlug, machine.ID, lanes, laneNames, planExplain)
 		} else {
 			@composableCardGrid(wsSlug, machine.ID, summaries, badges, planExplain)
 		}
@@ -83,29 +89,34 @@ templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdm
 // lane record, so a conformance test can isolate one lane's own content
 // the same robust way conformance/tests/240_dynamic_board_lanes.sh
 // already does for the real board.
-templ composableBoardLanes(lanes []composable.BoardLane, laneNames map[string]string, planExplain string) {
+templ composableBoardLanes(wsSlug, machineID string, lanes []composable.BoardLane, laneNames map[string]string, planExplain string) {
 	if planExplain != "" {
 		<div class="hidden" data-composable-plan={ planExplain }></div>
 	}
-	<div class="flex gap-4 overflow-x-auto">
+	<div class="flex gap-4 overflow-x-auto pb-4">
 		for _, lane := range lanes {
-			<div class="w-72 flex-shrink-0" data-lane={ lane.LaneRecordID }>
-				<div class="mb-2 flex items-center justify-between text-sm font-medium text-slate-700">
-					<span>{ laneNames[lane.LaneRecordID] }</span>
-					<span class="text-slate-400">{ strconv.Itoa(len(lane.Cards)) }</span>
-				</div>
-				<div class="space-y-2">
-					for _, card := range lane.Cards {
-						<div class="rounded-md border border-slate-200 bg-white p-2 text-sm">
-							for _, cell := range card.Cells {
-								if cell.Display != "" {
-									<div class="truncate">{ cell.Display }</div>
-								}
-							}
+			<div class="w-72 shrink-0 rounded-lg border border-slate-200 bg-slate-50" data-lane={ lane.LaneRecordID }>
+				<h2 class="border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+					{ laneNames[lane.LaneRecordID] }
+					<span class="ml-1 text-slate-400">({ strconv.Itoa(len(lane.Cards)) })</span>
+				</h2>
+				<div class="min-h-16 space-y-2 p-2">
+					if len(lane.Cards) == 0 {
+						<div class="rounded-md border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400">
+							No records
 						</div>
 					}
-					if len(lane.Cards) == 0 {
-						<div class="text-xs text-slate-400">No records</div>
+					for _, card := range lane.Cards {
+						<a
+							href={ templ.SafeURL("/" + wsSlug + "/" + machineID + "/" + card.RecordID) }
+							class="block rounded-md border border-slate-200 bg-white p-3 text-sm shadow-sm hover:shadow"
+						>
+							for _, cell := range card.Cells {
+								if cell.Display != "" {
+									<div class="truncate text-slate-700">{ cell.Display }</div>
+								}
+							}
+						</a>
 					}
 				</div>
 			</div>

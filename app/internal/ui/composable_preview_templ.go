@@ -47,10 +47,16 @@ import "menata.id/app/internal/model"
 // exactly when this machine's own preview is a dynamic-lane Board
 // instead of a cards List (mutually exclusive today -- a machine has
 // one or the other, never both, as its default collection view).
-// Deliberately narrower than the real board.templ: plain cell text, no
-// RecordSummaryCard, no drag-and-drop -- a later increment's job,
-// mirroring 17a's own original posture before 17e closed a similar gap
-// for cards.
+//
+// composable-runtime-roadmap.md 17i: composableBoardLanes now matches
+// board.templ's own visual classes and makes each card a real link,
+// proven equivalent by T278/T279 -- drag-and-drop stays deliberately
+// out (a mutation, the write-path boundary 006-runtime-model.md already
+// settles: Action is Domain-plane, this package governs Data/Experience
+// only), so the drag-only classes (`board-card`/`board-lane`/
+// `board-lane-body`, `cursor-move`, `draggable`) are deliberately NOT
+// copied -- they name behavior this preview doesn't have; copying the
+// name without the behavior would be misleading, not equivalent.
 func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, opts ListViewOptions, lanes []composable.BoardLane, laneNames map[string]string, planExplain string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -91,7 +97,7 @@ func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmi
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(viewName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 50, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 56, Col: 14}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -113,7 +119,7 @@ func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmi
 				var templ_7745c5c3_Var4 templ.SafeURL
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/export.csv"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 55, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 61, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -126,7 +132,7 @@ func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmi
 				var templ_7745c5c3_Var5 templ.SafeURL
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/import"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 56, Col: 72}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 62, Col: 72}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -139,7 +145,7 @@ func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmi
 				var templ_7745c5c3_Var6 templ.SafeURL
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/new"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 58, Col: 67}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 64, Col: 67}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -155,7 +161,7 @@ func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmi
 				return templ_7745c5c3_Err
 			}
 			if len(lanes) > 0 {
-				templ_7745c5c3_Err = composableBoardLanes(lanes, laneNames, planExplain).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = composableBoardLanes(wsSlug, machine.ID, lanes, laneNames, planExplain).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -194,7 +200,7 @@ func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmi
 // lane record, so a conformance test can isolate one lane's own content
 // the same robust way conformance/tests/240_dynamic_board_lanes.sh
 // already does for the real board.
-func composableBoardLanes(lanes []composable.BoardLane, laneNames map[string]string, planExplain string) templ.Component {
+func composableBoardLanes(wsSlug, machineID string, lanes []composable.BoardLane, laneNames map[string]string, planExplain string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -223,7 +229,7 @@ func composableBoardLanes(lanes []composable.BoardLane, laneNames map[string]str
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(planExplain)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 88, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 94, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
@@ -234,97 +240,110 @@ func composableBoardLanes(lanes []composable.BoardLane, laneNames map[string]str
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"flex gap-4 overflow-x-auto\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"flex gap-4 overflow-x-auto pb-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, lane := range lanes {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"w-72 flex-shrink-0\" data-lane=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"w-72 shrink-0 rounded-lg border border-slate-200 bg-slate-50\" data-lane=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(lane.LaneRecordID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 92, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 98, Col: 106}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"><div class=\"mb-2 flex items-center justify-between text-sm font-medium text-slate-700\"><span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"><h2 class=\"border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(laneNames[lane.LaneRecordID])
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 94, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 100, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</span> <span class=\"text-slate-400\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " <span class=\"ml-1 text-slate-400\">(")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(lane.Cards)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 95, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 101, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</span></div><div class=\"space-y-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, ")</span></h2><div class=\"min-h-16 space-y-2 p-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			if len(lane.Cards) == 0 {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"rounded-md border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400\">No records</div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
 			for _, card := range lane.Cards {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"rounded-md border border-slate-200 bg-white p-2 text-sm\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<a href=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var12 templ.SafeURL
+				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machineID + "/" + card.RecordID))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 111, Col: 81}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\" class=\"block rounded-md border border-slate-200 bg-white p-3 text-sm shadow-sm hover:shadow\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				for _, cell := range card.Cells {
 					if cell.Display != "" {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"truncate\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"truncate text-slate-700\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						var templ_7745c5c3_Var12 string
-						templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(cell.Display)
+						var templ_7745c5c3_Var13 string
+						templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(cell.Display)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 102, Col: 45}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 116, Col: 60}
 						}
-						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</a>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			if len(lane.Cards) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div class=\"text-xs text-slate-400\">No records</div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

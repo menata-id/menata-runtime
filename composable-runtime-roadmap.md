@@ -1333,6 +1333,48 @@ restarted, same standing rule as every prior increment.
 
 ---
 
+# 17i. Visual Equivalence for the Board Preview (2026-09-12)
+
+**Not one of the original 14 phases** — closes the visual gap 17h's own closing note named,
+mirroring 17e's arc for Document Approval's cards. Grounded by reading `internal/ui/board.templ`
+directly in full (not paraphrased): lane wrapper, header, body, and empty-state classes, and
+whether each card is a real link at all, all differed from `composableBoardLanes`' own 17h
+markup. `CollectionItem` already carried `RecordID` (set correctly since 17h), so this needed no
+`internal/composable` or handler Go change — pure templ.
+
+**What was built:** `composableBoardLanes` (`composable_preview.templ`) adopted `board.templ`'s
+own classes verbatim for the lane wrapper (`w-72 shrink-0 rounded-lg border border-slate-200
+bg-slate-50`), header (`<h2>` with the count in a parenthesized nested `<span>`, matching
+`board.templ:36-39` exactly), body (`min-h-16 space-y-2 p-2`), and empty-state
+(`rounded-md border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400`).
+Each card became a real `<a href=".../{RecordID}">` with the real card's own visual classes
+(`rounded-md border border-slate-200 bg-white p-3 text-sm shadow-sm hover:shadow`) wrapping
+`text-slate-700` cells. **Deliberately excluded, not overlooked:** `board-card`/`board-lane`/
+`board-lane-body`, `cursor-move`, `draggable`, and the drag Hyperscript — those class/attribute
+names exist *for* drag-and-drop; copying the name without the behavior would misrepresent
+capability, not prove equivalence. This is the same write-path boundary this conversation already
+settled (006-runtime-model.md: Action is Domain-plane, this package governs Data/Experience only).
+
+**Proof:** T278 (the real board renders `WIREFRAME_CARD_ID` as a real link carrying those exact
+visual classes — ground truth) and T279 (`/composable-preview` reproduces the identical link +
+classes for the same record). **A real regression was found and fixed by this phase's own
+verify step** (exactly what "ratchet, never regress" exists to catch): 17h's own T276 checked for
+the literal substring `>To Do<` (etc.) — true only by coincidence against 17h's flat
+`<span>{name}</span>` markup. Once the header markup changed to match `board.templ`'s own
+nested-`<span>`-for-the-count structure, "To Do" is followed by whitespace before the next tag,
+not `<` directly — T276 started failing. Fixed by loosening it to `>To Do` (no trailing `<`),
+which is exactly what T259's own, already-correct check for this same real markup has done all
+along; T276 now checks what T259 already established was the right pattern. Full suite: 285
+passed, 0 failed (`./scripts/local-ci.sh`) after the fix — two net new tests plus one corrected
+existing one.
+
+**Not done here:** drag-and-drop / `board-move` wiring (a mutation, out of scope per the
+write-path boundary), fixed-value-list lanes (CAP-V14 Tier 2), and any cutover of the real
+`/mch_pm_card/board` route — this closes 17h's own visual follow-up (the equivalent of 17e for
+cards), not a 17g-equivalent cutover step. The live server was not restarted.
+
+---
+
 # 18. Phase 14 — Production Hardening
 
 Only after real trial workloads:

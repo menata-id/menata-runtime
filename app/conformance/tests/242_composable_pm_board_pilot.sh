@@ -39,10 +39,10 @@ def section(lane_id):
     return body[start:nxt if nxt != -1 else len(body)]
 todo, doing, done = section(todo_id), section(doing_id), section(done_id)
 ok = (
-    '>To Do<' in todo and 'Collect brand assets' in todo
+    '>To Do' in todo and 'Collect brand assets' in todo
     and 'Wireframe homepage' not in todo and 'Build landing page' not in todo
-    and '>Doing<' in doing and 'Wireframe homepage' in doing and 'Build landing page' in doing
-    and '>Done<' in done and 'Kickoff meeting notes' in done
+    and '>Doing' in doing and 'Wireframe homepage' in doing and 'Build landing page' in doing
+    and '>Done' in done and 'Kickoff meeting notes' in done
 )
 sys.exit(0 if ok else 1)
 " "$CPMB_BODY" "$TODO_LIST_ID" "$DOING_LIST_ID" "$DONE_LIST_ID"
@@ -68,3 +68,29 @@ section = body[start:nxt if nxt != -1 else len(body)]
 sys.exit(0 if ('No records' in section and 'Backlog' in section) else 1)
 " "$CPMB_BODY2" "$BACKLOG_ID"
 check T277 "composable-runtime-roadmap.md §17h" "a fresh, empty List still renders as an empty lane, not a missing one" $?
+
+# T278/T279 -- composable-runtime-roadmap.md §17i: visual equivalence,
+# not just "a lane renders." Both checks look for the same real card
+# (WIREFRAME_CARD_ID) rendered as a real link to its own record, carrying
+# board.templ's own visual classes (rounded-md/border-slate-200/bg-white/
+# p-3/shadow-sm/hover:shadow) -- drag-only classes (board-card,
+# cursor-move) are deliberately excluded from this check, since
+# composable_preview.templ never claims drag support (see its own doc
+# comment). T278 is the ground truth (the real board); T279 proves
+# composable-preview reproduces it.
+BOARD_CARD_CHECK='
+import re, sys
+body, record_id = sys.argv[1], sys.argv[2]
+m = re.search(r"<a[^>]*href=\"[^\"]*" + re.escape(record_id) + r"\"[^>]*>", body)
+if not m:
+    sys.exit(1)
+required = ["rounded-md", "border-slate-200", "bg-white", "p-3", "shadow-sm", "hover:shadow"]
+sys.exit(0 if all(c in m.group(0) for c in required) else 1)
+'
+REAL_BOARD_BODY=$(get_body "$BASE_URL/mch_pm_card/board" "$PM_MEMBER")
+python3 -c "$BOARD_CARD_CHECK" "$REAL_BOARD_BODY" "$WIREFRAME_CARD_ID"
+check T278 "composable-runtime-roadmap.md §17i" "the real board renders WIREFRAME_CARD_ID as a real link with board.templ's own visual classes (ground truth)" $?
+
+CPMB_BODY3=$(get_body "$BASE_URL/mch_pm_card/composable-preview" "$PM_MEMBER")
+python3 -c "$BOARD_CARD_CHECK" "$CPMB_BODY3" "$WIREFRAME_CARD_ID"
+check T279 "composable-runtime-roadmap.md §17i" "composable-preview reproduces the same real link + visual classes -- real equivalence, not a passing resemblance" $?
