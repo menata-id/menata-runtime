@@ -47,7 +47,7 @@ The following are the important implementation gaps that must be explicitly trac
 | CR-18 | inference diagnostics | principle exists; inspectability tooling missing. **Phase 8 update, 2026-09-11** — `planner.go`'s `ExecutionPlan.Explain()` is real, deterministic inspectability tooling (group count, per-group Machine/node counts, naive-vs-deduplicated query count), the first concrete tool this principle has, though scoped to execution planning only — broader inference inspectability (e.g. Dataset/Scope-level diagnostics) remains open. | P1 |
 | CR-19 | composability benchmark harness | **Phase slice implemented, 2026-09-12 (§17j)** — `scripts/benchmark-composable.sh` + `scripts/loadtest` run 3 of Phase 12's own 9 required scenarios against a real throwaway server with real seeded data, reporting real p50/p95/p99 latency, real CPU/memory (`/proc` sampling), real DB pool stats, and `composable.MeasureComposition`'s own structural facts (previously Go-test-only) now correlated per real request. Cache hit ratio stays honestly N/A (no cache exists); scenarios 2/4/5/6/8/9 stay `SKIP` (no live route). See §17j for the real numbers. | P0 |
 | CR-20 | trial applications using shared composable substrate | trial plan exists; runtime migration remains | P0 |
-| CR-21 | metadata/schema representation for new composable artifacts | not yet universal | P0 |
+| CR-21 | metadata/schema representation for new composable artifacts | **Phase slice implemented, 2026-09-12 (§17k)** — Data plane (`Dataset`/`Query`) is now real, loadable metadata: `migrations/030_composable_data_plane.sql`, `model.go`'s `Dataset`/`DatasetConfig`/`Query`/`QueryConfig`, `metadata.loadDatasets`/`loadQueries`/`validateDatasets`/`validateQueries`, and `composable.BuildDatasetFromDeclaredDataset` (converges with the existing inferred adapters — proven, same CR-03 two-adapters-one-Dataset shape). Experience plane closed via the existing `ChildViewRef` mechanism gaining a third kind (`component`+`dataset_id`), not a new competing table — `LowerChildren`'s `lowerComponentChild` resolves it through the existing `ResolveComponent`. Real seed (`seeds/053_composable_data_plane_lab.sql`), Go tests, and conformance T265 (live). "Universal" still means only Dataset/Query + one Experience kind — Layout/Slot beyond Children, and any authoring UI, remain open; CAP-D* admission via `capability-lifecycle.md` §2 A1-A5 is a separate, later, owner-level decision this slice does not make. See §17k. | P0 |
 | CR-22 | capability registry alignment | composable concepts span existing CAPs but are not yet one tracked implementation program | P1 |
 | CR-23 | conformance model for composition validity | existing conformance is capability-oriented; composition proofs need expansion | P1 |
 | CR-24 | failure isolation / partial rendering policy | architectural rule; no common composed-request implementation | P2 |
@@ -1449,6 +1449,105 @@ differently based on the plan (CR-05/Phase 9's own open gap); this run reports r
 memory *as currently deployed*, not a controlled A/B. The live `menata-runtime` server was never
 touched — everything ran against a fresh throwaway instance, exactly like `local-ci.sh`. Full
 suite re-verified unchanged after every change in this phase: 285 passed, 0 failed.
+
+---
+
+# 17k. Full CR-21 Closure — Declarable Data + Experience Plane Metadata (2026-09-12)
+
+**Closes `CR-21`.** Grounded before scoping: `runtime-metadata-schema.md`'s own "Composable Schema
+Extensions" section (added `DOC-02`, 2026-09-11) already sketched the Data-plane shape
+(`datasets:`/`queries:` YAML) but was explicitly labeled "PROPOSED shape, not implemented," and its
+own note that Experience-plane concepts weren't sketched "because Phase 4/5... neither of which
+exists yet" was already stale the day it was written (Phase 4's UI IR and Phase 5's Component
+Contract both existed in code well before that note). Owner decision (this conversation, via
+AskUserQuestion): pursue full closure — both planes, not a doc-correction-only or single-piece cut.
+
+**Design decision, made explicit rather than left implicit:** Experience-plane closure extends the
+existing, proven `model.ChildViewRef`/Children mechanism (real since Phase 4-6, production-tested
+via `vw_ad_page`) rather than inventing a competing `layouts`/`Slot` table. A brand-new Layout table
+would compete with the page-View-plus-Children system that is already this repo's real
+Experience-plane metadata representation — redundant, not additive.
+
+**Part A — Data plane, real:** `migrations/030_composable_data_plane.sql` adds `datasets`/`queries`
+tables (typed columns + one JSONB `config` blob, no RLS — the same pattern `views`/`fields` already
+use; confirmed no RLS exists on any metadata table). `model.go` gains `Dataset`/`DatasetConfig`/
+`DatasetRelation`/`DatasetDimension`/`DatasetMeasure`/`Query`/`QueryConfig` (direct field-for-field
+match to `runtime-metadata-schema.md`'s own YAML sketch, reusing `FilterCondition`/`SortConfig`
+verbatim) and `Application.Datasets`/`.Queries`. `metadata/loader.go`'s `loadDatasets`/
+`loadQueries` (combined under `loadDataPlane` so `LoadAll` needs one error check, not two — Gate 3)
+load them; `metadata/validate.go`'s `validateDatasets`/`validateQueries` (combined under
+`validateDataPlane`, same reasoning) enforce the same "Unknown = explicit" reference checks
+`validateReferences` already applies elsewhere: `base_machine_id` must be a real Machine,
+`relations[].via` a real reference-typed Field, `dimensions[].field`/`measures[].field` a real
+Field, `measures[].aggregate` one of `internal/composable.MeasureKind`'s only two real values
+(`sum`, `count` — no `avg`/`min`/`max`, since `composable.Measure` has nowhere to put them), and
+every Query `projection` entry a real Dimension/Measure id on its own Dataset.
+`composable/dataset.go` gains `BuildDatasetFromDeclaredDataset(idx, ds)`, converting a DECLARED
+`model.Dataset` into the exact same `composable.Dataset` shape `BuildDatasetFromView`/
+`BuildDatasetFromReport`/`BuildDatasetFromDashboardSection` already produce from an INFERRED
+source — proven convergent (`TestBuildDatasetFromDeclaredDataset_ConvergesWithDashboardSection`),
+the same two-adapters-one-Dataset proof `CR-03` established in Phase 2.
+
+**Part B — Experience plane, real:** `ChildViewRef` gains a **third kind**, alongside its existing
+`view`/`content` kinds: `Component string`, `DatasetID string`, `Properties map[string]string`,
+`Bindings []Binding` (new `model.Binding{Target, Source string}`, mirroring
+`composable.Binding`'s shape without cross-importing it — `internal/model` never imports
+`internal/composable`, Gate 5's own direction runs the other way). `validate.go`'s page-Children
+check (previously inline inside the already-oversized `validateReferences`, now extracted to
+`validatePageChildEntry`+helpers so that function's own complexity doesn't grow — Gate 3) enforces
+exactly one of view/content/component, and that a `component` entry's `dataset_id` names a real
+Dataset; Component-*name* validity is deliberately left to `composable.ResolveComponent`'s own
+existing fail-loud check at lowering time, not duplicated, so the 7-name registry never drifts
+between two copies. `composable/ui.go`'s `LowerChildren` gains the case (`lowerComponentChild`):
+resolve the Dataset via `BuildDatasetFromDeclaredDataset`, then the existing `ResolveComponent`,
+unchanged. `LowerPage`/`LowerChildren`/`LowerApplication` all thread a new `DatasetIndex`
+(`IndexDatasets`) alongside the existing `viewIdx`/`machineIdx`.
+
+**Real seed, not just fixtures:** `seeds/053_composable_data_plane_lab.sql` declares
+`ds_ad_steps_by_document` (base `mch_approval_step`, one real Relation via `fld_as_document`, one
+Dimension on `fld_as_decision`, one count Measure) and `qry_ad_steps_by_decision`, then appends one
+`component: Metric` Children entry bound to that Dataset onto the existing, already-live
+`vw_ad_page` (`seeds/050_composed_dashboard.sql`) via a jsonb-concat `UPDATE` — append, not
+rewrite, applied to seed data the same way `051_dashboard_nav_supersede.sql`'s own `UPDATE`
+already does. This is a deliberate **cross-machine** composition (`ds_ad_steps_by_document`'s base
+Machine, `mch_approval_step`, differs from `vw_ad_page`'s own host, `mch_approval_document`) —
+proving the Experience plane can now bind a slot to data from anywhere in the Application, not
+just its own host Machine.
+
+**Real regressions this correctly caused, fixed honestly rather than avoided:** adding a real
+fourth Children entry to `vw_ad_page` legitimately changed `mch_approval_document`'s own real
+Dependency DAG shape — `planner_seed_test.go`'s `TestGroupByMachineAgainstApprovalCase`/
+`TestBuildExecutionPlanAgainstApprovalCase` and conformance `T265` (`241_composable_pilot.sh`) all
+had hardcoded baseline counts from before this Dataset existed (1 group → 2; naive=4/dedup=3 →
+naive=5/dedup=4). All three were updated to the new, correct, real numbers with a dated comment
+explaining why — not loosened or skipped to hide the change. Gate 3 (complexity ratchet)
+similarly caught real, deliberate growth in `LowerChildren` (15→17, a new switch case) and
+`(*Loader).LoadAll` (12→14, two new orchestration steps) — both minimal and inherent to the new
+capability, so `scripts/quality-baselines/gocyclo.txt` was updated for exactly those two lines;
+every other touched function (`validateReferences`, `validateDatasets`, `validateQueries`) was
+instead decomposed into small helpers to stay at or under its existing baseline, per this repo's
+own established preference for splitting over baseline-editing when splitting is actually
+available.
+
+**Part C — Documentation:** `runtime-metadata-schema.md`'s "Composable Schema Extensions" section
+gained a dated status update — the Data-plane sketch is no longer proposed (real file:line
+citations), the stale Phase 4/5 claim is corrected, and the Experience-plane sketch this section
+had deferred is now filled in with the real `component`/`dataset_id` shape. `CR-21`'s own Gap
+Register row (§2) updated with real evidence.
+
+**Explicitly out of scope (named, not silently dropped):** CAP-D* capability admission through
+`capability-lifecycle.md` §2's A1-A5 test (dual evidence, universality, single Grammar
+responsibility, non-composability, business language) is a separate, later, **owner-level**
+decision this increment does not make — the same posture `CR-27` already took toward Relation/
+Projection/Query ("remain correctly unadmitted, no forcing case yet"; this IS a forcing case, but
+admission itself stays a separate, later, owner-level decision, not granted here). A new Layout/
+Slot table was deliberately rejected (see Design decision above). No authoring UI exists for
+Dataset/Query/Component — this closes the *loadable schema* gap, not authoring tooling. No
+production route ever constructs a `model.Dataset`/`Query` from user input.
+
+**Verification:** `go build`/`go vet`/`go test ./...` (isolated schema, never the live server),
+`scripts/check-quality-gates.sh` (all 5 gates green after the Gate 3 work above), and
+`./scripts/local-ci.sh` — 285 passed, 0 failed, including the corrected `T265`.
 
 ---
 

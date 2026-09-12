@@ -26,12 +26,13 @@ func TestLowerPageAgainstApprovalDashboard(t *testing.T) {
 
 	viewIdx := composable.IndexViews(app)
 	machineIdx := composable.IndexMachines(app)
+	datasetIdx := composable.IndexDatasets(app)
 	m, ok := machineIdx["mch_approval_document"]
 	if !ok {
 		t.Fatal("missing machine mch_approval_document")
 	}
 
-	page, err := composable.LowerPage(m, viewIdx, machineIdx)
+	page, err := composable.LowerPage(m, viewIdx, machineIdx, datasetIdx)
 	if err != nil {
 		t.Fatalf("LowerPage(mch_approval_document): %v", err)
 	}
@@ -95,9 +96,10 @@ func TestLowerPageAttachesDetailChildrenToOwnNode(t *testing.T) {
 	app := findApplication(t, workspaces, "ws_default", "app_approval")
 	viewIdx := composable.IndexViews(app)
 	machineIdx := composable.IndexMachines(app)
+	datasetIdx := composable.IndexDatasets(app)
 	m := findMachineByID(t, app, "mch_approval_step")
 
-	page, err := composable.LowerPage(m, viewIdx, machineIdx)
+	page, err := composable.LowerPage(m, viewIdx, machineIdx, datasetIdx)
 	if err != nil {
 		t.Fatalf("LowerPage(mch_approval_step): %v", err)
 	}

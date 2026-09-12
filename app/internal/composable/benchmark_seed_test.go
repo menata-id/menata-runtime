@@ -67,9 +67,10 @@ func TestBenchmark_ApprovalDetailAndStepper(t *testing.T) {
 	app := findApplication(t, workspaces, "ws_default", "app_approval")
 	viewIdx := composable.IndexViews(app)
 	machineIdx := composable.IndexMachines(app)
+	datasetIdx := composable.IndexDatasets(app)
 	m := findMachineByID(t, app, "mch_approval_document")
 
-	page, err := composable.LowerPage(m, viewIdx, machineIdx)
+	page, err := composable.LowerPage(m, viewIdx, machineIdx, datasetIdx)
 	if err != nil {
 		t.Fatalf("LowerPage: %v", err)
 	}

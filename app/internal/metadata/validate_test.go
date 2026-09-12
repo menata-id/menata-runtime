@@ -515,3 +515,130 @@ func TestValidateReferences_Computed(t *testing.T) {
 		})
 	}
 }
+
+// --- validateDatasets / validateQueries (CR-21, 17k) ---------------------
+
+// wsWithDatasets wraps machines and datasets/queries in a single
+// Workspace/Application, mirroring wsWith's own shape.
+func wsWithDatasets(datasets []*model.Dataset, queries []*model.Query, machines ...*model.Machine) []*model.Workspace {
+	return []*model.Workspace{{
+		ID: "ws_test",
+		Applications: []*model.Application{{
+			ID:       "app_test",
+			Machines: machines,
+			Datasets: datasets,
+			Queries:  queries,
+		}},
+	}}
+}
+
+func baseMachineWithRef() *model.Machine {
+	return builders.Machine("mch_base").
+		WithField(builders.Field("fld_status", model.FieldTypeValueList).Build()).
+		WithField(builders.Field("fld_amount", model.FieldTypeNumber).Build()).
+		WithField(builders.Field("fld_owner", model.FieldTypeReference).Options(model.FieldOptions{TargetMachine: "mch_other"}).Build()).
+		Build()
+}
+
+func TestValidateDatasets(t *testing.T) {
+	tests := []struct {
+		name string
+		ds   *model.Dataset
+		want string
+	}{
+		{
+			name: "valid dataset with relation, dimension, and sum measure",
+			ds: &model.Dataset{ID: "ds_a", ApplicationID: "app_test", BaseMachineID: "mch_base", Config: model.DatasetConfig{
+				Relations:  []model.DatasetRelation{{ID: "rel_owner", Via: "fld_owner"}},
+				Dimensions: []model.DatasetDimension{{ID: "dim_status", Field: "fld_status"}},
+				Measures:   []model.DatasetMeasure{{ID: "mea_total", Aggregate: "sum", Field: "fld_amount"}},
+			}},
+		},
+		{
+			name: "valid dataset with count measure and no field",
+			ds: &model.Dataset{ID: "ds_a", ApplicationID: "app_test", BaseMachineID: "mch_base", Config: model.DatasetConfig{
+				Measures: []model.DatasetMeasure{{ID: "mea_count", Aggregate: "count"}},
+			}},
+		},
+		{
+			name: "unknown base_machine_id",
+			ds:   &model.Dataset{ID: "ds_a", ApplicationID: "app_test", BaseMachineID: "mch_ghost"},
+			want: `dataset ds_a (application app_test): base_machine_id "mch_ghost" does not name a Machine in this Application`,
+		},
+		{
+			name: "relation via names a field that doesn't exist",
+			ds: &model.Dataset{ID: "ds_a", ApplicationID: "app_test", BaseMachineID: "mch_base", Config: model.DatasetConfig{
+				Relations: []model.DatasetRelation{{ID: "rel_ghost", Via: "fld_ghost"}},
+			}},
+			want: `dataset ds_a (application app_test): relations[rel_ghost].via "fld_ghost" does not name a Field on machine mch_base`,
+		},
+		{
+			name: "relation via names a non-reference field",
+			ds: &model.Dataset{ID: "ds_a", ApplicationID: "app_test", BaseMachineID: "mch_base", Config: model.DatasetConfig{
+				Relations: []model.DatasetRelation{{ID: "rel_status", Via: "fld_status"}},
+			}},
+			want: `dataset ds_a (application app_test): relations[rel_status].via "fld_status" must be type "reference", got "value_list"`,
+		},
+		{
+			name: "dimension field does not exist",
+			ds: &model.Dataset{ID: "ds_a", ApplicationID: "app_test", BaseMachineID: "mch_base", Config: model.DatasetConfig{
+				Dimensions: []model.DatasetDimension{{ID: "dim_ghost", Field: "fld_ghost"}},
+			}},
+			want: `dataset ds_a (application app_test): dimensions[dim_ghost].field "fld_ghost" does not name a Field on machine mch_base`,
+		},
+		{
+			name: "measure aggregate is not sum or count",
+			ds: &model.Dataset{ID: "ds_a", ApplicationID: "app_test", BaseMachineID: "mch_base", Config: model.DatasetConfig{
+				Measures: []model.DatasetMeasure{{ID: "mea_avg", Aggregate: "avg", Field: "fld_amount"}},
+			}},
+			want: `dataset ds_a (application app_test): measures[mea_avg].aggregate "avg" must be "sum" or "count"`,
+		},
+		{
+			name: "sum measure field does not exist",
+			ds: &model.Dataset{ID: "ds_a", ApplicationID: "app_test", BaseMachineID: "mch_base", Config: model.DatasetConfig{
+				Measures: []model.DatasetMeasure{{ID: "mea_total", Aggregate: "sum", Field: "fld_ghost"}},
+			}},
+			want: `dataset ds_a (application app_test): measures[mea_total].field "fld_ghost" does not name a Field on machine mch_base`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wantErr(t, validateDatasets(wsWithDatasets([]*model.Dataset{tt.ds}, nil, baseMachineWithRef())), tt.want)
+		})
+	}
+}
+
+func TestValidateQueries(t *testing.T) {
+	ds := &model.Dataset{ID: "ds_a", ApplicationID: "app_test", BaseMachineID: "mch_base", Config: model.DatasetConfig{
+		Dimensions: []model.DatasetDimension{{ID: "dim_status", Field: "fld_status"}},
+		Measures:   []model.DatasetMeasure{{ID: "mea_total", Aggregate: "sum", Field: "fld_amount"}},
+	}}
+
+	tests := []struct {
+		name string
+		q    *model.Query
+		want string
+	}{
+		{
+			name: "valid query projecting a real dimension and measure",
+			q:    &model.Query{ID: "qry_a", DatasetID: "ds_a", Config: model.QueryConfig{Projection: []string{"dim_status", "mea_total"}}},
+		},
+		{
+			name: "unknown dataset_id",
+			q:    &model.Query{ID: "qry_a", DatasetID: "ds_ghost"},
+			want: `query qry_a (application app_test): dataset_id "ds_ghost" does not name a Dataset in this Application`,
+		},
+		{
+			name: "projection names neither a dimension nor a measure",
+			q:    &model.Query{ID: "qry_a", DatasetID: "ds_a", Config: model.QueryConfig{Projection: []string{"dim_ghost"}}},
+			want: `query qry_a (application app_test): projection "dim_ghost" does not name a dimension or measure on dataset ds_a`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wantErr(t, validateQueries(wsWithDatasets([]*model.Dataset{ds}, []*model.Query{tt.q}, baseMachineWithRef())), tt.want)
+		})
+	}
+}

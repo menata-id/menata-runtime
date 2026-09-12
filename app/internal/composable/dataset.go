@@ -192,6 +192,60 @@ func BuildDatasetFromDashboardSection(idx MachineIndex, s model.DashboardSection
 	}, nil
 }
 
+// BuildDatasetFromDeclaredDataset (CR-21, composable-runtime-roadmap.md
+// 17k) converts a DECLARED model.Dataset -- real metadata, loaded from
+// the datasets/queries tables rather than inferred from a View's own
+// Config -- into the exact same composable.Dataset shape
+// BuildDatasetFromView/BuildDatasetFromReport/
+// BuildDatasetFromDashboardSection already produce. The concrete proof
+// that a declared source and an inferred source converge on one shape,
+// the same kind of proof CR-03's own two-adapters-one-Dataset precedent
+// already established in Phase 2.
+//
+// ds's own fields have already been validated at load time
+// (internal/metadata/validate.go's validateDatasets) -- BaseMachineID
+// names a real Machine, every Relation's Via and every
+// Dimension/Measure's Field names a real Field on it -- so this function
+// assumes that and focuses purely on the shape conversion; only an
+// unknown BaseMachineID (which validateDatasets would already have
+// rejected during a real LoadAll) fails loud here.
+func BuildDatasetFromDeclaredDataset(idx MachineIndex, ds *model.Dataset) (Dataset, error) {
+	m, ok := idx[ds.BaseMachineID]
+	if !ok {
+		return Dataset{}, fmt.Errorf("composable: dataset %s names unknown machine %s", ds.ID, ds.BaseMachineID)
+	}
+
+	var fields, groupBy []string
+	for _, dim := range ds.Config.Dimensions {
+		fields = append(fields, dim.Field)
+		groupBy = append(groupBy, dim.Field)
+	}
+	measures := make([]Measure, len(ds.Config.Measures))
+	for i, mea := range ds.Config.Measures {
+		if mea.Aggregate == "sum" {
+			measures[i] = Measure{Kind: MeasureSum, Field: mea.Field}
+			fields = append(fields, mea.Field)
+			continue
+		}
+		measures[i] = Measure{Kind: MeasureCount} // Field empty for count, per Measure's own doc comment
+	}
+	var viaFields []string
+	for _, rel := range ds.Config.Relations {
+		viaFields = append(viaFields, rel.Via)
+	}
+
+	projection := Projection{Fields: fields}
+
+	return Dataset{
+		Identity:   datasetIdentity(DataSource{MachineID: m.ID}, projection, nil, nil, groupBy, measures),
+		Source:     DataSource{MachineID: m.ID},
+		Relations:  discoverRelations(m, viaFields),
+		Projection: projection,
+		GroupBy:    groupBy,
+		Measures:   measures,
+	}, nil
+}
+
 // BuildDataIR walks every Machine/View in app and collects every
 // representable Dataset. A View shape with no representable dataset at all
 // (detail, process_map, document, decision_stepper, coord_placement, page)

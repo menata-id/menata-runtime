@@ -18,7 +18,7 @@ func TestLowerPageCollectsChildren(t *testing.T) {
 		WithView(builders.View("vw_form", model.ViewTypeForm).Fields("fld_title").Build()).
 		Build()
 
-	page, err := composable.LowerPage(m, nil, nil)
+	page, err := composable.LowerPage(m, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("LowerPage: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestLowerPageAllowsUnrepresentableViews(t *testing.T) {
 		WithView(builders.View("vw_map", model.ViewTypeProcessMap).Build()).
 		Build()
 
-	page, err := composable.LowerPage(m, nil, nil)
+	page, err := composable.LowerPage(m, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("LowerPage: %v", err)
 	}

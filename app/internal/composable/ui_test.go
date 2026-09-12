@@ -20,7 +20,7 @@ func TestLowerPage_ViewRefCarriesOwnDataset(t *testing.T) {
 		WithView(builders.View("vw_b", model.ViewTypeList).Columns("fld_b").Build()).
 		Build()
 
-	page, err := composable.LowerPage(m, nil, nil)
+	page, err := composable.LowerPage(m, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("LowerPage: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestLowerPage_RelationProducesValidatedBinding(t *testing.T) {
 		WithView(builders.View("vw_list", model.ViewTypeList).Columns("fld_document").Build()).
 		Build()
 
-	page, err := composable.LowerPage(m, nil, nil)
+	page, err := composable.LowerPage(m, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("LowerPage: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestLowerChildren_SlotsAndStaticContent(t *testing.T) {
 		{Content: &model.PageContent{Type: "text", Text: "Recent Activity placeholder"}, Title: "Recent Activity", Layout: "aside"},
 	}
 
-	slots, err := composable.LowerChildren(children, viewIdx, machineIdx, nil)
+	slots, err := composable.LowerChildren(children, viewIdx, machineIdx, nil, nil)
 	if err != nil {
 		t.Fatalf("LowerChildren: %v", err)
 	}
@@ -112,5 +112,51 @@ func TestLowerChildren_SlotsAndStaticContent(t *testing.T) {
 	}
 	if aside.Properties["title"] != "Recent Activity" {
 		t.Errorf("aside Properties[title] = %q, want %q", aside.Properties["title"], "Recent Activity")
+	}
+}
+
+// TestLowerChildren_ComponentDatasetEntry (CR-21, composable-runtime-
+// roadmap.md 17k) proves the third Children kind end-to-end: a
+// {component, dataset_id} entry resolves the named Dataset via
+// BuildDatasetFromDeclaredDataset and lowers into a real component UINode
+// via the existing ResolveComponent, unchanged.
+func TestLowerChildren_ComponentDatasetEntry(t *testing.T) {
+	m := builders.Machine("mch_task").
+		WithField(builders.Field("fld_stage", model.FieldTypeValueList).Build()).
+		Build()
+	machineIdx := composable.MachineIndex{"mch_task": m}
+	datasetIdx := composable.DatasetIndex{
+		"ds_tasks": {ID: "ds_tasks", BaseMachineID: "mch_task", Config: model.DatasetConfig{
+			Dimensions: []model.DatasetDimension{{ID: "dim_stage", Field: "fld_stage"}},
+			Measures:   []model.DatasetMeasure{{ID: "mea_count", Aggregate: "count"}},
+		}},
+	}
+
+	children := []model.ChildViewRef{
+		{Component: "Metric", DatasetID: "ds_tasks", Title: "Tasks by Stage"},
+	}
+	slots, err := composable.LowerChildren(children, nil, machineIdx, datasetIdx, nil)
+	if err != nil {
+		t.Fatalf("LowerChildren: %v", err)
+	}
+	if len(slots[""]) != 1 {
+		t.Fatalf("Slots[\"\"] = %+v, want one node", slots[""])
+	}
+	node := slots[""][0]
+	if node.Kind != composable.UINodeComponent || node.ComponentType != composable.ComponentMetric {
+		t.Errorf("node = {Kind:%q ComponentType:%q}, want a Metric component", node.Kind, node.ComponentType)
+	}
+	if node.Dataset == nil || node.Dataset.Source.MachineID != "mch_task" {
+		t.Errorf("node.Dataset = %+v, want Source.MachineID mch_task", node.Dataset)
+	}
+	if node.Properties["title"] != "Tasks by Stage" {
+		t.Errorf("node Properties[title] = %q, want %q", node.Properties["title"], "Tasks by Stage")
+	}
+}
+
+func TestLowerChildren_ComponentDatasetEntry_UnknownDataset(t *testing.T) {
+	children := []model.ChildViewRef{{Component: "Metric", DatasetID: "ds_ghost"}}
+	if _, err := composable.LowerChildren(children, nil, composable.MachineIndex{}, composable.DatasetIndex{}, nil); err == nil {
+		t.Fatal("want error for a children entry naming an unknown dataset")
 	}
 }

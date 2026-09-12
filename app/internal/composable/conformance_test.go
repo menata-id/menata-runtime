@@ -62,7 +62,7 @@ func TestCMP02_CyclicCompositionRejected(t *testing.T) {
 	viewIdx := map[string]*model.View{"vw_a": viewA, "vw_b": viewB}
 	machineIdx := composable.MachineIndex{"mch_a": machineA, "mch_b": machineB}
 
-	_, err := composable.LowerChildren(viewA.Config.Children, viewIdx, machineIdx, map[string]bool{"vw_a": true})
+	_, err := composable.LowerChildren(viewA.Config.Children, viewIdx, machineIdx, nil, map[string]bool{"vw_a": true})
 	if err == nil {
 		t.Fatal("want error for a cyclic composition (vw_a -> vw_b -> vw_a)")
 	}
@@ -70,7 +70,7 @@ func TestCMP02_CyclicCompositionRejected(t *testing.T) {
 
 func TestCMP03_UnresolvedReferenceRejected(t *testing.T) {
 	children := []model.ChildViewRef{{View: "vw_does_not_exist"}}
-	_, err := composable.LowerChildren(children, map[string]*model.View{}, composable.MachineIndex{}, nil)
+	_, err := composable.LowerChildren(children, map[string]*model.View{}, composable.MachineIndex{}, nil, nil)
 	if err == nil {
 		t.Fatal("want error for a Children entry naming a view that doesn't exist")
 	}
@@ -78,7 +78,7 @@ func TestCMP03_UnresolvedReferenceRejected(t *testing.T) {
 
 func TestCMP04_SlotTypeMismatchRejected(t *testing.T) {
 	children := []model.ChildViewRef{{}} // neither View nor Content
-	_, err := composable.LowerChildren(children, map[string]*model.View{}, composable.MachineIndex{}, nil)
+	_, err := composable.LowerChildren(children, map[string]*model.View{}, composable.MachineIndex{}, nil, nil)
 	if err == nil {
 		t.Fatal("want error for a Children entry naming neither a view nor content")
 	}
@@ -148,7 +148,7 @@ func TestCMP08_BoundedFanOut(t *testing.T) {
 		machineIdx[m.ID] = m
 	}
 
-	_, err := composable.LowerChildren(views[0].Config.Children, viewIdx, machineIdx, map[string]bool{views[0].ID: true})
+	_, err := composable.LowerChildren(views[0].Config.Children, viewIdx, machineIdx, nil, map[string]bool{views[0].ID: true})
 	if err == nil {
 		t.Fatal("want error once composition depth exceeds the bound")
 	}
@@ -201,7 +201,7 @@ func TestCMP11_PartialFailureIsolation(t *testing.T) {
 		WithView(builders.View("vw_map", model.ViewTypeProcessMap).Build()).
 		WithView(builders.View("vw_list", model.ViewTypeList).Columns("fld_a").Build()).
 		Build()
-	page, err := composable.LowerPage(m, nil, nil)
+	page, err := composable.LowerPage(m, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("LowerPage: %v", err)
 	}

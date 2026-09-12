@@ -383,7 +383,8 @@ func (h *Handler) explainComposablePlan(r *http.Request, applicationID string, m
 	}
 	viewIdx := composable.IndexViews(app)
 	machineIdx := composable.IndexMachines(app)
-	pageNode, err := composable.LowerPage(machine, viewIdx, machineIdx)
+	datasetIdx := composable.IndexDatasets(app)
+	pageNode, err := composable.LowerPage(machine, viewIdx, machineIdx, datasetIdx)
 	if err != nil {
 		slog.Warn("composable plan: lower page", "correlation_id", middleware.GetReqID(r.Context()), "machine_id", machine.ID, "error", err)
 		return "", composable.BenchmarkMetrics{}

@@ -45,13 +45,23 @@ check T264 "composable-runtime-roadmap.md §17a" "a Machine from another Workspa
 # distinct real Datasets (vw_ad_form, vw_ad_all, vw_ad_pending), with
 # vw_ad_pending's own real duplicate consumption (Phase 7's dedup proof --
 # once as an ordinary child, once inside vw_ad_page's own Slots["main"]):
-# naive=4 collapses to dedup=3 in one ExecutionGroup. Exposed as a hidden
-# data-composable-plan attribute, inspectable from the response body alone,
-# no server-log access needed.
+# naive=4 collapses to dedup=3 in one ExecutionGroup.
+#
+# Status update (2026-09-12, composable-runtime-roadmap.md 17k): vw_ad_page
+# now also carries a fourth Children entry, a component+dataset slot bound
+# to ds_ad_steps_by_document (seeds/053_composable_data_plane_lab.sql) --
+# a Dataset over mch_approval_step, a DIFFERENT Machine than the page's own
+# host. That's a real, deliberate cross-machine composition (17k's own
+# Experience-plane closure), so the live plan now has a SECOND
+# ExecutionGroup too: naive=5 dedup=4 across two groups
+# (mch_approval_document: 3, mch_approval_step: 1) -- the assertion below
+# was updated to match, not loosened to hide it (same update already made
+# to planner_seed_test.go's own Go-test counterpart).
 CPLAN_BODY=$(get_body "$BASE_URL/mch_approval_document/composable-preview" "$ALICE")
-printf '%s' "$CPLAN_BODY" | grep -q 'data-composable-plan="ExecutionPlan: 1 group(s), naive=4 dedup=3' \
-  && printf '%s' "$CPLAN_BODY" | grep -q 'mch_approval_document: 3 node(s)'
-check T265 "composable-runtime-roadmap.md §17b" "Dependency DAG/Execution Planner runs on this live request (1 group, naive=4 dedup=3, mch_approval_document: 3 node(s))" $?
+printf '%s' "$CPLAN_BODY" | grep -q 'data-composable-plan="ExecutionPlan: 2 group(s), naive=5 dedup=4' \
+  && printf '%s' "$CPLAN_BODY" | grep -q 'mch_approval_document: 3 node(s)' \
+  && printf '%s' "$CPLAN_BODY" | grep -q 'mch_approval_step: 1 node(s)'
+check T265 "composable-runtime-roadmap.md §17b" "Dependency DAG/Execution Planner runs on this live request (2 groups, naive=5 dedup=4, mch_approval_document: 3 node(s), mch_approval_step: 1 node(s))" $?
 
 # T266 -- composable-runtime-roadmap.md §17c generalizes this route beyond
 # the one machine with a cards-display List View: mch_approval_step has

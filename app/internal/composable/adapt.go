@@ -12,9 +12,10 @@ import (
 func LowerApplication(app *model.Application) ([]UINode, error) {
 	viewIdx := IndexViews(app)
 	machineIdx := IndexMachines(app)
+	datasetIdx := IndexDatasets(app)
 	pages := make([]UINode, 0, len(app.Machines))
 	for _, m := range app.Machines {
-		page, err := LowerPage(m, viewIdx, machineIdx)
+		page, err := LowerPage(m, viewIdx, machineIdx, datasetIdx)
 		if err != nil {
 			return nil, fmt.Errorf("composable: lower page for machine %s: %w", m.ID, err)
 		}

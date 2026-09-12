@@ -207,3 +207,79 @@ func TestSameDatasetSharedAcrossDashboardAndBoardConsumers(t *testing.T) {
 		t.Error("dashboard Measures = none, want a count measure")
 	}
 }
+
+// TestBuildDatasetFromDeclaredDataset_ConvergesWithDashboardSection is
+// CR-03's own two-adapters-one-Dataset precedent applied to a DECLARED
+// source (CR-21, 17k): a model.Dataset (real, loadable metadata) and an
+// equivalent DashboardSection (inferred from a View's own Config) built
+// over the same Machine and grouping field must converge on the same
+// GroupBy/Measures shape -- the concrete proof that a declared source and
+// an inferred source produce the exact same composable.Dataset contract.
+func TestBuildDatasetFromDeclaredDataset_ConvergesWithDashboardSection(t *testing.T) {
+	m := builders.Machine("mch_task").Build()
+	idx := composable.MachineIndex{"mch_task": m}
+
+	dashboardDS, err := composable.BuildDatasetFromDashboardSection(idx, model.DashboardSection{
+		Title: "Tasks by Stage", Machine: "mch_task", GroupField: "fld_stage",
+	})
+	if err != nil {
+		t.Fatalf("BuildDatasetFromDashboardSection: %v", err)
+	}
+
+	declared := &model.Dataset{ID: "ds_tasks", BaseMachineID: "mch_task", Config: model.DatasetConfig{
+		Dimensions: []model.DatasetDimension{{ID: "dim_stage", Field: "fld_stage"}},
+		Measures:   []model.DatasetMeasure{{ID: "mea_count", Aggregate: "count"}},
+	}}
+	declaredDS, err := composable.BuildDatasetFromDeclaredDataset(idx, declared)
+	if err != nil {
+		t.Fatalf("BuildDatasetFromDeclaredDataset: %v", err)
+	}
+
+	if !reflect.DeepEqual(dashboardDS.Source, declaredDS.Source) {
+		t.Errorf("Source differs: dashboard %+v, declared %+v", dashboardDS.Source, declaredDS.Source)
+	}
+	if !reflect.DeepEqual(dashboardDS.GroupBy, declaredDS.GroupBy) {
+		t.Errorf("GroupBy differs: dashboard %v, declared %v", dashboardDS.GroupBy, declaredDS.GroupBy)
+	}
+	if !reflect.DeepEqual(dashboardDS.Measures, declaredDS.Measures) {
+		t.Errorf("Measures differ: dashboard %+v, declared %+v", dashboardDS.Measures, declaredDS.Measures)
+	}
+}
+
+func TestBuildDatasetFromDeclaredDataset_RelationAndSumMeasure(t *testing.T) {
+	m := builders.Machine("mch_step").
+		WithField(builders.Field("fld_document", model.FieldTypeReference).
+			Options(model.FieldOptions{TargetMachine: "mch_document"}).Build()).
+		WithField(builders.Field("fld_amount", model.FieldTypeNumber).Build()).
+		Build()
+	idx := composable.MachineIndex{"mch_step": m}
+
+	declared := &model.Dataset{ID: "ds_steps", BaseMachineID: "mch_step", Config: model.DatasetConfig{
+		Relations: []model.DatasetRelation{{ID: "rel_document", Via: "fld_document"}},
+		Measures:  []model.DatasetMeasure{{ID: "mea_total", Aggregate: "sum", Field: "fld_amount"}},
+	}}
+	ds, err := composable.BuildDatasetFromDeclaredDataset(idx, declared)
+	if err != nil {
+		t.Fatalf("BuildDatasetFromDeclaredDataset: %v", err)
+	}
+
+	wantRelations := []composable.RelationRef{{TargetMachineID: "mch_document", ViaField: "fld_document"}}
+	if !reflect.DeepEqual(ds.Relations, wantRelations) {
+		t.Errorf("Relations = %+v, want %+v", ds.Relations, wantRelations)
+	}
+	wantMeasures := []composable.Measure{{Kind: composable.MeasureSum, Field: "fld_amount"}}
+	if !reflect.DeepEqual(ds.Measures, wantMeasures) {
+		t.Errorf("Measures = %+v, want %+v", ds.Measures, wantMeasures)
+	}
+	wantProjection := composable.Projection{Fields: []string{"fld_amount"}}
+	if !reflect.DeepEqual(ds.Projection, wantProjection) {
+		t.Errorf("Projection = %+v, want %+v", ds.Projection, wantProjection)
+	}
+}
+
+func TestBuildDatasetFromDeclaredDataset_UnknownMachine(t *testing.T) {
+	declared := &model.Dataset{ID: "ds_ghost", BaseMachineID: "mch_ghost"}
+	if _, err := composable.BuildDatasetFromDeclaredDataset(composable.MachineIndex{}, declared); err == nil {
+		t.Fatal("want error for a dataset naming a machine not present in the index")
+	}
+}

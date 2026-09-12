@@ -58,12 +58,12 @@ func TestCMP03And04AgainstApprovalDashboard(t *testing.T) {
 	}
 
 	unresolved := []model.ChildViewRef{{View: "vw_does_not_exist_in_app_approval"}}
-	if _, err := composable.LowerChildren(unresolved, viewIdx, machineIdx, nil); err == nil {
+	if _, err := composable.LowerChildren(unresolved, viewIdx, machineIdx, nil, nil); err == nil {
 		t.Error("CMP-03: want error for a Children entry naming a nonexistent view, against real metadata's own indexes")
 	}
 
 	malformed := []model.ChildViewRef{{}}
-	if _, err := composable.LowerChildren(malformed, viewIdx, machineIdx, nil); err == nil {
+	if _, err := composable.LowerChildren(malformed, viewIdx, machineIdx, nil, nil); err == nil {
 		t.Error("CMP-04: want error for a Children entry naming neither view nor content, against real metadata's own indexes")
 	}
 }

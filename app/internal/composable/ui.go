@@ -29,6 +29,19 @@ func IndexViews(app *model.Application) map[string]*model.View {
 	return idx
 }
 
+// DatasetIndex resolves a declared model.Dataset by id -- what a
+// component+dataset Children entry's own DatasetID names (CR-21, 17k).
+type DatasetIndex map[string]*model.Dataset
+
+// IndexDatasets builds a DatasetIndex over every Dataset declared on app.
+func IndexDatasets(app *model.Application) DatasetIndex {
+	idx := make(DatasetIndex, len(app.Datasets))
+	for _, ds := range app.Datasets {
+		idx[ds.ID] = ds
+	}
+	return idx
+}
+
 // lowerViewRefChild builds a view_ref UINode for v -- its own Dataset (via
 // BuildDatasetFromView, nil when v's type has no representable data
 // requirement) and, when that Dataset has Relations, validated
@@ -127,7 +140,31 @@ func lowerStaticContent(c *model.PageContent) UINode {
 // needed it: metadata/validate.go's own load-time checks already
 // guarantee every REAL seeded Children entry resolves; this only ever
 // fires for a hand-built UINode/ChildViewRef bypassing that).
-func LowerChildren(children []model.ChildViewRef, viewIdx map[string]*model.View, machineIdx MachineIndex, visited map[string]bool) (map[string][]UINode, error) {
+// lowerComponentChild resolves a component+dataset Children entry (CR-21,
+// 17k) -- the Experience-plane counterpart to view/content, declaring
+// "render Component X bound to declared Dataset Y" directly. Split out of
+// LowerChildren itself (Gate 3: keeps its own complexity from growing).
+// entry.DatasetID's own validity (real Dataset on this Application) was
+// already checked at load time (metadata/validate.go's validateDatasets);
+// only an unresolved id here would mean a hand-built ChildViewRef
+// bypassing that, same CMP-03 posture as an unresolved view.
+func lowerComponentChild(entry model.ChildViewRef, machineIdx MachineIndex, datasetIdx DatasetIndex) (UINode, error) {
+	declared, ok := datasetIdx[entry.DatasetID]
+	if !ok {
+		return UINode{}, fmt.Errorf("composable: children entry names unknown dataset %q (CMP-03 unresolved reference rejected)", entry.DatasetID)
+	}
+	ds, err := BuildDatasetFromDeclaredDataset(machineIdx, declared)
+	if err != nil {
+		return UINode{}, err
+	}
+	node, err := ResolveComponent(ComponentType(entry.Component), entry.Properties, &ds, nil)
+	if err != nil {
+		return UINode{}, fmt.Errorf("composable: children entry component %q: %w", entry.Component, err)
+	}
+	return node, nil
+}
+
+func LowerChildren(children []model.ChildViewRef, viewIdx map[string]*model.View, machineIdx MachineIndex, datasetIdx DatasetIndex, visited map[string]bool) (map[string][]UINode, error) {
 	if len(children) == 0 {
 		return nil, nil
 	}
@@ -140,6 +177,12 @@ func LowerChildren(children []model.ChildViewRef, viewIdx map[string]*model.View
 		switch {
 		case entry.Content != nil:
 			node = lowerStaticContent(entry.Content)
+		case entry.Component != "":
+			var err error
+			node, err = lowerComponentChild(entry, machineIdx, datasetIdx)
+			if err != nil {
+				return nil, err
+			}
 		case entry.View != "":
 			if visited[entry.View] {
 				return nil, fmt.Errorf("composable: cyclic composition detected at view %s (CMP-02 cyclic composition rejected)", entry.View)
@@ -159,14 +202,14 @@ func LowerChildren(children []model.ChildViewRef, viewIdx map[string]*model.View
 					nextVisited[id] = true
 				}
 				nextVisited[v.ID] = true
-				childSlots, err := LowerChildren(v.Config.Children, viewIdx, machineIdx, nextVisited)
+				childSlots, err := LowerChildren(v.Config.Children, viewIdx, machineIdx, datasetIdx, nextVisited)
 				if err != nil {
 					return nil, err
 				}
 				node.Slots = childSlots
 			}
 		default:
-			return nil, fmt.Errorf("composable: children entry names neither a view nor content (CMP-04 slot/type mismatch rejected)")
+			return nil, fmt.Errorf("composable: children entry names neither a view, content, nor component (CMP-04 slot/type mismatch rejected)")
 		}
 		if entry.Title != "" {
 			if node.Properties == nil {
@@ -193,7 +236,7 @@ func LowerChildren(children []model.ChildViewRef, viewIdx map[string]*model.View
 // collide on one shared slot map, unlike hoisting both to page.Slots
 // would. visited is seeded with the hosting View's own id so an immediate
 // self-reference is caught on the very first check (CMP-02).
-func LowerPage(m *model.Machine, viewIdx map[string]*model.View, machineIdx MachineIndex) (UINode, error) {
+func LowerPage(m *model.Machine, viewIdx map[string]*model.View, machineIdx MachineIndex, datasetIdx DatasetIndex) (UINode, error) {
 	page := UINode{
 		Identity:   NodeIdentity{Kind: "page", Source: m.ID},
 		Kind:       UINodePage,
@@ -202,7 +245,7 @@ func LowerPage(m *model.Machine, viewIdx map[string]*model.View, machineIdx Mach
 	for _, v := range m.Views {
 		node := lowerViewRefChild(m, v)
 		if (v.Type == model.ViewTypePage || v.Type == model.ViewTypeDetail) && len(v.Config.Children) > 0 {
-			slots, err := LowerChildren(v.Config.Children, viewIdx, machineIdx, map[string]bool{v.ID: true})
+			slots, err := LowerChildren(v.Config.Children, viewIdx, machineIdx, datasetIdx, map[string]bool{v.ID: true})
 			if err != nil {
 				return UINode{}, fmt.Errorf("composable: page %s: %w", m.ID, err)
 			}

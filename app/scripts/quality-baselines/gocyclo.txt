@@ -1,5 +1,5 @@
 composable BuildDataIR 11
-composable LowerChildren 15
+composable LowerChildren 17
 composable ValidateComponent 14
 composable_test TestBuildDataIRAgainstActionLab 17
 composable_test TestLowerApplicationAgainstKanbanLab 11
@@ -58,7 +58,7 @@ handler (*Handler).validateChildRows 17
 handler displayLabel 16
 handler extractProcessMap 18
 handler liftProcess 26
-metadata (*Loader).LoadAll 12
+metadata (*Loader).LoadAll 14
 metadata (*Loader).loadConstraints 11
 metadata (*Loader).loadEvents 15
 metadata (*Loader).loadMachines 11

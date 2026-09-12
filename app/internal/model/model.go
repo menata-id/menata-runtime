@@ -23,6 +23,13 @@ type Application struct {
 	// their existing inferred listing unchanged. See NavigationEntry's own
 	// doc comment.
 	NavigationEntries []*NavigationEntry
+	// Datasets and Queries (CR-21, composable-runtime-roadmap.md 17k) are
+	// this Application's own declared Data-plane composable artifacts --
+	// real, loadable metadata alongside the existing Machine/Field/View
+	// inference path, not a replacement for it. See Dataset's own doc
+	// comment.
+	Datasets []*Dataset
+	Queries  []*Query
 }
 
 // NavigationEntry (CAP-O03 Tier 5, Phase 1) is one declared, ordered,
@@ -899,11 +906,39 @@ type ViewConfig struct {
 // entries declaring "main" then "aside" render as one 2/3+1/3 grid row
 // instead of stacking, the composed-page layout shape
 // composable-view-proposal-reconciliation.md §8(ii) named as needed.
+// Component/DatasetID/Properties/Bindings (CR-21, 17k) are a THIRD kind
+// of Children entry, alongside View and Content: "render this slot as
+// generic Component X, bound to declared Dataset Y" -- the Experience-
+// plane counterpart to Dataset's own Data-plane closure, deliberately
+// extending this existing, proven mechanism rather than adding a
+// competing Layout/Slot table (see composable-runtime-roadmap.md 17k's
+// own Context for why). Component names one of
+// internal/composable.ComponentType's closed set (checked by
+// composable.ResolveComponent at lowering time, not duplicated here).
+// DatasetID must name a real Dataset on this Application (checked at
+// load time, internal/metadata/validate.go). Exactly one of
+// View/Content/Component is set per entry.
 type ChildViewRef struct {
-	View    string       `json:"view,omitempty"`
-	Content *PageContent `json:"content,omitempty"`
-	Title   string       `json:"title,omitempty"`
-	Layout  string       `json:"layout,omitempty"`
+	View       string            `json:"view,omitempty"`
+	Content    *PageContent      `json:"content,omitempty"`
+	Title      string            `json:"title,omitempty"`
+	Layout     string            `json:"layout,omitempty"`
+	Component  string            `json:"component,omitempty"`
+	DatasetID  string            `json:"dataset_id,omitempty"`
+	Properties map[string]string `json:"properties,omitempty"`
+	Bindings   []Binding         `json:"bindings,omitempty"`
+}
+
+// Binding (CR-21) declares one Experience-plane data binding on a
+// Component Children entry -- Target names the Component property (or
+// a well-known slot) receiving the value, Source names the Dataset
+// Dimension/Measure id supplying it. Mirrors
+// internal/composable.Binding's shape without importing that package --
+// internal/model never imports internal/composable (Gate 5's own
+// direction runs the other way: composable is the pure leaf).
+type Binding struct {
+	Target string `json:"target"`
+	Source string `json:"source"`
 }
 
 // EmbeddableChildViewTypes is every View Type a View's own Config.Children
@@ -1050,4 +1085,81 @@ type ChildLinesTemplateConfig struct {
 type SortConfig struct {
 	Field     string `json:"field"`
 	Direction string `json:"direction"` // asc | desc
+}
+
+// Dataset (CR-21, composable-runtime-roadmap.md 17k) declares a
+// composable Data-plane source directly in metadata -- a base Machine
+// plus the Relations/Dimensions/Measures it exposes -- rather than only
+// ever inferring one from a View's own Config (BuildDatasetFromView) or
+// a Report/Dashboard section (BuildDatasetFromReport/
+// BuildDatasetFromDashboardSection, internal/composable/dataset.go).
+// BuildDatasetFromDeclaredDataset converts this declared shape into the
+// exact same internal/composable.Dataset those inferred paths already
+// produce -- one convergent target shape, two sources.
+//
+// Same typed-columns-plus-one-JSONB-blob pattern as View/Field: Config
+// is unmarshaled wholesale from the `config` column.
+type Dataset struct {
+	ID            string
+	ApplicationID string
+	BaseMachineID string
+	Name          string
+	Position      int
+	Config        DatasetConfig
+}
+
+// DatasetConfig is a Dataset's own `config` JSONB column.
+type DatasetConfig struct {
+	Relations  []DatasetRelation  `json:"relations,omitempty"`
+	Dimensions []DatasetDimension `json:"dimensions,omitempty"`
+	Measures   []DatasetMeasure   `json:"measures,omitempty"`
+}
+
+// DatasetRelation names one reference-typed Field on the Dataset's own
+// BaseMachineID that joins to another Machine -- Via must name a real
+// Field of type "reference" on that base Machine (checked at load time,
+// internal/metadata/validate.go's validateDatasets).
+type DatasetRelation struct {
+	ID  string `json:"id"`
+	Via string `json:"via"`
+}
+
+// DatasetDimension names one real Field (on the base Machine, or reached
+// through a declared Relation) usable as a GroupBy/projection dimension.
+type DatasetDimension struct {
+	ID    string `json:"id"`
+	Field string `json:"field"`
+}
+
+// DatasetMeasure names one aggregate over a real Field. Aggregate must be
+// "sum" or "count" -- the only internal/composable.MeasureKind values
+// that exist today (internal/composable/data.go); no avg/min/max.
+type DatasetMeasure struct {
+	ID        string `json:"id"`
+	Aggregate string `json:"aggregate"`
+	Field     string `json:"field,omitempty"` // omitted for "count"
+}
+
+// Query (CR-21) declares one named, reusable projection/filter/sort over
+// a Dataset -- the declarable counterpart to a list View's own
+// Columns/Filter/DefaultSort, but scoped to a Dataset rather than a
+// Machine directly, so it can also select across a Dataset's own
+// Dimensions/Measures.
+type Query struct {
+	ID        string
+	DatasetID string
+	Name      string
+	Position  int
+	Config    QueryConfig
+}
+
+// QueryConfig is a Query's own `config` JSONB column. Projection entries
+// must each name a real Dimension or Measure id on the owning Dataset
+// (checked at load time). Filter/Sort reuse FilterCondition/SortConfig
+// verbatim -- a Query's own filter/sort concept is identical in shape to
+// a list View's, just applied over a Dataset instead of a Machine.
+type QueryConfig struct {
+	Projection []string         `json:"projection,omitempty"`
+	Filter     *FilterCondition `json:"filter,omitempty"`
+	Sort       *SortConfig      `json:"sort,omitempty"`
 }

@@ -1528,3 +1528,72 @@ supported — `Dataset`/`Query` are additive, not a replacement for View-inline 
 may eventually bind to a named `Dataset` instead of declaring its own aggregate inline (the
 `CAP-V22` capability this displaces, reclassified to Grammar area `D` per `CR-27` —
 `capability-registry.md`'s `## Data` section), but no such binding exists yet.
+
+**Status update (2026-09-12, `composable-runtime-roadmap.md` 17k, CR-21): the Data-plane shape
+above is no longer proposed — it is real, loadable metadata**, and the Phase 4/5 note in the
+paragraph above (just above the YAML block) is now stale in a second way, corrected here rather
+than rewritten away, per this repo's own append-don't-rewrite convention:
+
+- **Data plane, real:** `app/migrations/030_composable_data_plane.sql` adds `datasets`/`queries`
+  tables (typed columns + one JSONB `config` blob, no RLS — same pattern `views`/`fields` already
+  use). `app/internal/model/model.go`'s `Dataset`/`DatasetConfig`/`DatasetRelation`/
+  `DatasetDimension`/`DatasetMeasure`/`Query`/`QueryConfig` are the concrete Go shapes, a direct
+  match for the YAML sketch above (field-for-field: `relations[].via`, `dimensions[].field`,
+  `measures[].aggregate`/`.field`, `projection`/`filter`/`sort`). `app/internal/metadata/
+  loader.go`'s `loadDatasets`/`loadQueries` load them; `app/internal/metadata/validate.go`'s
+  `validateDatasets`/`validateQueries` enforce the same "Unknown = explicit" reference checks
+  `validateReferences` already applies elsewhere (`base_machine_id`/`relations[].via`/
+  `dimensions[].field`/`measures[].field` must each name a real Machine/Field;
+  `measures[].aggregate` must be `sum` or `count` — the only `internal/composable.MeasureKind`
+  values that exist). `app/internal/composable/dataset.go`'s `BuildDatasetFromDeclaredDataset`
+  converts a declared `model.Dataset` into the exact same `composable.Dataset` shape
+  `BuildDatasetFromView`/`BuildDatasetFromReport`/`BuildDatasetFromDashboardSection` already
+  produce from an INFERRED source — proven convergent by
+  `TestBuildDatasetFromDeclaredDataset_ConvergesWithDashboardSection`
+  (`internal/composable/dataset_test.go`), the same two-adapters-one-Dataset proof `CR-03`
+  established in Phase 2. `seeds/053_composable_data_plane_lab.sql` is one real Dataset+Query
+  (`ds_ad_steps_by_document`/`qry_ad_steps_by_decision`), loaded end-to-end and asserted by
+  `TestLoadAllAgainstComposableDataPlaneLab_Dataset`/`_Query`
+  (`internal/metadata/loader_dataset_test.go`).
+
+- **Experience plane, real (not the gap this section originally deferred):** the "Phase 4/5...
+  neither of which exists yet" claim above was already false the day it was written — Phase 4
+  (UI IR, `internal/composable.UINode`, `experience.go`) and Phase 5 (the Component Contract,
+  `component.go`'s `ComponentContract`/`componentRegistry`/`ResolveComponent`) had existed in code
+  since the original Phase 1–13 port, before this note was added on 2026-09-11. Corrected here by
+  dated append rather than by rewriting the claim away.
+
+  17k closes the actual gap that note conflated with Phase 4/5's absence — a declarable
+  `Component`+`Binding` on metadata, not just an internally-inferred one. Rather than a new
+  `Layout`/`Slot` table (which would compete with the page-View-plus-Children mechanism this
+  repo's Experience plane already uses, live, since Phase 4–6), the existing `ChildViewRef` gained
+  a **third kind**, alongside its existing `view`/`content` kinds:
+
+  ```yaml
+  # Real, as of 17k -- a page View's own Children entry.
+  # (model.ChildViewRef: Component/DatasetID/Properties/Bindings fields)
+  children:
+    - component: Metric              # internal/composable.ComponentType, closed 7-name set
+      dataset_id: ds_ad_steps_by_document   # must name a real Dataset on this Application
+      title: "Steps by Decision"
+  ```
+
+  `internal/metadata/validate.go`'s `validateComponentChildEntry` checks `dataset_id` at load
+  time (Component-*name* validity is left to `composable.ResolveComponent`'s own existing
+  fail-loud check at lowering time, deliberately not duplicated — one 7-name registry, not two).
+  `internal/composable/ui.go`'s `LowerChildren` resolves it via `lowerComponentChild` +
+  `BuildDatasetFromDeclaredDataset` + the existing `ResolveComponent`, unchanged.
+  `seeds/053_composable_data_plane_lab.sql` appends exactly this entry onto the real, already-live
+  `vw_ad_page` (`seeds/050_composed_dashboard.sql`) via a jsonb-concat `UPDATE` (append, not
+  rewrite, applied to seed data too) — proven end-to-end by
+  `TestLoadAllAgainstComposableDataPlaneLab_ExperiencePlaneChild` and
+  `TestLowerChildren_ComponentDatasetEntry` (`internal/composable/ui_test.go`), and live on
+  `GET /mch_approval_document/composable-preview` (conformance T265, `241_composable_pilot.sh`).
+
+- **What this status update does not do:** no capability is admitted by any of the above.
+  `capability-lifecycle.md` §2's A1–A5 test (dual evidence, universality, single Grammar
+  responsibility, non-composability, business language) still governs whether/when a CAP-D*
+  capability is declared admitted — that remains a separate, later, owner-level decision, the same
+  posture `CR-27` already took toward Relation/Projection/Query ("remain correctly unadmitted, no
+  forcing case yet"). This increment is real schema and a real forcing case; it is not itself the
+  admission.

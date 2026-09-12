@@ -52,6 +52,12 @@ func (l *Loader) LoadAll(ctx context.Context) ([]*model.Workspace, error) {
 				return nil, fmt.Errorf("load navigation entries for %s: %w", app.ID, err)
 			}
 			app.NavigationEntries = navEntries
+			datasets, queries, err := l.loadDataPlane(ctx, app.ID)
+			if err != nil {
+				return nil, err
+			}
+			app.Datasets = datasets
+			app.Queries = queries
 		}
 		ws.Applications = apps
 		ws.Holidays, err = l.loadHolidays(ctx, ws.ID)
@@ -63,6 +69,9 @@ func (l *Loader) LoadAll(ctx context.Context) ([]*model.Workspace, error) {
 		return nil, err
 	}
 	if err := validateNavigationEntries(workspaces); err != nil {
+		return nil, err
+	}
+	if err := validateDataPlane(workspaces); err != nil {
 		return nil, err
 	}
 	// CAP-W03's declarative quorum form: an `approval` requirement injects
@@ -247,6 +256,81 @@ func (l *Loader) loadFields(ctx context.Context, machineID string) ([]*model.Fie
 			return nil, fmt.Errorf("parse options for field %s: %w", f.ID, err)
 		}
 		out = append(out, f)
+	}
+	return out, rows.Err()
+}
+
+// loadDataPlane loads both an Application's own Dataset and Query rows in
+// one call -- combined so LoadAll only ever needs one error check for both
+// (Gate 3: keeps LoadAll's own complexity from growing by one branch per
+// new loadX call).
+func (l *Loader) loadDataPlane(ctx context.Context, applicationID string) ([]*model.Dataset, []*model.Query, error) {
+	datasets, err := l.loadDatasets(ctx, applicationID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("load datasets for %s: %w", applicationID, err)
+	}
+	queries, err := l.loadQueries(ctx, applicationID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("load queries for %s: %w", applicationID, err)
+	}
+	return datasets, queries, nil
+}
+
+// loadDatasets (CR-21, composable-runtime-roadmap.md 17k) loads an
+// Application's own declared Data-plane Dataset rows -- same shape as
+// loadViews: typed columns + one JSONB `config` blob unmarshaled
+// wholesale.
+func (l *Loader) loadDatasets(ctx context.Context, applicationID string) ([]*model.Dataset, error) {
+	rows, err := l.db.Query(ctx,
+		`SELECT id, application_id, base_machine_id, name, position, config::text
+		 FROM datasets WHERE application_id = $1 ORDER BY position`,
+		applicationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []*model.Dataset
+	for rows.Next() {
+		ds := &model.Dataset{}
+		var configJSON string
+		if err := rows.Scan(&ds.ID, &ds.ApplicationID, &ds.BaseMachineID, &ds.Name, &ds.Position, &configJSON); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(configJSON), &ds.Config); err != nil {
+			return nil, fmt.Errorf("parse config for dataset %s: %w", ds.ID, err)
+		}
+		out = append(out, ds)
+	}
+	return out, rows.Err()
+}
+
+// loadQueries loads every Query belonging to any Dataset owned by this
+// Application -- Query itself only stores dataset_id, so this joins
+// through datasets to scope by application_id the same way every other
+// loadX here scopes by its own owning id.
+func (l *Loader) loadQueries(ctx context.Context, applicationID string) ([]*model.Query, error) {
+	rows, err := l.db.Query(ctx,
+		`SELECT q.id, q.dataset_id, q.name, q.position, q.config::text
+		 FROM queries q JOIN datasets d ON d.id = q.dataset_id
+		 WHERE d.application_id = $1 ORDER BY q.position`,
+		applicationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []*model.Query
+	for rows.Next() {
+		q := &model.Query{}
+		var configJSON string
+		if err := rows.Scan(&q.ID, &q.DatasetID, &q.Name, &q.Position, &configJSON); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(configJSON), &q.Config); err != nil {
+			return nil, fmt.Errorf("parse config for query %s: %w", q.ID, err)
+		}
+		out = append(out, q)
 	}
 	return out, rows.Err()
 }

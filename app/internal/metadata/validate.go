@@ -115,6 +115,16 @@ func validateReferences(workspaces []*model.Workspace) error {
 	}
 	for _, ws := range workspaces {
 		for _, app := range ws.Applications {
+			// CR-21, 17k: a page View's own Children entry may declare
+			// component+dataset_id (see ChildViewRef's own doc comment) --
+			// datasetByID is this Application's own Dataset id set, scoped
+			// per-Application the same way viewByID above is scoped
+			// globally: a Children entry can only ever bind to a Dataset
+			// declared on the SAME Application it lives in.
+			datasetByID := make(map[string]bool, len(app.Datasets))
+			for _, ds := range app.Datasets {
+				datasetByID[ds.ID] = true
+			}
 			for _, m := range app.Machines {
 				for _, f := range m.Fields {
 					if f.Type != model.FieldTypeReference {
@@ -608,38 +618,8 @@ func validateReferences(workspaces []*model.Workspace) error {
 						// -- collection-level composition, no host record) than
 						// CAP-V20 Tier 2's own record-level Children below.
 						if v.Type == model.ViewTypePage {
-							if (child.View == "") == (child.Content == nil) {
-								return fmt.Errorf("view %s on machine %s: children entry must set exactly one of view or content", v.ID, m.ID)
-							}
-							if child.Layout != "" && child.Layout != "main" && child.Layout != "aside" {
-								return fmt.Errorf("view %s on machine %s: children entry layout %q must be \"main\" or \"aside\" (empty = full width)", v.ID, m.ID, child.Layout)
-							}
-							if child.Content != nil {
-								pc := child.Content
-								switch pc.Type {
-								case "heading", "text":
-									if pc.Text == "" {
-										return fmt.Errorf("view %s on machine %s: content type %q requires text", v.ID, m.ID, pc.Type)
-									}
-								case "button":
-									if pc.Text == "" || pc.Href == "" {
-										return fmt.Errorf("view %s on machine %s: content type \"button\" requires text and href", v.ID, m.ID)
-									}
-								case "image":
-									if pc.Src == "" {
-										return fmt.Errorf("view %s on machine %s: content type \"image\" requires src", v.ID, m.ID)
-									}
-								default:
-									return fmt.Errorf("view %s on machine %s: content type %q is not one of heading, text, button, image", v.ID, m.ID, pc.Type)
-								}
-								continue
-							}
-							target, ok := viewByID[child.View]
-							if !ok {
-								return fmt.Errorf("view %s on machine %s: children names %q, which does not name a View that exists", v.ID, m.ID, child.View)
-							}
-							if !model.PageEmbeddableViewTypes[target.Type] {
-								return fmt.Errorf("view %s on machine %s: children names %q (type %q) -- not a Type a page View can compose", v.ID, m.ID, child.View, target.Type)
+							if err := validatePageChildEntry(v, m, child, viewByID, datasetByID); err != nil {
+								return err
 							}
 							continue
 						}
@@ -768,6 +748,100 @@ func validateReferences(workspaces []*model.Workspace) error {
 	return nil
 }
 
+// countTrue counts how many of bs are true -- used to enforce "exactly one
+// of N mutually exclusive fields is set" without adding a branch per field
+// at the call site (Gate 3's complexity ratchet: validateReferences is
+// already at its complexity baseline, so new checks route through small
+// helpers like this one instead of growing it further).
+func countTrue(bs ...bool) int {
+	n := 0
+	for _, b := range bs {
+		if b {
+			n++
+		}
+	}
+	return n
+}
+
+// validatePageChildEntry validates one Children entry on a page-type View
+// -- CAP-V10 Tier 2's own wider grammar (View, Content, or, since CR-21
+// 17k, Component+DatasetID), extracted out of validateReferences' own loop
+// (Gate 3: keeps that already-oversized function from growing further).
+// Exactly one of the three must be set; Layout (if any) must be "main" or
+// "aside"; the entry-kind-specific checks are delegated to one small
+// helper per kind.
+func validatePageChildEntry(v *model.View, m *model.Machine, child model.ChildViewRef, viewByID map[string]*model.View, datasetByID map[string]bool) error {
+	if countTrue(child.View != "", child.Content != nil, child.Component != "") != 1 {
+		return fmt.Errorf("view %s on machine %s: children entry must set exactly one of view, content, or component", v.ID, m.ID)
+	}
+	if child.Layout != "" && !validChildLayouts[child.Layout] {
+		return fmt.Errorf("view %s on machine %s: children entry layout %q must be \"main\" or \"aside\" (empty = full width)", v.ID, m.ID, child.Layout)
+	}
+	switch {
+	case child.Component != "":
+		return validateComponentChildEntry(v, m, child, datasetByID)
+	case child.Content != nil:
+		return validateContentChildEntry(v, m, child)
+	default:
+		return validatePageViewChildEntry(v, m, child, viewByID)
+	}
+}
+
+var validChildLayouts = map[string]bool{"main": true, "aside": true}
+
+// validateComponentChildEntry (CR-21, 17k) checks a component+dataset
+// Children entry: Component's own *name* validity is deliberately left to
+// composable.ResolveComponent's existing fail-loud check at lowering time
+// -- not duplicated here, so the 7-name registry never drifts between two
+// copies. Only DatasetID (this Application's own concern, not
+// internal/composable's) is checked at load time.
+func validateComponentChildEntry(v *model.View, m *model.Machine, child model.ChildViewRef, datasetByID map[string]bool) error {
+	if child.DatasetID == "" {
+		return fmt.Errorf("view %s on machine %s: children entry component %q requires dataset_id", v.ID, m.ID, child.Component)
+	}
+	if !datasetByID[child.DatasetID] {
+		return fmt.Errorf("view %s on machine %s: children entry component %q names dataset_id %q, which does not name a Dataset in this Application", v.ID, m.ID, child.Component, child.DatasetID)
+	}
+	return nil
+}
+
+// validateContentChildEntry checks a static-content Children entry's own
+// Type-specific required fields.
+func validateContentChildEntry(v *model.View, m *model.Machine, child model.ChildViewRef) error {
+	pc := child.Content
+	switch pc.Type {
+	case "heading", "text":
+		if pc.Text == "" {
+			return fmt.Errorf("view %s on machine %s: content type %q requires text", v.ID, m.ID, pc.Type)
+		}
+	case "button":
+		if pc.Text == "" || pc.Href == "" {
+			return fmt.Errorf("view %s on machine %s: content type \"button\" requires text and href", v.ID, m.ID)
+		}
+	case "image":
+		if pc.Src == "" {
+			return fmt.Errorf("view %s on machine %s: content type \"image\" requires src", v.ID, m.ID)
+		}
+	default:
+		return fmt.Errorf("view %s on machine %s: content type %q is not one of heading, text, button, image", v.ID, m.ID, pc.Type)
+	}
+	return nil
+}
+
+// validatePageViewChildEntry checks a {view: id} Children entry: it must
+// name a real View, of a Type PageEmbeddableViewTypes allows a page View
+// to compose.
+func validatePageViewChildEntry(v *model.View, m *model.Machine, child model.ChildViewRef, viewByID map[string]*model.View) error {
+	target, ok := viewByID[child.View]
+	if !ok {
+		return fmt.Errorf("view %s on machine %s: children names %q, which does not name a View that exists", v.ID, m.ID, child.View)
+	}
+	if !model.PageEmbeddableViewTypes[target.Type] {
+		return fmt.Errorf("view %s on machine %s: children names %q (type %q) -- not a Type a page View can compose", v.ID, m.ID, child.View, target.Type)
+	}
+	return nil
+}
+
 // navigationCollectionViewTypes (CAP-O03 Tier 5, Phase 1) are the View
 // types that actually have a collection-level route (no record id needed)
 // -- exactly the set the router registers under /{machineID}/{slug} rather
@@ -869,6 +943,165 @@ func validateNavigationEntries(workspaces []*model.Workspace) error {
 					cur = parent.ParentID
 				}
 			}
+		}
+	}
+	return nil
+}
+
+// validateDatasets (CR-21, composable-runtime-roadmap.md 17k) enforces
+// the same "Unknown = explicit" load-time discipline validateReferences
+// already applies to `reference` Fields: BaseMachineID must be a real
+// Machine in this Application; each Relation's Via must name a real,
+// reference-typed Field on that base Machine; each Dimension/Measure's
+// Field must name a real Field on the base Machine; a Measure's
+// Aggregate must be one of internal/composable's own two MeasureKind
+// values (sum, count) -- no avg/min/max, since composable.Measure
+// itself has nowhere to put them.
+// validateDataPlane runs both Data-plane validators (CR-21, 17k) under one
+// call, so LoadAll only ever needs one error check for both (Gate 3: keeps
+// LoadAll's own complexity from growing by one branch per new validateX
+// call).
+func validateDataPlane(workspaces []*model.Workspace) error {
+	if err := validateDatasets(workspaces); err != nil {
+		return err
+	}
+	return validateQueries(workspaces)
+}
+
+func validateDatasets(workspaces []*model.Workspace) error {
+	for _, ws := range workspaces {
+		for _, app := range ws.Applications {
+			if len(app.Datasets) == 0 {
+				continue
+			}
+			machineByID := make(map[string]*model.Machine, len(app.Machines))
+			for _, m := range app.Machines {
+				machineByID[m.ID] = m
+			}
+			for _, ds := range app.Datasets {
+				if err := validateOneDataset(app.ID, ds, machineByID); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// validateOneDataset checks a single Dataset -- BaseMachineID names a real
+// Machine, then delegates the Relations/Dimensions/Measures checks. Split
+// out of validateDatasets (Gate 3: keeps each function's own complexity
+// small).
+func validateOneDataset(appID string, ds *model.Dataset, machineByID map[string]*model.Machine) error {
+	base, ok := machineByID[ds.BaseMachineID]
+	if !ok {
+		return fmt.Errorf("dataset %s (application %s): base_machine_id %q does not name a Machine in this Application", ds.ID, appID, ds.BaseMachineID)
+	}
+	fieldByID := make(map[string]*model.Field, len(base.Fields))
+	for _, f := range base.Fields {
+		fieldByID[f.ID] = f
+	}
+	if err := validateDatasetRelations(appID, ds, base, fieldByID); err != nil {
+		return err
+	}
+	if err := validateDatasetDimensions(appID, ds, base, fieldByID); err != nil {
+		return err
+	}
+	return validateDatasetMeasures(appID, ds, base, fieldByID)
+}
+
+// validateDatasetRelations checks that every Relation's Via names a real,
+// reference-typed Field on ds's own base Machine. Split out of
+// validateDatasets (Gate 3: keeps each function's own complexity small).
+func validateDatasetRelations(appID string, ds *model.Dataset, base *model.Machine, fieldByID map[string]*model.Field) error {
+	for _, rel := range ds.Config.Relations {
+		f, ok := fieldByID[rel.Via]
+		if !ok {
+			return fmt.Errorf("dataset %s (application %s): relations[%s].via %q does not name a Field on machine %s", ds.ID, appID, rel.ID, rel.Via, base.ID)
+		}
+		if f.Type != model.FieldTypeReference {
+			return fmt.Errorf("dataset %s (application %s): relations[%s].via %q must be type \"reference\", got %q", ds.ID, appID, rel.ID, rel.Via, f.Type)
+		}
+	}
+	return nil
+}
+
+// validateDatasetDimensions checks that every Dimension's Field names a
+// real Field on ds's own base Machine.
+func validateDatasetDimensions(appID string, ds *model.Dataset, base *model.Machine, fieldByID map[string]*model.Field) error {
+	for _, dim := range ds.Config.Dimensions {
+		if _, ok := fieldByID[dim.Field]; !ok {
+			return fmt.Errorf("dataset %s (application %s): dimensions[%s].field %q does not name a Field on machine %s", ds.ID, appID, dim.ID, dim.Field, base.ID)
+		}
+	}
+	return nil
+}
+
+// validateDatasetMeasures checks that every Measure's Aggregate is one of
+// internal/composable's own two MeasureKind values (sum, count), and that
+// a "sum" Measure names a real Field on ds's own base Machine.
+func validateDatasetMeasures(appID string, ds *model.Dataset, base *model.Machine, fieldByID map[string]*model.Field) error {
+	for _, mea := range ds.Config.Measures {
+		if mea.Aggregate != "sum" && mea.Aggregate != "count" {
+			return fmt.Errorf("dataset %s (application %s): measures[%s].aggregate %q must be \"sum\" or \"count\"", ds.ID, appID, mea.ID, mea.Aggregate)
+		}
+		if mea.Aggregate != "sum" {
+			continue
+		}
+		if mea.Field == "" {
+			return fmt.Errorf("dataset %s (application %s): measures[%s] aggregate \"sum\" requires field", ds.ID, appID, mea.ID)
+		}
+		if _, ok := fieldByID[mea.Field]; !ok {
+			return fmt.Errorf("dataset %s (application %s): measures[%s].field %q does not name a Field on machine %s", ds.ID, appID, mea.ID, mea.Field, base.ID)
+		}
+	}
+	return nil
+}
+
+// validateQueries (CR-21) enforces that every Query's DatasetID names a
+// real Dataset (on the SAME Application, by construction -- loadQueries
+// already joins through datasets to scope by application_id), and every
+// Projection entry names a real Dimension or Measure id declared on that
+// Dataset.
+func validateQueries(workspaces []*model.Workspace) error {
+	for _, ws := range workspaces {
+		for _, app := range ws.Applications {
+			if len(app.Queries) == 0 {
+				continue
+			}
+			datasetByID := make(map[string]*model.Dataset, len(app.Datasets))
+			for _, ds := range app.Datasets {
+				datasetByID[ds.ID] = ds
+			}
+			for _, q := range app.Queries {
+				if err := validateOneQuery(app.ID, q, datasetByID); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// validateOneQuery checks a single Query: DatasetID must name a real
+// Dataset, and every Projection entry must name a real Dimension or
+// Measure id declared on that Dataset. Split out of validateQueries
+// (Gate 3: keeps each function's own complexity small).
+func validateOneQuery(appID string, q *model.Query, datasetByID map[string]*model.Dataset) error {
+	ds, ok := datasetByID[q.DatasetID]
+	if !ok {
+		return fmt.Errorf("query %s (application %s): dataset_id %q does not name a Dataset in this Application", q.ID, appID, q.DatasetID)
+	}
+	projectable := make(map[string]bool, len(ds.Config.Dimensions)+len(ds.Config.Measures))
+	for _, dim := range ds.Config.Dimensions {
+		projectable[dim.ID] = true
+	}
+	for _, mea := range ds.Config.Measures {
+		projectable[mea.ID] = true
+	}
+	for _, p := range q.Config.Projection {
+		if !projectable[p] {
+			return fmt.Errorf("query %s (application %s): projection %q does not name a dimension or measure on dataset %s", q.ID, appID, p, ds.ID)
 		}
 	}
 	return nil
