@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -74,6 +75,7 @@ func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 	var opts ui.ListViewOptions
 	var lanes []composable.BoardLane
 	var laneNames map[string]string
+	dataStart := time.Now()
 	if view := h.interp.Get().DefaultListView(machineID); view != nil && view.Config.Display == "cards" {
 		viewName = view.Name
 		var searchQuery string
@@ -97,14 +99,61 @@ func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	dataDuration := time.Since(dataStart)
 
-	planExplain := h.explainComposablePlan(r, applicationID, machine, role[0])
+	planStart := time.Now()
+	planExplain, metrics := h.explainComposablePlan(r, applicationID, machine, role[0])
+	plannerDuration := time.Since(planStart)
 
 	a := h.auth(r)
 	page := ui.ComposablePreview(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, viewName, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), summaries, badges, opts, lanes, laneNames, planExplain)
-	if err := page.Render(r.Context(), w); err != nil {
-		slog.Error("render composable preview", "error", err)
+	renderStart := time.Now()
+	renderErr := page.Render(r.Context(), w)
+	renderDuration := time.Since(renderStart)
+	if renderErr != nil {
+		slog.Error("render composable preview", "error", renderErr)
 	}
+
+	logComposableBenchmark(r, machine.ID, rowsReturned(summaries, lanes), dataDuration, plannerDuration, renderDuration, metrics)
+}
+
+// rowsReturned (composable-runtime-roadmap.md 17j) counts the actual rows
+// in this response -- summaries for a cards preview, every lane's own
+// Cards summed for a board preview (the two are mutually exclusive per
+// request, same as the templ's own rendering choice).
+func rowsReturned(summaries []composable.RecordSummary, lanes []composable.BoardLane) int {
+	n := len(summaries)
+	for _, lane := range lanes {
+		n += len(lane.Cards)
+	}
+	return n
+}
+
+// logComposableBenchmark (composable-runtime-roadmap.md 17j) logs one
+// structured line per request combining composable.MeasureComposition's
+// own structural facts (Phase 12, previously Go-test-only, never called
+// from a live handler before this) with real measured timing --
+// joinable to slogAccessLog's own line by the same correlation_id both
+// already use. data_time_ms deliberately bundles the DB fetch with
+// in-memory filter/search/paginate/resolve rather than isolating a
+// precise db_time_ms: internal/store's own queries return every row for
+// a Machine and all filtering happens in Go afterward (17f/17g's own
+// finding), so there is no SQL-level boundary honest enough to isolate
+// further yet.
+func logComposableBenchmark(r *http.Request, machineID string, rows int, dataDuration, plannerDuration, renderDuration time.Duration, metrics composable.BenchmarkMetrics) {
+	slog.Info("composable_benchmark",
+		"correlation_id", middleware.GetReqID(r.Context()),
+		"machine_id", machineID,
+		"logical_nodes", metrics.LogicalNodes,
+		"dag_nodes", metrics.DAGNodes,
+		"naive_query_count", metrics.NaiveQueryCount,
+		"dedup_query_count", metrics.DeduplicatedQueryCount,
+		"execution_width", metrics.ExecutionWidth,
+		"rows_returned", rows,
+		"data_time_ms", dataDuration.Milliseconds(),
+		"planner_time_ms", plannerDuration.Milliseconds(),
+		"render_time_ms", renderDuration.Milliseconds(),
+	)
 }
 
 // resolveComposableCardSummaries resolves view's own cards rendering --
@@ -124,6 +173,45 @@ func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 // before search/pagination, and this function is List's own cutover path
 // for cards mode now, so leaving it out would be a real, if currently
 // invisible, behavior gap for a future filtered cards View.
+// listCardsViaComposable is List's own cutover branch (composable-
+// runtime-roadmap.md 17g) for a live, cards-display View -- reuses
+// resolveComposableCardSummaries and explainComposablePlan (below)
+// exactly as /composable-preview does, merging their output into List's
+// own real ui.ListViewOptions (which needs ManualOrder/CanDelete fields
+// resolveComposableCardSummaries has no business deciding). Lives here,
+// not record_crud.go (its original 17g home), since 17j's own timing
+// instrumentation pushed that already-oversized file past Gate 2's LOC
+// ratchet -- this file is the natural, smaller home for anything in the
+// composable-preview family, record_crud.go's own `List` just calls it.
+func (h *Handler) listCardsViaComposable(w http.ResponseWriter, r *http.Request, machine *model.Machine, applicationID string, role []string, view *model.View) {
+	dataStart := time.Now()
+	summaries, badges, searchQuery, pageNum, totalPages, ok := h.resolveComposableCardSummaries(w, r, machine, view)
+	if !ok {
+		return
+	}
+	dataDuration := time.Since(dataStart)
+	opts := ui.ListViewOptions{
+		SearchQuery: searchQuery,
+		ManualOrder: view.Config.ManualOrder,
+		CanDelete:   h.guard.CanDelete(machine, role),
+		Page:        pageNum,
+		TotalPages:  totalPages,
+		Cards:       true,
+	}
+	planStart := time.Now()
+	planExplain, metrics := h.explainComposablePlan(r, applicationID, machine, role[0])
+	plannerDuration := time.Since(planStart)
+	a := h.auth(r)
+	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, nil, nil, h.interp.Get().PermittedEvents(machine.ID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machine.ID, model.ViewTypeList), summaries, badges, planExplain)
+	renderStart := time.Now()
+	renderErr := page.Render(r.Context(), w)
+	renderDuration := time.Since(renderStart)
+	if renderErr != nil {
+		slog.Error("render list", "error", renderErr)
+	}
+	logComposableBenchmark(r, machine.ID, len(summaries), dataDuration, plannerDuration, renderDuration, metrics)
+}
+
 func (h *Handler) resolveComposableCardSummaries(w http.ResponseWriter, r *http.Request, machine *model.Machine, view *model.View) (summaries []composable.RecordSummary, badges []composable.StatusValue, searchQuery string, page, totalPages int, ok bool) {
 	ds, err := composable.BuildDatasetFromView(machine, view)
 	if err != nil {
@@ -281,21 +369,29 @@ func (h *Handler) resolveComposableBoardLanes(w http.ResponseWriter, r *http.Req
 // simplification, not a security decision: guard.CanRead's own real
 // multi-role union semantics remain the actual enforcement, completely
 // unaffected by this diagnostic-only scope choice.
-func (h *Handler) explainComposablePlan(r *http.Request, applicationID string, machine *model.Machine, role string) string {
+//
+// composable-runtime-roadmap.md 17j: also computes composable.
+// MeasureComposition (Phase 12) over the same lowered tree -- the first
+// live call site for that function, previously Go-test-only
+// (benchmark_seed_test.go). Returned alongside explain so the caller can
+// fold it into logComposableBenchmark; on any failure both return values
+// are zero-valued, same "never fails the request" posture as before.
+func (h *Handler) explainComposablePlan(r *http.Request, applicationID string, machine *model.Machine, role string) (string, composable.BenchmarkMetrics) {
 	app, ok := h.interp.Get().GetApplication(applicationID)
 	if !ok {
-		return ""
+		return "", composable.BenchmarkMetrics{}
 	}
 	viewIdx := composable.IndexViews(app)
 	machineIdx := composable.IndexMachines(app)
 	pageNode, err := composable.LowerPage(machine, viewIdx, machineIdx)
 	if err != nil {
 		slog.Warn("composable plan: lower page", "correlation_id", middleware.GetReqID(r.Context()), "machine_id", machine.ID, "error", err)
-		return ""
+		return "", composable.BenchmarkMetrics{}
 	}
 	scope := composable.ResolveSecurityScope(machine, role)
 	dag := composable.BuildDependencyDAG([]composable.UINode{pageNode}, scope)
 	explain := composable.BuildExecutionPlan(dag).Explain()
+	metrics := composable.MeasureComposition([]composable.UINode{pageNode}, scope)
 	slog.Info("composable_plan", "correlation_id", middleware.GetReqID(r.Context()), "machine_id", machine.ID, "explain", explain)
-	return explain
+	return explain, metrics
 }

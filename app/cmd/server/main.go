@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -158,6 +159,23 @@ func main() {
 		http.FileServer(http.Dir("web/static/ui-sample"))))
 
 	router.Mount(r, h)
+
+	// composable-runtime-roadmap.md 17j: opt-in-only DB pool stats for the
+	// composability benchmark harness (scripts/benchmark-composable.sh) --
+	// dormant on every real deployment, since ENABLE_DEBUG_ENDPOINTS is
+	// never set there; only the throwaway benchmark server sets it.
+	if os.Getenv("ENABLE_DEBUG_ENDPOINTS") == "1" {
+		r.Get("/debug/pool-stats", func(w http.ResponseWriter, _ *http.Request) {
+			stat := pool.Stat()
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]int32{
+				"acquired_conns": stat.AcquiredConns(),
+				"idle_conns":     stat.IdleConns(),
+				"total_conns":    stat.TotalConns(),
+				"max_conns":      stat.MaxConns(),
+			})
+		})
+	}
 
 	// CAP-E02/E03: a background tick, independent of any HTTP request, for
 	// Events that fire on their own (a time or a record's own date Field)
@@ -449,7 +467,12 @@ func slogAccessLog(next http.Handler) http.Handler {
 // design-exploration sandbox -- static files, no data, same trust class as
 // /static/*).
 func isPublicPath(path string) bool {
-	if path == "/login" || path == "/health" || path == "/signup" {
+	// composable-runtime-roadmap.md 17j: same trust class as /health --
+	// ops tooling, not a browser session, and the route itself only ever
+	// exists when ENABLE_DEBUG_ENDPOINTS=1 (dormant, unregistered, on
+	// every real deployment); even then it exposes only DB pool
+	// connection counts, no user data.
+	if path == "/login" || path == "/health" || path == "/signup" || path == "/debug/pool-stats" {
 		return true
 	}
 	if strings.HasPrefix(path, "/webhooks/") || strings.HasPrefix(path, "/files/") {

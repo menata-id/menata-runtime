@@ -135,36 +135,6 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// listCardsViaComposable is List's own cutover branch (composable-
-// runtime-roadmap.md 17g) for a live, cards-display View -- reuses
-// resolveComposableCardSummaries (17e/17f's own already-proven pipeline,
-// composable_preview.go) and explainComposablePlan (17b) exactly as
-// /composable-preview does, merging their output into List's own real
-// ui.ListViewOptions (which needs ManualOrder/CanDelete fields
-// resolveComposableCardSummaries has no business deciding). Extracted to
-// its own function to keep List itself within Gate 3's cyclomatic-
-// complexity ratchet, the same lesson 17c/17e/17f already established.
-func (h *Handler) listCardsViaComposable(w http.ResponseWriter, r *http.Request, machine *model.Machine, applicationID string, role []string, view *model.View) {
-	summaries, badges, searchQuery, pageNum, totalPages, ok := h.resolveComposableCardSummaries(w, r, machine, view)
-	if !ok {
-		return
-	}
-	opts := ui.ListViewOptions{
-		SearchQuery: searchQuery,
-		ManualOrder: view.Config.ManualOrder,
-		CanDelete:   h.guard.CanDelete(machine, role),
-		Page:        pageNum,
-		TotalPages:  totalPages,
-		Cards:       true,
-	}
-	planExplain := h.explainComposablePlan(r, applicationID, machine, role[0])
-	a := h.auth(r)
-	page := ui.List(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, nil, nil, h.interp.Get().PermittedEvents(machine.ID, role), h.unreadCount(r.Context(), a), opts, h.subNavFor(r, machine), h.viewNavFor(h.workspaceSlug(r), machine.ID, model.ViewTypeList), summaries, badges, planExplain)
-	if err := page.Render(r.Context(), w); err != nil {
-		slog.Error("render list", "error", err)
-	}
-}
-
 // applyListFilter (CAP-V05/V09, extended by CAP-V09 Tier 2) applies a list
 // View's own declarative Filter, AND-combined, reusing constraint.Eval's
 // own expression grammar for every ordinary condition. Two sentinels are

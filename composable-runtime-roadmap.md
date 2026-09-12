@@ -45,7 +45,7 @@ The following are the important implementation gaps that must be explicitly trac
 | CR-16 | security-aware dependency identity | **Phase 7 slice implemented, 2026-09-11** — `dag.go`'s `SecurityScope`/`ResolveSecurityScope` name the acting Role and that Role's own `HiddenFields` (CAP-P06, `model.Permission`) — the first time this package touches `model.Permission` at all. `SecurityScope.Apply` narrows a `Dataset`'s own Projection to what the Role actually sees, and `dependencyIdentity` stamps the Role directly into the dependency's own canonical identity. Proven against `seeds/012_permissions_lab.sql`'s real HR/Staff split over the same real List View (`vw_ple2_list`): the two Roles produce different dependency identities *and* different effective Projections (Staff's own node excludes `fld_ple2_salary`). Still narrow by design — this only names what's *hidden* for identity purposes; it does not enforce `CanRead`/CRUD-level permission, and planner-level coalescing decisions using this identity remain Phase 8's job. | P0 |
 | CR-17 | plan identity / immutable plan reuse | partial metadata/interpreter caching foundations | P1 |
 | CR-18 | inference diagnostics | principle exists; inspectability tooling missing. **Phase 8 update, 2026-09-11** — `planner.go`'s `ExecutionPlan.Explain()` is real, deterministic inspectability tooling (group count, per-group Machine/node counts, naive-vs-deduplicated query count), the first concrete tool this principle has, though scoped to execution planning only — broader inference inspectability (e.g. Dataset/Scope-level diagnostics) remains open. | P1 |
-| CR-19 | composability benchmark harness | benchmark design exists; executable planner benchmark not complete | P0 |
+| CR-19 | composability benchmark harness | **Phase slice implemented, 2026-09-12 (§17j)** — `scripts/benchmark-composable.sh` + `scripts/loadtest` run 3 of Phase 12's own 9 required scenarios against a real throwaway server with real seeded data, reporting real p50/p95/p99 latency, real CPU/memory (`/proc` sampling), real DB pool stats, and `composable.MeasureComposition`'s own structural facts (previously Go-test-only) now correlated per real request. Cache hit ratio stays honestly N/A (no cache exists); scenarios 2/4/5/6/8/9 stay `SKIP` (no live route). See §17j for the real numbers. | P0 |
 | CR-20 | trial applications using shared composable substrate | trial plan exists; runtime migration remains | P0 |
 | CR-21 | metadata/schema representation for new composable artifacts | not yet universal | P0 |
 | CR-22 | capability registry alignment | composable concepts span existing CAPs but are not yet one tracked implementation program | P1 |
@@ -1372,6 +1372,83 @@ existing one.
 write-path boundary), fixed-value-list lanes (CAP-V14 Tier 2), and any cutover of the real
 `/mch_pm_card/board` route — this closes 17h's own visual follow-up (the equivalent of 17e for
 cards), not a 17g-equivalent cutover step. The live server was not restarted.
+
+---
+
+# 17j. Real-Traffic Composability Benchmark (2026-09-12)
+
+**Not one of the original 14 phases — the largest single increment in the 17-series, and the
+first to run sustained concurrent traffic rather than single requests.** Closes `CR-19`. Grounded
+before scoping: Phase 12 (§16) already built the *structural* metrics
+(`composable.MeasureComposition`, logical/DAG nodes, naive-vs-dedup query count, execution width)
+but only ever called them from Go tests; every execution metric (`composable-apps-trial.md`
+§12.1: p50/p95/p99, CPU, memory, DB pool, planner/render time, rows scanned/returned, cache hit
+ratio) was honestly unbuilt, and no load-testing tool exists anywhere in this repo. Owner
+decision (this conversation, via AskUserQuestion): attempt the full Phase 12 battery.
+
+**What was built:** `MeasureComposition` gained its first live call site — `explainComposablePlan`
+(`composable_preview.go`) now returns `(string, composable.BenchmarkMetrics)`, and both call
+sites (`/composable-preview` and the 17g cutover's `listCardsViaComposable`, moved into this file
+from `record_crud.go` since this phase's own instrumentation pushed that already-oversized file
+past Gate 2) wrap their own data-fetch/plan/render phases in `time.Since()` and log one new
+structured line, `composable_benchmark` (`logComposableBenchmark`), joinable to `slogAccessLog`'s
+own line by the same `correlation_id` both already use. `cmd/server/main.go` gained an opt-in-only
+`GET /debug/pool-stats` (`pool.Stat()` as JSON), registered only when `ENABLE_DEBUG_ENDPOINTS=1`
+— dormant on every real deployment — and added to `isPublicPath` (same trust class as `/health`,
+no user data, only connection counts). A new standalone Go program, `scripts/loadtest/main.go`
+(stdlib `net/http` only, no new external dependency — confirmed none of wrk/vegeta/k6/hey exist
+in this repo before writing it), fires concurrent requests through a real `net/http/cookiejar`
+loaded from a Netscape-format jar (the same file `curl -c`/`conformance/lib.sh`'s own
+`session_for` already produce), paced by an optional `-rate` flag, and reports p50/p95/p99
+latency split by status class (`latency_ms_2xx` isolated from `latency_ms_all`, since a
+429/403 short-circuits before any real work and would otherwise misrepresent "how fast a real
+request is"). `scripts/benchmark-composable.sh` orchestrates all of it, mirroring `local-ci.sh`'s
+own isolated-schema/scratch-port throwaway pattern exactly (never the live `menata-runtime`
+process) plus a `/proc/$SERVER_PID` CPU/memory sampler (`VmRSS`, `utime+stime` deltas) needing no
+server-code instrumentation at all.
+
+**Two real, previously-unknown things this benchmark's own first run found, not just built:**
+1. **The server's own per-IP rate limiter (`ratelimit.go`, 30 req/s burst 120) dominated the
+   first attempt** — 66-97% of requests came back `429`, never reaching the composable pipeline
+   at all, because the load driver fired as fast as possible from one IP. Fixed two ways: split
+   latency reporting by status class (so a mixed sample can't misrepresent itself even if this
+   happens again), and paced dispatch at 20 req/s (`-rate`, safely under the real limit) — a
+   real, honest constraint on how "real traffic" can be simulated from one test client, not a
+   bug to hide.
+2. **A freshly migrated+seeded schema has zero real records for `mch_approval_document`** —
+   seed files only declare Machine/Field/View/Permission rows, never data; conformance tests are
+   what create real Documents, and this script runs none of them. The first clean run reported
+   `rows_returned=0.0` for the cutover route — true, but unrepresentative. Fixed by seeding 20 real
+   Documents via real `POST` requests (same shape `010_case1_3_core.sh`'s own `AD_SEQ_DATA` uses)
+   before measuring.
+
+**The real numbers, from the corrected run** (`BENCH_CONCURRENCY=10`, `BENCH_REQUESTS=100`,
+`BENCH_RATE=20`, all defaults):
+
+| Scenario | Status | p50 / p95 / p99 (ms) | logical/DAG nodes | naive→dedup queries | rows returned |
+|---|---|---|---|---|---|
+| 1: PM board preview (1 component→1 Dataset) | 100×200 | 3.86 / 7.15 / 10.19 | 5 / 3 | 3→3 (no shared Dataset to dedup) | 4 |
+| 3: Document Approval cutover (10 components→3 shared) | 100×200 | 3.90 / 7.31 / 8.84 | 11 / 3 | 4→3 (the real, already-known dedup) | 20 |
+| 7: same URL, denied role (security-scope substitute) | 100×403 | 2.77 / 6.38 / 7.00 | — (no composable_benchmark line at all — CanRead denies before the pipeline ever runs) | — | — |
+
+`data_time_ms`/`planner_time_ms`/`render_time_ms` all averaged well under 1ms for every
+scenario — at this data scale (≤20 rows), the composable pipeline's own overhead is not the
+latency's dominant term; most of each request's few milliseconds is everything ELSE a real HTTP
+request already does (session/CSRF/workspace-tx middleware, `net/http` itself), unchanged by this
+initiative. DB pool: `acquired=1 idle=1 total=2 max=4` — nowhere near saturated at this load.
+CPU/memory: ~3% average CPU, ~31MB RSS, over each ~5-second run — light, as expected at 20 req/s.
+**Cache hit ratio: N/A, not fabricated — no cache exists anywhere in this runtime.**
+
+**Not done here** (named, matching Phase 12's own precedent for its scenarios 5/6, not silently
+skipped): scenarios 2 (10 independent Datasets), 4 (1 Dataset→multiple projections), 5 (mixed
+OLTP+analytics), 6 (100 concurrent workspaces), 8 (nested Project board), 9 (Approval detail +
+stepper) — none has any live route to measure today (Detail-page lowering incomplete, no live
+nested Project Management page, no analytics-pool/multi-workspace distinction exists). No
+naive-vs-planner physical-work comparison is claimed — `internal/store` is still never called
+differently based on the plan (CR-05/Phase 9's own open gap); this run reports real latency/CPU/
+memory *as currently deployed*, not a controlled A/B. The live `menata-runtime` server was never
+touched — everything ran against a fresh throwaway instance, exactly like `local-ci.sh`. Full
+suite re-verified unchanged after every change in this phase: 285 passed, 0 failed.
 
 ---
 
