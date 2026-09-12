@@ -1,6 +1,9 @@
 package ui
 
-import "menata.id/app/internal/model"
+import (
+	"menata.id/app/internal/composable"
+	"menata.id/app/internal/model"
+)
 
 // PageSection (CAP-V10 Tier 2) is one resolved Children entry of a `page`
 // View, ready to render -- internal/handler/page.go's own renderPageChild
@@ -86,4 +89,17 @@ templ StaticContent(pc *model.PageContent) {
 			<img src={ pc.Src } class="w-full rounded-md"/>
 		}
 	}
+}
+
+// MetricContent (CR-20/CR-21, composable-runtime-roadmap.md 17l) renders a
+// composable.MetricValue -- the first live-rendered value
+// internal/composable has ever produced from a real physical execution
+// (internal/handler/page.go's own renderPageComponentChild), not a
+// diagnostic. Same visual shape as StatTile (components.templ), which
+// takes a plain int; MetricValue's own Value is already formatted for
+// display (ResolveMetricValue's own doc comment), so this renders that
+// string directly rather than round-tripping it back through an int.
+templ MetricContent(mv composable.MetricValue) {
+	<div class="text-xs font-semibold uppercase tracking-wide text-slate-500">{ mv.Label }</div>
+	<div class="mt-1 text-2xl font-semibold text-slate-900">{ mv.Value }</div>
 }

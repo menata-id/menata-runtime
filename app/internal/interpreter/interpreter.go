@@ -18,6 +18,12 @@ type Interpreter struct {
 	subscriptionsByPub  map[string][]*model.Subscription
 	holidaysByWorkspace map[string]map[string]bool
 	viewsByID           map[string]*model.View
+	// datasetsByID (CR-20/CR-21, composable-runtime-roadmap.md 17l) is
+	// the first index this package builds for a declared Dataset --
+	// needed so a handler can resolve a component+dataset_id Children
+	// entry (model.ChildViewRef) without threading an Application through
+	// every render call, the same reasoning viewsByID already exists for.
+	datasetsByID map[string]*model.Dataset
 }
 
 func New(workspaces []*model.Workspace) *Interpreter {
@@ -29,6 +35,7 @@ func New(workspaces []*model.Workspace) *Interpreter {
 		subscriptionsByPub:  make(map[string][]*model.Subscription),
 		holidaysByWorkspace: make(map[string]map[string]bool),
 		viewsByID:           make(map[string]*model.View),
+		datasetsByID:        make(map[string]*model.Dataset),
 	}
 	for _, ws := range workspaces {
 		i.workspacesByID[ws.ID] = ws
@@ -39,6 +46,9 @@ func New(workspaces []*model.Workspace) *Interpreter {
 		i.holidaysByWorkspace[ws.ID] = holidays
 		for _, app := range ws.Applications {
 			i.apps[app.ID] = app
+			for _, ds := range app.Datasets {
+				i.datasetsByID[ds.ID] = ds
+			}
 			for _, m := range app.Machines {
 				i.machines[m.ID] = m
 				// CAP-I01: each Subscription is declared on its SUBSCRIBER
@@ -70,6 +80,14 @@ func New(workspaces []*model.Workspace) *Interpreter {
 func (i *Interpreter) GetView(id string) (*model.View, bool) {
 	v, ok := i.viewsByID[id]
 	return v, ok
+}
+
+// GetDataset (CR-20/CR-21, 17l) looks up a declared Dataset by its own id,
+// regardless of which Application declares it -- see datasetsByID's own
+// doc comment on Interpreter.
+func (i *Interpreter) GetDataset(id string) (*model.Dataset, bool) {
+	ds, ok := i.datasetsByID[id]
+	return ds, ok
 }
 
 // SubscriptionsFor (CAP-I01) returns every Subscription (on any Machine,

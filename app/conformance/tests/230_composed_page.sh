@@ -71,4 +71,26 @@ CP_ACTIVE_COUNT=$(echo "$CP_BODY" | grep -o 'bg-white text-blue-700 shadow-sm">[
 [ "$CP_ACTIVE_COUNT" -eq 1 ]
 check T258 "CAP-O03" "the composed page's own sub-nav strip highlights exactly one entry, not two at once (got $CP_ACTIVE_COUNT)" $?
 
+# T280 -- composable-runtime-roadmap.md 17l: the composed page's fourth
+# section (component:"Metric" bound to ds_ad_total_steps,
+# seeds/054_composable_metric_live_fix.sql) is the first real physical
+# execution internal/composable has ever driven on a live route -- a real
+# count over mch_approval_step's own records (internal/handler/
+# page_component.go's renderPageComponentChild), not a diagnostic. Proven
+# by before/after, not a hardcoded number (the exact T271 lesson from
+# 17f): create a real, independently-known batch of Approval Steps, then
+# confirm the rendered count increases by exactly that batch size --
+# "Total Approval Steps</div>" uniquely matches MetricContent's own label
+# div (page.templ), never SectionWrapper's <h3> title, so the very next
+# line is always the real number.
+CP_STEPS_BEFORE=$(printf '%s' "$CP_BODY" | tr -d '\n' | grep -oE 'Total Approval Steps</div><div class="mt-1 text-2xl font-semibold text-slate-900">[0-9]+' | grep -oE '[0-9]+$')
+CP_STEPS_BATCH=3
+for CP_SEQ in 1 2 3; do
+    post_redirect "$BASE_URL/mch_approval_step" "fld_as_document=$CP_REVIEW_ID&fld_as_approver=$ALICE_ID&fld_as_sequence=$CP_SEQ" "$ALICE" >/dev/null
+done
+CP_BODY_AFTER=$(get_body "$BASE_URL/mch_approval_document/page" "$ALICE")
+CP_STEPS_AFTER=$(printf '%s' "$CP_BODY_AFTER" | tr -d '\n' | grep -oE 'Total Approval Steps</div><div class="mt-1 text-2xl font-semibold text-slate-900">[0-9]+' | grep -oE '[0-9]+$')
+[ -n "$CP_STEPS_BEFORE" ] && [ -n "$CP_STEPS_AFTER" ] && [ "$CP_STEPS_AFTER" -eq "$((CP_STEPS_BEFORE + CP_STEPS_BATCH))" ]
+check T280 "composable-runtime-roadmap.md 17l" "the composed page's Total Approval Steps section is a real, live-computed count ($CP_STEPS_BEFORE -> $CP_STEPS_AFTER after creating $CP_STEPS_BATCH real steps)" $?
+
 rm -f "$CP_PDF"

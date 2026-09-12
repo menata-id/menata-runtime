@@ -92,6 +92,9 @@ func (h *Handler) renderPageChild(r *http.Request, child model.ChildViewRef) *ui
 	if child.Content != nil {
 		return &ui.PageSection{Title: child.Title, Layout: child.Layout, Content: ui.StaticContent(child.Content)}
 	}
+	if child.Component != "" {
+		return h.renderPageComponentChild(r, child)
+	}
 	view, ok := h.interp.Get().GetView(child.View)
 	if !ok {
 		// Same live-drift class embed.go's own renderChildView already

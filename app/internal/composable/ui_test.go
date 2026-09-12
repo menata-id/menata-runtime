@@ -118,8 +118,11 @@ func TestLowerChildren_SlotsAndStaticContent(t *testing.T) {
 // TestLowerChildren_ComponentDatasetEntry (CR-21, composable-runtime-
 // roadmap.md 17k) proves the third Children kind end-to-end: a
 // {component, dataset_id} entry resolves the named Dataset via
-// BuildDatasetFromDeclaredDataset and lowers into a real component UINode
-// via the existing ResolveComponent, unchanged.
+// BuildDatasetFromDeclaredDataset and lowers into a real component UINode.
+// The Dataset here is deliberately ungrouped, single-Measure -- the only
+// shape Metric accepts (17l fixed a real bug where a grouped Dataset could
+// slip through to Metric unchecked; see
+// TestLowerChildren_ComponentDatasetEntry_MetricRejectsGroupedDataset).
 func TestLowerChildren_ComponentDatasetEntry(t *testing.T) {
 	m := builders.Machine("mch_task").
 		WithField(builders.Field("fld_stage", model.FieldTypeValueList).Build()).
@@ -127,13 +130,12 @@ func TestLowerChildren_ComponentDatasetEntry(t *testing.T) {
 	machineIdx := composable.MachineIndex{"mch_task": m}
 	datasetIdx := composable.DatasetIndex{
 		"ds_tasks": {ID: "ds_tasks", BaseMachineID: "mch_task", Config: model.DatasetConfig{
-			Dimensions: []model.DatasetDimension{{ID: "dim_stage", Field: "fld_stage"}},
-			Measures:   []model.DatasetMeasure{{ID: "mea_count", Aggregate: "count"}},
+			Measures: []model.DatasetMeasure{{ID: "mea_count", Aggregate: "count"}},
 		}},
 	}
 
 	children := []model.ChildViewRef{
-		{Component: "Metric", DatasetID: "ds_tasks", Title: "Tasks by Stage"},
+		{Component: "Metric", DatasetID: "ds_tasks", Title: "Total Tasks"},
 	}
 	slots, err := composable.LowerChildren(children, nil, machineIdx, datasetIdx, nil)
 	if err != nil {
@@ -149,8 +151,33 @@ func TestLowerChildren_ComponentDatasetEntry(t *testing.T) {
 	if node.Dataset == nil || node.Dataset.Source.MachineID != "mch_task" {
 		t.Errorf("node.Dataset = %+v, want Source.MachineID mch_task", node.Dataset)
 	}
-	if node.Properties["title"] != "Tasks by Stage" {
-		t.Errorf("node Properties[title] = %q, want %q", node.Properties["title"], "Tasks by Stage")
+	if node.Properties["title"] != "Total Tasks" {
+		t.Errorf("node Properties[title] = %q, want %q", node.Properties["title"], "Total Tasks")
+	}
+}
+
+// TestLowerChildren_ComponentDatasetEntry_MetricRejectsGroupedDataset
+// (17l) is the regression test for a real bug 17k shipped: a
+// component+dataset Children entry naming "Metric" against a GROUPED
+// Dataset (one with a Dimension) used to lower successfully by calling
+// ResolveComponent directly, bypassing LowerMetric's own semantic rule
+// ("a grouped Dataset is a breakdown, not a single metric",
+// component_adapt.go). Must now fail loud instead.
+func TestLowerChildren_ComponentDatasetEntry_MetricRejectsGroupedDataset(t *testing.T) {
+	m := builders.Machine("mch_task").
+		WithField(builders.Field("fld_stage", model.FieldTypeValueList).Build()).
+		Build()
+	machineIdx := composable.MachineIndex{"mch_task": m}
+	datasetIdx := composable.DatasetIndex{
+		"ds_tasks": {ID: "ds_tasks", BaseMachineID: "mch_task", Config: model.DatasetConfig{
+			Dimensions: []model.DatasetDimension{{ID: "dim_stage", Field: "fld_stage"}},
+			Measures:   []model.DatasetMeasure{{ID: "mea_count", Aggregate: "count"}},
+		}},
+	}
+
+	children := []model.ChildViewRef{{Component: "Metric", DatasetID: "ds_tasks"}}
+	if _, err := composable.LowerChildren(children, nil, machineIdx, datasetIdx, nil); err == nil {
+		t.Fatal("want error for a Metric entry bound to a grouped Dataset")
 	}
 }
 

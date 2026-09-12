@@ -46,7 +46,7 @@ The following are the important implementation gaps that must be explicitly trac
 | CR-17 | plan identity / immutable plan reuse | partial metadata/interpreter caching foundations | P1 |
 | CR-18 | inference diagnostics | principle exists; inspectability tooling missing. **Phase 8 update, 2026-09-11** — `planner.go`'s `ExecutionPlan.Explain()` is real, deterministic inspectability tooling (group count, per-group Machine/node counts, naive-vs-deduplicated query count), the first concrete tool this principle has, though scoped to execution planning only — broader inference inspectability (e.g. Dataset/Scope-level diagnostics) remains open. | P1 |
 | CR-19 | composability benchmark harness | **Phase slice implemented, 2026-09-12 (§17j)** — `scripts/benchmark-composable.sh` + `scripts/loadtest` run 3 of Phase 12's own 9 required scenarios against a real throwaway server with real seeded data, reporting real p50/p95/p99 latency, real CPU/memory (`/proc` sampling), real DB pool stats, and `composable.MeasureComposition`'s own structural facts (previously Go-test-only) now correlated per real request. Cache hit ratio stays honestly N/A (no cache exists); scenarios 2/4/5/6/8/9 stay `SKIP` (no live route). See §17j for the real numbers. | P0 |
-| CR-20 | trial applications using shared composable substrate | trial plan exists; runtime migration remains | P0 |
+| CR-20 | trial applications using shared composable substrate | **Phase slice implemented, 2026-09-12 (§17l), Trial Definition-of-Done audited against real evidence** — `composable-apps-trial.md` §15's own checklist, cited per bullet: §15.3 execution planning on the live path (17b/T265), physical-work metrics collected (17j), data consumed by multiple presentation forms without duplicated semantics (CR-03/CR-21) are all real and citable; §15.4 governance proof is clean (no trial-specific hacks found on grep) and CAP-D0x stays correctly unadmitted (`capability-registry.md`'s own `## Data` section). §15.1/15.2's own named "Document Detail"/"Card Detail" composition remains genuinely open — no Detail-shaped composable primitive exists — named explicitly, not silently dropped. See §17l. | P0 |
 | CR-21 | metadata/schema representation for new composable artifacts | **Phase slice implemented, 2026-09-12 (§17k)** — Data plane (`Dataset`/`Query`) is now real, loadable metadata: `migrations/030_composable_data_plane.sql`, `model.go`'s `Dataset`/`DatasetConfig`/`Query`/`QueryConfig`, `metadata.loadDatasets`/`loadQueries`/`validateDatasets`/`validateQueries`, and `composable.BuildDatasetFromDeclaredDataset` (converges with the existing inferred adapters — proven, same CR-03 two-adapters-one-Dataset shape). Experience plane closed via the existing `ChildViewRef` mechanism gaining a third kind (`component`+`dataset_id`), not a new competing table — `LowerChildren`'s `lowerComponentChild` resolves it through the existing `ResolveComponent`. Real seed (`seeds/053_composable_data_plane_lab.sql`), Go tests, and conformance T265 (live). "Universal" still means only Dataset/Query + one Experience kind — Layout/Slot beyond Children, and any authoring UI, remain open; CAP-D* admission via `capability-lifecycle.md` §2 A1-A5 is a separate, later, owner-level decision this slice does not make. See §17k. | P0 |
 | CR-22 | capability registry alignment | composable concepts span existing CAPs but are not yet one tracked implementation program | P1 |
 | CR-23 | conformance model for composition validity | existing conformance is capability-oriented; composition proofs need expansion | P1 |
@@ -1548,6 +1548,95 @@ production route ever constructs a `model.Dataset`/`Query` from user input.
 **Verification:** `go build`/`go vet`/`go test ./...` (isolated schema, never the live server),
 `scripts/check-quality-gates.sh` (all 5 gates green after the Gate 3 work above), and
 `./scripts/local-ci.sh` — 285 passed, 0 failed, including the corrected `T265`.
+
+---
+
+# 17l. Full CR-20 Closure — Metric Semantic Fix, Real Live Execution, Trial Definition-of-Done
+Audit (2026-09-12)
+
+**Closes `CR-20`.** Grounded before scoping, and two real problems found in the process, not
+invented for this increment:
+
+1. **A real bug in 17k's own shipped code.** `lowerComponentChild`
+   (`internal/composable/ui.go`) called `ResolveComponent` directly for a `component`+
+   `dataset_id` Children entry, bypassing `LowerMetric`'s existing semantic rule
+   (`component_adapt.go`: "a grouped Dataset is a breakdown, not a single metric"). 17k's own
+   seed paired `component: Metric` with `ds_ad_steps_by_document` — which HAS a Dimension — the
+   exact invalid pairing `LowerMetric` exists to reject, and nothing in 17k's own code path ever
+   called it.
+2. **A second, more serious gap.** The already-shipped, live production route
+   `GET /mch_approval_document/page` (`internal/handler/page.go`'s `renderPageChild`, proven live
+   since Phase 12 by `conformance/tests/230_composed_page.sh`'s T253–258) had no case at all for
+   `child.Component != ""`. Every real render of this page since 17k shipped silently logged a
+   spurious `slog.Warn("page: declared children view id does not resolve against loaded
+   metadata", ...)` and dropped the section — caught only by directly reading `page.go`'s own
+   dispatch, not by any conformance test (none asserted on server-log cleanliness for this
+   route).
+
+**What was built:**
+
+- **Fix (Part A):** `lowerComponentChild` now routes a `Metric` entry through the existing
+  `LowerMetric(ds)` wrapper instead of the generic `ResolveComponent` call — enforcing "no
+  GroupBy, exactly one Measure" for this path too. Proof:
+  `TestLowerChildren_ComponentDatasetEntry_MetricRejectsGroupedDataset`
+  (`internal/composable/ui_test.go`) — a grouped Dataset bound to Metric now fails loud. Every
+  other component type still goes through the generic path unchanged — per-type semantic
+  wrappers get routed in as real cases force them, not preemptively.
+- **Seed fix (Part B):** `seeds/054_composable_metric_live_fix.sql` adds a real, ungrouped,
+  single-Measure Dataset (`ds_ad_total_steps`, base `mch_approval_step`, one `count` Measure) and
+  patches (not rewrites) `vw_ad_page`'s own Children entry via a targeted `jsonb_set`, repointing
+  it from `ds_ad_steps_by_document` to `ds_ad_total_steps`. `ds_ad_steps_by_document` itself is
+  untouched — still a real, valid Data-plane artifact, just not one appropriate for a Metric
+  binding.
+- **Real live execution (Part C) — the first `internal/composable` has ever driven, not a
+  diagnostic:** `internal/interpreter/interpreter.go` gains `GetDataset` (same pattern as
+  `GetView`). `internal/handler/page_component.go` (new file, Gate 2) adds
+  `renderPageComponentChild`: resolves the declared Dataset, checks `CanRead` against its own
+  base Machine (mirroring `renderPageListChild`'s cross-machine guard), lowers it via
+  `BuildDatasetFromDeclaredDataset` + `LowerMetric`, and computes a REAL count via the same
+  `h.records.List` every other page render already uses (no new store method — "Infer Before
+  Configure"). `internal/ui/page.templ` gains `MetricContent`. Only `Metric` is wired to real
+  execution today, named explicitly — any other declared Component (or resolution failure) logs
+  a warning and degrades gracefully, the same posture `renderPageChild`'s own unknown-view case
+  already uses.
+
+**Proof, not asserted:** `conformance/tests/230_composed_page.sh`'s new T280 — before/after a
+real, independently-created batch of 3 Approval Step records (not relying on prior tests' own
+accumulation, the exact T271 lesson from 17f), confirms the composed page's own "Total Approval
+Steps" section renders a real count that increases by exactly 3 (observed: 17 → 20 in the real
+conformance run). `internal/composable`'s own existing Go tests plus the new rejection test all
+pass; `T265`'s own DAG/query counts are unaffected (same cross-machine shape: one Dataset over
+`mch_approval_step`, now `ds_ad_total_steps` instead of `ds_ad_steps_by_document`, still consumed
+once).
+
+**CR-20 Trial Definition-of-Done audit** (`composable-apps-trial.md` §15, cited per bullet, not
+asserted):
+
+| §15 item | Status | Evidence |
+|---|---|---|
+| 15.1/15.2: end-to-end core flow usable, permissions enforced, no case-specific executor | ✅ | 17a–17k live wiring; `CanRead` reused everywhere, never a bespoke guard |
+| 15.1/15.2: "composed dashboard/detail... common runtime" / "board, lists, cards, and detail views" | **Partially open** | Dashboard/Board/List real (17b/17g/17h/17i); **Detail** (Document Detail, Card Detail) never routes through `internal/composable` — `ViewTypeDetail` appears in that package only inside `LowerPage`'s Children-lowering branch (`ui.go`), never as a data/component source. Real, named gap — no Detail-shaped composable primitive exists; new capability work, not a wiring task. |
+| 15.3: shared primitives across both cases | ✅ | `trial_test.go`'s `assertFullSubstrateCoverage`, one shared function, no per-case branch |
+| 15.3: data consumed by multiple presentation forms without duplicating business semantics | ✅ | CR-03's two-adapters-one-Dataset proof; CR-21's declared-vs-inferred convergence proof |
+| 15.3: execution planning present on the live runtime path | ✅ | 17b; T265 |
+| 15.3: physical-work metrics collected | ✅ | 17j's real benchmark; this increment's own real count (first non-diagnostic execution) |
+| 15.3: bounded execution under representative concurrency | ✅ (narrow) | 17j's own `-concurrency 10` real run; broader Phase 12 scenarios (2/4/5/6/8/9) still `SKIP`, unchanged from 17j |
+| 15.4: capabilities represented in the registry | ✅ | `CR-27`'s `## Data` section; CAP-D0x correctly unadmitted, re-confirmed, not re-litigated |
+| 15.4: trial-specific hacks removed or converted | ✅ | grepped for "hack"/"trial-specific" across `internal/composable`, `composable_preview.go`, the trial's own seeds — none found |
+| 15.4: architectural claims marked PROVEN only with evidence | ✅ | this table itself, and `CR-01`–`CR-28`'s own per-row evidence discipline |
+
+**Not done here** (named, not silently dropped): Detail-page composition for both cases (the one
+real open item the table above found); filtered/grouped live execution (only the ungrouped/
+unfiltered count case is wired — `CR-05`'s own pagination/cost semantics stay open); the other 6
+component types' own per-type semantic wrappers are not yet routed through `component`+`dataset`
+Children entries the way `Metric` now is; `CAP-D*` capability admission
+(`capability-lifecycle.md` §2 A1–A5) remains a separate, later, owner-level decision, re-confirmed
+unchanged, not made here.
+
+**Verification:** `go build`/`go vet`/`go test ./...` (isolated schema), all 5 quality gates
+(`internal/handler/page.go`'s +3 LOC dispatch-hook growth baselined —
+`scripts/quality-baselines/handler-loc.txt` — the new logic itself lives in the new
+`page_component.go`, Gate 2), and `./scripts/local-ci.sh` — 286 passed, 0 failed (285 + new T280).
 
 ---
 

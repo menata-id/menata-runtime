@@ -104,6 +104,14 @@ func TestLoadAllAgainstComposableDataPlaneLab_Query(t *testing.T) {
 // component+dataset entry appended by the seed's own jsonb-concat UPDATE,
 // alongside its three pre-existing entries (Summary/Pending
 // Documents/Recent Activity) untouched.
+//
+// Status update (2026-09-12, composable-runtime-roadmap.md 17l): the
+// dataset_id this entry names is now ds_ad_total_steps, not
+// ds_ad_steps_by_document -- 17l's own seeds/054_composable_metric_live_
+// fix.sql repointed it after fixing a real bug (a grouped Dataset must
+// not bind to a Metric component; ds_ad_steps_by_document has a Dimension
+// and is no longer accepted there). ds_ad_steps_by_document itself is
+// untouched, still a real declared Dataset -- just not this one's.
 func TestLoadAllAgainstComposableDataPlaneLab_ExperiencePlaneChild(t *testing.T) {
 	app := findApprovalApp(t)
 	adDoc := findMachine(app.Machines, "mch_approval_document")
@@ -117,8 +125,8 @@ func TestLoadAllAgainstComposableDataPlaneLab_ExperiencePlaneChild(t *testing.T)
 	if len(page.Config.Children) != 4 {
 		t.Fatalf("children = %d entries, want 4 (3 pre-existing + 1 component)", len(page.Config.Children))
 	}
-	if !hasComponentChild(page.Config.Children, "Metric", "ds_ad_steps_by_document") {
-		t.Errorf("no children entry with component=Metric dataset_id=ds_ad_steps_by_document, got %+v", page.Config.Children)
+	if !hasComponentChild(page.Config.Children, "Metric", "ds_ad_total_steps") {
+		t.Errorf("no children entry with component=Metric dataset_id=ds_ad_total_steps, got %+v", page.Config.Children)
 	}
 }
 

@@ -157,6 +157,23 @@ func lowerComponentChild(entry model.ChildViewRef, machineIdx MachineIndex, data
 	if err != nil {
 		return UINode{}, err
 	}
+	// 17l: Metric routes through LowerMetric's own semantic wrapper, not
+	// the generic ResolveComponent call below -- LowerMetric enforces "no
+	// GroupBy, exactly one Measure" (a grouped Dataset is a breakdown, not
+	// a single metric), a rule a component+dataset entry must not be able
+	// to bypass just because it names its Dataset declaratively instead of
+	// through one of LowerMetric's other direct callers. Every other
+	// component type still goes through the generic path below -- their
+	// own per-type semantic wrappers (LowerRecordSummaryCard/
+	// LowerStatusBadge/LowerActionBar) get routed in here as a real case
+	// forces each one, not preemptively.
+	if entry.Component == string(ComponentMetric) {
+		node, err := LowerMetric(ds)
+		if err != nil {
+			return UINode{}, fmt.Errorf("composable: children entry component %q: %w", entry.Component, err)
+		}
+		return node, nil
+	}
 	node, err := ResolveComponent(ComponentType(entry.Component), entry.Properties, &ds, nil)
 	if err != nil {
 		return UINode{}, fmt.Errorf("composable: children entry component %q: %w", entry.Component, err)

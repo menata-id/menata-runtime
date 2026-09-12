@@ -117,6 +117,7 @@ seed:
 	psql "$(DB_URL)" -f seeds/051_dashboard_nav_supersede.sql
 	psql "$(DB_URL)" -f seeds/052_project_management.sql
 	psql "$(DB_URL)" -f seeds/053_composable_data_plane_lab.sql
+	psql "$(DB_URL)" -f seeds/054_composable_metric_live_fix.sql
 
 # The real test suite for HTTP/behavioral correctness -- requires migrate-up
 # + seed already applied and the server running (`make dev` in another
