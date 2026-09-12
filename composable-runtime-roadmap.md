@@ -984,6 +984,65 @@ production cutover of this route all remain out of scope, same as 17a's own clos
 
 ---
 
+# 17c. Detail-View Children Lowering (2026-09-12)
+
+**Not one of the original 14 phases** — closes the specific gap Phase 12's own benchmark work
+named while grounding its "Approval detail + stepper" scenario: `internal/composable/ui.go`'s
+`LowerPage`/`LowerChildren` recursed into a View's own declared `Config.Children` only when that
+View's type was `page` — a `detail`-type View's own Children (CAP-V20's embedded-view mechanism,
+decision stepper/coordinate placement) were silently never lowered at all, invisible to the
+Dependency DAG/Execution Planner entirely. This is the concrete reason
+`composable-apps-trial.md` §15.1's "composed dashboard/**detail**" bullet stayed unmet.
+
+**What was built:** `LowerPage` (`app/internal/composable/ui.go`) now builds each View's own
+`view_ref` node first, then recurses into that View's own Children when its type is `page` OR
+`detail` — a `page`-type View's Children still populate the whole machine page's own `Slots`
+(unchanged), while a `detail`-type View's Children now populate **that view_ref node's own**
+`Slots` instead (so two Detail Views on one machine, or a Detail alongside a Page view, can never
+collide on one shared slot map — the reason this wasn't simply "add `|| ViewTypeDetail`" to the
+existing `page.Slots` line). `LowerChildren` itself needed no change — its own cross-machine
+`viewIdx`/`machineIdx` resolution and cycle/depth guards already do the right thing once actually
+called with a Detail View's Children.
+
+**Proof:** a real Go test against real seeded metadata, not a synthetic fixture —
+`TestLowerPageAttachesDetailChildrenToOwnNode` (`ui_seed_test.go`) against
+`seeds/042_inline_view_composition.sql`'s own `vw_as_detail` (`mch_approval_step`'s Detail view),
+which embeds `vw_ad_progress` (a `decision_stepper` View on the **different** Machine
+`mch_approval_document`) and `vw_as_place` (`coord_placement`, same Machine) — a genuine
+cross-machine composition case, proving `machineIdx` resolution works through this new call site
+too. One honest limitation stated up front and preserved in the test/route framing:
+`BuildDatasetFromView` has no case for `decision_stepper`/`coord_placement` (same as `detail`
+itself), so both embedded nodes carry `Dataset == nil` even after this fix — extending that is
+real capability work with no case forcing it yet, not attempted here (roadmap Principle #8:
+evidence before optimization, not manufacturing a number to move).
+
+**Separate, honestly-scoped live-path extension:** `ComposablePreview`
+(`app/internal/handler/composable_preview.go`) no longer 400s for a machine with no
+`display: cards` default List View (every machine except `mch_approval_document`, until now) —
+it renders an empty card grid instead and still runs 17b's `explainComposablePlan` side-channel,
+reaching a **second** real machine's Dependency DAG/Planner boundary on the live path for the
+first time. `mch_approval_document`'s own existing behavior (T262-265) is provably unchanged
+(same code path, now inside an `if` instead of unconditional). Proof: T266 (`GET
+/mch_approval_step/composable-preview` now 200, was 400) and T267 (the same response still
+carries a real, non-empty plan diagnostic). T267 deliberately does **not** assert specific
+node/group numbers — per the `Dataset == nil` limitation above, `mch_approval_step`'s own
+naive/dedup counts are identical whether or not this session's `ui.go` fix is applied (2 nodes:
+`vw_as_form`, `vw_as_progress`; the `vw_as_detail` subtree contributes none). T266/T267 prove the
+*route* now reaches this machine's planner boundary, not that the Detail-children fix changed any
+observable count — two different, both real, claims kept separate on purpose. Full suite: 273
+passed, 0 failed (`./scripts/local-ci.sh`) — no regression, two net new tests.
+
+**Not done here** (explicitly deferred, not silently skipped, same posture as 17a/17b): rendering
+`mch_approval_step`'s Detail page as an actual composed page (RecordSummary/StatusBadge/ActionBar
+for its fields, matching what `record_crud.go`'s real `Handler.Detail` already shows today — full
+field list, SLA badges, CAP-V06 reverse-reference child-lists, CAP-P02-filtered
+`permittedEvents`, CAP-V20 embed rendering) remains entirely out of scope; this pilot only proves
+the DAG/UI-IR tree now has the right *shape*. Document Approval's own Detail page, Project
+Management, and a production cutover of this route all remain out of scope too, unchanged from
+17a/17b's own closing notes.
+
+---
+
 # 18. Phase 14 — Production Hardening
 
 Only after real trial workloads:

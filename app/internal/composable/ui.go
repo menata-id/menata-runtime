@@ -180,12 +180,19 @@ func LowerChildren(children []model.ChildViewRef, viewIdx map[string]*model.View
 }
 
 // LowerPage lowers m's own declared Views into a page-kind UINode. Each
-// View becomes a view_ref child (lowerViewRefChild); a page-type View's own
-// Config.Children additionally populate the PAGE node's own Slots (not
-// that child's -- a `page` View's Children compose the page itself,
-// model.go's own ViewTypePage doc comment). visited is seeded with the
-// hosting page View's own id so an immediate self-reference is caught on
-// the very first check (CMP-02).
+// View becomes a view_ref child (lowerViewRefChild). A page-type View's own
+// Config.Children compose the PAGE itself (model.go's own ViewTypePage doc
+// comment), so they populate the whole page's own Slots. A detail-type
+// View's own Children are different: CAP-V20's embedded-view mechanism
+// (decision stepper, coordinate placement) embeds INTO that one Detail
+// view's own render, not into the machine's whole page -- so they populate
+// that view_ref node's own Slots instead (composable-runtime-roadmap.md
+// 17c, closing the gap Phase 12's own benchmark work named: a Detail
+// View's Children were silently never lowered at all). Two Detail Views
+// on the same machine (or a Detail alongside a Page view) therefore never
+// collide on one shared slot map, unlike hoisting both to page.Slots
+// would. visited is seeded with the hosting View's own id so an immediate
+// self-reference is caught on the very first check (CMP-02).
 func LowerPage(m *model.Machine, viewIdx map[string]*model.View, machineIdx MachineIndex) (UINode, error) {
 	page := UINode{
 		Identity:   NodeIdentity{Kind: "page", Source: m.ID},
@@ -193,14 +200,19 @@ func LowerPage(m *model.Machine, viewIdx map[string]*model.View, machineIdx Mach
 		Properties: map[string]string{"machine_id": m.ID},
 	}
 	for _, v := range m.Views {
-		page.Children = append(page.Children, lowerViewRefChild(m, v))
-		if v.Type == model.ViewTypePage && len(v.Config.Children) > 0 {
+		node := lowerViewRefChild(m, v)
+		if (v.Type == model.ViewTypePage || v.Type == model.ViewTypeDetail) && len(v.Config.Children) > 0 {
 			slots, err := LowerChildren(v.Config.Children, viewIdx, machineIdx, map[string]bool{v.ID: true})
 			if err != nil {
 				return UINode{}, fmt.Errorf("composable: page %s: %w", m.ID, err)
 			}
-			page.Slots = slots
+			if v.Type == model.ViewTypePage {
+				page.Slots = slots
+			} else {
+				node.Slots = slots
+			}
 		}
+		page.Children = append(page.Children, node)
 	}
 	return page, nil
 }

@@ -76,6 +76,81 @@ func TestLowerPageAgainstApprovalDashboard(t *testing.T) {
 	}
 }
 
+// TestLowerPageAttachesDetailChildrenToOwnNode is composable-runtime-
+// roadmap.md 17c's own proof: closes the gap Phase 12's benchmark work
+// named (a detail-type View's own Children were never lowered at all,
+// unlike a page-type View's). seeds/042_inline_view_composition.sql's
+// vw_as_detail (mch_approval_step's own Detail view) embeds vw_ad_progress
+// (a decision_stepper View on the DIFFERENT machine mch_approval_document,
+// seeds/037_decision_stepper_lab.sql) and vw_as_place (coord_placement,
+// same machine, seeds/036_coord_placement_lab.sql) -- a real cross-machine
+// composition case, not a synthetic fixture. Requires DATABASE_URL seeded
+// with 001+004+036+037+042.
+func TestLowerPageAttachesDetailChildrenToOwnNode(t *testing.T) {
+	pool := testdb.Connect(t)
+	workspaces, err := metadata.NewLoader(pool).LoadAll(context.Background())
+	if err != nil {
+		t.Fatalf("LoadAll: %v", err)
+	}
+	app := findApplication(t, workspaces, "ws_default", "app_approval")
+	viewIdx := composable.IndexViews(app)
+	machineIdx := composable.IndexMachines(app)
+	m := findMachineByID(t, app, "mch_approval_step")
+
+	page, err := composable.LowerPage(m, viewIdx, machineIdx)
+	if err != nil {
+		t.Fatalf("LowerPage(mch_approval_step): %v", err)
+	}
+
+	// The Detail view's own Children attach to ITS OWN node's Slots, not
+	// the whole page's -- page.Slots must stay nil here since
+	// mch_approval_step has no page-type View at all.
+	if page.Slots != nil {
+		t.Errorf("page.Slots = %+v, want nil (mch_approval_step has no page-type View)", page.Slots)
+	}
+
+	detail := findChildByViewID(t, page.Children, "vw_as_detail")
+	if len(detail.Slots[""]) != 2 {
+		t.Fatalf("detail.Slots[\"\"] = %+v, want 2 nodes (vw_ad_progress, vw_as_place)", detail.Slots[""])
+	}
+
+	byViewID := indexEmbeddedNodesByViewID(detail.Slots[""])
+	assertEmbeddedMachineID(t, byViewID, "vw_ad_progress", "mch_approval_document") // cross-machine resolution
+	assertEmbeddedMachineID(t, byViewID, "vw_as_place", "mch_approval_step")
+}
+
+func findChildByViewID(t *testing.T, children []composable.UINode, viewID string) *composable.UINode {
+	t.Helper()
+	for i := range children {
+		if children[i].Properties["view_id"] == viewID {
+			return &children[i]
+		}
+	}
+	t.Fatalf("missing expected child node for %s", viewID)
+	return nil
+}
+
+func indexEmbeddedNodesByViewID(nodes []composable.UINode) map[string]composable.UINode {
+	byViewID := make(map[string]composable.UINode, len(nodes))
+	for _, n := range nodes {
+		if n.ViewRef != nil {
+			byViewID[n.ViewRef.ViewID] = n
+		}
+	}
+	return byViewID
+}
+
+func assertEmbeddedMachineID(t *testing.T, byViewID map[string]composable.UINode, viewID, wantMachineID string) {
+	t.Helper()
+	node, ok := byViewID[viewID]
+	if !ok {
+		t.Fatalf("missing embedded node for %s", viewID)
+	}
+	if node.ViewRef.MachineID != wantMachineID {
+		t.Errorf("%s ViewRef.MachineID = %q, want %q", viewID, node.ViewRef.MachineID, wantMachineID)
+	}
+}
+
 // TestLowerApplicationAgainstKanbanLab is Phase 4's project-management-
 // shaped proof case -- same explicitly-flagged Case-19 stand-in Phases 1-3
 // already established (Case 19 itself isn't seeded in app/ yet).

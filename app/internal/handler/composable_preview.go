@@ -16,12 +16,14 @@ import (
 // is a read-only, additive route proving internal/composable can drive a
 // real HTTP response over real seeded Postgres data end to end --
 // List/Board/Detail (record_crud.go, views.go) are completely untouched by
-// this handler; nothing about their behavior changes. Scoped deliberately
-// narrow: only a List View in "cards" display mode, rendered via
-// LowerCardRowComponent/ResolveRecordSummary's own title+subtitle
-// RecordSummaryCard contract -- no status badge like the real CAP-V02
-// Tier 2 cards feature shows, a named limitation (extending that contract
-// is real capability work outside this pilot's scope), not an oversight.
+// this handler; nothing about their behavior changes. The card grid itself
+// (RecordSummaryCard, title+subtitle only, no status badge like the real
+// CAP-V02 Tier 2 cards feature shows -- a named limitation, not an
+// oversight) only renders when the machine has a default List View in
+// "cards" display mode; a machine without one still gets a 200 with an
+// empty grid, since 17c generalized this route to reach ANY machine's own
+// Dependency DAG/Execution Planner diagnostic (explainComposablePlan,
+// 17b), not just the one machine that happens to have a cards list.
 func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	machine, ok := h.interp.Get().GetMachine(machineID)
@@ -44,43 +46,43 @@ func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	view := h.interp.Get().DefaultListView(machineID)
-	if view == nil || view.Config.Display != "cards" {
-		http.Error(w, "composable preview only supports a list view with display: cards", http.StatusBadRequest)
-		return
-	}
+	viewName := machine.Name
+	var summaries []composable.RecordSummary
+	if view := h.interp.Get().DefaultListView(machineID); view != nil && view.Config.Display == "cards" {
+		viewName = view.Name
 
-	ds, err := composable.BuildDatasetFromView(machine, view)
-	if err != nil {
-		http.Error(w, "failed to build dataset", http.StatusInternalServerError)
-		return
-	}
-	rowNode, err := composable.LowerCardRowComponent(view, ds)
-	if err != nil {
-		http.Error(w, "failed to lower card component", http.StatusInternalServerError)
-		return
-	}
-
-	records, err := h.records.List(r.Context(), machineID, "", "")
-	if err != nil {
-		http.Error(w, "failed to load records", http.StatusInternalServerError)
-		return
-	}
-
-	summaries := make([]composable.RecordSummary, 0, len(records))
-	for _, rec := range records {
-		summary, err := composable.ResolveRecordSummary(machine, rowNode, rec.ID, rec.Data)
+		ds, err := composable.BuildDatasetFromView(machine, view)
 		if err != nil {
-			http.Error(w, "failed to resolve record summary", http.StatusInternalServerError)
+			http.Error(w, "failed to build dataset", http.StatusInternalServerError)
 			return
 		}
-		summaries = append(summaries, summary)
+		rowNode, err := composable.LowerCardRowComponent(view, ds)
+		if err != nil {
+			http.Error(w, "failed to lower card component", http.StatusInternalServerError)
+			return
+		}
+
+		records, err := h.records.List(r.Context(), machineID, "", "")
+		if err != nil {
+			http.Error(w, "failed to load records", http.StatusInternalServerError)
+			return
+		}
+
+		summaries = make([]composable.RecordSummary, 0, len(records))
+		for _, rec := range records {
+			summary, err := composable.ResolveRecordSummary(machine, rowNode, rec.ID, rec.Data)
+			if err != nil {
+				http.Error(w, "failed to resolve record summary", http.StatusInternalServerError)
+				return
+			}
+			summaries = append(summaries, summary)
+		}
 	}
 
 	planExplain := h.explainComposablePlan(r, applicationID, machine, role[0])
 
 	a := h.auth(r)
-	page := ui.ComposablePreview(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, view.Name, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), summaries, planExplain)
+	page := ui.ComposablePreview(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, viewName, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), summaries, planExplain)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render composable preview", "error", err)
 	}

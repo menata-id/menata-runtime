@@ -49,3 +49,26 @@ CPLAN_BODY=$(get_body "$BASE_URL/mch_approval_document/composable-preview" "$ALI
 printf '%s' "$CPLAN_BODY" | grep -q 'data-composable-plan="ExecutionPlan: 1 group(s), naive=4 dedup=3' \
   && printf '%s' "$CPLAN_BODY" | grep -q 'mch_approval_document: 3 node(s)'
 check T265 "composable-runtime-roadmap.md §17b" "Dependency DAG/Execution Planner runs on this live request (1 group, naive=4 dedup=3, mch_approval_document: 3 node(s))" $?
+
+# T266 -- composable-runtime-roadmap.md §17c generalizes this route beyond
+# the one machine with a cards-display List View: mch_approval_step has
+# none (its only List, vw_as_progress, is a plain table), so before 17c
+# this URL 400'd outright. It now returns 200 with an empty card grid,
+# reaching this second real machine's own Dependency DAG/Execution Planner
+# for the first time on the live path.
+CSTEP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$ALICE" "$BASE_URL/mch_approval_step/composable-preview")
+[ "$CSTEP_CODE" = "200" ]
+check T266 "composable-runtime-roadmap.md §17c" "a machine with no cards-display List View still returns 200, not 400 (got $CSTEP_CODE)" $?
+
+# T267 -- the same response still carries a real plan diagnostic (proves
+# explainComposablePlan, 17b, ran against mch_approval_step -- not just
+# that the route stopped 400ing). Deliberately NOT asserting specific
+# node/group numbers: vw_as_detail's own embedded decision_stepper/
+# coord_placement children (17c's own LowerPage fix) have no representable
+# Dataset yet (BuildDatasetFromView has no case for either type), so the
+# plan's naive/dedup counts here reflect only vw_as_form/vw_as_progress --
+# unchanged by 17c's fix, by design (see composable-runtime-roadmap.md's
+# own 17c section for why asserting otherwise here would be dishonest).
+CSTEP_BODY=$(get_body "$BASE_URL/mch_approval_step/composable-preview" "$ALICE")
+printf '%s' "$CSTEP_BODY" | grep -q 'data-composable-plan="ExecutionPlan: '
+check T267 "composable-runtime-roadmap.md §17c" "the Dependency DAG/Execution Planner diagnostic runs against mch_approval_step too (a second real machine on the live path)" $?
