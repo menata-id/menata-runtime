@@ -16,9 +16,12 @@ import "menata.id/app/internal/model"
 // internal/ui CAN consume internal/composable's own View Model types
 // straight, no adapter struct needed (Gate 5 only forbids the reverse
 // direction: internal/composable never imports internal/ui/store/http).
-// Deliberately narrower than the real CAP-V02 Tier 2 cards feature
-// (list.templ) -- title+subtitle only, no status badge -- see
-// ComposablePreview's own handler doc comment for why.
+// composable-runtime-roadmap.md 17e: the card grid now reuses list.templ's
+// own RecordSummaryCard/StatusBadge/Avatar/initials directly (same
+// package, no import needed) -- avatar, joined subtitle, and status badge
+// all included, matching the real CAP-V02 Tier 2 cards feature exactly
+// (T268/T269 prove it). See ComposablePreview's own handler doc comment
+// for the one named remaining gap (SlaBadge).
 //
 // planExplain (composable-runtime-roadmap.md 17b) is ExecutionPlan.Explain()'s
 // own output from lowering this machine's FULL page (every View, not just
@@ -29,7 +32,7 @@ import "menata.id/app/internal/model"
 // HTML comment -- untested territory for this codebase's .templ files) so
 // it's inspectable via the response body without server-log access. Empty
 // when the plan could not be built; renders nothing in that case.
-func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary, planExplain string) templ.Component {
+func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, planExplain string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -69,13 +72,13 @@ func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmi
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(viewName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 27, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 30, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h1><p class=\"mt-1 inline-block rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700\">Composable substrate preview — title/subtitle only, not the full cards view.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h1><p class=\"mt-1 inline-block rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700\">Composable substrate preview — same card rendering as the real cards view.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -87,7 +90,7 @@ func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmi
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(planExplain)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 33, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 36, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 				if templ_7745c5c3_Err != nil {
@@ -98,11 +101,11 @@ func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmi
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " <div class=\"grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " <div class=\"space-y-3\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			for _, s := range summaries {
+			for i, s := range summaries {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<a href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -110,60 +113,32 @@ func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmi
 				var templ_7745c5c3_Var5 templ.SafeURL
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + s.RecordID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 38, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 41, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" class=\"block rounded-md border border-slate-200 bg-white p-3 text-sm shadow-sm hover:shadow\"><div class=\"font-medium text-slate-900\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" class=\"block transition-opacity hover:opacity-80\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var6 string
-				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(s.Title.Display)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 41, Col: 62}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+				templ_7745c5c3_Err = RecordSummaryCard(initials(s.Title.Display), s.Title.Display, s.Subtitle.Display, statusBadgeComponent(badges, i)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				if s.Subtitle.Display != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"text-slate-500\">")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					var templ_7745c5c3_Var7 string
-					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(s.Subtitle.Display)
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/composable_preview.templ`, Line: 43, Col: 54}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div>")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</a> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</a> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if len(summaries) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"rounded-md border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400\">No records</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"rounded-lg border border-slate-200 bg-white py-16 text-center text-sm text-slate-400\">No records yet. Create the first one.</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -175,6 +150,20 @@ func ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmi
 		}
 		return nil
 	})
+}
+
+// statusBadgeComponent mirrors list.templ's own cardBadge -- simpler,
+// since this pilot's own real target (mch_approval_document's vw_ad_all)
+// has no SLA-eligible column, so only StatusBadge is needed here (a named
+// gap, not an oversight -- see ComposablePreview's own handler doc
+// comment). nil (no badge rendered) when i is out of range or the
+// resolved value is empty, matching cardBadge's own "cs.Badge == ”"
+// no-badge case.
+func statusBadgeComponent(badges []composable.StatusValue, i int) templ.Component {
+	if i >= len(badges) || badges[i].Display == "" {
+		return nil
+	}
+	return StatusBadge(badges[i].Display)
 }
 
 var _ = templruntime.GeneratedTemplate

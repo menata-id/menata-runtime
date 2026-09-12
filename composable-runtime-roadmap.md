@@ -1098,6 +1098,57 @@ Management, and a production cutover of this route all remain out of scope too, 
 
 ---
 
+# 17e. Full Render-Output Equivalence for Document Approval's Cards (2026-09-12)
+
+**Not one of the original 14 phases** — closes the specific precondition §2a's own rule 6
+(`17d`) named for any future per-page cutover: "only once render-output equivalence is actually
+proven for that specific page." Grounded directly against the real code before starting (not
+assumed): equivalence did **not** hold for `mch_approval_document`'s cards (`vw_ad_all`), the
+most mature composable case — the composable preview had no avatar, no status badge (despite
+`StatusBadge`'s own component contract existing and being proven by tests since Phase 5, zero
+non-test call site ever constructed one), and only a 2nd-column subtitle instead of every
+remaining column joined `" · "`. Owner decision (this conversation, via AskUserQuestion): close
+all three gaps in one increment rather than incrementally.
+
+**What was built:** `internal/composable/view_lowering.go`'s new `CardBadgeField` names which
+column is the status badge — the **last** `value_list`-typed non-title column, exactly mirroring
+`internal/ui/list.templ`'s own `cardSummary` convention (its own comment: "caught live
+2026-09-10... an app's cards Views always put Status last"). `LowerCardRowComponent` gained a
+`*model.Machine` parameter to look this up, and now excludes the badge column from the subtitle,
+joining every other non-title column's id into `subtitle_field`'s own value as a comma-separated
+list — `ResolveRecordSummary` (`viewmodel_resolve.go`) splits and joins their resolved Display
+values with `" · "`, byte-identical to before when there is exactly one id (every pre-17e
+caller). `ComposablePreview` (`composable_preview.go`) resolves a parallel `[]composable.
+StatusValue` via `LowerStatusBadge`/`ResolveStatusValue`, and the templ
+(`composable_preview.templ`) now calls the exact same `RecordSummaryCard`/`StatusBadge`/`Avatar`/
+`initials` building blocks the real feature uses (same `ui` package, no import needed) instead of
+hand-rolled lookalike markup — including matching `listCards`' own wrapper (`space-y-3`) and
+empty-state copy ("No records yet. Create the first one."), not just the card's own inner shape.
+
+**Proof:** two new tests, not one, deliberately kept separate — `conformance/tests/
+241_composable_pilot.sh`'s T268 establishes the ground truth (the REAL cards page shows the
+expected avatar initials, joined subtitle `Report · Sequential`, and badge `Draft` for a freshly
+created record — `vw_ad_all`'s own columns are `[title, document_type, approval_mode, status]`,
+and the LAST three are all `value_list`-typed, the exact multi-eligible-column scenario
+`cardSummary`'s own comment names), and T269 proves `/composable-preview` now reproduces the
+identical three facts for the identical record — real equivalence, not merely a passing
+resemblance. `Handler.ComposablePreview` was refactored (extracting
+`resolveComposableCardSummaries`) to stay under Gate 3's cyclomatic-complexity ratchet rather
+than requesting a baseline exception, the same lesson `17c` already established. Full suite: 275
+passed, 0 failed (`./scripts/local-ci.sh`) — no regression, two net new tests.
+
+**Not done here** (explicitly deferred, not silently skipped): `SlaBadge` is not reproduced — no
+column on `vw_ad_all` is SLA-eligible, so nothing in this page's own real rendering ever reaches
+it; building a general composable `SlaBadge` component now would be unforced capability work.
+Every other page (`mch_approval_step`'s Detail/board-less cards, Document Approval's own
+Detail/Dashboard, Project Management) remains exactly where 17b/17c/17d left it — this increment
+proves equivalence for `vw_ad_all` specifically, not universally. **Actual cutover of the real
+List route remains untouched and undecided** — §2a's rule 6 treats it as its own separate, later
+decision even now that equivalence is proven for this one page; `record_crud.go`/`views.go` are
+not modified by this change at all.
+
+---
+
 # 18. Phase 14 — Production Hardening
 
 Only after real trial workloads:

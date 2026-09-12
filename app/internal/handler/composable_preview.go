@@ -17,13 +17,21 @@ import (
 // real HTTP response over real seeded Postgres data end to end --
 // List/Board/Detail (record_crud.go, views.go) are completely untouched by
 // this handler; nothing about their behavior changes. The card grid itself
-// (RecordSummaryCard, title+subtitle only, no status badge like the real
-// CAP-V02 Tier 2 cards feature shows -- a named limitation, not an
-// oversight) only renders when the machine has a default List View in
-// "cards" display mode; a machine without one still gets a 200 with an
-// empty grid, since 17c generalized this route to reach ANY machine's own
+// only renders when the machine has a default List View in "cards"
+// display mode; a machine without one still gets a 200 with an empty
+// grid, since 17c generalized this route to reach ANY machine's own
 // Dependency DAG/Execution Planner diagnostic (explainComposablePlan,
 // 17b), not just the one machine that happens to have a cards list.
+//
+// composable-runtime-roadmap.md 17e: the card grid now reuses the exact
+// same RecordSummaryCard/StatusBadge/Avatar rendering the real CAP-V02
+// Tier 2 cards feature uses (internal/ui/list.templ) -- avatar initials,
+// a joined multi-column subtitle, and a status badge (CardBadgeField's
+// own column) all included, proven equivalent to the real feature by
+// T268/T269 (conformance/tests/241_composable_pilot.sh). Named remaining
+// gap, not an oversight: SlaBadge is not reproduced -- no column on this
+// pilot's own real target (vw_ad_all) is SLA-eligible, so nothing forces
+// it yet.
 func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 	machineID := chi.URLParam(r, "machineID")
 	machine, ok := h.interp.Get().GetMachine(machineID)
@@ -48,44 +56,81 @@ func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 
 	viewName := machine.Name
 	var summaries []composable.RecordSummary
+	var badges []composable.StatusValue
 	if view := h.interp.Get().DefaultListView(machineID); view != nil && view.Config.Display == "cards" {
 		viewName = view.Name
-
-		ds, err := composable.BuildDatasetFromView(machine, view)
-		if err != nil {
-			http.Error(w, "failed to build dataset", http.StatusInternalServerError)
+		var ok bool
+		summaries, badges, ok = h.resolveComposableCardSummaries(w, r, machine, view)
+		if !ok {
 			return
-		}
-		rowNode, err := composable.LowerCardRowComponent(view, ds)
-		if err != nil {
-			http.Error(w, "failed to lower card component", http.StatusInternalServerError)
-			return
-		}
-
-		records, err := h.records.List(r.Context(), machineID, "", "")
-		if err != nil {
-			http.Error(w, "failed to load records", http.StatusInternalServerError)
-			return
-		}
-
-		summaries = make([]composable.RecordSummary, 0, len(records))
-		for _, rec := range records {
-			summary, err := composable.ResolveRecordSummary(machine, rowNode, rec.ID, rec.Data)
-			if err != nil {
-				http.Error(w, "failed to resolve record summary", http.StatusInternalServerError)
-				return
-			}
-			summaries = append(summaries, summary)
 		}
 	}
 
 	planExplain := h.explainComposablePlan(r, applicationID, machine, role[0])
 
 	a := h.auth(r)
-	page := ui.ComposablePreview(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, viewName, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), summaries, planExplain)
+	page := ui.ComposablePreview(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, viewName, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), summaries, badges, planExplain)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render composable preview", "error", err)
 	}
+}
+
+// resolveComposableCardSummaries resolves view's own cards rendering (the
+// RecordSummary/StatusValue slices ComposablePreview's templ needs) --
+// extracted purely to keep ComposablePreview itself within Gate 3's
+// cyclomatic-complexity ratchet (composable-runtime-roadmap.md 17e; the
+// same lesson 17c's own test refactor already applied). On any failure,
+// writes a generic (CWE-209-safe, Gate 1) 500 itself and returns ok=false
+// -- the caller's only job on that path is to return immediately.
+func (h *Handler) resolveComposableCardSummaries(w http.ResponseWriter, r *http.Request, machine *model.Machine, view *model.View) (summaries []composable.RecordSummary, badges []composable.StatusValue, ok bool) {
+	ds, err := composable.BuildDatasetFromView(machine, view)
+	if err != nil {
+		http.Error(w, "failed to build dataset", http.StatusInternalServerError)
+		return nil, nil, false
+	}
+	rowNode, err := composable.LowerCardRowComponent(machine, view, ds)
+	if err != nil {
+		http.Error(w, "failed to lower card component", http.StatusInternalServerError)
+		return nil, nil, false
+	}
+
+	var badgeNode *composable.UINode
+	if badgeField := composable.CardBadgeField(machine, view.Config.Columns); badgeField != "" {
+		node, err := composable.LowerStatusBadge(machine, badgeField)
+		if err != nil {
+			http.Error(w, "failed to lower status badge", http.StatusInternalServerError)
+			return nil, nil, false
+		}
+		badgeNode = &node
+	}
+
+	records, err := h.records.List(r.Context(), machine.ID, "", "")
+	if err != nil {
+		http.Error(w, "failed to load records", http.StatusInternalServerError)
+		return nil, nil, false
+	}
+
+	summaries = make([]composable.RecordSummary, 0, len(records))
+	badges = make([]composable.StatusValue, 0, len(records))
+	for _, rec := range records {
+		summary, err := composable.ResolveRecordSummary(machine, rowNode, rec.ID, rec.Data)
+		if err != nil {
+			http.Error(w, "failed to resolve record summary", http.StatusInternalServerError)
+			return nil, nil, false
+		}
+		summaries = append(summaries, summary)
+
+		var badge composable.StatusValue
+		if badgeNode != nil {
+			badge, err = composable.ResolveStatusValue(machine, *badgeNode, rec.Data)
+			if err != nil {
+				http.Error(w, "failed to resolve status badge", http.StatusInternalServerError)
+				return nil, nil, false
+			}
+		}
+		badges = append(badges, badge)
+	}
+	return summaries, badges, true
 }
 
 // explainComposablePlan (composable-runtime-roadmap.md 17b) lowers

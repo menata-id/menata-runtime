@@ -41,7 +41,7 @@ func TestLowerViewToComponentAgainstApprovalCase(t *testing.T) {
 	if node.Properties["display"] != "cards" {
 		t.Errorf("vw_ad_pending display = %q, want %q", node.Properties["display"], "cards")
 	}
-	if _, err := composable.LowerCardRowComponent(pending, *node.Dataset); err != nil {
+	if _, err := composable.LowerCardRowComponent(doc, pending, *node.Dataset); err != nil {
 		t.Errorf("LowerCardRowComponent(vw_ad_pending): %v", err)
 	}
 }

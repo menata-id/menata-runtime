@@ -40,7 +40,7 @@ func TestLowerViewToComponent_CardsDisplay(t *testing.T) {
 		t.Errorf("Properties[display] = %q, want %q", node.Properties["display"], "cards")
 	}
 
-	card, err := composable.LowerCardRowComponent(v, *node.Dataset)
+	card, err := composable.LowerCardRowComponent(m, v, *node.Dataset)
 	if err != nil {
 		t.Fatalf("LowerCardRowComponent: %v", err)
 	}

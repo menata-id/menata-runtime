@@ -2,6 +2,7 @@ package composable
 
 import (
 	"fmt"
+	"strings"
 
 	"menata.id/app/internal/expr"
 	"menata.id/app/internal/model"
@@ -62,6 +63,14 @@ func ResolveFieldValue(m *model.Machine, fieldID string, record map[string]any) 
 
 // ResolveRecordSummary builds a RecordSummaryCard component's own
 // RecordSummary from record -- fails loud if node isn't that ComponentType.
+//
+// composable-runtime-roadmap.md 17e: subtitle_field's own value may name
+// several field ids, comma-separated (LowerCardRowComponent's own way of
+// excluding whichever column CardBadgeField claims) -- each resolves
+// independently and their non-empty Display values join with " · ",
+// matching internal/ui/list.templ's own cardSummary exactly. A single id
+// (no comma, every pre-17e caller) resolves byte-identically to before:
+// the same one FieldValue, unjoined.
 func ResolveRecordSummary(m *model.Machine, node UINode, recordID string, record map[string]any) (RecordSummary, error) {
 	if node.ComponentType != ComponentRecordSummaryCard {
 		return RecordSummary{}, fmt.Errorf("composable: ResolveRecordSummary: node is a %q component, want %q", node.ComponentType, ComponentRecordSummaryCard)
@@ -72,11 +81,26 @@ func ResolveRecordSummary(m *model.Machine, node UINode, recordID string, record
 	}
 	summary := RecordSummary{RecordID: recordID, Title: title}
 	if subtitleField := node.Properties["subtitle_field"]; subtitleField != "" {
-		subtitle, err := ResolveFieldValue(m, subtitleField, record)
-		if err != nil {
-			return RecordSummary{}, err
+		fieldIDs := strings.Split(subtitleField, ",")
+		if len(fieldIDs) == 1 {
+			subtitle, err := ResolveFieldValue(m, fieldIDs[0], record)
+			if err != nil {
+				return RecordSummary{}, err
+			}
+			summary.Subtitle = subtitle
+		} else {
+			var parts []string
+			for _, fieldID := range fieldIDs {
+				fv, err := ResolveFieldValue(m, fieldID, record)
+				if err != nil {
+					return RecordSummary{}, err
+				}
+				if fv.Display != "" {
+					parts = append(parts, fv.Display)
+				}
+			}
+			summary.Subtitle = FieldValue{Kind: FieldValueField, Display: strings.Join(parts, " · ")}
 		}
-		summary.Subtitle = subtitle
 	}
 	return summary, nil
 }

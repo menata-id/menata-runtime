@@ -4,11 +4,12 @@
 # + ResolveRecordSummary) over real seeded Postgres data, additive to
 # mch_approval_document's own vw_ad_all (display: cards, seeds/048), same
 # machine T248 (210_v02t2_v09t2.sh) already proves the real cards feature
-# against. This route is a narrower preview (title+subtitle only, no status
-# badge) -- see the handler's own doc comment for why that's a named
-# limitation, not a bug. Reuses ALICE/ALICE_ID (010's own resolution) and
-# FRANK (HR, app_hr -- no role at all on app_approval, same "wrong app"
-# shape as every other cross-app 403 test in this suite).
+# against. As of 17e (T268/T269 below), this route reuses the exact same
+# RecordSummaryCard/StatusBadge/Avatar rendering the real cards feature
+# does, proven equivalent, not just visually similar. Reuses ALICE/
+# ALICE_ID (010's own resolution) and FRANK (HR, app_hr -- no role at all
+# on app_approval, same "wrong app" shape as every other cross-app 403
+# test in this suite).
 
 # T262 -- a real Document's own title/document_type reach the page via the
 # composable substrate (Dataset -> UINode -> ResolveRecordSummary), not a
@@ -72,3 +73,39 @@ check T266 "composable-runtime-roadmap.md §17c" "a machine with no cards-displa
 CSTEP_BODY=$(get_body "$BASE_URL/mch_approval_step/composable-preview" "$ALICE")
 printf '%s' "$CSTEP_BODY" | grep -q 'data-composable-plan="ExecutionPlan: '
 check T267 "composable-runtime-roadmap.md §17c" "the Dependency DAG/Execution Planner diagnostic runs against mch_approval_step too (a second real machine on the live path)" $?
+
+# T268/T269 -- composable-runtime-roadmap.md §17e: real render-output
+# equivalence, not just "a card renders." vw_ad_all's own columns are
+# [fld_ad_title, fld_ad_document_type, fld_ad_approval_mode, fld_ad_status]
+# -- the LAST three are all value_list-typed (list.templ's own cardSummary
+# comment names this exact scenario: "Document Type ... and Status ... are
+# both badge-eligible"), so CardBadgeField must pick fld_ad_status (the
+# last one), leaving document_type+approval_mode to join the subtitle.
+# initials() is a pure function of the title (first letter of first word +
+# first letter of last word) -- computed here from the same title used to
+# create the record, not guessed. "Draft" is the real, evented default for
+# a never-submitted document (evt_ad_submit's own precondition requires
+# status="Draft" to fire at all; T254b already established this fact).
+CEQ_INITIALS="T$(printf '%s' "$$" | cut -c1)"
+CEQ_DATA="fld_ad_title=T268+Equivalence+$$&fld_ad_document_type=Report&fld_ad_file=t268.pdf&fld_ad_submitted_by=$ALICE_ID&fld_ad_approval_mode=Sequential"
+post_redirect "$BASE_URL/mch_approval_document" "$CEQ_DATA" "$ALICE" >/dev/null
+
+# T268 -- ground truth: the REAL cards page shows exactly these three
+# facts for this record (T248 already proves a card renders at all; this
+# is the specific avatar/subtitle-join/badge shape this equivalence claim
+# rests on).
+CEQ_REAL_BODY=$(get_body "$BASE_URL/mch_approval_document" "$ALICE")
+printf '%s' "$CEQ_REAL_BODY" | grep -q ">$CEQ_INITIALS<" \
+  && printf '%s' "$CEQ_REAL_BODY" | grep -q "Report · Sequential" \
+  && printf '%s' "$CEQ_REAL_BODY" | grep -q ">Draft<"
+check T268 "composable-runtime-roadmap.md §17e" "the real cards page shows initials=$CEQ_INITIALS, subtitle=Report · Sequential, badge=Draft (ground truth)" $?
+
+# T269 -- the composable-preview route now reproduces the SAME three facts
+# for the SAME record, via LowerCardRowComponent/CardBadgeField/
+# ResolveRecordSummary/LowerStatusBadge/ResolveStatusValue -- not merely a
+# visually-similar approximation, the actual cardSummary logic.
+CEQ_COMPOSABLE_BODY=$(get_body "$BASE_URL/mch_approval_document/composable-preview" "$ALICE")
+printf '%s' "$CEQ_COMPOSABLE_BODY" | grep -q ">$CEQ_INITIALS<" \
+  && printf '%s' "$CEQ_COMPOSABLE_BODY" | grep -q "Report · Sequential" \
+  && printf '%s' "$CEQ_COMPOSABLE_BODY" | grep -q ">Draft<"
+check T269 "composable-runtime-roadmap.md §17e" "composable-preview reproduces the same initials/subtitle/badge -- real render-output equivalence, not an approximation" $?

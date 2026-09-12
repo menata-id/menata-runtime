@@ -26,7 +26,7 @@ func TestResolveRecordSummaryAgainstKanbanLab(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildDatasetFromView: %v", err)
 	}
-	card, err := composable.LowerCardRowComponent(v, ds)
+	card, err := composable.LowerCardRowComponent(m, v, ds)
 	if err != nil {
 		t.Fatalf("LowerRecordSummaryCard: %v", err)
 	}

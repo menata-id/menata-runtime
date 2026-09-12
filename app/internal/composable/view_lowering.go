@@ -1,20 +1,27 @@
 package composable
 
-import "menata.id/app/internal/model"
+import (
+	"strings"
 
-// firstTwoColumns is the heuristic card-mode Collection lowering uses when
-// metadata names no explicit title/subtitle field -- same "prototype-
-// honest heuristic, graceful degrade" posture as displayLabel/initials()
-// elsewhere in this codebase: the first declared column is the title, the
-// second (if any) the subtitle.
-func firstTwoColumns(columns []string) (title, subtitle string) {
-	if len(columns) > 0 {
-		title = columns[0]
+	"menata.id/app/internal/model"
+)
+
+// CardBadgeField names which of columns should render as a card's status
+// badge -- the LAST value_list-typed column among the non-title columns,
+// exactly matching the real CAP-V02 Tier 2 cards convention
+// (internal/ui/list.templ's own cardSummary: "the LAST badge-eligible
+// column, not the first" -- caught live 2026-09-10, since an app's cards
+// Views always put Status last but an earlier value_list column, e.g.
+// Document Type, is merely descriptive text). Returns "" when no column
+// is value_list-typed -- not every card has a badge.
+func CardBadgeField(m *model.Machine, columns []string) string {
+	badge := ""
+	for i := 1; i < len(columns); i++ {
+		if f := findField(m, columns[i]); f != nil && f.Type == model.FieldTypeValueList {
+			badge = columns[i]
+		}
 	}
-	if len(columns) > 1 {
-		subtitle = columns[1]
-	}
-	return title, subtitle
+	return badge
 }
 
 // LowerViewToComponent lowers v (List/Board/Calendar/Timeline) into its
@@ -55,15 +62,34 @@ func LowerViewToComponent(m *model.Machine, v *model.View) (UINode, error) {
 }
 
 // LowerCardRowComponent resolves the RecordSummaryCard shape a card-mode
-// Collection's own rows use (v.Config.Display == "cards"), via
-// firstTwoColumns' heuristic -- proves the two components compose
-// correctly, as a sibling fact next to the Collection LowerViewToComponent
-// already returns. Row-shape composition stays a render-time concern, not
-// an authored-metadata Children entry -- both Phase 5 contracts declare
-// AllowsChildren:false.
-func LowerCardRowComponent(v *model.View, ds Dataset) (UINode, error) {
-	title, subtitle := firstTwoColumns(v.Config.Columns)
-	return LowerRecordSummaryCard(ds, title, subtitle)
+// Collection's own rows use (v.Config.Display == "cards") -- proves the
+// two components compose correctly, as a sibling fact next to the
+// Collection LowerViewToComponent already returns. Row-shape composition
+// stays a render-time concern, not an authored-metadata Children entry --
+// both Phase 5 contracts declare AllowsChildren:false.
+//
+// composable-runtime-roadmap.md 17e: the first column is always the
+// title (same heuristic as before); CardBadgeField's own column is
+// excluded from the subtitle rather than shown twice, and every OTHER
+// non-title column is joined into subtitle_field's own value as a
+// comma-separated list of field ids -- ResolveRecordSummary (viewmodel_
+// resolve.go) splits and joins their resolved Display values with " · ",
+// matching cardSummary's own multi-column subtitle exactly. A single id
+// (no comma) resolves byte-identically to before this change.
+func LowerCardRowComponent(m *model.Machine, v *model.View, ds Dataset) (UINode, error) {
+	columns := v.Config.Columns
+	var title string
+	if len(columns) > 0 {
+		title = columns[0]
+	}
+	badge := CardBadgeField(m, columns)
+	var subtitleFields []string
+	for i := 1; i < len(columns); i++ {
+		if columns[i] != badge {
+			subtitleFields = append(subtitleFields, columns[i])
+		}
+	}
+	return LowerRecordSummaryCard(ds, title, strings.Join(subtitleFields, ","))
 }
 
 // LowerDashboardView lowers a "dashboard" View's own Sections into a
