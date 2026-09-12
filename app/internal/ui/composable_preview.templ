@@ -1,0 +1,41 @@
+package ui
+
+import "menata.id/app/internal/composable"
+import "menata.id/app/internal/model"
+
+// ComposablePreview (composable-runtime-roadmap.md §17a, Live Wiring Pilot)
+// renders composable.RecordSummary values directly -- proving
+// internal/ui CAN consume internal/composable's own View Model types
+// straight, no adapter struct needed (Gate 5 only forbids the reverse
+// direction: internal/composable never imports internal/ui/store/http).
+// Deliberately narrower than the real CAP-V02 Tier 2 cards feature
+// (list.templ) -- title+subtitle only, no status badge -- see
+// ComposablePreview's own handler doc comment for why.
+templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary) {
+	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
+		<div class="mb-4">
+			<h1 class="text-xl font-semibold text-slate-900">{ viewName }</h1>
+			<p class="mt-1 inline-block rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700">
+				Composable substrate preview — title/subtitle only, not the full cards view.
+			</p>
+		</div>
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+			for _, s := range summaries {
+				<a
+					href={ templ.SafeURL("/" + wsSlug + "/" + machine.ID + "/" + s.RecordID) }
+					class="block rounded-md border border-slate-200 bg-white p-3 text-sm shadow-sm hover:shadow"
+				>
+					<div class="font-medium text-slate-900">{ s.Title.Display }</div>
+					if s.Subtitle.Display != "" {
+						<div class="text-slate-500">{ s.Subtitle.Display }</div>
+					}
+				</a>
+			}
+			if len(summaries) == 0 {
+				<div class="rounded-md border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400">
+					No records
+				</div>
+			}
+		</div>
+	}
+}
