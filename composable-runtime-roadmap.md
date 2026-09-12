@@ -52,9 +52,64 @@ The following are the important implementation gaps that must be explicitly trac
 | CR-23 | conformance model for composition validity | existing conformance is capability-oriented; composition proofs need expansion | P1 |
 | CR-24 | failure isolation / partial rendering policy | architectural rule; no common composed-request implementation | P2 |
 | CR-25 | renderer-neutral View Model / Render Input | **Phase 10 slice implemented, 2026-09-11** — `app/internal/composable/viewmodel.go`'s `FieldValue{Kind, Display}` plus `RecordSummary`/`MetricValue`/`CollectionItem`/`StatusValue`/`ActionSet` (exactly §14's own five named examples) are the renderer-neutral shapes; `viewmodel_resolve.go`'s resolvers are the first code in this package to accept real record data (a plain `map[string]any`, matching `internal/store.Record.Data`'s own shape) without importing `internal/store` itself. Zero Templ/HTML coupling — proven by construction (no such import exists anywhere in the package). Proven against real seeded records (Kanban Lab) and real rows inserted via the actual `store.RecordStore.Create` write path in tests (Typeahead Lab's `reference` field, Expression Lab's real CEL-computed field, Approval Document's real declared Events). Reference/user/group fields resolve to their raw stored id only (no cross-entity label dereferencing — a named, deferred gap); `ActionSet` applies no ownership/permission filtering. | P1 |
-| CR-26 | migration compatibility for existing View handlers | planned | P0 |
+| CR-26 | migration compatibility for existing View handlers | **RESOLVED 2026-09-12** — see §2a's Migration Compatibility Contract below, backed by 17a/17b/17c's own real evidence (three shipped increments, not a policy statement). | P0 |
 | CR-27 | Grammar-area decision for `Dataset` (new Grammar area `D`, alongside `F/E/A/C/P/V/R/X/I/O`, vs. folding under `View`) | **RESOLVED 2026-09-11, implemented** — owner decision: new Grammar area `D` (Data), consistent with the Domain/Data/Experience plane split `004`/`006`/`007` commit to. `capability-registry.md` gained a `## Data` section; `CAP-V22`/`CAP-V23` are reclassified there (pointer rows) with their IDs **retained unchanged** in `## Views` for stability, per the registry's own ratchet rule (never renumber/delete, only append). `capability-lifecycle.md` A3 and the proposal template now enumerate `D`; `nfr-standards.md` gained `### 2.11 Data (CAP-D*)`. | P0 |
 | CR-28 | `007-composable-runtime-architecture.md` §40 (claim-by-claim PROVEN/PROPOSED citation matrix) does not exist | **RESOLVED 2026-09-11** — §40 added to `007`, citing `composable-runtime-blueprint.md` §3 and this file's own `CR-01`–`CR-28` register per claim. | P0 |
+
+---
+
+# 2a. Migration Compatibility Contract (resolves CR-26)
+
+**Not a new mechanism to build — a contract written down from three real, already-shipped
+increments (17a/17b/17c) that already are instances of it.** CR-26 sat as "planned" since this
+register's own creation; per Principle #8 below (evidence before optimization) and the same
+"resolve once real evidence exists" pattern `CR-27`/`CR-28` already used, it is resolved here by
+stating, explicitly, the contract practice already established — each rule cited to a specific,
+checkable fact, not asserted from memory.
+
+1. **Additive-only routing.** A composable-backed capability lands at a *new* URL path alongside
+   an existing route, never by rewriting an existing route's own handler function. `17a` added
+   `GET /{machineID}/composable-preview` (`internal/router/router.go`) beside the pre-existing
+   `/{machineID}` (List), `/{machineID}/board` (Board), `/{machineID}/{recordID}` (Detail)
+   registrations — none of those touched.
+2. **Existing handler files stay unedited.** `record_crud.go`, `views.go`, `embed.go`,
+   `formfields.go` — the real, currently-shipped View handlers — are never modified to introduce
+   a composable-backed alternative. Verified directly against `git show --stat` for all three
+   commits (`ab1a557`/`4ea2af9`/`b5fe33c`): every file touched is one of
+   `composable_preview.go`/`.templ`/`_templ.go`, `router.go` (17a's one added route line),
+   `internal/composable/ui.go`/`ui_seed_test.go` (17c), conformance, or this roadmap document —
+   never the four files above.
+3. **New composable routes reuse the exact same guard sequence, never a parallel one with
+   different semantics.** GetMachine 404 → workspace-scope 404 (CAP-X06) → `roleForApp`/
+   `CanRead` 403 (CAP-P02), in that order — `composable_preview.go`'s guard block mirrors every
+   other per-machine handler's own; T263/T264/T266 (`conformance/tests/241_composable_pilot.sh`)
+   prove identical 403/404 behavior on the new route as on old ones.
+4. **The full existing conformance suite is the compatibility gate, zero regressions tolerated,
+   checked after every increment** — an actually-run mechanism, not a policy statement: 271 → 273
+   passed, 0 failed, across 17a → 17b → 17c, via `./scripts/local-ci.sh` every time.
+5. **Gate 5 (import-boundary fitness function) enforces the migration direction structurally,
+   not just by convention.** `check-quality-gates.sh`'s Gate 5 forbids `internal/composable`
+   production code (non-`_test.go`) from importing `internal/store`, `internal/db`,
+   `internal/handler`, or `"net/http"` (verified against the gate's own current script) — so a
+   handler may depend on composable, but composable can never become load-bearing for an old
+   handler's own behavior. CI-enforced on every `local-ci.sh` run.
+6. **Per-page cutover is a separate, later decision — this contract does not authorize or
+   schedule one.** Replacing an old route's *own* rendering with the composable path happens
+   only once render-output equivalence is actually proven for that specific page. Today,
+   `composable-preview` is a parallel preview, never a replacement, for either machine it
+   currently covers.
+
+**Deliberately not resolved here, so it isn't conflated with CR-26:** a different, currently
+untracked question — how mutation Actions (Submit/Approve/Reject) relate to `internal/composable`
+— surfaced while scoping this resolution. It is **not** an open conceptual gap: `006-runtime-
+model.md`'s own Domain Model already names Action ("Create, Update, Delete, Submit, Approve,
+Reject, Publish, or Cancel") as Domain-plane, distinct from the Data/Experience planes
+`internal/composable` governs (`composable-runtime-architecture-map.md`) — so this was answered
+by `004`/`006` before this package existed, not left ambiguous. Confirmed against real code, not
+just the model documents: `internal/composable/*.go` production code imports neither
+`internal/executor` nor any `internal/store` write method today. No `CR-` id is opened for this;
+it has no forcing case yet (a real candidate: `Card.Move` in a future Project Management
+increment) and manufacturing one now would be exactly what Principle #8 warns against.
 
 ---
 
