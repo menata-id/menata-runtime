@@ -1938,6 +1938,35 @@ deliberate, minimal dispatch-hook LOC bumps — `embed.go`/`page.go`, +2 each �
 complexity baseline addition, `TestLowerPageAgainstApprovalDashboard` +1, from one added
 assertion), and `./scripts/local-ci.sh` — 296 passed, 0 failed (292 + new T287-T290).
 
+**Status update (2026-09-12, three real bugs caught live redeploying this increment, commit
+`54759ab`):** an isolated test schema only ever runs `make seed` once before being torn down, so
+none of these surfaced until this increment's own real deploy against the persistent
+`menata_runtime` database (its second deploy overall, and its first with a corrective seed on top
+of an already-seeded state) — a genuinely new methodological gap in this repo's own testing
+discipline, not just three one-off SQL mistakes:
+
+1. `053_composable_data_plane_lab.sql`'s idempotency guard matched on the specific `dataset_id` of
+   the Metric Children entry it appends to `vw_ad_page` — but `054` (the very next seed) renames
+   that `dataset_id`. On this deploy's second full `make seed` run, `053` no longer recognized its
+   own prior work and appended a stale duplicate. Fixed to guard on "any Metric component entry
+   already exists", which survives `054`'s later rename.
+2. `vw_ad_detail` already had a real, pre-existing Children entry (`vw_ad_progress`) never
+   reflected in `004_approval.sql`'s own checked-in INSERT — `055`'s "children key absent" guard
+   correctly declined to overwrite it, but as a side effect never appended `vw_ad_activity` there
+   either. New corrective seed `056_activity_log_drift_fix.sql` cleans up bug #1's stale data and
+   appends `vw_ad_activity` alongside the pre-existing `vw_ad_progress`.
+3. `056`'s own first version introduced a THIRD bug, caught applying it live: its `jsonb_agg`
+   filter used `NOT (a = 'Metric' AND b = '...')`, which is SQL `NULL` (not `false`) for every
+   Children entry with no `component` key at all — `WHERE` excludes `NULL` rows the same as
+   `false` ones, so it silently dropped Summary/Pending Documents/Recent Activity from
+   `vw_ad_page`, live, briefly breaking the real composed dashboard. Caught immediately via direct
+   psql inspection (not by a user report), corrected with `IS DISTINCT FROM` (never itself `NULL`)
+   plus a targeted repair `UPDATE` guarded on that exact corruption signature, both re-verified on
+   a fresh isolated schema — including a deliberate corrupt-then-repair simulation — before
+   reapplying live. Final live state confirmed by direct query: `vw_ad_page` has its real 4
+   Children, `vw_ad_detail` has both `vw_ad_progress` and `vw_ad_activity`. `local-ci.sh` still 296
+   passed, 0 failed after the fix.
+
 ---
 
 # 18. Phase 14 — Production Hardening
