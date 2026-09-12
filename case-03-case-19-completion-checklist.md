@@ -132,3 +132,39 @@ Staged so each stage only depends on the one before it.
 - `capability-lifecycle.md` §2 (A1-A5) — the admission test any NEW classic capability in §5
   above must pass before being built; `capability-registry.md`/`roadmap.md` are where that
   admission gets tracked once it happens.
+
+## 7. Outstanding items (not yet done, 2026-09-12)
+
+A consolidated, itemized answer to "is everything done yet" — each item below already has its own
+evidence/citation in §2/§3/§5 above; this section exists so the answer doesn't require piecing
+those table cells back together by hand.
+
+**Document Approval (Case 3):**
+- Submit document (screen 1) — the mockup's one wizard vs. the real code's two separate
+  submissions (Document, then each Approval Step) is a real, unclosed UX-flow gap; this screen has
+  never been touched by any composable work either.
+- Signature positions (screen 2) — built classically, but has zero `internal/composable`
+  representation at all.
+- Approval inbox (screen 3) — no `sla_field` configured on this Machine (the mockup's own SLA
+  chips aren't wired here); no inline PDF preview (file fields only render as a download link);
+  `DecisionStepper` progress has no composable representation.
+- Approval dashboard (screen 4) — no field-level diff between activity snapshots yet; no
+  composable representation for `activity_log`.
+
+**Project Management (Case 19):**
+- Project board (screen 1) — richer drag semantics (reorder within one lane, not just move
+  between lanes) still classic UI/JS work, not started.
+- Card detail (screen 2) — cosmetic only: Members/Labels render as titled reverse-reference
+  blocks, not the mockup's own compact single-line `Members: Raka Aditya · Andi Nur` format.
+- Timeline / Roadmap (screen 3) — not built at all; no View declared.
+- Calendar (screen 4) — not built at all; no View declared.
+- Sprint Dashboard (screen 5) — not built at all; no View declared.
+- Team Capacity (screen 6) — unblocked as of 17q (a real Members relationship now exists) but the
+  actual aggregation/capacity View itself is still not built.
+- Workflow Automation (screen 7) — the generic Event/Action mechanism exists; no PM-specific
+  automation-authoring UI exists.
+- Board Settings (screen 8) — not built at all; no dedicated settings screen.
+
+**Net: Stages 1-3 of §5's own 6-stage staged order are done (17o/17p/17q); Stages 4-6 — the
+exploratory View types, Automation/Settings screens, and their own eventual composable
+cutovers — have not been started.**
