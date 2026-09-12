@@ -60,7 +60,7 @@ func (h *Handler) detailFieldValue(ctx context.Context, f *model.Field, detailVi
 			val, urgency = label, u
 		}
 	}
-	return ui.DetailField{Name: f.Name, Value: val, Link: link, SlaUrgency: urgency}
+	return ui.DetailField{Name: f.Name, Value: val, Link: link, SlaUrgency: urgency, IsFile: f.Type == model.FieldTypeFile}
 }
 
 // resolveDetailFieldValue is the per-Field-Type dispatch, moved verbatim

@@ -65,7 +65,7 @@ func TestBuildDetailFieldsViaComposable(t *testing.T) {
 		{Name: "Active", Value: "Yes"},
 		{Name: "Amount", Value: "USD 100"},
 		{Name: "Total", Value: "200"},
-		{Name: "Attachment", Value: "abc123", Link: "/files/abc123"},
+		{Name: "Attachment", Value: "abc123", Link: "/files/abc123", IsFile: true},
 	}
 	if !reflect.DeepEqual(got[:5], want) {
 		t.Errorf("fields[:5] = %+v, want %+v", got[:5], want)

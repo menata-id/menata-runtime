@@ -185,6 +185,13 @@ type DetailField struct {
 	Value      string
 	Link       string
 	SlaUrgency string // CAP-V17: "overdue" | "warning" | "ok", empty = not an SLA-badged field
+	// IsFile (17r, Stage A item 2) marks a `file`-typed Field's own row --
+	// Value is the raw storage key (isPDFPreview, already established by
+	// coordplace.templ, decides <object> vs the plain download link from
+	// that same key's own extension). Explicit, not inferred from Link's
+	// own "/files/" prefix -- reference fields also set Link, to a
+	// different record's Detail page, not a file.
+	IsFile bool
 }
 
 // DetailLink is one extra action link a Detail page renders next to its

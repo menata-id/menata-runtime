@@ -2115,6 +2115,44 @@ Gate 3's threshold, no baseline bump needed), and `./scripts/local-ci.sh` — 31
 
 ---
 
+# 17s. Case 3 Inline PDF Preview — Stage A Item 2 (2026-09-12)
+
+Closes `case-03-case-19-completion-checklist.md`'s Stage A item 2, immediately after 17r —
+Approval Document's own file field only ever rendered a plain download link on Detail; the
+mockup (`document-approval.html`) shows the PDF inline alongside the action bar.
+
+**Sized correctly, no surprise this time:** the plan's own estimate ("likely a small `detail.
+templ` change, no new backend capability") held exactly. Grounding found `internal/storage`'s
+own `Put` (`LocalDisk`, `internal/storage/storage.go`) already appends a real file extension to
+every stored key from its own upload content-type — a `file` Field's stored VALUE already tells
+you its type, no new metadata or storage change needed. Better still: `isPDFPreview`
+(`internal/ui/coordplace.templ`) already exists, already proven, for CAP-V21's own coordinate-
+placement preview — reused verbatim rather than a second file-type-detection function.
+
+**What was built:** `ui.DetailField` gains an `IsFile bool` (explicit, not inferred from `Link`'s
+own "/files/" prefix — a `reference` Field also sets `Link`, to a different record's own Detail
+page, not a file); set once, at `detailFieldValue`'s own single construction site
+(`composable_detail.go`) shared by every Detail render path since 17o. `detail.templ` renders a
+real `<object type="application/pdf" data="/files/{key}">` row right under any file field whose
+own key ends in `.pdf`, same markup convention `coordplace.templ`'s own PDF branch already uses.
+
+**Proof:** conformance T307-T308 (`conformance/tests/247_case3_pdf_preview.sh`) — a real uploaded
+PDF renders a real, correctly-targeted `<object>` tag on Detail, and that tag's own `src`
+resolves to the real, fetchable PDF bytes (HTTP 200), not just markup that looks right. Verified
+live with a real multipart upload against both an isolated schema and the real deployed site.
+
+**Deployed live**, same as every prior increment (no new seed this time — pure code, no metadata
+change): rebuilt, restarted via `server-manager.sh`, verified directly with a real PDF upload
+against `menata.app`/`aksi.menata.id`. `case-03-case-19-completion-checklist.md` updated (Stage A
+item 2 closed, both the Case 3 table row and §7's own outstanding-items line).
+
+**Verification:** `go build`/`go vet`/`go test ./...` (one existing test's own expectation
+updated — `TestBuildDetailFieldsViaComposable` — to include the new `IsFile: true`, a real
+behavior addition, not a regression), all 5 quality gates, and `./scripts/local-ci.sh` — 314
+passed, 0 failed (312 + new T307-T308).
+
+---
+
 # 18. Phase 14 — Production Hardening
 
 Only after real trial workloads:

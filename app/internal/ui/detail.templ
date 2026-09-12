@@ -44,6 +44,11 @@ templ Detail(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, ma
 								}
 							</dd>
 						</div>
+						if f.IsFile && f.Value != "" && isPDFPreview(f.Value) {
+							<div class="border-t border-slate-100 px-5 py-3.5">
+								<object type="application/pdf" data={ templ.SafeURL(f.Link) } class="h-96 w-full rounded-md border border-slate-200"></object>
+							</div>
+						}
 					}
 				</dl>
 			</div>
