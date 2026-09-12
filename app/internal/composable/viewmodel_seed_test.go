@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+
 	"menata.id/app/internal/composable"
 	"menata.id/app/internal/metadata"
 	"menata.id/app/internal/store"
@@ -196,5 +198,111 @@ func TestResolveActionSetAgainstApprovalCase(t *testing.T) {
 	}
 	if len(set.Actions) != 1 || set.Actions[0].Label != "Submit" {
 		t.Errorf("Actions = %+v, want [{evt_ad_submit Submit}]", set.Actions)
+	}
+}
+
+// TestResolveBoardLanesAgainstProjectManagement is composable-runtime-
+// roadmap.md 17h's own real-seed proof: seeds/052_project_management.sql's
+// mch_pm_card board (vw_pmc_board, group_field: fld_pmc_list, a reference
+// to mch_pm_list) groups its four real seeded Cards into their three real
+// seeded Lists (To Do/Doing/Done) exactly like conformance/tests/
+// 240_dynamic_board_lanes.sh's own T259 already proves over HTTP -- plus
+// one case T259 itself never exercises: a lane record with zero matching
+// cards still produces an empty BoardLane, not a missing one (a fresh
+// "Backlog" list, created here with no cards). Requires DATABASE_URL
+// seeded with 001+052.
+func TestResolveBoardLanesAgainstProjectManagement(t *testing.T) {
+	pool := testdb.Connect(t)
+	ctx := context.Background()
+	workspaces, err := metadata.NewLoader(pool).LoadAll(ctx)
+	if err != nil {
+		t.Fatalf("LoadAll: %v", err)
+	}
+	app := findApplication(t, workspaces, "ws_default", "app_project_management")
+	cardMachine := findMachineByID(t, app, "mch_pm_card")
+	board := findViewByID(t, cardMachine, "vw_pmc_board")
+
+	node, err := composable.LowerViewToComponent(cardMachine, board)
+	if err != nil {
+		t.Fatalf("LowerViewToComponent: %v", err)
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, "SET LOCAL app.workspace_id = 'ws_default'"); err != nil {
+		t.Fatalf("set workspace_id: %v", err)
+	}
+	backlog, err := store.NewRecordStore(pool).Create(store.WithTx(ctx, tx), "mch_pm_list", "ws_default", map[string]any{"fld_pml_name": "Backlog"})
+	if err != nil {
+		t.Fatalf("create Backlog lane: %v", err)
+	}
+
+	laneRefs := queryRecordRefs(t, ctx, tx, "mch_pm_list")
+	cardRefs := queryRecordRefs(t, ctx, tx, "mch_pm_card")
+
+	lanes, err := composable.ResolveBoardLanes(cardMachine, node, cardRefs, laneRefs)
+	if err != nil {
+		t.Fatalf("ResolveBoardLanes: %v", err)
+	}
+
+	byLane := make(map[string]composable.BoardLane, len(lanes))
+	for _, lane := range lanes {
+		byLane[lane.LaneRecordID] = lane
+	}
+
+	assertLaneTitles(t, byLane, "33333333-4444-5555-6666-000000000011", "Wireframe homepage", "Collect brand assets")
+	assertLaneTitles(t, byLane, "33333333-4444-5555-6666-000000000012", "Build landing page")
+	assertLaneTitles(t, byLane, "33333333-4444-5555-6666-000000000013", "Kickoff meeting notes")
+
+	backlogLane, ok := byLane[backlog.ID]
+	if !ok {
+		t.Fatal("missing lane for the freshly created, zero-card Backlog list")
+	}
+	if len(backlogLane.Cards) != 0 {
+		t.Errorf("Backlog lane Cards = %+v, want empty (CAP-V14's own 'an unused lane still renders empty' rule)", backlogLane.Cards)
+	}
+}
+
+func queryRecordRefs(t *testing.T, ctx context.Context, tx pgx.Tx, machineID string) []composable.RecordRef {
+	t.Helper()
+	rows, err := tx.Query(ctx, "SELECT id, data FROM records WHERE machine_id = $1 ORDER BY created_at", machineID)
+	if err != nil {
+		t.Fatalf("query %s: %v", machineID, err)
+	}
+	defer rows.Close()
+	var refs []composable.RecordRef
+	for rows.Next() {
+		var id string
+		var data map[string]any
+		if err := rows.Scan(&id, &data); err != nil {
+			t.Fatalf("scan %s: %v", machineID, err)
+		}
+		refs = append(refs, composable.RecordRef{ID: id, Data: data})
+	}
+	return refs
+}
+
+func assertLaneTitles(t *testing.T, byLane map[string]composable.BoardLane, laneID string, wantTitles ...string) {
+	t.Helper()
+	lane, ok := byLane[laneID]
+	if !ok {
+		t.Fatalf("missing lane %s", laneID)
+	}
+	if len(lane.Cards) != len(wantTitles) {
+		t.Fatalf("lane %s has %d cards, want %d (%v)", laneID, len(lane.Cards), len(wantTitles), wantTitles)
+	}
+	got := make(map[string]bool, len(lane.Cards))
+	for _, c := range lane.Cards {
+		if len(c.Cells) > 0 {
+			got[c.Cells[0].Display] = true
+		}
+	}
+	for _, want := range wantTitles {
+		if !got[want] {
+			t.Errorf("lane %s cards = %v, missing want %q", laneID, lane.Cards, want)
+		}
 	}
 }

@@ -126,6 +126,68 @@ func ResolveCollectionItem(m *model.Machine, node UINode, recordID string, recor
 	return item, nil
 }
 
+// ResolveBoardLanes (composable-runtime-roadmap.md 17h) groups
+// cardRecords into one BoardLane per laneRecords entry, in laneRecords'
+// own order -- every lane record produces a lane even with zero matching
+// cards, mirroring internal/handler/views.go's own real Board handler
+// exactly (CAP-V14's "an unused lane still renders empty" rule). Fails
+// loud if node isn't a Collection component, carries no Dataset, or that
+// Dataset's GroupBy has no discovered Relation -- the fixed-value-list
+// lane case (CAP-V14 Tier 2, e.g. Kanban Lab's own vw_kbt_board) is not
+// handled here, deliberately: no case in this package forces it yet, and
+// silently mishandling it would be worse than refusing.
+func ResolveBoardLanes(m *model.Machine, node UINode, cardRecords, laneRecords []RecordRef) ([]BoardLane, error) {
+	if node.ComponentType != ComponentCollection {
+		return nil, fmt.Errorf("composable: ResolveBoardLanes: node is a %q component, want %q", node.ComponentType, ComponentCollection)
+	}
+	if node.Dataset == nil {
+		return nil, fmt.Errorf("composable: ResolveBoardLanes: node has no Dataset")
+	}
+	if len(node.Dataset.GroupBy) != 1 {
+		return nil, fmt.Errorf("composable: ResolveBoardLanes: Dataset.GroupBy = %v, want exactly one field", node.Dataset.GroupBy)
+	}
+	groupField := node.Dataset.GroupBy[0]
+
+	var relationFound bool
+	for _, rel := range node.Dataset.Relations {
+		if rel.ViaField == groupField {
+			relationFound = true
+			break
+		}
+	}
+	if !relationFound {
+		return nil, fmt.Errorf("composable: ResolveBoardLanes: group field %q has no discovered Relation -- fixed-value-list lanes are not handled here", groupField)
+	}
+
+	byLane := make(map[string][]RecordRef, len(laneRecords))
+	for _, card := range cardRecords {
+		key := fmt.Sprintf("%v", card.Data[groupField])
+		byLane[key] = append(byLane[key], card)
+	}
+
+	lanes := make([]BoardLane, 0, len(laneRecords))
+	for _, lane := range laneRecords {
+		items, err := resolveBoardLaneCards(m, node, byLane[lane.ID])
+		if err != nil {
+			return nil, err
+		}
+		lanes = append(lanes, BoardLane{LaneRecordID: lane.ID, Cards: items})
+	}
+	return lanes, nil
+}
+
+func resolveBoardLaneCards(m *model.Machine, node UINode, cards []RecordRef) ([]CollectionItem, error) {
+	items := make([]CollectionItem, 0, len(cards))
+	for _, card := range cards {
+		item, err := ResolveCollectionItem(m, node, card.ID, card.Data)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
 // ResolveStatusValue resolves a StatusBadge component's own declared
 // field -- fails loud if node isn't that ComponentType.
 func ResolveStatusValue(m *model.Machine, node UINode, record map[string]any) (StatusValue, error) {

@@ -1,5 +1,6 @@
 package ui
 
+import "strconv"
 import "menata.id/app/internal/composable"
 import "menata.id/app/internal/model"
 
@@ -33,7 +34,16 @@ import "menata.id/app/internal/model"
 // opts.Cards (i.e. this machine actually has a cards-display View);
 // the 17c fallback (no cards view at all) shows neither, since there is
 // nothing real to search or paginate in that case.
-templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, opts ListViewOptions, planExplain string) {
+//
+// composable-runtime-roadmap.md 17h: lanes/laneNames are non-empty
+// exactly when this machine's own preview is a dynamic-lane Board
+// instead of a cards List (mutually exclusive today -- a machine has
+// one or the other, never both, as its default collection view).
+// Deliberately narrower than the real board.templ: plain cell text, no
+// RecordSummaryCard, no drag-and-drop -- a later increment's job,
+// mirroring 17a's own original posture before 17e closed a similar gap
+// for cards.
+templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdmin bool, machine *model.Machine, viewName string, unreadCount int, subNav []SubNavLink, summaries []composable.RecordSummary, badges []composable.StatusValue, opts ListViewOptions, lanes []composable.BoardLane, laneNames map[string]string, planExplain string) {
 	@Page(viewName, workspaceName, wsSlug, identity, csrfToken, isAdmin, unreadCount, subNav) {
 		<div class="mb-4 flex items-center gap-3">
 			<h1 class="flex-1 text-xl font-semibold text-slate-900">
@@ -53,11 +63,54 @@ templ ComposablePreview(workspaceName, wsSlug, identity, csrfToken string, isAdm
 				</a>
 			}
 		</div>
-		@composableCardGrid(wsSlug, machine.ID, summaries, badges, planExplain)
+		if len(lanes) > 0 {
+			@composableBoardLanes(lanes, laneNames, planExplain)
+		} else {
+			@composableCardGrid(wsSlug, machine.ID, summaries, badges, planExplain)
+		}
 		if opts.Cards {
 			@paginationBar(wsSlug, machine.ID, opts)
 		}
 	}
+}
+
+// composableBoardLanes (composable-runtime-roadmap.md 17h) renders a
+// read-only, plain-cell-text lane grid from internal/composable's own
+// BoardLane/CollectionItem View Model -- deliberately not board.templ's
+// own RecordSummaryCard-free layout with drag-and-drop; visual/
+// functional equivalence to the real board is a later increment's job
+// (see ComposablePreview's own doc comment). data-lane names each real
+// lane record, so a conformance test can isolate one lane's own content
+// the same robust way conformance/tests/240_dynamic_board_lanes.sh
+// already does for the real board.
+templ composableBoardLanes(lanes []composable.BoardLane, laneNames map[string]string, planExplain string) {
+	if planExplain != "" {
+		<div class="hidden" data-composable-plan={ planExplain }></div>
+	}
+	<div class="flex gap-4 overflow-x-auto">
+		for _, lane := range lanes {
+			<div class="w-72 flex-shrink-0" data-lane={ lane.LaneRecordID }>
+				<div class="mb-2 flex items-center justify-between text-sm font-medium text-slate-700">
+					<span>{ laneNames[lane.LaneRecordID] }</span>
+					<span class="text-slate-400">{ strconv.Itoa(len(lane.Cards)) }</span>
+				</div>
+				<div class="space-y-2">
+					for _, card := range lane.Cards {
+						<div class="rounded-md border border-slate-200 bg-white p-2 text-sm">
+							for _, cell := range card.Cells {
+								if cell.Display != "" {
+									<div class="truncate">{ cell.Display }</div>
+								}
+							}
+						</div>
+					}
+					if len(lane.Cards) == 0 {
+						<div class="text-xs text-slate-400">No records</div>
+					}
+				</div>
+			</div>
+		}
+	</div>
 }
 
 // statusBadgeComponent mirrors list.templ's own cardBadge -- simpler,

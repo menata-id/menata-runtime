@@ -917,6 +917,16 @@ job was only ever to discover and honestly record it, which is now done. Whoever
 in `capability-registry.md`/`roadmap.md`, independent of this document's own phase
 sequence.
 
+**Status update (2026-09-12, found while grounding 17h):** the paragraph above is now stale —
+`CAP-V14 Tier 3` (dynamic-lane board + `Card.Move`) has since been built and admitted.
+`seeds/052_project_management.sql`'s own `vw_pmc_board` row (added after this section was
+written) already declares `group_field: fld_pmc_list`, a `reference` field, with its own comment
+citing this as the real proof case; `conformance/tests/240_dynamic_board_lanes.sh`'s T259-T261
+prove it live today (one lane per real `mch_pm_list` record, `board-move` writing a real
+referential-integrity change). Left in place rather than edited away, per this repo's own
+"append, don't rewrite" convention — the paragraph correctly describes the state as of
+2026-09-11; it no longer describes the state as of 2026-09-12.
+
 The success criterion itself is proven concretely: `app/internal/composable/
 trial_test.go`'s `assertFullSubstrateCoverage` is one shared function, no per-case
 branch anywhere in it, exercising all seven listed mechanisms in order — called once
@@ -1257,6 +1267,69 @@ Document Approval's own Detail/Dashboard, Project Management, and `vw_ad_page`'s
 section all remain exactly where 17b-17f left them. **The live `menata-runtime` process was not
 restarted** — per `app/CLAUDE.md`'s own "Server lifecycle" section, that stays a separate,
 deliberate, manual action, not implied by this commit.
+
+---
+
+# 17h. First Live Board Rendering — Project Management (2026-09-12)
+
+**Not one of the original 14 phases — the first time a DIFFERENT real application (Case 19 /
+Project Management) got any live composable footprint at all.** 17a-17g all worked on Document
+Approval. Grounded directly against the code (two Explore passes) before scoping: `mch_pm_card`'s
+board (`vw_pmc_board`, `group_field: fld_pmc_list`, a `reference` field targeting `mch_pm_list`)
+is a real, already-shipped, dynamic-lane board — see the dated correction appended to §17 (Phase
+13) above. `/composable-preview` never reached Board views before this session (`DefaultListView`
+only ever selects `Type == "list"`), and `internal/composable` had zero Board/lane-shaped code —
+genuinely new design work, not a reuse of something already proven, unlike every gap 17e/17f/17g
+closed. One fact made the new resolver simpler than it could have been: `BuildDatasetFromView`'s
+own Board branch already includes `GroupField` when discovering `Relations`
+(`dataset.go:105-130`), so a reference-typed `group_field` already produced a `RelationRef` today
+— no Dataset-layer change needed, only a resolver that uses this fact. Owner decision (this
+conversation, via AskUserQuestion): build the real rendering now, not just a Go-test proof or a
+diagnostic-only live check.
+
+**What was built:** two new View Model types (`viewmodel.go`) — `RecordRef` (an already-fetched
+record's id+data, since this package does no I/O itself) and `BoardLane` (`LaneRecordID` +
+`Cards []CollectionItem`) — and `ResolveBoardLanes` (`viewmodel_resolve.go`), which groups
+`cardRecords` into one `BoardLane` per `laneRecords` entry, in order, so every lane record
+produces a lane even with zero matching cards (CAP-V14's own "an unused lane still renders
+empty" rule, mirroring `internal/handler/views.go`'s real Board handler exactly) — and fails loud
+if the Board's `GroupBy` field has no discovered `Relation` (the fixed-value-list lane case,
+CAP-V14 Tier 2, e.g. Kanban Lab's own `vw_kbt_board`, is deliberately not handled here).
+`ComposablePreview` (`composable_preview.go`) gained a new `else if h.interp.Get().BoardView(...)`
+branch (reached only when there's no cards-display List) calling the new
+`resolveComposableBoardLanes`, which fetches lane and card records, converts them to
+`RecordRef`s, calls `ResolveBoardLanes`, and resolves each lane's real display label by calling
+`displayLabel` (`internal/handler/format.go`) exactly as the real Board handler already does —
+`internal/composable` can't reach that function itself (Gate 5), so this is the one place the
+label logic runs, not a second copy. `composable_preview.templ` gained `composableBoardLanes`, a
+new, deliberately narrower-than-`board.templ` rendering (plain cell text, no
+`RecordSummaryCard`, no drag-and-drop) with a `data-lane` attribute per lane so a conformance
+test can isolate one lane's own content the same way `240_dynamic_board_lanes.sh` already does
+for the real board.
+
+**Proof:** a real Go test (`TestResolveBoardLanesAgainstProjectManagement`,
+`viewmodel_seed_test.go`) against `seeds/052_project_management.sql`'s own data — the same
+lane/card grouping `240_dynamic_board_lanes.sh`'s own T259 already proves over HTTP, plus one
+case T259 itself never exercises: a freshly created, zero-card "Backlog" list still produces an
+empty `BoardLane`. Live: a new conformance file, `conformance/tests/242_composable_pm_board_
+pilot.sh` (T275-T277) — reusing `PM_MEMBER`/`TODO_LIST_ID`/`DOING_LIST_ID`/`DONE_LIST_ID`/
+`WIREFRAME_CARD_ID` already resolved into shared shell scope by `240` (file order 240 < 242),
+written against the POST-T260 state (`WIREFRAME_CARD_ID` already moved into `DOING_LIST_ID` by
+the time 242 runs) — T275 proves `/composable-preview` reaches Board rendering at all for
+`mch_pm_card`, T276 proves lane grouping matches the real board's current state with real
+display-name headers, T277 proves a fresh empty lane still renders. Full suite: 283 passed, 0
+failed (`./scripts/local-ci.sh`) — no regression, three net new tests. The plan's own pre-split
+of `resolveComposableBoardLanes` into small helpers (`boardRelationTarget`, `toRecordRefs`) paid
+off: Gate 3 passed on the first attempt, no rework cycle like 17c/17e each needed once.
+
+**Not done here** (explicitly deferred, not silently skipped): visual/functional equivalence to
+`board.templ` (no `RecordSummaryCard`, no drag-and-drop, no `board-move` wiring) — a later
+increment's job, mirroring 17a's own arc before 17e/17f later closed the equivalent gap for
+cards. Fixed-value-list lanes (CAP-V14 Tier 2) stay unhandled by `ResolveBoardLanes`, failing
+loud rather than silently mishandled. No cutover of the real `/mch_pm_card/board` route is
+anywhere near proven enough to consider — this reaches only a 17a-equivalent starting point for
+Project Management, not a 17g-equivalent endpoint. The live `menata-runtime` process was not
+restarted, same standing rule as every prior increment.
 
 ---
 

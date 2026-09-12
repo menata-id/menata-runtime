@@ -62,3 +62,23 @@ type ActionSet struct {
 	RecordID string
 	Actions  []ActionValue
 }
+
+// RecordRef is one already-fetched record's id + data -- this package
+// does no I/O itself (Gate 5), so a resolver needing more than one
+// record at a time (ResolveBoardLanes) takes them as RecordRefs, not by
+// re-fetching.
+type RecordRef struct {
+	ID   string
+	Data map[string]any
+}
+
+// BoardLane is one resolved lane of a Board component (composable-
+// runtime-roadmap.md 17h) -- LaneRecordID names the real target-machine
+// record this lane represents. Every such record produces a lane, even
+// with zero Cards (CAP-V14's own "an unused lane still renders empty"
+// rule, internal/handler/views.go's existing convention) -- Cards are
+// every CollectionItem currently grouped into it.
+type BoardLane struct {
+	LaneRecordID string
+	Cards        []CollectionItem
+}

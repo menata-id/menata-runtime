@@ -10,6 +10,7 @@ import (
 
 	"menata.id/app/internal/composable"
 	"menata.id/app/internal/model"
+	"menata.id/app/internal/store"
 	"menata.id/app/internal/ui"
 )
 
@@ -71,6 +72,8 @@ func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 	var summaries []composable.RecordSummary
 	var badges []composable.StatusValue
 	var opts ui.ListViewOptions
+	var lanes []composable.BoardLane
+	var laneNames map[string]string
 	if view := h.interp.Get().DefaultListView(machineID); view != nil && view.Config.Display == "cards" {
 		viewName = view.Name
 		var searchQuery string
@@ -81,12 +84,24 @@ func (h *Handler) ComposablePreview(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		opts = ui.ListViewOptions{SearchQuery: searchQuery, Page: pageNum, TotalPages: totalPages, Cards: true}
+	} else if boardView := h.interp.Get().BoardView(machineID); boardView != nil {
+		// composable-runtime-roadmap.md 17h: the first Project Management
+		// live footprint -- a dynamic-lane Board (CAP-V14, reference-typed
+		// group_field) rendered read-only via internal/composable, when
+		// this machine has no cards-display List (the 17a-17g branch
+		// above never fires for a Board-only machine like mch_pm_card).
+		viewName = boardView.Name
+		var ok bool
+		lanes, laneNames, ok = h.resolveComposableBoardLanes(w, r, machine, boardView)
+		if !ok {
+			return
+		}
 	}
 
 	planExplain := h.explainComposablePlan(r, applicationID, machine, role[0])
 
 	a := h.auth(r)
-	page := ui.ComposablePreview(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, viewName, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), summaries, badges, opts, planExplain)
+	page := ui.ComposablePreview(h.workspaceName(r), h.workspaceSlug(r), a.User.Name, a.CSRFToken, h.isWorkspaceAdmin(r), machine, viewName, h.unreadCount(r.Context(), a), h.subNavFor(r, machine), summaries, badges, opts, lanes, laneNames, planExplain)
 	if err := page.Render(r.Context(), w); err != nil {
 		slog.Error("render composable preview", "error", err)
 	}
@@ -165,6 +180,87 @@ func (h *Handler) resolveComposableCardSummaries(w http.ResponseWriter, r *http.
 		badges = append(badges, badge)
 	}
 	return summaries, badges, searchQuery, page, totalPages, true
+}
+
+// boardRelationTarget (composable-runtime-roadmap.md 17h) returns the
+// Machine id a Board Dataset's own GroupBy field points at, via its
+// already-discovered Relations (BuildDatasetFromView's own Board branch,
+// internal/composable/dataset.go, already includes GroupField when
+// discovering Relations -- no Dataset-layer change needed here) -- ""
+// when GroupBy names no reference field (the fixed-value-list lane case,
+// CAP-V14 Tier 2, not handled by this pilot).
+func boardRelationTarget(ds composable.Dataset) string {
+	if len(ds.GroupBy) != 1 {
+		return ""
+	}
+	for _, rel := range ds.Relations {
+		if rel.ViaField == ds.GroupBy[0] {
+			return rel.TargetMachineID
+		}
+	}
+	return ""
+}
+
+func toRecordRefs(records []*store.Record) []composable.RecordRef {
+	refs := make([]composable.RecordRef, len(records))
+	for i, rec := range records {
+		refs[i] = composable.RecordRef{ID: rec.ID, Data: rec.Data}
+	}
+	return refs
+}
+
+// resolveComposableBoardLanes (composable-runtime-roadmap.md 17h)
+// resolves view's own dynamic-lane Board rendering -- the BoardLane
+// slice, and each lane's own real display label. Label resolution
+// reuses displayLabel exactly as the real Board handler (views.go)
+// already does -- internal/composable can't call it directly (Gate 5),
+// so this is the one place that label logic runs for the preview, not a
+// second copy. On any failure, writes a generic (CWE-209-safe, Gate 1)
+// 500 itself and returns ok=false.
+func (h *Handler) resolveComposableBoardLanes(w http.ResponseWriter, r *http.Request, machine *model.Machine, view *model.View) (lanes []composable.BoardLane, laneNames map[string]string, ok bool) {
+	ds, err := composable.BuildDatasetFromView(machine, view)
+	if err != nil {
+		http.Error(w, "failed to build dataset", http.StatusInternalServerError)
+		return nil, nil, false
+	}
+	node, err := composable.LowerViewToComponent(machine, view)
+	if err != nil {
+		http.Error(w, "failed to lower board component", http.StatusInternalServerError)
+		return nil, nil, false
+	}
+	targetMachineID := boardRelationTarget(ds)
+	if targetMachineID == "" {
+		http.Error(w, "board view's group field is not a reference -- fixed-value-list lanes are not supported by this preview", http.StatusInternalServerError)
+		return nil, nil, false
+	}
+	laneMachine, found := h.interp.Get().GetMachine(targetMachineID)
+	if !found {
+		http.Error(w, "board view's target machine not found", http.StatusInternalServerError)
+		return nil, nil, false
+	}
+
+	laneRecs, err := h.records.List(r.Context(), targetMachineID, "", "")
+	if err != nil {
+		http.Error(w, "failed to load lane records", http.StatusInternalServerError)
+		return nil, nil, false
+	}
+	cardRecs, err := h.records.List(r.Context(), machine.ID, "", "")
+	if err != nil {
+		http.Error(w, "failed to load card records", http.StatusInternalServerError)
+		return nil, nil, false
+	}
+
+	lanes, err = composable.ResolveBoardLanes(machine, node, toRecordRefs(cardRecs), toRecordRefs(laneRecs))
+	if err != nil {
+		http.Error(w, "failed to resolve board lanes", http.StatusInternalServerError)
+		return nil, nil, false
+	}
+
+	laneNames = make(map[string]string, len(laneRecs))
+	for _, rec := range laneRecs {
+		laneNames[rec.ID] = displayLabel(laneMachine, rec.ID, rec.Data)
+	}
+	return lanes, laneNames, true
 }
 
 // explainComposablePlan (composable-runtime-roadmap.md 17b) lowers
