@@ -42,6 +42,13 @@ func (b *MachineBuilder) WithEvent(e *model.Event) *MachineBuilder {
 	return b
 }
 
+// WithView appends v, stamping v.MachineID to this machine's ID.
+func (b *MachineBuilder) WithView(v *model.View) *MachineBuilder {
+	v.MachineID = b.m.ID
+	b.m.Views = append(b.m.Views, v)
+	return b
+}
+
 func (b *MachineBuilder) Build() *model.Machine {
 	return b.m
 }
@@ -102,4 +109,48 @@ func (b *EventBuilder) Condition(c *model.ConstraintExpression) *EventBuilder {
 
 func (b *EventBuilder) Build() *model.Event {
 	return b.e
+}
+
+// ViewBuilder builds a *model.View.
+type ViewBuilder struct {
+	v *model.View
+}
+
+// View starts a ViewBuilder with id, a matching Name, and t.
+func View(id string, t model.ViewType) *ViewBuilder {
+	return &ViewBuilder{v: &model.View{ID: id, Name: id, Type: t}}
+}
+
+func (b *ViewBuilder) Columns(fields ...string) *ViewBuilder {
+	b.v.Config.Columns = fields
+	return b
+}
+
+func (b *ViewBuilder) Fields(fields ...string) *ViewBuilder {
+	b.v.Config.Fields = fields
+	return b
+}
+
+func (b *ViewBuilder) Filter(conds ...model.FilterCondition) *ViewBuilder {
+	b.v.Config.Filter = conds
+	return b
+}
+
+func (b *ViewBuilder) DefaultSort(field, direction string) *ViewBuilder {
+	b.v.Config.DefaultSort = &model.SortConfig{Field: field, Direction: direction}
+	return b
+}
+
+func (b *ViewBuilder) GroupField(f string) *ViewBuilder {
+	b.v.Config.GroupField = f
+	return b
+}
+
+func (b *ViewBuilder) Display(d string) *ViewBuilder {
+	b.v.Config.Display = d
+	return b
+}
+
+func (b *ViewBuilder) Build() *model.View {
+	return b.v
 }
