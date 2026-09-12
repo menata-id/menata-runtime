@@ -88,7 +88,14 @@ valid entry point per `app/CLAUDE.md`'s own ui-sample rule).
 
 ## 5. Suggested staged order
 
-Staged so each stage only depends on the one before it.
+Staged so each stage only depends on the one before it. **Status update (2026-09-12):** items 1-3
+below were Case-19-only; after the owner asked directly whether everything is done (§7) and then
+asked for a plan to finish the rest, this section's own remaining items were replaced with a
+fuller staged plan covering BOTH cases' own outstanding work (full plan:
+`/root/.claude/plans/goofy-puzzling-oasis.md`, approved this same conversation) — items 4+ below
+supersede the old Case-19-only "New View types"/"Automation/Settings"/"Re-run composable cutovers"
+wording, kept only in spirit, not verbatim (the old wording undersold Case 3's own remaining gaps
+entirely).
 
 1. ~~**Composable cutover for what already has real code** — Detail (both cases), closing
    `CR-29`'s own deferred production cutover.~~ **Done, 2026-09-12 (17o)** — `Detail` is one
@@ -115,13 +122,40 @@ Staged so each stage only depends on the one before it.
    a Form can now embed more than one child-row block) and `CAP-V14` (Board gains an opt-in
    `CardMeta` rendering key). Unblocked Team Capacity (screen 6) as a side effect — the real
    relationship now exists, though the screen itself is still unbuilt.
-4. **New View types for Case 19's remaining exploratory screens** — Timeline, Calendar, Dashboard
-   (screens 3-5), each admission-gated, each usable generically once built (not PM-specific code).
-5. **Automation/Settings screens** (7-8) — UI-surface work over already-existing generic
-   mechanisms; lowest technical risk, but a real, unscoped design/build effort on its own.
-6. **Re-run composable cutovers** for whatever Stage 2-5 adds, same "prove additively, then cut
-   over" discipline every 17-series increment already used — never build a new classic feature
-   and its composable equivalent in the same step.
+4. **Stage A — small, low-risk, classic-only fixes, independent of each other:** SLA wiring on
+   Approval Document (Case 3 screen 3, reuses CAP-V17, pure metadata); inline PDF preview (Case 3
+   screen 3, ground exact size first); Board drag-reorder within one lane (Case 19 screen 1,
+   client-side + a `sort_order` write, same shape `MoveToLane`/`Move` already use).
+5. **Stage B — composable-representation-only gaps** (no new classic capability, confirmed by grep
+   that `internal/composable` has zero references to any of these three today): `CoordPlacement`
+   (Case 3 screen 2), `DecisionStepper` progress (Case 3 screen 3), `activity_log` (Case 3 screen
+   4) — each a new Dataset/Component case, same shape already proven for other CAP-V20-style Views.
+6. **Stage C — field-diff on Activity** (Case 3 screen 4): `record_events.snapshot` already
+   stores the full pre-mutation record on every real Event fire (confirmed by reading
+   `executor.go` directly) — this needs a diff computation over already-collected data, not new
+   collection. Likely needs a real design decision (which fields, how to format a change) before
+   building.
+7. **Stage D — Case 19's remaining exploratory View types** (Timeline/Calendar/Dashboard, screens
+   3-5, plus Team Capacity screen 6): re-check each against `capability-lifecycle.md`'s A4 before
+   building anything, the same way Stage 3 (17q) corrected its own "admission-gated" guess — the
+   underlying View types/mechanisms already exist and are already Supported elsewhere, so wiring
+   them to Project Management is likely ordinary metadata, not a fresh capability, but this must
+   be checked directly per screen, not assumed.
+8. **Stage E — UI-surface work over existing generic mechanisms** (Automation screen 7, Board
+   Settings screen 8): the one place in this whole remaining scope that may need a REAL
+   `capability-lifecycle.md` A1-A5 run (a live trigger→condition→action AUTHORING UI has no
+   precedent anywhere in this runtime — Events/Actions are always seed/metadata-time authored
+   today) — ground that question first, don't assume either way. Lowest-confidence sizing of any
+   stage; a real, unscoped design effort.
+9. **Stage F — Submit-wizard unification** (Case 3 screen 1), sequenced last deliberately as the
+   single largest, most uncertain item: CAP-V12's wizard creates exactly one record today: merging
+   in a second Machine's own rows (Approval Steps) is a real mechanism question, not just a new
+   View. May turn out to reuse 17q's own new `ChildLinesGroups` plural mechanism once grounded —
+   benefits from every earlier stage's own findings first.
+
+Composable cutovers for whatever Stage A/D/F add are folded into each of those stages directly
+(build classic, prove composable, same step's own increment) rather than swept up at the very
+end — Stage B above already covers the composable-only backlog that predates this update.
 
 ## 6. Cross-references
 
